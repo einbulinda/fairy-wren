@@ -1,0 +1,75 @@
+-- =====================================================
+-- 12. FUNCTIONS & TRIGGERS
+-- =====================================================
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW();
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+-- Apply to relevant tables
+CREATE TRIGGER update_profiles_updated_at BEFORE
+UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_products_updated_at BEFORE
+UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_bills_updated_at BEFORE
+UPDATE ON bills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Function to auto-calculate bill totals
+CREATE OR REPLACE FUNCTION calculate_bill_totals() RETURNS TRIGGER AS $$
+DECLARE bill_subtotal DECIMAL(10, 2);
+bill_tax DECIMAL(10, 2);
+BEGIN -- Calculate subtotal from all rounds
+SELECT COALESCE(SUM(ri.price * ri.quantity), 0) INTO bill_subtotal
+FROM rounds r
+    JOIN round_items ri ON ri.round_id = r.id
+WHERE r.bill_id = NEW.bill_id;
+-- Calculate 5% tax
+bill_tax := bill_subtotal * 0.0;
+-- Update bill
+UPDATE bills
+SET subtotal = bill_subtotal,
+    tax = bill_tax,
+    total_amount = bill_subtotal + bill_tax
+WHERE id = NEW.bill_id;
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+-- Trigger to recalculate bill when round items change
+CREATE TRIGGER recalculate_bill_on_round_item_change
+AFTER
+INSERT
+    OR
+UPDATE
+    OR DELETE ON round_items FOR EACH ROW EXECUTE FUNCTION calculate_bill_totals();
+-- Function to log audit events
+CREATE OR REPLACE FUNCTION log_audit_event(
+        p_user_id UUID,
+        p_user_name VARCHAR(255),
+        p_action VARCHAR(100),
+        p_entity_type VARCHAR(50),
+        p_entity_id VARCHAR(255),
+        p_details JSONB DEFAULT NULL
+    ) RETURNS UUID AS $$
+DECLARE audit_id UUID;
+BEGIN
+INSERT INTO audit_logs (
+        user_id,
+        user_name,
+        action,
+        entity_type,
+        entity_id,
+        details,
+        ip_address
+    )
+VALUES (
+        p_user_id,
+        p_user_name,
+        p_action,
+        p_entity_type,
+        p_entity_id,
+        p_details,
+        inet_client_addr()
+    )
+RETURNING id INTO audit_id;
+RETURN audit_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
