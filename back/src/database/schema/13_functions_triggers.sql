@@ -13,6 +13,8 @@ CREATE TRIGGER update_products_updated_at BEFORE
 UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_bills_updated_at BEFORE
 UPDATE ON bills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
 -- Function to auto-calculate bill totals
 CREATE OR REPLACE FUNCTION calculate_bill_totals() RETURNS TRIGGER AS $$
 DECLARE bill_subtotal DECIMAL(10, 2);
