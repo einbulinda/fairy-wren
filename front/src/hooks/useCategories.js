@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { createCategory, fetchProducts } from "../services/categories.service";
 
 export const useCategories = () => {
@@ -35,6 +35,11 @@ export const useCategories = () => {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { categories, isLoading, error, reload: loadCategories, saveCategory };

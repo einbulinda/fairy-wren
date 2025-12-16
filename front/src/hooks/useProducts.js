@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   fetchProducts,
   createProduct,
@@ -62,9 +62,15 @@ export const useProducts = () => {
     }
   }, []);
 
+  useEffect(() => {
+    loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return {
     products,
     isLoading,
+
     error,
 
     reload: loadProducts,
