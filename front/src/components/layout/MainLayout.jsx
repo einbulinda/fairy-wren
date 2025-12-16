@@ -64,6 +64,7 @@ const MainLayout = () => {
 
       return () => clearInterval(interval);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.role]);
 
   // Fetch counts when view changes (to update immediately after actions)
@@ -71,6 +72,7 @@ const MainLayout = () => {
     queueMicrotask(() => {
       fetchCounts();
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView]);
 
   const getNavigationTabs = () => {
@@ -102,7 +104,7 @@ const MainLayout = () => {
           { id: "reports", label: "Reports" },
           { id: "expenses", label: "Expenses" },
           { id: "users", label: "Users" },
-          { id: "pos", label: "PAS" },
+          { id: "pos", label: "POS" },
           { id: "bills", label: "Bills" },
           { id: "inventory", label: "Inventory" }
         );

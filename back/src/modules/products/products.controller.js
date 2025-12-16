@@ -17,6 +17,36 @@ exports.getProducts = async (req, res) => {
   }
 };
 
+// Create Product
+exports.createProduct = async (req, res) => {
+  const { name, price, category_id, stock = 0, image = null } = req.body;
+
+  if (!name || price === undefined) {
+    return res.status(400).json({
+      message: "Product name and price are required",
+    });
+  }
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .insert({
+        name,
+        price,
+        category_id,
+        stock: 0,
+        image: null,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Update product stock
 exports.updateProductStock = async (req, res) => {
   try {
