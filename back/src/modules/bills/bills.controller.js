@@ -51,6 +51,8 @@ exports.addRound = async (req, res) => {
       quantity: item.quantity,
     }));
 
+    console.log("Inserting round items:", roundItems);
+
     const { error: itemsError } = await supabase
       .from("round_items")
       .insert(roundItems);
@@ -86,6 +88,35 @@ exports.openBills = async (req, res) => {
       .eq("status", "open")
       .order("created_at", { ascending: false });
 
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get Bill by ID
+exports.getBillById = async (req, res) => {
+  try {
+    const { billId } = req.params;
+    const { data, error } = await supabase
+      .from("bills")
+      .select(`*,rounds(*,round_items(*))`)
+      .eq("id", billId)
+      .single();
+  } catch (error) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get All Bills
+exports.getAllBills = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("bills")
+      .select(`*,rounds(*,round_items(*))`)
+      .order("created_at", { ascending: false });
     if (error) throw error;
 
     res.json(data);

@@ -19,7 +19,7 @@ const POSScreen = () => {
     isLoading: billsLoading,
     error: billsError,
     openBill,
-    addRound,
+    addRound: addBillRound,
   } = useBills();
 
   /** Products & categories */
@@ -144,9 +144,10 @@ const POSScreen = () => {
     }
 
     try {
-      await addRound(currentBill.id, {
+      await addBillRound(currentBill.id, {
         items: currentRoundItems,
         addedBy: user.name,
+        roundNumber: currentBill.rounds.length + 1,
       });
 
       setCurrentRoundItems([]);

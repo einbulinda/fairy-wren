@@ -1,0 +1,26 @@
+{
+  "name": "fairy-wren",
+  "version": "1.0.0",
+  "description": "",
+  "main": "tailwind.config.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix back\" \"npm run dev --prefix front\"",
+    "start": "concurrently \"npm run start --prefix back\" \"npm run start --prefix front\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/einbulinda/fairy-wren.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/einbulinda/fairy-wren/issues"
+  },
+  "homepage": "https://github.com/einbulinda/fairy-wren#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

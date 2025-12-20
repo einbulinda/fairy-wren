@@ -24,7 +24,10 @@ export const createBill = async (payload) => {
 // Add a round to a bill
 export const addBillRound = async (billId, payload) => {
   try {
+    console.log("API call - adding round to bill:", billId, payload);
     const { data } = await api.post(`/bills/${billId}/rounds`, payload);
+
+    console.log("API response - updated bill:", data);
     return data;
   } catch (error) {
     throw normalizeError(error, "Error adding bill round");

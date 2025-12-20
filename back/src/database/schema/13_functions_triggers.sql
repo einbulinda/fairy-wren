@@ -13,26 +13,34 @@ CREATE TRIGGER update_products_updated_at BEFORE
 UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_bills_updated_at BEFORE
 UPDATE ON bills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-
 -- Function to auto-calculate bill totals
 CREATE OR REPLACE FUNCTION calculate_bill_totals() RETURNS TRIGGER AS $$
 DECLARE bill_subtotal DECIMAL(10, 2);
 bill_tax DECIMAL(10, 2);
-BEGIN -- Calculate subtotal from all rounds
+v_round_id UUID;
+v_bill_id UUID;
+BEGIN -- Determine round_id depending on operation
+IF TG_OP = 'DELETE' THEN v_round_id := OLD.round_id;
+ELSE v_round_id := NEW.round_id;
+END IF;
+-- Resolve bill_id via rounds table
+SELECT bill_id INTO v_bill_id
+FROM rounds
+WHERE id = v_round_id;
+-- Calculate subtotal from all rounds
 SELECT COALESCE(SUM(ri.price * ri.quantity), 0) INTO bill_subtotal
 FROM rounds r
     JOIN round_items ri ON ri.round_id = r.id
-WHERE r.bill_id = NEW.bill_id;
--- Calculate 5% tax
+WHERE r.bill_id = v_bill_id;
+-- Calculate 0% tax
 bill_tax := bill_subtotal * 0.0;
--- Update bill
+-- Update bill totals
 UPDATE bills
 SET subtotal = bill_subtotal,
     tax = bill_tax,
     total_amount = bill_subtotal + bill_tax
-WHERE id = NEW.bill_id;
-RETURN NEW;
+WHERE id = v_bill_id;
+RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 -- Trigger to recalculate bill when round items change

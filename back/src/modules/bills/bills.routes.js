@@ -5,6 +5,8 @@ const billsController = require("./bills.controller");
 router.post("/", billsController.createBill);
 router.post("/:billId/rounds", billsController.addRound);
 router.get("/open", billsController.openBills);
+router.get("/:billId", billsController.getBillById);
+router.get("/", billsController.getAllBills);
 router.patch("/:billId/mark-paid", billsController.payBills);
 router.patch("/:billId/confirm", billsController.confirmPayment);
 
