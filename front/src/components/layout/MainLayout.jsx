@@ -14,6 +14,7 @@ import InventoryManagement from "../manager/InventoryManagement";
 import SalesReports from "../owner/SalesReports";
 import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../owner/UserManagement";
+import ProductManagement from "../owner/ProductManagement";
 
 const MainLayout = () => {
   const { user, logout } = useAuth();
@@ -102,6 +103,7 @@ const MainLayout = () => {
       case USER_ROLES.OWNER:
         tabs.push(
           { id: "reports", label: "Reports" },
+          { id: "products", label: "Products" },
           { id: "expenses", label: "Expenses" },
           { id: "users", label: "Users" },
           { id: "pos", label: "POS" },
@@ -134,6 +136,8 @@ const MainLayout = () => {
         return <ExpenseManagement />;
       case "users":
         return <UserManagement />;
+      case "products":
+        return <ProductManagement />;
       default:
         return <POSScreen />;
     }

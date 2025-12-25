@@ -14,7 +14,7 @@ export const fetchProducts = async () => {
 // Create a category
 export const createCategory = async (payload) => {
   try {
-    const response = await api.post("/", { payload });
+    const response = await api.post("/categories", { payload });
     return response.data;
   } catch (error) {
     throw normalizeError(error, "Error creating a new category.");
