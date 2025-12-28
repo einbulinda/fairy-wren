@@ -1,5 +1,4 @@
 export const calculateBillTotals = (bill) => {
-  console.log("Calculating totals for bill:", bill);
   if (!bill || !bill.rounds) return { subtotal: 0, tax: 0, total: 0 };
 
   const allItems = bill.rounds.flatMap((round) => round.round_items || []);
@@ -37,4 +36,10 @@ export const formatDate = (date) => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+export const getStockColor = (stock) => {
+  if (stock < 20) return "text-red-500";
+  if (stock < 50) return "text-yellow-500";
+  return "text-green-500";
 };

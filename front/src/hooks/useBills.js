@@ -6,6 +6,8 @@ import {
   confirmBillPayment,
   markBillPaid,
 } from "../services/bills.service";
+import { useAuth } from "./useAuth";
+import { usersBills } from "../utils/common";
 
 /**
  * useBills
@@ -16,6 +18,7 @@ export const useBills = () => {
   const [bills, setBills] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
 
   /**
    * Load open bills
@@ -26,13 +29,13 @@ export const useBills = () => {
 
     try {
       const data = await fetchOpenBills();
-      setBills(data);
+      setBills(usersBills(data, user));
     } catch (err) {
       setError(err.message || "Failed to load bills");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   /**
    * Create a new bill
@@ -79,12 +82,12 @@ export const useBills = () => {
   /**
    * Mark bill as paid
    */
-  const payBill = async (billId) => {
+  const payBill = async (billId, payload) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const updatedBill = await markBillPaid(billId);
+      const updatedBill = await markBillPaid(billId, payload);
 
       setBills((prev) =>
         prev.map((bill) => (bill.id === billId ? updatedBill : bill))

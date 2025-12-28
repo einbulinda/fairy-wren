@@ -78,7 +78,7 @@ const productsAPI = {
   // Deactivate Product
   deactivateProduct: async (productId, payload) => {
     try {
-      const response = await api.delete(`/products/${productId}`, {
+      const response = await api.patch(`/products/${productId}/status`, {
         data: payload,
       });
       return response.data;

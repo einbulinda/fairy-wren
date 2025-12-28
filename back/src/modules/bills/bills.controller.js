@@ -85,7 +85,7 @@ exports.openBills = async (req, res) => {
           round_items (*)
         )`
       )
-      .eq("status", "open")
+      // .eq("status", "open") //Gets all Bills
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -148,7 +148,7 @@ exports.payBills = async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: error.message });
   }
 };
 

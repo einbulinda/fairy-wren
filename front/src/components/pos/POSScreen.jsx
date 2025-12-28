@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useBills } from "../../hooks/useBills";
 import { useProducts } from "../../hooks/useProducts";
@@ -9,6 +9,8 @@ import { FileText } from "lucide-react";
 import ProductGrid from "./ProductGrid";
 import CurrentBill from "./CurrentBill";
 import OpenBillsModal from "./OpenBillsModal";
+
+const DEFAULT_CATEGORY = "fw_category";
 
 const POSScreen = () => {
   const { user } = useAuth();
@@ -32,6 +34,13 @@ const POSScreen = () => {
   const [currentRoundItems, setCurrentRoundItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showOpenBillsModal, setShowOpenBillsModal] = useState(false);
+
+  // Save selected category to localStorage
+  useEffect(() => {
+    if (selectedCategory) {
+      localStorage.setItem(DEFAULT_CATEGORY, selectedCategory.toString());
+    }
+  }, [selectedCategory]);
 
   const currentBill =
     openBills.find((bill) => bill.id === activeBillId) || null;

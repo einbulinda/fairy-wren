@@ -25,7 +25,7 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose }) => {
                   <div>
                     <h4 className="text-lg font-bold">{bill.customer_name}</h4>
                     <p className="text-sm text-gray-400">
-                      Bill #{bill.id.slice(0, 8)}
+                      Bill #{bill?.id.slice(0, 8)}
                     </p>
                     <p className="text-xs text-gray-500">
                       {new Date(bill.created_at).toLocaleDateString()}

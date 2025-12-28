@@ -6,7 +6,7 @@ exports.getProducts = async (req, res) => {
     const { data, error } = await supabase
       .from("products")
       .select("*, categories(*)")
-      .eq("active", true)
+      //.eq("active", true)
       .order("name");
 
     if (error) throw error;
@@ -108,11 +108,11 @@ exports.updateProduct = async (req, res) => {
 exports.deactivateProduct = async (req, res) => {
   try {
     const { productId } = req.params;
-    const { active } = req.body;
+    const { status } = req.body;
 
     const { data, error } = await supabase
       .from("products")
-      .update({ active: active })
+      .update({ active: status })
       .eq("id", productId)
       .select()
       .single();

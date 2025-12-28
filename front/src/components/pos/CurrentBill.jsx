@@ -28,7 +28,7 @@ const CurrentBill = ({
     );
   };
 
-  const handleCloseWithReceipt = () => {
+  const handleCloseWithReceipt = (bill) => {
     if (currentRoundItems.length > 0) {
       alert("Please add current round before closing");
       return;
@@ -58,7 +58,7 @@ const CurrentBill = ({
                 {new Date(bill.created_at).toLocaleString()}
               </div>
               <div className="text-sm text-pink-500 mt-2">
-                {bill?.rounds.length} rounds added
+                {bill?.rounds.length || 0} rounds added
               </div>
             </div>
 
@@ -185,7 +185,7 @@ const CurrentBill = ({
 
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   <button
-                    onClick={handleCloseWithReceipt}
+                    onClick={() => handleCloseWithReceipt(bill)}
                     className="py-3 bg-linear-to-r from-green-600 to-emerald-600 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 flex items-center justify-center text-sm"
                   >
                     <Receipt size={16} className="mr-1" />

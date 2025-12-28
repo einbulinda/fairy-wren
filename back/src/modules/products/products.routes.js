@@ -14,7 +14,7 @@ router.post(
 );
 router.put("/:productId", productController.updateProduct);
 router.patch("/:productId/stock", productController.updateProductStock);
-router.delete("/:productId", productController.deactivateProduct);
+router.patch("/:productId/status", productController.deactivateProduct);
 router.delete("/delete-image", uploadController.deleteImage);
 
 module.exports = router;

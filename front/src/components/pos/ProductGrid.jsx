@@ -14,7 +14,19 @@ const ProductGrid = ({ products, onProductClick, disabled }) => {
               : "bg-gray-800 border-purple-500 hover:border-pink-500 hover:scale-105"
           }`}
         >
-          <div className="text-5xl mb-2">{product.image}</div>
+          {/* Display image or emoji */}
+          {product.image_url ? (
+            <div className="relative w-full h-32 bg-gray-900">
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="absolute inset-0 w-full h-full object-contain"
+              />
+            </div>
+          ) : (
+            <div className="text-5xl mb-2">{product.image}</div>
+          )}
+
           <div className="font-semibold text-base">{product.name}</div>
           <div className="text-pink-500 font-bold">KSh. {product.price}</div>
 

@@ -31,6 +31,7 @@ export const AuthProvider = ({ children }) => {
   // Logout Handler
   const logout = () => {
     setUser(null);
+    localStorage.removeItem("fw_lastSeen");
     localStorage.removeItem("fw_user");
   };
 

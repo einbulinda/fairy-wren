@@ -74,11 +74,11 @@ export const useProducts = () => {
   }, []);
 
   // Deactivate Product
-  const deactivateProduct = useCallback(async (productId) => {
+  const deactivateProduct = useCallback(async (productId, payload) => {
     setIsLoading(true);
     setError(null);
     try {
-      await productsAPI.deactivateProduct(productId);
+      await productsAPI.deactivateProduct(productId, { payload });
       setProducts((prev) => prev.filter((product) => product.id !== productId));
     } catch (err) {
       setError(err.message || "Failed to deactivate product");

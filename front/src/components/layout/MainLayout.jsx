@@ -16,6 +16,8 @@ import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../owner/UserManagement";
 import ProductManagement from "../owner/ProductManagement";
 
+const STORAGE_KEY = "fw_lastSeen";
+
 const MainLayout = () => {
   const { user, logout } = useAuth();
   const [currentView, setCurrentView] = useState("pos");
@@ -24,6 +26,18 @@ const MainLayout = () => {
 
   useEffect(() => {
     queueMicrotask(() => {
+      const savedView = localStorage.getItem(STORAGE_KEY);
+
+      if (savedView) {
+        const allowedTabs = getNavigationTabs().map((tab) => tab.id);
+        if (allowedTabs.includes(savedView)) {
+          setCurrentView(savedView);
+        } else {
+          setDefaultView();
+        }
+      } else {
+        setDefaultView();
+      }
       if (user.role === USER_ROLES.BARTENDER) {
         setCurrentView("pos");
       } else if (user.role === USER_ROLES.MANAGER) {
@@ -33,6 +47,13 @@ const MainLayout = () => {
       }
     });
   }, [user.role]);
+
+  // Save view whenever it changes
+  useEffect(() => {
+    if (currentView) {
+      localStorage.setItem(STORAGE_KEY, currentView);
+    }
+  }, [currentView]);
 
   const fetchCounts = async () => {
     try {
@@ -44,7 +65,10 @@ const MainLayout = () => {
 
       // Fetch pending confirmation count for bartender
       if (user.role === USER_ROLES.BARTENDER) {
-        const awaitingConfirmation = await fetchOpenBills();
+        const openBills = await fetchOpenBills();
+        const awaitingConfirmation = openBills.filter(
+          (bill) => bill.status === "awaiting_confirmation"
+        );
         setPendingConfirmCount(awaitingConfirmation.length);
       }
     } catch (error) {
@@ -97,7 +121,7 @@ const MainLayout = () => {
         tabs.push(
           { id: "inventory", label: "Inventory" },
           { id: "approvals", label: "Approvals" },
-          { id: "bills", label: "Bills" }
+          { id: "bills", label: "All Bills" }
         );
         break;
       case USER_ROLES.OWNER:
@@ -107,7 +131,7 @@ const MainLayout = () => {
           { id: "expenses", label: "Expenses" },
           { id: "users", label: "Users" },
           { id: "pos", label: "POS" },
-          { id: "bills", label: "Bills" },
+          { id: "bills", label: "All Bills" },
           { id: "inventory", label: "Inventory" }
         );
         break;
@@ -139,7 +163,24 @@ const MainLayout = () => {
       case "products":
         return <ProductManagement />;
       default:
-        return <POSScreen />;
+        return <POSScreen onBillUpdate={fetchCounts} />;
+    }
+  };
+
+  const setDefaultView = () => {
+    switch (user.role) {
+      case USER_ROLES.WAITRESS:
+      case USER_ROLES.BARTENDER:
+        setCurrentView("pos");
+        break;
+      case USER_ROLES.MANAGER:
+        setCurrentView("inventory");
+        break;
+      case USER_ROLES.OWNER:
+        setCurrentView("reports");
+        break;
+      default:
+        setCurrentView("pos");
     }
   };
 

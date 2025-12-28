@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Edit2, Eye, EyeOff, Trash2, ImageIcon } from "lucide-react";
+import { Plus, Edit2, Eye, EyeOff, ImageIcon } from "lucide-react";
 import { useProducts } from "../../hooks/useProducts";
 import { useCategories } from "../../hooks/useCategories";
 import LoadingSpinner from "../shared/LoadingSpinner";
@@ -22,7 +22,6 @@ const ProductManagement = () => {
   // Component States
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [showProductModal, setShowProductModal] = useState(null);
   const [editingProduct, setEditingProduct] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -116,8 +115,6 @@ const ProductManagement = () => {
       return;
     }
 
-    console.log("Image file", file);
-
     setSelectedFile(file);
 
     // Create preview
@@ -206,8 +203,6 @@ const ProductManagement = () => {
         image_url: imageUrl,
         image_path: imagePath,
       };
-
-      console.log("Product Payload", productPayload);
 
       if (editingProduct) {
         await updateProduct(editingProduct.id, {
@@ -347,11 +342,13 @@ const ProductManagement = () => {
             {/* Product Image */}
             <div className="relative h-40 bg-gray-900 flex items-center justify-center">
               {product.image_url ? (
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
+                <div className="w-full h-32 flex items-center justify-center mb-2 bg-gray-900 rounded">
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
               ) : (
                 <div className="text-6xl">{product.image}</div>
               )}
@@ -423,16 +420,16 @@ const ProductManagement = () => {
                   ) : (
                     <Eye size={14} className="mr-1" />
                   )}
-                  {product.active ? "Hide" : "Show"}
+                  {product.active ? "Deactivate" : "Activate"}
                 </button>
               </div>
-              <button
+              {/* <button
                 onClick={() => setShowDeleteConfirm(product.id)}
                 className="w-full mt-2 px-3 py-2 bg-red-600 rounded hover:bg-red-700 flex items-center justify-center text-sm"
               >
                 <Trash2 size={14} className="mr-1" />
                 Delete
-              </button>
+              </button> */}
             </div>
           </div>
         ))}

@@ -5,8 +5,11 @@ import { USER_ROLES } from "../../utils/constants";
 import { useAuth } from "../../hooks/useAuth";
 
 const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
-  const { confirmPayment: confirmPaymentAPI, payBill: markBillAsPaid } =
-    useBills();
+  const {
+    confirmPayment: confirmPaymentAPI,
+    payBill: markBillAsPaid,
+    reload,
+  } = useBills();
   const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [mpesaCode, setMpesaCode] = useState("");
@@ -31,11 +34,13 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
         toast.success("Bill completed and auto-confirmed!");
       } else {
         // Waitress needs bartender confirmation
-        await markBillAsPaid(billId, {
+        const billDtls = {
           paymentMethod,
           mpesaCode: paymentMethod === "mpesa" ? mpesaCode : null,
           markedBy: user.name,
-        });
+        };
+
+        await markBillAsPaid(billId, billDtls);
         toast.success("Bill marked as paid! Awaiting bartender confirmation.");
       }
 
@@ -44,6 +49,7 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
       toast.error("Failed to process payment");
       console.error(error);
     } finally {
+      reload();
       setLoading(false);
     }
   };
@@ -94,7 +100,7 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
 
           <div className="flex space-x-2">
             <button
-              onClick={confirmPayment}
+              onClick={() => confirmPayment(billId)}
               disabled={loading}
               className="flex-1 py-3 bg-green-600 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
