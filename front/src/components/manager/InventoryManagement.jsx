@@ -20,7 +20,9 @@ const InventoryManagement = () => {
 
   const [showStockTakeModal, setShowStockTakeModal] = useState(false);
 
-  const handleRestock = async (productId) => {};
+  const handleRestock = async (productId) => {
+    alert(productId);
+  };
 
   // Loading Screen
   if (productsLoading || categoriesLoading) return <LoadingSpinner />;

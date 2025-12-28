@@ -82,7 +82,7 @@ const BillsView = () => {
                 </div>
                 <div className="text-right">
                   <div
-                    className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(
+                    className={`px-3 py-1 rounded-full text-sm text-center font-semibold ${getStatusColor(
                       bill.status
                     )}`}
                   >

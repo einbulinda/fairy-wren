@@ -45,9 +45,9 @@ export const markBillPaid = async (billId, payload) => {
 };
 
 // Confirm Bill Payment
-export const confirmBillPayment = async (billId) => {
+export const confirmBillPayment = async (billId, userId) => {
   try {
-    const { data } = await api.patch(`/bills/${billId}/confirm`);
+    const { data } = await api.patch(`/bills/${billId}/confirm`, { userId });
     return data;
   } catch (error) {
     throw normalizeError(error, "Error confirming payment");

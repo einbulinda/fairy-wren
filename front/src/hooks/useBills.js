@@ -105,12 +105,12 @@ export const useBills = () => {
   /**
    * Confirm payment (manager confirmation)
    */
-  const confirmPayment = async (billId) => {
+  const confirmPayment = async (billId, userId) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const updatedBill = await confirmBillPayment(billId);
+      const updatedBill = await confirmBillPayment(billId, userId);
 
       // bill is no longer open → remove from open bills list
       setBills((prev) => prev.filter((bill) => bill.id !== billId));
