@@ -21,23 +21,50 @@ export const AuthProvider = ({ children }) => {
 
   // Login Handler
   const login = async (pin) => {
-    const data = await loginWithPin(pin);
-    setUser(data.user);
-    localStorage.setItem("fw_user", JSON.stringify(data.user));
+    const { user, token, expiresIn } = await loginWithPin(pin);
+    setUser(user);
 
-    return data.user;
+    const expiryTime = Date.now() + expiresIn * 1000;
+
+    sessionStorage.setItem("token", token);
+    sessionStorage.setItem("token_expiry", expiryTime);
+    sessionStorage.setItem("fw_user", JSON.stringify(user));
+
+    return user;
   };
 
   // Logout Handler
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("fw_lastSeen");
-    localStorage.removeItem("fw_user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("fw_user");
+    sessionStorage.removeItem("token_expiry");
+  };
+
+  const getAuthToken = () => {
+    const token = sessionStorage.getItem("token");
+    const expiry = sessionStorage.getItem("token_expiry");
+
+    if (!token || !expiry) return null;
+
+    if (Date.now() > Number(expiry)) {
+      logout();
+      return null;
+    }
+
+    return token;
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, login, logout, loading }}
+      value={{
+        user,
+        isAuthenticated: !!user,
+        login,
+        logout,
+        loading,
+        getAuthToken,
+      }}
     >
       {!loading && children}
     </AuthContext.Provider>
