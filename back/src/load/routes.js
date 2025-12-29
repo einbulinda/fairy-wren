@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
+const authMiddleware = require("../middleware/auth.middleware");
+
 const authRoutes = require("../modules/auth/auth.routes");
 const billRoutes = require("../modules/bills/bills.routes");
 const productRoutes = require("../modules/products/products.routes");
@@ -9,12 +11,16 @@ const expenseRoutes = require("../modules/expenses/expenses.routes");
 const userRoutes = require("../modules/users/users.routes");
 const categoryRoutes = require("../modules/categories/categories.routes");
 
+// Public Routes
+router.use(require("./health.routes"));
 router.use("/auth", authRoutes);
-router.use("/bills", billRoutes);
-router.use("/products", productRoutes);
-router.use("/reports", reportsRoutes);
-router.use("/expenses", expenseRoutes);
-router.use("/users", userRoutes);
-router.use("/categories", categoryRoutes);
+
+// Protected Routes
+router.use("/bills", authMiddleware, billRoutes);
+router.use("/products", authMiddleware, productRoutes);
+router.use("/reports", authMiddleware, reportsRoutes);
+router.use("/expenses", authMiddleware, expenseRoutes);
+router.use("/users", authMiddleware, userRoutes);
+router.use("/categories", authMiddleware, categoryRoutes);
 
 module.exports = router;

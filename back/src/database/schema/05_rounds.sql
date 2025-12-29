@@ -21,3 +21,6 @@ CREATE TABLE round_items (
 CREATE INDEX idx_rounds_bill ON rounds(bill_id);
 CREATE INDEX idx_round_items_round ON round_items(round_id);
 CREATE INDEX idx_round_items_product ON round_items(product_id);
+rounds.bill_id → bills.id ON DELETE CASCADE;
+round_items.round_id → rounds.id ON DELETE CASCADE;
+payments.bill_id → bills.id ON DELETE RESTRICT;

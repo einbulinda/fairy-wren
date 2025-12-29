@@ -125,7 +125,7 @@ const ConfirmPayments = () => {
           <ClipboardCheck size={64} className="mx-auto mb-4 opacity-50" />
           <p className="text-xl">No payments pending confirmation</p>
           <p className="text-sm mt-2">
-            Bills will appear here when waitresses mark them as paid
+            Bills will appear here when staff mark them as paid
           </p>
         </div>
       )}

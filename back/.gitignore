@@ -1,6 +1,7 @@
 node_modules
 logs
 .env
+src/database/scripts/*
 
 # Editor directories and files
 .vscode/*

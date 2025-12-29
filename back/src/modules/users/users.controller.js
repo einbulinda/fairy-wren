@@ -1,4 +1,6 @@
 const supabase = require("../../config/supabase");
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 
 // Get all users
 exports.getUsers = async (req, res) => {
@@ -39,9 +41,22 @@ exports.createUser = async (req, res) => {
   try {
     const { name, pin, role } = req.body;
 
+    const pinHash = await bcrypt.hash(pin, 10);
+
+    const fingerprint = crypto
+      .createHmac("sha256", process.env.PIN_PEPPER)
+      .update(pin)
+      .digest("hex");
+
     const { data, error } = await supabase
       .from("profiles")
-      .insert({ name, pin, role, active: true })
+      .insert({
+        name,
+        pin_hash: pinHash,
+        pin_fingerprint: fingerprint,
+        role,
+        active: true,
+      })
       .select()
       .single();
 
