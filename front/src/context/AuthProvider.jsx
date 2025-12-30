@@ -39,20 +39,7 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("fw_user");
     sessionStorage.removeItem("token_expiry");
-  };
-
-  const getAuthToken = () => {
-    const token = sessionStorage.getItem("token");
-    const expiry = sessionStorage.getItem("token_expiry");
-
-    if (!token || !expiry) return null;
-
-    if (Date.now() > Number(expiry)) {
-      logout();
-      return null;
-    }
-
-    return token;
+    localStorage.clear();
   };
 
   return (
@@ -63,7 +50,6 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         loading,
-        getAuthToken,
       }}
     >
       {!loading && children}

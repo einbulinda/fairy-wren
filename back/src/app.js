@@ -11,7 +11,11 @@ app.disable("x-powered-by");
 
 app.use(
   cors({
-    origin: ["https://pos.fairywren.co.ke", "https://www.pos.fairywren.co.ke"],
+    origin: [
+      "https://pos.fairywren.co.ke",
+      "https://www.pos.fairywren.co.ke",
+      "http://localhost:5173",
+    ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   })
