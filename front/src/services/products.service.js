@@ -93,12 +93,46 @@ const productsAPI = {
   // Update Inventory Levels
   updateQuantities: async (productId, payload) => {
     try {
-      const updatedProduct = await api.patch(`/${productId}/stock`, payload);
+      const updatedProduct = await api.patch(
+        `/products/${productId}/stock`,
+        payload
+      );
       return updatedProduct.data;
     } catch (error) {
       throw normalizeError(
         error,
         `Error encountered in updating product ${productId}`
+      );
+    }
+  },
+
+  // Increment Stock Levels
+  incrementStock: async (productId, payload) => {
+    try {
+      console.log("Adding stock for", productId, payload);
+      const response = await api.patch(
+        `/products/${productId}/add-stock`,
+        payload
+      );
+      console.log("Response received", response);
+      return response.data;
+    } catch (error) {
+      throw normalizeError(
+        error,
+        `Error encountered in adding stock for: ${productId}`
+      );
+    }
+  },
+
+  // Take Stock Take
+  createStockTake: async (payload) => {
+    try {
+      const response = await api.put("/products/stock-take", payload);
+      return response.data;
+    } catch (error) {
+      throw normalizeError(
+        error,
+        "Error encountered in recording the stock take"
       );
     }
   },

@@ -36,6 +36,7 @@ exports.getProductById = async (req, res) => {
 
 // Create Product
 exports.createProduct = async (req, res) => {
+  const { payload } = req.body;
   const {
     name,
     price,
@@ -45,7 +46,7 @@ exports.createProduct = async (req, res) => {
     image_url,
     image_path,
     active = true,
-  } = req.body;
+  } = payload;
 
   if (!name || price === undefined) {
     return res.status(400).json({
@@ -72,7 +73,7 @@ exports.createProduct = async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -143,4 +144,60 @@ exports.updateProductStock = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+// Restock (Add Items to existing Stock)
+exports.incrementStock = async (req, res) => {
+  const { productId } = req.params;
+  const { quantity } = req.body;
+
+  try {
+    const { data, error } = await supabase.rpc("increment_stock", {
+      product_id: productId,
+      quantity: quantity,
+    });
+
+    console.log(error);
+
+    if (error) throw error;
+
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Take Stock Take
+exports.createStockTake = async (req, res) => {
+  const { performedBy, performedByName, notes, items } = req.body;
+
+  const { data: stockTake, error: stockTakeError } = await supabase
+    .from("stock_takes")
+    .insert({
+      performed_by: performedBy,
+      performed_by_name: performedByName,
+      notes: notes,
+    })
+    .select()
+    .single();
+
+  if (stockTakeError) throw stockTakeError;
+
+  // Add items
+  const stockItems = items.map((item) => ({
+    stock_take_id: stockTake.id,
+    product_id: item.productId,
+    product_name: item.productName,
+    expected_quantity: item.expected,
+    actual_quantity: item.actual,
+    variance: item.actual - item.expected,
+  }));
+
+  const { error: itemsError } = await supabase
+    .from("stock_take_items")
+    .insert(stockItems);
+
+  if (itemsError) throw itemsError;
+
+  return stockTake;
 };

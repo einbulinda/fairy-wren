@@ -15,6 +15,7 @@ import SalesReports from "../owner/SalesReports";
 import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../owner/UserManagement";
 import ProductManagement from "../owner/ProductManagement";
+import CategoriesManagement from "../owner/CategoriesManagement";
 
 const STORAGE_KEY = "fw_lastSeen";
 
@@ -129,6 +130,7 @@ const MainLayout = () => {
           { id: "reports", label: "Reports" },
           { id: "products", label: "Products" },
           { id: "expenses", label: "Expenses" },
+          { id: "categories", label: "Categories" },
           { id: "users", label: "Users" },
           { id: "pos", label: "POS" },
           { id: "bills", label: "All Bills" },
@@ -162,6 +164,8 @@ const MainLayout = () => {
         return <UserManagement />;
       case "products":
         return <ProductManagement />;
+      case "categories":
+        return <CategoriesManagement />;
       default:
         return <POSScreen onBillUpdate={fetchCounts} />;
     }

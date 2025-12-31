@@ -197,7 +197,7 @@ const ProductManagement = () => {
       const productPayload = {
         name: productData.name.trim(),
         price: parseFloat(productData.price),
-        categoryId: parseInt(productData.categoryId),
+        category_id: productData.categoryId,
         stock: parseInt(productData.stock),
         image: productData.image,
         image_url: imageUrl,
@@ -216,7 +216,9 @@ const ProductManagement = () => {
         });
         toast.success("Product updated successfully");
       } else {
-        await addProduct(productPayload);
+        const response = await addProduct(productPayload);
+
+        if (!response) toast.error("Product creation failed");
         toast.success("Product created successfully");
       }
 

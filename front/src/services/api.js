@@ -23,7 +23,6 @@ api.interceptors.request.use(
 
     const token = sessionStorage.getItem("token");
     const expiry = sessionStorage.getItem("token_expiry");
-    console.log("Token Interceptor Called!!!!!");
 
     /* No token → block */
     if (!token || !expiry) {

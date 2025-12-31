@@ -26,7 +26,7 @@ exports.login = async (req, res) => {
       .eq("active", true)
       .single();
 
-    if (error | !user) {
+    if (error || !user) {
       return res.status(401).json({ error: "Invalid PIN" });
     }
 
@@ -42,7 +42,7 @@ exports.login = async (req, res) => {
       name: user.name,
     });
 
-    res.json({ token, user });
+    res.status(200).json({ token, user });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

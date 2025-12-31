@@ -2,14 +2,14 @@
 -- 2. PRODUCTS & CATEGORIES
 -- =====================================================
 CREATE TABLE categories (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
     color VARCHAR(20) NOT NULL,
     -- Hex color code
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE TABLE products (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     price DECIMAL(10, 2) NOT NULL,
     category_id INTEGER REFERENCES categories(id) ON DELETE

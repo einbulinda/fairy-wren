@@ -5,12 +5,14 @@ import LoadingSpinner from "../shared/LoadingSpinner";
 import { ClipboardCheck } from "lucide-react";
 import { getStockColor } from "../../utils/calculations";
 import StockTakeModal from "./StockTakeModal";
+import toast from "react-hot-toast";
 
 const InventoryManagement = () => {
   const {
     products,
     isLoading: productsLoading,
     reload: productsReload,
+    increaseStock,
   } = useProducts();
   const {
     categories,
@@ -21,7 +23,23 @@ const InventoryManagement = () => {
   const [showStockTakeModal, setShowStockTakeModal] = useState(false);
 
   const handleRestock = async (productId) => {
-    alert(productId);
+    const qty = prompt("Enter quantity to add: ");
+
+    if (!qty || isNaN(qty) || parseInt(qty) <= 0) {
+      toast.error("Invalid quantity value provided!");
+      return;
+    }
+
+    try {
+      const response = await increaseStock(productId, {
+        quantity: parseInt(qty),
+      });
+      if (response) toast.success("Stock Updated");
+      productsReload();
+    } catch (error) {
+      toast.error("Failed to update stock");
+      console.error(error);
+    }
   };
 
   // Loading Screen

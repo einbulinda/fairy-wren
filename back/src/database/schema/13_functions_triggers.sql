@@ -83,3 +83,32 @@ RETURNING id INTO audit_id;
 RETURN audit_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Incrementing stock in the DB
+CREATE OR REPLACE FUNCTION increment_stock(product_id UUID, quantity INTEGER) RETURNS TABLE (
+        id UUID,
+        name TEXT,
+        stock INTEGER,
+        updated_at TIMESTAMPTZ
+    ) LANGUAGE plpgsql AS $$ BEGIN -- Validate input
+    IF quantity IS NULL
+    OR quantity <= 0 THEN RAISE EXCEPTION 'Quantity must be greater than zero';
+END IF;
+-- Update stock atomically
+UPDATE products
+SET stock = stock + quantity,
+    updated_at = NOW()
+WHERE id = product_id
+RETURNING products.id,
+    products.name,
+    products.stock,
+    products.updated_at INTO id,
+    name,
+    stock,
+    updated_at;
+-- Ensure product exists
+IF NOT FOUND THEN RAISE EXCEPTION 'Product with id % not found',
+product_id;
+END IF;
+RETURN NEXT;
+END;
+$$;

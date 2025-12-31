@@ -1,5 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-import { createCategory, fetchProducts } from "../services/categories.service";
+import {
+  createCategory,
+  fetchProducts,
+  fetchCategory,
+  updateCategory,
+  toggleStatus,
+} from "../services/categories.service";
 
 export const useCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -21,6 +27,21 @@ export const useCategories = () => {
     }
   }, []);
 
+  // Get A Category
+  const fetchCategoryById = useCallback(async (categoryId) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const category = await fetchCategory(categoryId);
+      return category;
+    } catch (error) {
+      setError(error.message || "Failed to fetch category");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Create a category
   const saveCategory = useCallback(async (payload) => {
     setIsLoading(true);
@@ -37,10 +58,61 @@ export const useCategories = () => {
     }
   }, []);
 
+  // Update a category
+  const updateCategoryDtls = useCallback(async (categoryId, payload) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const updatedCategory = await updateCategory(categoryId, payload);
+
+      setCategories((prev) =>
+        prev.map((category) =>
+          category.id === categoryId ? updatedCategory : category
+        )
+      );
+      return updatedCategory;
+    } catch (error) {
+      setError(error.message || "Failed to update category");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Update a category status
+  const statusUpdate = useCallback(async (categoryId, payload) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const updatedStatus = await toggleStatus(categoryId, payload);
+
+      setCategories((prev) =>
+        prev.map((category) =>
+          category.id === categoryId ? updatedStatus : category
+        )
+      );
+      return updatedStatus;
+    } catch (error) {
+      setError(error.message || "Failed to update category");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadCategories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { categories, isLoading, error, reload: loadCategories, saveCategory };
+  return {
+    categories,
+    isLoading,
+    error,
+    reload: loadCategories,
+    saveCategory,
+    fetchCategoryById,
+    updateCategoryDtls,
+    statusUpdate,
+  };
 };

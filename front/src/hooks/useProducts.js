@@ -140,6 +140,33 @@ export const useProducts = () => {
     }
   }, []);
 
+  // Take Stock Counts
+  const createStockTake = useCallback(async (payload) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const stockTakeData = await productsAPI.createStockTake(payload);
+
+      return stockTakeData;
+    } catch (err) {
+      setError(err.message || "Failed to update product inventories");
+    }
+  }, []);
+
+  // Increment Stock
+  const increaseStock = useCallback(async (productId, payload) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const restock = await productsAPI.incrementStock(productId, payload);
+      return restock;
+    } catch (err) {
+      setError(err.message || "Failed to restock and add product quantities");
+    }
+  }, []);
+
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,5 +184,7 @@ export const useProducts = () => {
     reload: loadProducts,
     addProduct,
     updateStocks,
+    createStockTake,
+    increaseStock,
   };
 };
