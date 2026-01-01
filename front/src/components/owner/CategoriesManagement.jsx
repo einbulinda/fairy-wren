@@ -142,7 +142,12 @@ const CategoriesManagement = () => {
           >
             <div>
               <div className="flex items-center justify-between mb-3">
-                <Folder style={{ backgroundColor: category.color }} size={28} />
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+                  style={{ backgroundColor: category.color }}
+                >
+                  {category.name.charAt(0).toUpperCase()}
+                </div>
                 <span
                   className={`px-2 py-1 rounded text-xs font-semibold ${
                     category.active ? "bg-green-600" : "bg-red-600"

@@ -10,6 +10,8 @@ const reportsRoutes = require("../modules/reports/reports.routes");
 const expenseRoutes = require("../modules/expenses/expenses.routes");
 const userRoutes = require("../modules/users/users.routes");
 const categoryRoutes = require("../modules/categories/categories.routes");
+const supplierRoutes = require("../modules/suppliers/suppliers.routes");
+const accountsRoutes = require("../modules/accounts/accounts.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
@@ -22,5 +24,7 @@ router.use("/reports", authMiddleware, reportsRoutes);
 router.use("/expenses", authMiddleware, expenseRoutes);
 router.use("/users", authMiddleware, userRoutes);
 router.use("/categories", authMiddleware, categoryRoutes);
+router.use("/suppliers", authMiddleware, supplierRoutes);
+router.use("/accounts", authMiddleware, accountsRoutes);
 
 module.exports = router;

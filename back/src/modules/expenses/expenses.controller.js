@@ -1,49 +1,55 @@
 const supabase = require("../../config/supabase");
 
-// Add expense
-exports.postExpense = async (req, res) => {
+exports.getExpense = async (req, res) => {
   try {
-    const { description, amount, category, addedBy, addedByName } = req.body;
-
     const { data, error } = await supabase
       .from("expenses")
-      .insert({
-        description,
-        amount,
-        category,
-        added_by: addedBy,
-        added_by_name: addedByName,
-      })
-      .select()
-      .single();
+      .select(
+        `
+        *,
+        suppliers(name),
+        chart_of_accounts(name, code)
+      `
+      )
+      .order("expense_date", { ascending: false });
 
     if (error) throw error;
 
-    res.json(data);
+    res.status(200).json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Get expenses
-exports.getExpenses = async (req, res) => {
+exports.createExpense = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const {
+      expense_date,
+      supplier_id,
+      account_id,
+      description,
+      invoice_number,
+      amount,
+    } = req.body;
 
-    let query = supabase
-      .from("expenses")
-      .select("*")
-      .order("date", { ascending: false });
-
-    if (startDate && endDate) {
-      query = query.gte("date", startDate).lte("date", endDate);
+    if (!expense_date || !account_id || !amount) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const { data, error } = await query;
+    const { error } = await supabase.from("expenses").insert([
+      {
+        expense_date,
+        supplier_id,
+        account_id,
+        description,
+        invoice_number,
+        amount,
+        created_by: req.user.id,
+      },
+    ]);
 
     if (error) throw error;
-
-    res.json(data);
+    res.status(201).json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

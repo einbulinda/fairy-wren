@@ -48,14 +48,9 @@ exports.createProduct = async (req, res) => {
     active = true,
   } = payload;
 
-  if (!name)
+  if (!name || price === undefined) {
     return res.status(400).json({
-      message: "Product name is required",
-    });
-
-  if (price === undefined) {
-    return res.status(400).json({
-      message: "Product price is required",
+      message: "Product name and price are required",
     });
   }
   try {
@@ -140,11 +135,12 @@ exports.updateProductStock = async (req, res) => {
       .from("products")
       .update({ stock: quantity })
       .eq("id", productId)
-      .select();
+      .select()
+      .single();
 
     if (error) throw error;
 
-    res.json(data[0]);
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -161,6 +157,8 @@ exports.incrementStock = async (req, res) => {
       quantity: quantity,
     });
 
+    console.log(error);
+
     if (error) throw error;
 
     res.status(200).json(data);
@@ -171,41 +169,35 @@ exports.incrementStock = async (req, res) => {
 
 // Take Stock Take
 exports.createStockTake = async (req, res) => {
-  const { performedBy, performedByName, items } = req.body;
+  const { performedBy, performedByName, notes, items } = req.body;
 
-  try {
-    // 1. Create stock take header
-    const { data, error } = await supabase
-      .from("stock_takes")
-      .insert({
-        performed_by: performedBy,
-        performed_by_name: performedByName,
-      })
-      .select();
+  const { data: stockTake, error: stockTakeError } = await supabase
+    .from("stock_takes")
+    .insert({
+      performed_by: performedBy,
+      performed_by_name: performedByName,
+      notes: notes,
+    })
+    .select()
+    .single();
 
-    if (error) throw error;
+  if (stockTakeError) throw stockTakeError;
 
-    const stockTake = data[0];
+  // Add items
+  const stockItems = items.map((item) => ({
+    stock_take_id: stockTake.id,
+    product_id: item.productId,
+    product_name: item.productName,
+    expected_quantity: item.expected,
+    actual_quantity: item.actual,
+    variance: item.actual - item.expected,
+  }));
 
-    // 2. Prepare stock take items
-    const stockItems = items.map((item) => ({
-      stock_take_id: stockTake.id,
-      product_id: item.productId,
-      product_name: item.productName,
-      expected_quantity: item.expected,
-      actual_quantity: item.actual,
-      variance: item.actual - item.expected,
-    }));
+  const { error: itemsError } = await supabase
+    .from("stock_take_items")
+    .insert(stockItems);
 
-    // 3. Insert items
-    const { error: itemsError } = await supabase
-      .from("stock_take_items")
-      .insert(stockItems);
+  if (itemsError) throw itemsError;
 
-    if (itemsError) throw itemsError;
-
-    res.status(200).json(stockTake);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  return stockTake;
 };

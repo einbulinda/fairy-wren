@@ -218,8 +218,11 @@ const ProductManagement = () => {
       } else {
         const response = await addProduct(productPayload);
 
-        if (!response) toast.error("Product creation failed");
-        toast.success("Product created successfully");
+        if (!response) {
+          toast.error("Product creation failed");
+        } else {
+          toast.success("Product created successfully");
+        }
       }
 
       setShowProductModal(false);

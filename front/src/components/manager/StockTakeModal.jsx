@@ -18,16 +18,23 @@ const StockTakeModal = ({ products, categories, onClose, onComplete }) => {
 
   const handleComplete = async () => {
     try {
-      // Update stocks for changed items
-      for (const product of products) {
-        const takeData = stockTakeData[product.id];
-        if (takeData && takeData.actual !== takeData.expected) {
-          await updateStocks(product.id, { quantity: takeData.actual });
-        }
-      }
+      // 1. Update only changed stocks (parallel, not sequential)
+      const stockUpdates = products
+        .filter((product) => {
+          const takeData = stockTakeData[product.id];
+          return takeData && takeData.actual !== takeData.expected;
+        })
+        .map((product) => {
+          const takeData = stockTakeData[product.id];
+          return updateStocks(product.id, {
+            quantity: takeData.actual,
+          });
+        });
 
-      // Record the Stock Take
-      createStockTake({
+      await Promise.all(stockUpdates);
+
+      // 2. Record the stock take
+      const response = await createStockTake({
         performedBy: user.id,
         performedByName: user.name,
         items: products.map((p) => ({
@@ -38,12 +45,12 @@ const StockTakeModal = ({ products, categories, onClose, onComplete }) => {
         })),
       });
 
-      toast.success("Stock take completed!");
+      if (response) toast.success("Stock take completed!");
       onComplete();
       onClose();
     } catch (error) {
+      console.error("Stock take failed", error);
       toast.error("Failed to complete stock take");
-      console.error(error);
     }
   };
 

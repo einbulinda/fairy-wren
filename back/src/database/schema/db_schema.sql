@@ -165,6 +165,57 @@ CREATE TABLE public.audit_logs (
     created_at timestamptz DEFAULT now()
 );
 -- =====================================================
+-- CHART OF ACCOUNTS, SUPPLIERS & EXPENSES
+-- =====================================================
+CREATE TABLE public.chart_of_accounts (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code varchar(20) NOT NULL UNIQUE,
+    name varchar(150) NOT NULL,
+    type varchar(20) NOT NULL CHECK (
+        type IN (
+            'asset',
+            'liability',
+            'equity',
+            'income',
+            'expense'
+        )
+    ),
+    active boolean DEFAULT true,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+CREATE TRIGGER update_coa_updated_at BEFORE
+UPDATE ON public.chart_of_accounts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- SUPPLIERS
+CREATE TABLE public.suppliers (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name varchar(150) NOT NULL,
+    phone varchar(50),
+    email varchar(150),
+    active boolean DEFAULT true,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+CREATE TRIGGER update_suppliers_updated_at BEFORE
+UPDATE ON public.suppliers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- EXPENSES
+CREATE TABLE public.expenses (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    expense_date date NOT NULL,
+    supplier_id uuid REFERENCES suppliers(id),
+    account_id uuid NOT NULL REFERENCES chart_of_accounts(id),
+    description text,
+    invoice_number varchar(100),
+    amount numeric(12, 2) NOT NULL default(0) CHECK (amount > 0),
+    created_by uuid REFERENCES profiles(id),
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+CREATE INDEX idx_expenses_date ON expenses(expense_date);
+CREATE INDEX idx_expenses_account ON expenses(account_id);
+CREATE TRIGGER update_expenses_updated_at BEFORE
+UPDATE ON public.expenses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- =====================================================
 -- SEED DATA (REPLACE HASH + FINGERPRINT)
 -- =====================================================
 INSERT INTO public.profiles (
@@ -183,3 +234,34 @@ VALUES (
         '<PASTE_FINGERPRINT_HERE>',
         true
     ) ON CONFLICT (pin_fingerprint) DO NOTHING;
+-- =====================================================
+-- DATABASE FUNCTIONS
+-- =====================================================
+CREATE OR REPLACE FUNCTION increment_stock(product_id UUID, quantity INTEGER) RETURNS TABLE (
+        id UUID,
+        name TEXT,
+        stock INTEGER,
+        updated_at TIMESTAMPTZ
+    ) LANGUAGE plpgsql AS $$ BEGIN -- Validate input
+    IF quantity IS NULL
+    OR quantity <= 0 THEN RAISE EXCEPTION 'Quantity must be greater than zero';
+END IF;
+-- Update stock atomically
+UPDATE products p
+SET stock = p.stock + quantity,
+    updated_at = NOW()
+WHERE p.id = product_id
+RETURNING p.id,
+    p.name,
+    p.stock,
+    p.updated_at INTO id,
+    name,
+    stock,
+    updated_at;
+-- Ensure product exists
+IF NOT FOUND THEN RAISE EXCEPTION 'Product with id % not found',
+product_id;
+END IF;
+RETURN NEXT;
+END;
+$$;

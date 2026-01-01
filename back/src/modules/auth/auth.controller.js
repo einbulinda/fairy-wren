@@ -21,7 +21,7 @@ exports.login = async (req, res) => {
     //3. Find user with the fingerprint
     const { data: user, error } = await supabase
       .from("profiles")
-      .select("id, pin_hash, role, active")
+      .select("id,name, pin_hash, role, active")
       .eq("pin_fingerprint", fingerprint)
       .eq("active", true)
       .single();
