@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 const ExpenseManagement = () => {
-  const { addExpense, expenses, reload, isLoading } = useExpenses();
+  const { expenses, addExpense, reload, isLoading } = useExpenses();
   const { suppliers, isLoading: supplierLoading } = useSuppliers();
   const { accounts, isLoading: accountsLoading } = useAccounts();
 
@@ -35,12 +35,15 @@ const ExpenseManagement = () => {
     }
 
     try {
-      await addExpense({
+      const response = await addExpense({
         ...form,
         amount: parseFloat(form.amount),
       });
-      toast.success("Expense recorded");
+
+      if (response) toast.success("Expense recorded");
+
       reload();
+
       setForm({
         expense_date: "",
         supplier_id: "",

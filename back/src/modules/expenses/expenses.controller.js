@@ -13,6 +13,8 @@ exports.getExpense = async (req, res) => {
       )
       .order("expense_date", { ascending: false });
 
+    console.log("Error", error);
+
     if (error) throw error;
 
     res.status(200).json(data);

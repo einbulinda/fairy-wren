@@ -1,9 +1,7 @@
 import api from "./api";
 
-const expenseAPI = {
-  // Fetch Expenses
-  fetchExpenses: api.get("/expenses").then((res) => res.data),
-  createExpense: (payload) => api.post("/expenses", payload),
-};
+// Fetch Expenses
+export const fetchExpenses = () => api.get("/expenses").then((res) => res.data);
 
-export default expenseAPI;
+// Save an expense
+export const createExpense = (payload) => api.post("/expenses", payload);

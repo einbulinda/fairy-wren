@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import expenseAPI from "../services/expense.service";
+import { createExpense, fetchExpenses } from "../services/expense.service";
 
 export const useExpenses = () => {
   const [expenses, setExpenses] = useState([]);
@@ -11,10 +11,26 @@ export const useExpenses = () => {
     setIsLoading(true);
 
     try {
-      const data = await expenseAPI.fetchExpenses();
+      const data = await fetchExpenses();
+
       setExpenses(data);
     } catch (error) {
       setError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Add Expense
+  const addExpense = async (payload) => {
+    setIsLoading(true);
+
+    try {
+      const newExpense = await createExpense(payload);
+      setExpenses((prev) => [newExpense, ...prev]);
+      return newExpense;
+    } catch (err) {
+      setError(err.message || "Failed to save expense details");
     } finally {
       setIsLoading(false);
     }
@@ -29,6 +45,6 @@ export const useExpenses = () => {
     isLoading,
     error,
     reload: load,
-    addExpense: expenseAPI.createExpense,
+    addExpense,
   };
 };
