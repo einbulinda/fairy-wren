@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { createSupplier, fetchSuppliers } from "../services/suppliers.service";
+import {
+  createSupplier,
+  fetchSuppliers,
+  editSupplier,
+} from "../services/suppliers.service";
 
 export const useSuppliers = () => {
   const [suppliers, setSuppliers] = useState([]);
@@ -29,5 +33,6 @@ export const useSuppliers = () => {
     error,
     reload: loadSuppliers,
     addSupplier: createSupplier,
+    updateSupplier: editSupplier,
   };
 };

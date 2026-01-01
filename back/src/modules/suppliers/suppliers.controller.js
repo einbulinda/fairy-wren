@@ -31,3 +31,22 @@ exports.createSupplier = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Edit Supplier
+exports.editSupplier = async (req, res) => {
+  try {
+    const { name, phone, email, active } = req.body;
+    const { supplierId } = req.params;
+
+    const { error } = await supabase
+      .from("suppliers")
+      .update({ name, phone, email, active, updated_by: req.user.id })
+      .eq("id", supplierId);
+
+    if (error) throw error;
+
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
