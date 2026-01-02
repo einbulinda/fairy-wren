@@ -77,7 +77,7 @@ const MainLayout = () => {
 
       case USER_ROLES.OWNER:
         return [
-          { id: "reports", label: "Reports", icon: BarChart3 },
+          { id: "reports", label: "Dashboard", icon: BarChart3 },
           { id: "products", label: "Products", icon: Grid },
           { id: "expenses", label: "Expenses", icon: DollarSign },
           { id: "categories", label: "Categories", icon: FolderTree },
