@@ -49,8 +49,6 @@ exports.addRound = async (req, res) => {
       quantity: item.quantity,
     }));
 
-    console.log("Inserting round items:", roundItems);
-
     const { error: itemsError } = await supabase
       .from("round_items")
       .insert(roundItems);
@@ -127,16 +125,15 @@ exports.getAllBills = async (req, res) => {
 exports.payBills = async (req, res) => {
   try {
     const { billId } = req.params;
-    const { paymentMethod, mpesaCode, markedBy } = req.body;
+    const { paymentMethod, mpesaCode, amount } = req.body;
 
-    const { data, error } = await supabase
+    console.log(req.body);
+
+    const { error } = await supabase
       .from("bills")
       .update({
         status: "awaiting_confirmation",
-        payment_method: paymentMethod,
-        mpesa_code: mpesaCode,
-        marked_paid_at: new Date().toISOString(),
-        marked_paid_by: markedBy,
+        updated_by: req.user.id,
       })
       .eq("id", billId)
       .select()
@@ -144,9 +141,24 @@ exports.payBills = async (req, res) => {
 
     if (error) throw error;
 
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.log("Bills Error", error);
+
+    const { data: payment, error: paymentError } = await supabase
+      .from("payments")
+      .insert({
+        bill_id: billId,
+        amount: amount.total,
+        payment_type: paymentMethod,
+        mpesa_code: mpesaCode,
+        created_by: req.user.id,
+      });
+
+    if (paymentError) throw error;
+    console.log("Payments Error", paymentError);
+
+    res.status(200).json(payment);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -155,12 +167,11 @@ exports.confirmPayment = async (req, res) => {
   try {
     const { billId } = req.params;
 
-    const { data, error } = await supabase
-      .from("bills")
+    const { error } = await supabase
+      .from("payments")
       .update({
-        status: "completed",
-        confirmed_at: new Date().toISOString(),
-        confirmed_by: req.user.id,
+        is_paid: true,
+        updated_by: req.user.id,
       })
       .eq("id", billId)
       .select()
@@ -168,8 +179,8 @@ exports.confirmPayment = async (req, res) => {
 
     if (error) throw error;
 
-    res.json(data);
+    res.status(200).json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: error.message });
   }
 };

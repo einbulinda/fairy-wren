@@ -67,8 +67,8 @@ const CurrentBill = ({
                 {new Date(bill.created_at).toLocaleString()}
               </div>
               <div className="text-xs sm:text-sm text-pink-500 mt-2">
-                {bill?.rounds.length || 0} round{" "}
-                {bill?.rounds.length !== 1 ? "s" : ""} added
+                {bill?.rounds?.length || 0} round{" "}
+                {bill?.rounds?.length !== 1 ? "s" : ""} added
               </div>
             </div>
 

@@ -34,21 +34,9 @@ export const addBillRound = async (billId, payload) => {
 };
 
 // Mark Bill as Paid
-export const markBillPaid = async (billId, payload) => {
-  try {
-    const { data } = await api.patch(`/bills/${billId}/mark-paid`, payload);
-    return data;
-  } catch (error) {
-    throw normalizeError(error, "Error marking bill as paid");
-  }
-};
+export const markBillPaid = (billId, payload) =>
+  api.patch(`/bills/${billId}/mark-paid`, payload);
 
 // Confirm Bill Payment
-export const confirmBillPayment = async (billId, userId) => {
-  try {
-    const { data } = await api.patch(`/bills/${billId}/confirm`, { userId });
-    return data;
-  } catch (error) {
-    throw normalizeError(error, "Error confirming payment");
-  }
-};
+export const confirmBillPayment = (billId) =>
+  api.patch(`/bills/${billId}/confirm`);
