@@ -7,7 +7,7 @@ exports.getProducts = async (req, res) => {
       .from("products")
       .select("*, categories(*)")
       //.eq("active", true)
-      .order("name");
+      .order("name", { ascending: false });
 
     if (error) throw error;
 

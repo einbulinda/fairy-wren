@@ -3,13 +3,12 @@ const supabase = require("../../config/supabase");
 // Create a new bill
 exports.createBill = async (req, res) => {
   try {
-    const { customerName, waitressId, waitressName } = req.body;
+    const { customerName } = req.body;
     const { data, error } = await supabase
       .from("bills")
       .insert({
         customer_name: customerName,
-        waitress_id: waitressId,
-        waitress_name: waitressName,
+        created_by: req.user.id,
         status: "open",
       })
       .select()
@@ -27,7 +26,7 @@ exports.createBill = async (req, res) => {
 exports.addRound = async (req, res) => {
   try {
     const { billId } = req.params;
-    const { roundNumber, items, addedBy } = req.body;
+    const { roundNumber, items } = req.body;
 
     //Create Round
     const { data: round, error: roundError } = await supabase
@@ -35,7 +34,7 @@ exports.addRound = async (req, res) => {
       .insert({
         bill_id: billId,
         round_number: roundNumber,
-        added_by: addedBy,
+        created_by: req.user.id,
       })
       .select()
       .single();
@@ -46,7 +45,6 @@ exports.addRound = async (req, res) => {
     const roundItems = items.map((item) => ({
       round_id: round.id,
       product_id: item.productId,
-      product_name: item.productName,
       price: item.price,
       quantity: item.quantity,
     }));
@@ -156,14 +154,13 @@ exports.payBills = async (req, res) => {
 exports.confirmPayment = async (req, res) => {
   try {
     const { billId } = req.params;
-    const { confirmedBy } = req.body;
 
     const { data, error } = await supabase
       .from("bills")
       .update({
         status: "completed",
         confirmed_at: new Date().toISOString(),
-        confirmed_by: confirmedBy,
+        confirmed_by: req.user.id,
       })
       .eq("id", billId)
       .select()
