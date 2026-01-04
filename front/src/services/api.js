@@ -21,8 +21,8 @@ api.interceptors.request.use(
       return config;
     }
 
-    const token = sessionStorage.getItem("token");
-    const expiry = sessionStorage.getItem("token_expiry");
+    const token = localStorage.getItem("token");
+    const expiry = localStorage.getItem("token_expiry");
 
     /* No token → block */
     if (!token || !expiry) {
@@ -31,8 +31,10 @@ api.interceptors.request.use(
 
     /* Expired token → logout */
     if (Date.now() > Number(expiry)) {
-      sessionStorage.clear();
-      window.location.href = "/login";
+      localStorage.removeItem("token");
+      localStorage.removeItem("token_expiry");
+      localStorage.removeItem("fw_user");
+      window.location.href = "/auth/login";
       return Promise.reject(new Error("Session expired"));
     }
 

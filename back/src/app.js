@@ -15,6 +15,7 @@ app.use(
       "https://pos.fairywren.co.ke",
       "https://www.pos.fairywren.co.ke",
       "http://localhost:5173",
+      "http://192.168.100.191:8000",
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,

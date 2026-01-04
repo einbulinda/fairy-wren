@@ -42,7 +42,14 @@ exports.login = async (req, res) => {
       name: user.name,
     });
 
-    res.status(200).json({ token, user });
+    const userData = {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      active: user.active,
+    };
+
+    res.status(200).json({ token, user: userData });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
