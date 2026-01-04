@@ -104,7 +104,7 @@ const LoginScreen = () => {
         </form>
 
         {/* Demo PINs - Development Only */}
-        <div className="mt-6 sm:mt-8 pt-6 border-t border-gray-700">
+        {/* <div className="mt-6 sm:mt-8 pt-6 border-t border-gray-700">
           <details className="text-xs sm:text-sm text-gray-500">
             <summary className="cursor-pointer text-center hover:text-gray-400 transition-colors">
               Demo Access (Development)
@@ -128,7 +128,7 @@ const LoginScreen = () => {
               </p>
             </div>
           </details>
-        </div>
+        </div> */}
 
         {/* Footer */}
         <div className="mt-6 text-center">
