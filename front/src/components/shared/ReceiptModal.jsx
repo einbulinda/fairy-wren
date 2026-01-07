@@ -2,6 +2,8 @@ import { useState } from "react";
 import { X, DollarSign, Printer } from "lucide-react";
 import { calculateBillTotals } from "../../utils/calculations";
 import PaymentModal from "./PaymentModal";
+import fwLogo from "/fairy-logo-only.png";
+import { RECEIPT_LOGO_BASE64 } from "../../utils/receiptAssets";
 
 const ReceiptModal = ({ bill, onClose }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -13,12 +15,55 @@ const ReceiptModal = ({ bill, onClose }) => {
   };
 
   const handlePrint = () => {
-    window.print();
+    const receipt = document.querySelector(".thermal-receipt");
+
+    if (!receipt) return;
+
+    const printWindow = window.open("", "", "width=380,height=600");
+
+    printWindow.document.write(`
+    <html>
+      <head>
+        <title>Receipt</title>
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 5mm;
+            width: 80mm;
+            font-family: Courier New, monospace;
+            font-size: 9pt;
+            color: #000;
+          }
+          img {
+            display: block;
+            margin: 0 auto 6px auto;
+            max-width: 200px;
+          }
+        </style>
+      </head>
+      <body>
+        ${receipt.innerHTML}
+      </body>
+    </html>
+  `);
+
+    printWindow.document.close();
+    printWindow.focus();
+
+    // Give Chrome time to render image
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 300);
   };
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 no-print">
         <div
           className="bg-gray-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl border-2 border-pink-500 max-h-[95vh] sm:max-h-[90vh]
         overflow-hidden flex flex-col animate-slide-up"
@@ -31,7 +76,7 @@ const ReceiptModal = ({ bill, onClose }) => {
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrint}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors hidden sm:block"
+                className="p-2 hover:bg-gray-700 rounded-lg transition-colors hidden"
                 title="Print Receipt"
               >
                 <Printer size={20} className="text-gray-400 hover:text-white" />
@@ -48,39 +93,47 @@ const ReceiptModal = ({ bill, onClose }) => {
 
           {/* Receipt Content - Scrollable */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <div className="bg-gray-900 p-4 sm:p-6 rounded-lg">
+            {/* Screen Preview (not printed) */}
+            <div className="bg-linear-to-br from-bg-gray-900 to-gray-800 p-6 sm:p-8 rounded-xl border border-gray-700 shadow-2xl no-print">
               {/* Start: Receipt header */}
-              <div className="text-center mb-4 sm:mb-6">
-                <h1 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-purple-500">
+              <div className="text-center mb-6">
+                <div className="inline-block bg-linear-to-br from-pink-500 to-purple-500 p-4 rounded-2xl mb-4">
+                  <img
+                    src={fwLogo}
+                    alt="Fairy Wren"
+                    className="h-16 w-auto brightness-0 invert"
+                  />
+                </div>
+
+                <h1 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-purple-500 mb-1">
                   FAIRY WREN
                 </h1>
-                <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                  Hasher's Club
-                </p>
+                <p className="text-sm text-gray-400">Hashers Club - Utawala</p>
+                <div className="w-full h-px bg-linear-to-r from-transparent via-pink-500 to-transparent mt-4"></div>
               </div>
               {/* End: Receipt header */}
 
               {/* Start: Bill info */}
-              <div className="border-t border-b border-gray-700 py-3 sm:py-4 mb-4">
-                <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
-                  <div className="text-gray-400">Bill #:</div>
-                  <div className="text-right font-mono">
-                    {bill.id.slice(0, 8)}
+              <div className="bg-gray-800/50 rounded-lg p-4 mb-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="text-gray-400">Bill #</div>
+                  <div className="text-right font-mono text-pink-400">
+                    {bill.id.slice(0, 8).toUpperCase()}
                   </div>
-                  <div className="text-gray-400">Customer:</div>
-                  <div className="text-right font-semibold truncate">
+                  <div className="text-gray-400">Customer</div>
+                  <div className="text-right font-semibold text-white truncate">
                     {bill.customer_name}
                   </div>
-                  <div className="text-gray-400">Served By:</div>
-                  <div className="text-right truncate">
-                    {bill.waitress_name}
+                  <div className="text-gray-400">Server</div>
+                  <div className="text-right text-white truncate">
+                    {bill.created_by_user.name}
                   </div>
-                  <div className="text-gray-400">Date:</div>
-                  <div className="text-right text-xs sm:text-sm">
+                  <div className="text-gray-400">Date</div>
+                  <div className="text-right text-white">
                     {new Date(bill.created_at).toLocaleDateString()}
                   </div>
-                  <div className="text-gray-400">Time:</div>
-                  <div className="text-right text-xs sm:text-sm">
+                  <div className="text-gray-400">Time</div>
+                  <div className="text-right text-white">
                     {new Date(bill.created_at).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -91,71 +144,194 @@ const ReceiptModal = ({ bill, onClose }) => {
               {/* End: Bill info */}
 
               {/* Start: Items by round */}
-              <div className="space-y-3 sm:space-y-4 mb-4">
-                {bill.rounds.map((round, idx) => (
-                  <div key={idx} className="border-b border-gray-700 pb-3">
-                    <div className="text-xs text-purple-400 mb-2 font-medium">
-                      Round {round.round_number} -{" "}
-                      {new Date(round.created_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+              <div className="mb-4">
+                <div className="w-full h-px bg-linear-to-r from-transparent via-purple-500 to-transparent mb-3"></div>
+                {bill.rounds.map((round) => (
+                  <div key={round.id} className="mb-4">
+                    <div className="text-xs font-semibold text-purple-400 mb-2 flex items-center gap-2">
+                      <span className="bg-purple-500/20 px-2 py-1 rounded">
+                        ROUND {round.round_number}
+                      </span>
+                      <span className="text-gray-500">
+                        {new Date(round.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
                     </div>
-                    <div className="space-y-1">
-                      {round.round_items.map((item, itemIdx) => (
+                    <div className="space-y-2">
+                      {round.round_items.map((item) => (
                         <div
-                          key={itemIdx}
-                          className="flex justify-between text-xs sm:text-sm gap-2"
+                          key={item.id}
+                          className="flex justify-between text-sm"
                         >
-                          <span className="flex-1 truncate">
-                            <span className="font-semibold text-pink-400">
-                              {" "}
-                              {item.quantity} x{" "}
-                            </span>
-                            {item.product_name}
-                          </span>
-                          <span className="font-semibold whitespace-nowrap">
+                          <div className="flex-1">
+                            <div className="font-medium text-white">
+                              {item.product.name}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {item.quantity} x KSh.{" "}
+                              {item.price.toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="font-bold text-pink-400 ml-4">
                             KSh. {(item.price * item.quantity).toLocaleString()}
-                          </span>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 ))}
+                <div className="w-full h-px bg-linear-to-r from-transparent via-purple-500 to-transparent my-3"></div>
               </div>
 
               {/* End: Items by round */}
 
               {/* Start: Totals */}
-              <div className="border-t border-gray-700 pt-3 sm:pt-4 space-y-2">
-                <div className="flex justify-between text-sm sm:text-lg">
-                  <span className="text-gray-300">Subtotal:</span>
+              <div className="bg-linear-to-br from-pink-500/10 to-purple-500/10 border border-pink-500/30 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-base text-gray-300">
+                  <span>Subtotal</span>
                   <span className="font-semibold">
                     KSh. {totals.subtotal.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between text-lg sm:text-2xl font-bold text-pink-500 border-t border-gray-700 pt-2 sm:pt-3">
-                  <span>TOTAL:</span>
-                  <span>Ksh. {totals.total.toLocaleString()}</span>
+                <div className="w-full h-px bg-pink-500/20"></div>
+                <div className="flex justify-between text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-purple-500">
+                  <span>TOTAL</span>
+                  <span>KSh. {totals.total.toLocaleString()}</span>
                 </div>
               </div>
               {/* End: Totals */}
 
               {/* Start: Footer */}
-              <div className="text-center mt-4 sm:mt-6 text-xs text-gray-500 space-y-1">
-                <p>Thank you for visiting!</p>
-                <p>Please come again</p>
-                <p className="text-[10px] mt-2">Bill ID: {bill.id}</p>
+              <div className="text-center mt-6 space-y-2">
+                <div className="w-full h-px bg-linear-to-r from-transparent via-pink-500 to-transparent mb-3"></div>
+                <p className="text-sm text-gray-400">
+                  Thank you for your visit!
+                </p>
+                <p className="text-sm text-pink-400 font-semibold">
+                  Please come again! 🍻
+                </p>
+                <p className="text-xs text-gray-600 mt-3">ID: {bill.id}</p>
               </div>
               {/* End: Footer */}
             </div>
           </div>
 
-          {/* Action Buttons - Fixed at the bottom */}
-          <div className="p-4 sm:p-6 border-t border-gray-700 shrink-0 space-y-2 sm:space-y-0 sm:flex sm:gap-2">
+          {/* Thermal Print Template (hidden on screen, visible on print) */}
+          <div className="thermal-receipt">
+            <div className="thermal-header text-center">
+              <img
+                src={RECEIPT_LOGO_BASE64}
+                alt="Fairy Wren"
+                className="thermal-logo-img"
+              />
+              <div className="thermal-logo">★ FAIRY WREN ★</div>
+              <div className="thermal-subtitle">Hashers Club - Utawala</div>
+              <div className="thermal-divider">
+                ================================
+              </div>
+            </div>
+
+            <div className="thermal-info">
+              <div className="thermal-row">
+                <span>Bill #:</span>
+                <span>{bill.id.slice(0, 8).toUpperCase()}</span>
+              </div>
+              <div className="thermal-row">
+                <span>Customer:</span>
+                <span>{bill.customer_name}</span>
+              </div>
+              <div className="thermal-row">
+                <span>Server:</span>
+                <span>{bill.created_by_user.name}</span>
+              </div>
+              <div className="thermal-row">
+                <span>Date:</span>
+                <span>{new Date(bill.created_at).toLocaleDateString()}</span>
+              </div>
+              <div className="thermal-row">
+                <span>Time:</span>
+                <span>
+                  {new Date(bill.created_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+              <div className="thermal-divider">
+                ================================
+              </div>
+            </div>
+
+            <div className="thermal-items">
+              {bill.rounds.map((round, idx) => (
+                <div key={idx} className="thermal-round">
+                  <div className="thermal-round-header">
+                    ROUND {round.round_number} -{" "}
+                    {new Date(round.created_at).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                  {round.round_items.map((item) => (
+                    <div key={item.id} className="thermal-item">
+                      <div className="thermal-item-name">
+                        {item.product.name}
+                      </div>
+                      <div className="thermal-item-details">
+                        <span>
+                          {item.quantity} x {item.price.toLocaleString()}
+                        </span>
+                        <span className="thermal-item-total">
+                          {(item.price * item.quantity).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <div className="thermal-divider">
+                ================================
+              </div>
+            </div>
+
+            <div className="thermal-totals">
+              <div className="thermal-row">
+                <span>SUBTOTAL:</span>
+                <span>KSh. {totals.subtotal.toLocaleString()}</span>
+              </div>
+              <div className="thermal-divider-bold">
+                ================================
+              </div>
+              <div className="thermal-row thermal-grand-total">
+                <span>TOTAL:</span>
+                <span>KSh. {totals.total.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="thermal-footer">
+              <div className="thermal-divider">
+                ================================
+              </div>
+              <div className="thermal-qr-text">
+                PayBill: 522522
+                <br />
+                Account: 8040662
+              </div>
+              <div className="thermal-divider">
+                ================================
+              </div>
+              <div className="thermal-thanks">Thank you for your visit!</div>
+              <div className="thermal-thanks-sub">Please come again!</div>
+              <div className="thermal-id">Bill ID: {bill.id}</div>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-6 border-t border-gray-700 shrink-0 space-y-2 sm:space-y-0 sm:flex sm:gap-2 no-print">
             <button
               onClick={handlePrint}
-              className="w-full sm:flex-1 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center transition-all active:scale-95 text-sm sm:text-base sm:hidden"
+              className="w-full sm:flex-1 py-2.5 sm:py-3 bg-linear-to-r from-blue-600 to-indigo-600 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center transition-all active:scale-95 text-sm sm:text-base"
             >
               <Printer size={18} className="mr-2" /> Print Receipt
             </button>
@@ -163,7 +339,7 @@ const ReceiptModal = ({ bill, onClose }) => {
               onClick={handleMarkAsPaid}
               className="w-full sm:flex-1 py-2.5 sm:py-3 bg-linear-to-r from-green-600 to-emerald-600 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 flex items-center justify-center transition-all active:scale-95 text-sm sm:text-base"
             >
-              <DollarSign size={20} className="mr-2" />
+              <DollarSign size={18} className="mr-2" />
               Mark as Paid
             </button>
           </div>
@@ -194,21 +370,161 @@ const ReceiptModal = ({ bill, onClose }) => {
           animation: slide-up 0.3s ease-out;
         }
 
+        /* Hide thermal receipt on screen */
+        .thermal-receipt {
+          display: none;
+        }
+
+        /* Print styles for 80mm thermal printer */
         @media print {
-          body * {
-            visibility: hidden;
+          /* Hide everything by default */
+          body > * {
+            display: none !important;
           }
-          .bg-gray-900,
-          .bg-gray-900 * {
-            visibility: visible;
+
+          /*Show only thermal receipt*/
+          .thermal-receipt {
+            display: block !important;
+            position: relative;
+            width: 80mm;
+            padding: 5mm;
+            font-family: "Courier New", monospace;
+            font-size: 9pt;
+            line-height: 1.3;
+            color: #000;
+            background: #fff;
           }
-          .bg-gray-900 {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background: white !important;
-            color: black !important;
+
+          .thermal-logo-img {
+            display: block;
+            margin: 0 auto 6px auto;
+            max-width: 200px;
+            height: auto;
+          }
+
+          .no-print {
+            display: none !important;
+          }
+
+          /* Reset page for thermal printer */
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+
+          body {
+            margin: 0;
+            padding: 0;
+          }
+
+          /* Header styles */
+          .thermal-header {
+            text-align: center;
+            margin-bottom: 8px;
+          }
+
+          .thermal-logo {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 2px;
+          }
+
+          .thermal-subtitle {
+            font-size: 8pt;
+            margin-bottom: 4px;
+          }
+
+          /* Dividers */
+          .thermal-divider {
+            margin: 4px 0;
+            font-size: 8pt;
+          }
+
+          .thermal-divider-bold {
+            margin: 4px 0;
+            font-weight: bold;
+            font-size: 8pt;
+          }
+
+          /* Info section */
+          .thermal-info {
+            margin-bottom: 8px;
+          }
+
+          .thermal-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+            font-size: 8pt;
+          }
+
+          /* Items section */
+          .thermal-items {
+            margin-bottom: 8px;
+          }
+
+          .thermal-round {
+            margin-bottom: 8px;
+          }
+
+          .thermal-round-header {
+            font-size: 8pt;
+            font-weight: bold;
+            margin-bottom: 4px;
+          }
+
+          .thermal-item {
+            margin-bottom: 4px;
+          }
+
+          .thermal-item-name {
+            font-size: 9pt;
+            font-weight: bold;
+            margin-bottom: 1px;
+          }
+
+          .thermal-item-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8pt;
+          }
+
+          .thermal-item-total {
+            font-weight: bold;
+          }
+
+          /* Totals section */
+          .thermal-totals {
+            margin-bottom: 8px;
+          }
+
+          .thermal-grand-total {
+            font-size: 11pt;
+            font-weight: bold;
+            margin: 4px 0;
+          }
+
+          /* Footer */
+          .thermal-footer {
+            text-align: center;
+            margin-top: 8px;
+          }
+
+          .thermal-thanks {
+            font-size: 9pt;
+            margin: 4px 0;
+          }
+
+          .thermal-thanks-sub {
+            font-size: 9pt;
+            font-weight: bold;
+            margin: 2px 0;
+          }
+
+          .thermal-id {
+            font-size: 7pt;
+            margin-top: 6px;
+            color: #666;
           }
         }
       `}</style>

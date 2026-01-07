@@ -20,6 +20,7 @@ const CurrentBill = ({
   onCloseBill,
   isMobile = false,
 }) => {
+  const safeRounds = bill?.rounds ?? [];
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const calculateCurrentRoundTotal = () => {
@@ -34,7 +35,7 @@ const CurrentBill = ({
       alert("Please add current round before closing");
       return;
     }
-    if (!bill || bill.rounds.length === 0) {
+    if (!bill || safeRounds.length === 0) {
       alert("Cannot close bill with no items");
       return;
     }
@@ -47,7 +48,7 @@ const CurrentBill = ({
   return (
     <>
       <div
-        className={`bg-gray-800 rounded-lg border border-gray-700 ${
+        className={`bg-gray-800 rounded-lg border border-gray-700 h-screen ${
           isMobile ? "p-4" : "p-4 sm:p-5 sticky top-4"
         }`}
       >
@@ -67,15 +68,15 @@ const CurrentBill = ({
                 {new Date(bill.created_at).toLocaleString()}
               </div>
               <div className="text-xs sm:text-sm text-pink-500 mt-2">
-                {bill?.rounds?.length || 0} round{" "}
-                {bill?.rounds?.length !== 1 ? "s" : ""} added
+                {safeRounds.length || 0} round{" "}
+                {safeRounds.length !== 1 ? "s" : ""} added
               </div>
             </div>
 
             {/* Current Round Items */}
             <div className="mb-3 sm:mb-4">
               <h3 className="text-xs sm:text-sm font-semibold text-purple-400 mb-2">
-                Current Round {bill.rounds.length + 1}
+                Current Round {safeRounds.length + 1}
               </h3>
 
               {currentRoundItems.length > 0 ? (
@@ -155,23 +156,23 @@ const CurrentBill = ({
                     flex items-center justify-center text-sm sm:text-base"
                   >
                     <Check size={18} className="mr-1.5" />
-                    Add Round to Bill
+                    Add Order to Bill
                   </button>
                 </>
               )}
             </div>
 
             {/* Bill summary */}
-            {bill?.rounds.length > 0 && (
+            {safeRounds.length > 0 && (
               <div className="border-t border-gray-700 pt-3 sm:pt-4">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-400 mb-2">
                   Bill Summary
                 </h3>
 
                 <div className="space-y-2 max-h-40 sm:max-h-48 overflow-y-auto mb-3">
-                  {bill.rounds.map((round, idx) => (
+                  {safeRounds.map((round) => (
                     <div
-                      key={idx}
+                      key={round.id}
                       className="bg-gray-700 p-2 sm:p-3 rounded-lg"
                     >
                       <div className="text-xs text-gray-400 mb-1">
@@ -182,13 +183,13 @@ const CurrentBill = ({
                         })}
                       </div>
                       <div className="space-y-1">
-                        {round.round_items.map((item, itemIdx) => (
+                        {(round.round_items ?? []).map((item) => (
                           <div
-                            key={itemIdx}
+                            key={item.id}
                             className="flex justify-between text-xs sm:text-sm gap-2"
                           >
                             <span className="truncate flex-1">
-                              {item.quantity}x {item.product_name}
+                              {item.quantity} x {item.product.name}
                             </span>
                             <span className="text-pink-500 font-medium whitespace-nowrap">
                               KSh.{" "}

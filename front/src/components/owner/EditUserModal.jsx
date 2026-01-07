@@ -2,13 +2,7 @@ import { Save, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useUsers } from "../../hooks/useUsers";
 
-const EditUserModal = ({
-  editingUser,
-  userData,
-  setUserData,
-  closeModal,
-  users,
-}) => {
+const EditUserModal = ({ editingUser, userData, setUserData, closeModal }) => {
   const { updateUser, createUser } = useUsers();
 
   const handleSaveUser = async () => {
@@ -18,33 +12,26 @@ const EditUserModal = ({
       return;
     }
 
-    if (!userData.pin || userData.pin.length < 4 || userData.pin.length > 6) {
-      toast.error("PIN must be between 4 to 6 digits.");
-      return;
-    }
+    if (!editingUser) {
+      // PIN validations only when creating a new user or reset of PIN
+      if (!userData.pin || userData.pin.length < 4 || userData.pin.length > 6) {
+        toast.error("PIN must be between 4 to 6 digits.");
+        return;
+      }
 
-    if (!/^\d+$/.test(userData.pin)) {
-      toast.error("PIN must contain only numbers");
-      return;
-    }
-
-    // Check for duplicate PIN (excluding current user if editing)
-    // Consider the hashing used. The check should be at the back end
-    const isDuplicatePin = users.find(
-      (user) =>
-        user.pin === userData.pin &&
-        (!editingUser || user.id !== editingUser.id)
-    );
-
-    if (isDuplicatePin) {
-      toast.error("This PIN is already in use. Please choose a different one.");
-      return;
+      if (!/^\d+$/.test(userData.pin)) {
+        toast.error("PIN must contain only numbers");
+        return;
+      }
     }
 
     try {
       if (editingUser) {
         // Update existing user
-        await updateUser(editingUser.id, userData);
+        await updateUser(editingUser.id, {
+          name: userData.name,
+          role: userData.role,
+        });
         toast.success("User updated successfully");
       } else {
         // Create new user
@@ -107,26 +94,28 @@ const EditUserModal = ({
           </div>
 
           {/* PIN */}
-          <div>
-            <label className="block text-xs sm:text-sm text-gray-400 mb-2 font-medium">
-              PIN (4-6 digits) <span className="text-pink-500">*</span>
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength="6"
-              value={userData.pin}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, "");
-                setUserData({ ...userData, pin: value });
-              }}
-              placeholder="••••••"
-              className="w-full px-3 sm:px-4 py-3 sm:py-4 bg-gray-700 border-2 border-purple-500 rounded-lg text-white font-mono text-center text-xl sm:text-2xl tracking-widest focus:outline-none focus:border-pink-500 placeholder-gray-600"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              📱 Numbers only. This PIN will be used for secure login.
-            </p>
-          </div>
+          {!editingUser && (
+            <div>
+              <label className="block text-xs sm:text-sm text-gray-400 mb-2 font-medium">
+                PIN (4-6 digits) <span className="text-pink-500">*</span>
+              </label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength="6"
+                value={userData.pin}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  setUserData({ ...userData, pin: value });
+                }}
+                placeholder="••••••"
+                className="w-full px-3 sm:px-4 py-3 sm:py-4 bg-gray-700 border-2 border-purple-500 rounded-lg text-white font-mono text-center text-xl sm:text-2xl tracking-widest focus:outline-none focus:border-pink-500 placeholder-gray-600"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                📱 Numbers only. This PIN will be used for secure login.
+              </p>
+            </div>
+          )}
 
           {/* Role */}
           <div>

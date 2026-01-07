@@ -37,16 +37,7 @@ exports.getProductById = async (req, res) => {
 // Create Product
 exports.createProduct = async (req, res) => {
   const { payload } = req.body;
-  const {
-    name,
-    price,
-    category_id,
-    stock = 0,
-    image = null,
-    image_url,
-    image_path,
-    active = true,
-  } = payload;
+  const { name, price, category_id, stock = 0, active = true } = payload;
 
   if (!name)
     return res.status(400).json({
@@ -66,9 +57,6 @@ exports.createProduct = async (req, res) => {
         price,
         category_id,
         stock: stock || 0,
-        image: image || "📦",
-        image_url: image_url || null,
-        image_path: image_path || null,
         active,
       })
       .select()
@@ -94,8 +82,6 @@ exports.updateProduct = async (req, res) => {
         name,
         price,
         category_id,
-        image_url,
-        image_path,
         stock,
       })
       .eq("id", productId)

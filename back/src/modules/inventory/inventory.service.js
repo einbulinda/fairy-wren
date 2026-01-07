@@ -1,0 +1,136 @@
+const supabase = require("../../config/supabase");
+
+/* ---------------- STOCK ---------------- */
+
+exports.getStock = async () => {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id,name,unit,current_stock,cost_price")
+    .eq("track_inventory", true)
+    .eq("active", true)
+    .order("name");
+
+  if (error) throw error;
+
+  return data;
+};
+
+/* ---------------- RESTOCK ---------------- */
+
+exports.restock = async ({ productId, quantity, unitCost, userId, notes }) => {
+  if (quantity <= 0) throw new Error("Quantity must be positive");
+
+  const { data: product, error } = await supabase
+    .from("products")
+    .select("current_stock, cost_price")
+    .eq("id", productId)
+    .single();
+
+  if (error || !product) throw new Error("Product not found");
+
+  const currentStock = Number(product.current_stock);
+  const currentCost = Number(product.cost_price || 0);
+
+  const newAvgCost =
+    (currentStock * currentCost + quantity * unitCost) /
+    (currentStock + quantity);
+
+  // Ledger entry
+  await supabase.from("inventory_ledger").insert({
+    product_id: productId,
+    transaction_type: "RESTOCK",
+    quantity,
+    unit_cost: unitCost,
+    notes,
+    created_by: userId,
+  });
+
+  // Update snapshot
+  await supabase
+    .from("products")
+    .update({
+      current_stock: currentStock + quantity,
+      cost_price: newAvgCost,
+    })
+    .eq("id", productId);
+};
+
+/* ---------------- STOCK TAKE ---------------- */
+
+exports.createStockTake = async (userId) => {
+  const { data, error } = await supabase
+    .from("stock_takes")
+    .insert({ performed_by: userId })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+exports.saveStockTakeItems = async (stockTakeId, items) => {
+  const records = items.map((i) => ({
+    stock_take_id: stockTakeId,
+    product_id: i.productId,
+    system_qty: i.systemQty,
+    physical_qty: i.physicalQty,
+    variance: i.physicalQty - i.systemQty,
+  }));
+
+  const { error } = await supabase.from("stock_take_items").upsert(records, {
+    onConflict: "stock_take_id,product_id",
+  });
+
+  if (error) throw error;
+};
+
+exports.completeStockTake = async (stockTakeId, userId) => {
+  const { data: items, error } = await supabase
+    .from("stock_take_items")
+    .select("*")
+    .eq("stock_take_id", stockTakeId);
+
+  if (error) throw error;
+
+  for (const item of items) {
+    if (item.variance !== 0) {
+      // Ledger
+      await supabase.from("inventory_ledger").insert({
+        product_id: item.product_id,
+        transaction_type: "STOCKTAKE_ADJUSTMENT",
+        quantity: item.variance,
+        reference_id: stockTakeId,
+        created_by: userId,
+      });
+
+      // Update product stock
+      await supabase.rpc("increment_stock", {
+        product_id: item.product_id,
+        quantity: item.variance,
+      });
+    }
+  }
+
+  await supabase
+    .from("stock_takes")
+    .update({ status: "completed" })
+    .eq("id", stockTakeId);
+};
+
+/* ---------------- LEDGER ---------------- */
+
+exports.getLedger = async ({ productId, from, to }) => {
+  let query = supabase
+    .from("inventory_ledger")
+    .select("*, products(name)")
+    .order("created_at", { ascending: false });
+
+  if (productId) query = query.eq("product_id", productId);
+  if (from) query = query.gte("created_at", from);
+  if (to) query = query.lte("created_at", to);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return data;
+};

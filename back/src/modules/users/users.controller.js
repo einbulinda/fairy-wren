@@ -40,14 +40,35 @@ exports.getUserById = async (req, res) => {
 exports.createUser = async (req, res) => {
   try {
     const { name, pin, role } = req.body;
-
-    const pinHash = await bcrypt.hash(pin, 10);
-
+    // 1. Basic validation
+    if (!name || !pin || !role) {
+      return res.status(400).json({
+        error: "Name, PIN, and role are required",
+      });
+    }
+    // 2. Compute fingerprint (deterministic)
     const fingerprint = crypto
       .createHmac("sha256", process.env.PIN_PEPPER)
       .update(pin)
       .digest("hex");
 
+    // 3. Optional pre-check (UX improvement)
+    const { data: existingUser } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("pin_fingerprint", fingerprint)
+      .maybeSingle();
+
+    if (existingUser) {
+      return res.status(409).json({
+        error: "PIN already in use. Please choose a different PIN.",
+      });
+    }
+
+    // 4. Hash PIN (non-deterministic)
+    const pinHash = await bcrypt.hash(pin, 10);
+
+    // 5. Insert user
     const { data, error } = await supabase
       .from("profiles")
       .insert({
@@ -60,11 +81,23 @@ exports.createUser = async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // 6. Handle unique constraint race-condition safely
+      if (error.code === "23505") {
+        return res.status(409).json({
+          error: "PIN already in use. Please choose a different PIN.",
+        });
+      }
 
-    res.json(data);
+      throw error;
+    }
+
+    res.status(201).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Create user error:", err);
+    res.status(500).json({
+      error: "Failed to create user",
+    });
   }
 };
 
@@ -73,6 +106,8 @@ exports.updateUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const updates = req.body;
+
+    console.log(updates);
 
     const { data, error } = await supabase
       .from("profiles")

@@ -1,122 +1,32 @@
-const supabase = require("../../config/supabase");
+const billService = require("./bills.service");
 
 // Create a new bill
 exports.createBill = async (req, res) => {
   try {
-    const { customerName } = req.body;
-    const { data, error } = await supabase
-      .from("bills")
-      .insert({
-        customer_name: customerName,
-        created_by: req.user.id,
-        status: "open",
-      })
-      .select()
-      .single();
+    const bill = await billService.createBill({
+      customer_name: req.body.customerName,
+      created_by: req.user.id,
+    });
 
-    if (error) throw error;
-
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json(bill);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };
 
-// Add round to bill
+// Add round
 exports.addRound = async (req, res) => {
   try {
-    const { billId } = req.params;
-    const { roundNumber, items } = req.body;
-
     //Create Round
-    const { data: round, error: roundError } = await supabase
-      .from("rounds")
-      .insert({
-        bill_id: billId,
-        round_number: roundNumber,
-        created_by: req.user.id,
-      })
-      .select()
-      .single();
+    const result = await billService.addRound({
+      billId: req.params.billId,
+      roundNumber: req.body.roundNumber,
+      items: req.body.items,
+      userId: req.user.id,
+    });
 
-    if (roundError) throw roundError;
-
-    // Add Items to Round
-    const roundItems = items.map((item) => ({
-      round_id: round.id,
-      product_id: item.productId,
-      price: item.price,
-      quantity: item.quantity,
-    }));
-
-    const { error: itemsError } = await supabase
-      .from("round_items")
-      .insert(roundItems);
-
-    if (itemsError) throw itemsError;
-
-    // Update Products Stock
-    for (const item of items) {
-      await supabase.rpc("decrement_stock", {
-        productId: item.productId,
-        quantity: item.quantity,
-      });
-    }
-
-    res.json({ round, items: roundItems });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Get Open Bills
-exports.openBills = async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("bills")
-      .select(
-        ` *,
-        rounds (
-          *,
-          round_items (*)
-        )`
-      )
-      // .eq("status", "open") //Gets all Bills
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Get Bill by ID
-exports.getBillById = async (req, res) => {
-  try {
-    const { billId } = req.params;
-    const { data, error } = await supabase
-      .from("bills")
-      .select(`*,rounds(*,round_items(*))`)
-      .eq("id", billId)
-      .single();
-  } catch (error) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Get All Bills
-exports.getAllBills = async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("bills")
-      .select(`*,rounds(*,round_items(*))`)
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-
-    res.json(data);
-  } catch (error) {
+    res.json(result);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
@@ -124,63 +34,58 @@ exports.getAllBills = async (req, res) => {
 // Mark bill as paid
 exports.payBills = async (req, res) => {
   try {
-    const { billId } = req.params;
-    const { paymentMethod, mpesaCode, amount } = req.body;
+    const payment = billService.payBill({
+      billId: req.params.billId,
+      amount: req.body.amount.total,
+      paymentMethod: req.body.paymentMethod,
+      userId: req.user.id,
+    });
 
-    console.log(req.body);
-
-    const { error } = await supabase
-      .from("bills")
-      .update({
-        status: "awaiting_confirmation",
-        updated_by: req.user.id,
-      })
-      .eq("id", billId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    console.log("Bills Error", error);
-
-    const { data: payment, error: paymentError } = await supabase
-      .from("payments")
-      .insert({
-        bill_id: billId,
-        amount: amount.total,
-        payment_type: paymentMethod,
-        mpesa_code: mpesaCode,
-        created_by: req.user.id,
-      });
-
-    if (paymentError) throw error;
-    console.log("Payments Error", paymentError);
-
-    res.status(200).json(payment);
+    res.json(payment);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Bartender confirm payment
+// Confirm payments
 exports.confirmPayment = async (req, res) => {
   try {
-    const { billId } = req.params;
+    await billService.confirmPayment({
+      paymentId: req.params.paymentId,
+      userId: req.user.id,
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
 
-    const { error } = await supabase
-      .from("payments")
-      .update({
-        is_paid: true,
-        updated_by: req.user.id,
-      })
-      .eq("id", billId)
-      .select()
-      .single();
+// Get Open Bills
+exports.openBills = async (req, res) => {
+  try {
+    const data = await billService.getOpenBills();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-    if (error) throw error;
+// Get Bill by ID
+exports.getBillById = async (req, res) => {
+  try {
+    const data = await billService.getBillById(req.params.billId);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-    res.status(200).json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+// Get All Bills
+exports.getAllBills = async (req, res) => {
+  try {
+    const data = await billService.getAllBills();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

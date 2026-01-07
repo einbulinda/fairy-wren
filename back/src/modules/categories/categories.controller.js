@@ -24,7 +24,7 @@ exports.fetchCategories = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, active");
+      .select("id, name, active, color");
 
     if (error) throw error;
 

@@ -1,4 +1,4 @@
-import { Upload, ImageIcon } from "lucide-react";
+import { X } from "lucide-react";
 
 const EditProductModal = ({
   isOpen,
@@ -6,81 +6,35 @@ const EditProductModal = ({
   productData,
   setProductData,
   categories,
-  imagePreview,
-  handleImageSelect,
   handleSaveProduct,
-  uploadingImage,
   editingProduct,
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl border-2 border-pink-500 my-8">
-        <h3 className="text-2xl font-bold text-pink-500 mb-4">
-          {editingProduct ? "Edit Product" : "Add New Product"}
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          {/* Left Column - Image Upload */}
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">
-              Product Image
-            </label>
-            <div className="space-y-3">
-              {/* Image Preview */}
-              <div className="w-full h-48 bg-gray-900 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-700 overflow-hidden">
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center text-gray-500">
-                    <ImageIcon size={48} className="mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No image selected</p>
-                  </div>
-                )}
-              </div>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+      <div className="bg-gray-800/95 backdrop-blur-xl w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl border-2 border-pink-500/50 shadow-2xl shadow-pink-500/20 max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col animate-slide-up">
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-700/50 backdrop-blur-sm shrink-0">
+          <h3 className="text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-purple-500">
+            {editingProduct ? "Edit Product" : "Add New Product"}
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+            aria-label="Close modal"
+          >
+            <X size={24} className="text-gray-400 hover:text-white" />
+          </button>
+        </div>
 
-              {/* Upload Button */}
-              <label className="block">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onClick={handleImageSelect}
-                  className="hidden"
-                />
-                <div className="w-full px-4 py-2 bg-purple-600 rounded-lg font-semibold hover:bg-purple-700 cursor-pointer flex items-center justify-center">
-                  <Upload size={18} className="mr-2" />
-                  {imagePreview ? "Change Image" : "Upload Image"}
-                </div>
-              </label>
-
-              {/* Emoji Fallback */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">
-                  Or use emoji:
-                </label>
-                <input
-                  type="text"
-                  value={productData.image}
-                  onChange={(e) =>
-                    setProductData({ ...productData, image: e.target.value })
-                  }
-                  placeholder="📦"
-                  maxLength="2"
-                  className="w-full px-4 py-2 bg-gray-700 border border-purple-500 rounded-lg text-white text-center text-2xl focus:outline-none focus:border-pink-500"
-                />
-              </div>
-            </div>
-          </div>
-          {/* Right Column - Product Details */}
-          <div className="space-y-3">
-            {/* Name */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                Product Name *
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+            {/* Product Name */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs sm:text-sm text-gray-300 mb-2 font-medium">
+                Product Name <span className="text-pink-500">*</span>
               </label>
               <input
                 value={productData.name}
@@ -89,19 +43,22 @@ const EditProductModal = ({
                 }
                 type="text"
                 placeholder="e.g., Tusker Beer"
-                className="w-full px-4 py-2 bg-gray-700 border border-purple-500 rounded-lg text-white focus:outline-none focus:border-pink-500"
+                autoFocus
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700/50 backdrop-blur-sm border-2 border-purple-500/50 rounded-lg text-white text-sm sm:text-base placeholder-gray-500 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
               />
             </div>
+
+            {/* Category */}
             <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                Category *
+              <label className="block text-xs sm:text-sm text-gray-300 mb-2 font-medium">
+                Category <span className="text-pink-500">*</span>
               </label>
               <select
                 value={productData.categoryId}
                 onChange={(e) =>
                   setProductData({ ...productData, categoryId: e.target.value })
                 }
-                className="w-full px-4 py-2 bg-gray-700 border border-purple-500 rounded-lg text-white focus:outline-none focus:border-pink-500"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700/50 backdrop-blur-sm border-2 border-purple-500/50 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
               >
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
@@ -111,60 +68,91 @@ const EditProductModal = ({
               </select>
             </div>
 
+            {/* Price */}
             <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                Price (KES) *
+              <label className="block text-xs sm:text-sm text-gray-300 mb-2 font-medium">
+                Price (KSh.) <span className="text-pink-500">*</span>
               </label>
               <input
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 value={productData.price}
                 onChange={(e) =>
                   setProductData({ ...productData, price: e.target.value })
                 }
                 placeholder="0.00"
-                className="w-full px-4 py-2 bg-gray-700 border border-purple-500 rounded-lg text-white focus:outline-none focus:border-pink-500"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700/50 backdrop-blur-sm border-2 border-purple-500/50 rounded-lg text-white text-sm sm:text-base placeholder-gray-500 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
               />
             </div>
 
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                Initial Stock *
+            {/* Stock */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs sm:text-sm text-gray-300 mb-2 font-medium">
+                Initial Stock <span className="text-pink-500">*</span>
               </label>
               <input
                 type="number"
+                inputMode="numeric"
                 value={productData.stock}
                 onChange={(e) =>
                   setProductData({ ...productData, stock: e.target.value })
                 }
                 placeholder="0"
-                className="w-full px-4 py-2 bg-gray-700 border border-purple-500 rounded-lg text-white focus:outline-none focus:border-pink-500"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700/50 backdrop-blur-sm border-2 border-purple-500/50 rounded-lg text-white text-sm sm:text-base placeholder-gray-500 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
               />
             </div>
           </div>
+
+          {/* Info Card */}
+          <div className="mt-4 sm:mt-5 bg-linear-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-sm border border-purple-500/30 rounded-lg p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-purple-300">
+              <span className="font-semibold">💡 Tip:</span> Make sure all
+              required fields are filled out. Stock can be adjusted later from
+              inventory management.
+            </p>
+          </div>
         </div>
 
-        <div className="flex space-x-2 mt-6">
-          <button
-            onClick={handleSaveProduct}
-            disabled={uploadingImage}
-            className="flex-1 py-3 bg-green-600 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {uploadingImage
-              ? "Uploading Image..."
-              : editingProduct
-              ? "Update Product"
-              : "Create Product"}
-          </button>
-          <button
-            onClick={onClose}
-            disabled={uploadingImage}
-            className="flex-1 py-3 bg-gray-600 rounded-lg font-semibold hover:bg-gray-700"
-          >
-            Cancel
-          </button>
+        {/* Action Buttons - Fixed at bottom */}
+        <div className="p-4 sm:p-6 border-t border-gray-700/50 backdrop-blur-sm shrink-0">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <button
+              onClick={handleSaveProduct}
+              disabled={
+                !productData.name.trim() ||
+                !productData.price ||
+                !productData.categoryId ||
+                productData.stock === ""
+              }
+              className="flex-1 py-3 sm:py-3.5 bg-linear-to-r from-green-600 to-emerald-600 rounded-lg font-semibold text-white text-sm sm:text-base hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed disabled:opacity-50 transition-all active:scale-95 shadow-lg shadow-green-500/20 hover:shadow-green-500/40"
+            >
+              {editingProduct ? "Update Product" : "Create Product"}
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 sm:py-3.5 bg-gray-600/80 backdrop-blur-sm rounded-lg font-semibold text-white text-sm sm:text-base hover:bg-gray-700 transition-all active:scale-95"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
+      <style jsx>{`
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };

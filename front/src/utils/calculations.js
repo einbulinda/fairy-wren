@@ -1,5 +1,5 @@
 export const calculateBillTotals = (bill) => {
-  if (!bill || !bill.rounds) return { subtotal: 0, tax: 0, total: 0 };
+  if (!bill || !bill.rounds) return { subtotal: 0, total: 0 };
 
   const allItems = bill.rounds.flatMap((round) => round.round_items || []);
 
@@ -8,12 +8,10 @@ export const calculateBillTotals = (bill) => {
     0
   );
 
-  const tax = subtotal * 0; // Assuming 16% tax
-  const total = subtotal + tax;
+  const total = subtotal;
 
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
-    tax: parseFloat(tax.toFixed(2)),
     total: parseFloat(total.toFixed(2)),
   };
 };

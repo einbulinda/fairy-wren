@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   UserPlus,
   Edit2,
@@ -63,7 +63,6 @@ const UserManagement = () => {
     setEditingUser(user);
     setUserData({
       name: user.name,
-      pin: user.pin,
       role: user.role,
     });
     setShowUserModal(true);
@@ -136,7 +135,7 @@ const UserManagement = () => {
         </div>
         <button
           onClick={handleAddUser}
-          className="px-4 py-2.5 sm:py-2 bg-gradient-to-r from-pink-500 to-purple-500 rounded-lg font-semibold hover:from-pink-600 hover:to-purple-600 flex items-center justify-center sm:justify-start transition-all active:scale-95 text-sm sm:text-base"
+          className="px-4 py-2.5 sm:py-2 bg-linear-to-r from-pink-500 to-purple-500 rounded-lg font-semibold hover:from-pink-600 hover:to-purple-600 flex items-center justify-center sm:justify-start transition-all active:scale-95 text-sm sm:text-base"
         >
           <UserPlus size={18} className="mr-2" />
           Add User
@@ -145,25 +144,25 @@ const UserManagement = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        <div className="bg-gradient-to-br from-purple-600 to-purple-700 p-3 sm:p-4 rounded-lg">
+        <div className="bg-linear-to-br from-purple-600 to-purple-700 p-3 sm:p-4 rounded-lg">
           <div className="text-xs sm:text-sm text-purple-200">Total Users</div>
           <div className="text-2xl sm:text-3xl font-bold text-white">
             {users.length}
           </div>
         </div>
-        <div className="bg-gradient-to-br from-pink-600 to-pink-700 p-3 sm:p-4 rounded-lg">
+        <div className="bg-linear-to-br from-pink-600 to-pink-700 p-3 sm:p-4 rounded-lg">
           <div className="text-xs sm:text-sm text-pink-200">Waitresses</div>
           <div className="text-2xl sm:text-3xl font-bold text-white">
             {users.filter((u) => u.role === "waitress").length}
           </div>
         </div>
-        <div className="bg-gradient-to-br from-green-600 to-green-700 p-3 sm:p-4 rounded-lg">
+        <div className="bg-linear-to-br from-green-600 to-green-700 p-3 sm:p-4 rounded-lg">
           <div className="text-xs sm:text-sm text-green-200">Bartenders</div>
           <div className="text-2xl sm:text-3xl font-bold text-white">
             {users.filter((u) => u.role === "bartender").length}
           </div>
         </div>
-        <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-3 sm:p-4 rounded-lg">
+        <div className="bg-linear-to-br from-green-600 to-emerald-600 p-3 sm:p-4 rounded-lg">
           <div className="text-xs sm:text-sm text-green-200">Active Users</div>
           <div className="text-2xl sm:text-3xl font-bold text-white">
             {users.filter((u) => u.active).length}
@@ -317,7 +316,7 @@ const UserManagement = () => {
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="text-3xl flex-shrink-0">
+                <div className="text-3xl shrink-0">
                   {getRoleIcon(user.role)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -328,7 +327,7 @@ const UserManagement = () => {
                 </div>
               </div>
               <span
-                className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+                className={`px-2 py-1 rounded-full text-xs font-semibold shrink-0 ${
                   user.active ? "bg-green-600" : "bg-red-600"
                 }`}
               >
@@ -432,7 +431,7 @@ const UserManagement = () => {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg transition-all text-sm sm:text-base ${
                       currentPage === pageNum
-                        ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold"
+                        ? "bg-linear-to-r from-pink-500 to-purple-500 text-white font-bold"
                         : "bg-gray-700 hover:bg-gray-600 text-gray-300"
                     }`}
                   >

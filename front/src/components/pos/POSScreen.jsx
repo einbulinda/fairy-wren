@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useBills } from "../../hooks/useBills";
 import { useProducts } from "../../hooks/useProducts";
 import { useCategories } from "../../hooks/useCategories";
 import SkeletonLoader from "../shared/SkeletonLoader";
 import toast from "react-hot-toast";
-import { FileText, ShoppingCart, X } from "lucide-react";
+import {
+  FileText,
+  ShoppingCart,
+  X,
+  Search,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import ProductGrid from "./ProductGrid";
 import CurrentBill from "./CurrentBill";
 import OpenBillsModal from "./OpenBillsModal";
@@ -33,6 +40,8 @@ const POSScreen = ({ onBillUpdate }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showOpenBillsModal, setShowOpenBillsModal] = useState(false);
   const [showMobileBill, setShowMobileBill] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   // Save selected category to "Beers" on mount
   useEffect(() => {
@@ -59,6 +68,17 @@ const POSScreen = ({ onBillUpdate }) => {
   const currentBill =
     openBills.find((bill) => bill.id === activeBillId) || null;
 
+  // Filter products by category and search
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory = selectedCategory
+      ? product.category_id === selectedCategory
+      : true;
+    const matchesSearch = searchQuery
+      ? product.name.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+    return matchesCategory && matchesSearch && product.active;
+  });
+
   /** ---------- Guards ---------- */
   // Or use skeleton loaders for better UX
   if (billsLoading || productsLoading || categoriesLoading) {
@@ -78,7 +98,7 @@ const POSScreen = ({ onBillUpdate }) => {
   }
 
   if (billsError) {
-    return <div className="text-red-500 text-center p4">{billsError}</div>;
+    toast.error(billsError);
   }
 
   /** ---------- Handlers ---------- */
@@ -162,6 +182,11 @@ const POSScreen = ({ onBillUpdate }) => {
     setCurrentRoundItems((prev) => prev.filter((item) => item.id !== itemId));
   };
 
+  // Rounds Count
+  // const roundsCounts = Array.isArray(currentBill?.rounds)
+  //   ? currentBill.rounds.length
+  //   : 0;
+
   const addRoundToBill = async () => {
     if (!currentBill || currentRoundItems.length === 0) {
       toast.error("No items to add");
@@ -171,12 +196,13 @@ const POSScreen = ({ onBillUpdate }) => {
     try {
       await addBillRound(currentBill.id, {
         items: currentRoundItems,
-        roundNumber: currentBill.rounds.length + 1,
+        // roundNumber: roundsCounts + 1,
       });
 
       setCurrentRoundItems([]);
       toast.success("Round added to bill");
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error("Failed to add round");
     }
   };
@@ -226,7 +252,8 @@ const POSScreen = ({ onBillUpdate }) => {
                 >
                   <FileText size={18} className="mr-1" />
                   <span className="hidden sm:inline">
-                    Open ({openBills.length})
+                    Open (
+                    {openBills.filter((bill) => bill.status === "open").length})
                   </span>
                 </button>
               )}
@@ -234,33 +261,131 @@ const POSScreen = ({ onBillUpdate }) => {
           </div>
         </div>
 
-        {/* Categories */}
-        <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide">
-          {categories.map((cate) => (
+        {/* Search Bar */}
+        <div className="relative">
+          <Search
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+            size={20}
+          />
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-10 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-pink-500 placeholder-gray-500"
+          />
+          {searchQuery && (
             <button
-              key={cate.id}
-              onClick={() => setSelectedCategory(cate.id)}
-              className={`sm:px-4 px-3 py-2 rounded-lg font-semibold whitespace-nowrap text-sm sm:text-base transition-all ${
-                selectedCategory === cate.id
-                  ? "text-white shadow-lg transform scale-105"
-                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-              }`}
-              style={{
-                backgroundColor:
-                  selectedCategory === cate.id ? cate.color : undefined,
-              }}
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
             >
-              {cate.name}
+              <X size={18} />
             </button>
-          ))}
+          )}
         </div>
+
+        {/* Categories - Improved Grid Layout*/}
+        <div className="bg-gray-800 rounded-lg border border-gray-700 p-3">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
+              Categories
+            </h3>
+            {categories.length > 8 && (
+              <button
+                onClick={() => setShowAllCategories(!showAllCategories)}
+                className="text-xs text-pink-500 hover:text-pink-400 flex items-center gap-1 font-medium transition-colors"
+              >
+                {showAllCategories ? (
+                  <>
+                    Show Less <ChevronUp size={14} />
+                  </>
+                ) : (
+                  <>
+                    Show All ({categories.length}) <ChevronDown size={14} />
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+          <div
+            className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2 transition-all ${
+              !showAllCategories && categories.length > 8
+                ? "max-h-20 overflow-hidden"
+                : ""
+            }`}
+          >
+            {categories
+              .filter((c) => c.active)
+              .map((cate) => (
+                <button
+                  key={cate.id}
+                  onClick={() => {
+                    setSelectedCategory(cate.id);
+                    setSearchQuery(""); // Clear search when changing category
+                  }}
+                  className={`px-3 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                    selectedCategory === cate.id
+                      ? "text-white shadow-lg ring-2 ring-white/20 transform scale-105"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600 active:scale-95"
+                  }`}
+                  style={{
+                    backgroundColor:
+                      selectedCategory === cate.id ? cate.color : undefined,
+                  }}
+                >
+                  <div className="truncate">{cate.name}</div>
+                </button>
+              ))}
+          </div>
+        </div>
+
+        {/* Search Results Info */}
+        {searchQuery && (
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 flex items-center justify-between">
+            <div className="text-sm text-purple-300">
+              Found {filteredProducts.length} product
+              {filteredProducts.length !== 1 ? "s" : ""} matching "{searchQuery}
+              "
+            </div>
+            <button
+              onClick={() => setSearchQuery("")}
+              className="text-xs text-pink-500 hover:text-pink-400 font-medium"
+            >
+              Clear Search
+            </button>
+          </div>
+        )}
 
         {/* Products */}
         <ProductGrid
-          products={products.filter((p) => p.category_id === selectedCategory)}
+          products={filteredProducts}
           onProductClick={addItemToCurrentRound}
           disabled={!currentBill}
         />
+
+        {/* No Results Message */}
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
+            <div className="text-gray-500 mb-2">
+              {searchQuery ? (
+                <>
+                  <Search size={48} className="mx-auto mb-3 opacity-50" />
+                  <p className="text-lg font-medium">No products found</p>
+                  <p className="text-sm mt-2">
+                    Try adjusting your search or category
+                  </p>
+                </>
+              ) : (
+                <>
+                  <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
+                  <p className="text-lg font-medium">
+                    No products in this category
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* RIGHT: Bill - Desktop Only */}
@@ -296,7 +421,7 @@ const POSScreen = ({ onBillUpdate }) => {
 
       {/* Mobile: Bill Modal */}
       {showMobileBill && (
-        <div className="lg:hidden fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-gray-800 w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] flex flex-col animate-slide-up">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
@@ -338,13 +463,6 @@ const POSScreen = ({ onBillUpdate }) => {
       )}
 
       <style jsx>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
         @keyframes slide-up {
           from {
             transform: translateY(100%);

@@ -12,6 +12,7 @@ const userRoutes = require("../modules/users/users.routes");
 const categoryRoutes = require("../modules/categories/categories.routes");
 const supplierRoutes = require("../modules/suppliers/suppliers.routes");
 const accountsRoutes = require("../modules/accounts/accounts.routes");
+const inventoryRoutes = require("../modules/inventory/inventory.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
@@ -26,5 +27,6 @@ router.use("/users", authMiddleware, userRoutes);
 router.use("/categories", authMiddleware, categoryRoutes);
 router.use("/suppliers", authMiddleware, supplierRoutes);
 router.use("/accounts", authMiddleware, accountsRoutes);
+router.use("/inventory", authMiddleware, inventoryRoutes);
 
 module.exports = router;

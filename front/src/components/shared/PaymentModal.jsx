@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 import { useBills } from "../../hooks/useBills";
 import { USER_ROLES } from "../../utils/constants";
 import { useAuth } from "../../hooks/useAuth";
-import { X, CreditCard, Smartphone, Banknote } from "lucide-react";
+import { X, Smartphone, Banknote } from "lucide-react";
 
 const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
   const {
@@ -13,15 +13,9 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
   } = useBills();
   const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [mpesaCode, setMpesaCode] = useState("");
   const [loading, setLoading] = useState(false);
 
   const confirmPayment = async () => {
-    if (paymentMethod === "mpesa" && !mpesaCode.trim()) {
-      toast.error("Please enter MPESA code");
-      return;
-    }
-
     setLoading(true);
     try {
       if (user.role === USER_ROLES.BARTENDER) {
@@ -29,14 +23,12 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
         const response = await confirmPaymentAPI({
           billId,
           paymentMethod,
-          mpesaCode,
         });
         if (response) toast.success("Bill completed and auto-confirmed!");
       } else {
         // Waitress needs bartender confirmation
         const billDtls = {
           paymentMethod,
-          mpesaCode: paymentMethod === "mpesa" ? mpesaCode : null,
           amount: totals,
         };
 
@@ -45,7 +37,7 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
           toast.success(
             "Bill marked as paid! Awaiting bartender confirmation."
           );
-          onCloseModal();
+          onClose();
         }
       }
 
@@ -139,27 +131,6 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
             </div>
           </div>
 
-          {/* MPESA Code Input */}
-          {paymentMethod === "mpesa" && (
-            <div className="animate-fade-in">
-              <label className="block text-xs sm:text-sm text-gray-400 mb-2 font-medium">
-                M-PESA Transaction Code
-              </label>
-              <input
-                type="text"
-                value={mpesaCode}
-                onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
-                placeholder="e.g. SH12ABC34D"
-                autoCapitalize="characters"
-                disabled={loading}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700 border-2 border-purple-500 rounded-lg text-white uppercase tracking-wider text-sm sm:text-base focus:outline-none focus:border-pink-500 placeholder-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <p className="text-xs text-gray-500 mt-1.5">
-                Enter the M-PESA confirmation code received via SMS
-              </p>
-            </div>
-          )}
-
           {/* Payment Instructions */}
           {paymentMethod === "mpesa" && (
             <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 sm:p-4 text-xs sm:text-sm">
@@ -174,10 +145,8 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
                   <span className="font-bold">522522</span>
                 </li>
                 <li>
-                  Enter Account: <span className="font-bold">FAIRYWREN</span>
+                  Enter Account: <span className="font-bold">8040662</span>
                 </li>
-                <li>Enter amount and confirm</li>
-                <li>Share the confirmation code above</li>
               </ol>
             </div>
           )}
@@ -201,9 +170,7 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <button
               onClick={() => confirmPayment(billId)}
-              disabled={
-                loading || (paymentMethod === "mpesa" && !mpesaCode.trim())
-              }
+              disabled={loading}
               className="flex-1 py-3 sm:py-3.5 bg-linear-to-r from-green-600 to-emerald-600 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 text-sm sm:text-base"
             >
               {loading ? (

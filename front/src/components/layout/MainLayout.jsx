@@ -18,6 +18,8 @@ import {
   FolderTree,
   Landmark,
   Truck,
+  Package2,
+  ListChecks,
 } from "lucide-react";
 import { fetchOpenBills } from "../../services/bills.service";
 import toast from "react-hot-toast";
@@ -28,7 +30,6 @@ import POSScreen from "../pos/POSScreen";
 import ConfirmPayments from "../bartender/ConfirmPayments";
 import BillsView from "../shared/BillsView";
 import ApprovalsRequest from "../manager/ApprovalRequests";
-import InventoryManagement from "../manager/InventoryManagement";
 import SalesReports from "../owner/SalesReports";
 import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../owner/UserManagement";
@@ -36,6 +37,7 @@ import ProductManagement from "../owner/ProductManagement";
 import CategoriesManagement from "../owner/CategoriesManagement";
 import AccountsManagement from "../owner/AccountsManagement";
 import SupplierManagement from "../owner/SupplierManagement";
+import InventoryManagement from "../manager/inventory/InventoryManagement";
 
 const getStorageKey = (role) => `fw_lastSeen_${role}`;
 
@@ -256,7 +258,7 @@ const MainLayout = () => {
           transition-transform duration-300 ease-in-out z-40
           flex flex-col
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0 lg:relative lg:w-72 w-72
+          lg:translate-x-0 lg:relative lg:w-62 w-62
         `}
       >
         {/* Logo and Brand */}
