@@ -18,8 +18,6 @@ import {
   FolderTree,
   Landmark,
   Truck,
-  Package2,
-  ListChecks,
 } from "lucide-react";
 import { fetchOpenBills } from "../../services/bills.service";
 import toast from "react-hot-toast";
@@ -30,7 +28,7 @@ import POSScreen from "../pos/POSScreen";
 import ConfirmPayments from "../bartender/ConfirmPayments";
 import BillsView from "../shared/BillsView";
 import ApprovalsRequest from "../manager/ApprovalRequests";
-import SalesReports from "../owner/SalesReports";
+import Dashboard from "../owner/dashboard/Dashboard";
 import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../owner/UserManagement";
 import ProductManagement from "../owner/ProductManagement";
@@ -79,7 +77,7 @@ const MainLayout = () => {
 
       case USER_ROLES.OWNER:
         return [
-          { id: "reports", label: "Dashboard", icon: BarChart3 },
+          { id: "dashboard", label: "Dashboard", icon: BarChart3 },
           { id: "products", label: "Products", icon: Grid },
           { id: "expenses", label: "Expenses", icon: DollarSign },
           { id: "categories", label: "Categories", icon: FolderTree },
@@ -109,7 +107,7 @@ const MainLayout = () => {
       [USER_ROLES.WAITRESS]: "pos",
       [USER_ROLES.BARTENDER]: "pos",
       [USER_ROLES.MANAGER]: "inventory",
-      [USER_ROLES.OWNER]: "reports",
+      [USER_ROLES.OWNER]: "dashboard",
     };
 
     const allowedViews = navigationTabs.map((t) => t.id);
@@ -188,8 +186,8 @@ const MainLayout = () => {
         return <ApprovalsRequest />;
       case "inventory":
         return <InventoryManagement />;
-      case "reports":
-        return <SalesReports />;
+      case "dashboard":
+        return <Dashboard />;
       case "expenses":
         return <ExpenseManagement />;
       case "users":

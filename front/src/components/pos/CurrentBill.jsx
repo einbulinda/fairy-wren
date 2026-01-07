@@ -231,7 +231,7 @@ const CurrentBill = ({
                     active:scale-98 flex items-center justify-center text-sm sm:text-base"
                   >
                     <X size={16} className="mr-1.5 sm:w-5 sm:h-5" />
-                    Close Bill
+                    Close View
                   </button>
                 </div>
               </div>

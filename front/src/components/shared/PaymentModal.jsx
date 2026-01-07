@@ -1,16 +1,14 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { useBills } from "../../hooks/useBills";
+import { usePayments } from "../../hooks/usePayments";
 import { USER_ROLES } from "../../utils/constants";
 import { useAuth } from "../../hooks/useAuth";
 import { X, Smartphone, Banknote } from "lucide-react";
+import { useBills } from "../../hooks/useBills";
 
 const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
-  const {
-    confirmPayment: confirmPaymentAPI,
-    payBill: markBillAsPaid,
-    reload,
-  } = useBills();
+  const { confirmBill, reloadBills } = usePayments();
+  const { payBill: markBillAsPaid } = useBills();
   const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [loading, setLoading] = useState(false);
@@ -20,7 +18,7 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
     try {
       if (user.role === USER_ROLES.BARTENDER) {
         //   Bartender auto confirms bills
-        const response = await confirmPaymentAPI({
+        const response = await confirmBill({
           billId,
           paymentMethod,
         });
@@ -46,7 +44,7 @@ const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
       toast.error("Failed to process payment");
       console.error(error);
     } finally {
-      reload();
+      reloadBills();
       setLoading(false);
     }
   };

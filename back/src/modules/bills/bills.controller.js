@@ -20,7 +20,7 @@ exports.addRound = async (req, res) => {
     //Create Round
     const result = await billService.addRound({
       billId: req.params.billId,
-      roundNumber: req.body.roundNumber,
+      // roundNumber: req.body.roundNumber, /*Round Number is a backend function*/
       items: req.body.items,
       userId: req.user.id,
     });
@@ -44,19 +44,6 @@ exports.payBills = async (req, res) => {
     res.json(payment);
   } catch (err) {
     res.status(500).json({ error: err.message });
-  }
-};
-
-// Confirm payments
-exports.confirmPayment = async (req, res) => {
-  try {
-    await billService.confirmPayment({
-      paymentId: req.params.paymentId,
-      userId: req.user.id,
-    });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
   }
 };
 

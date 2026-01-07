@@ -11,6 +11,15 @@ export const fetchOpenBills = async () => {
   }
 };
 
+export const fetchAllBills = async () => {
+  try {
+    const response = await api.get("/bills");
+    return response.data;
+  } catch (err) {
+    throw normalizeError(err, "Error fetching all bills");
+  }
+};
+
 // Create a new bill
 export const createBill = async (payload) => {
   try {

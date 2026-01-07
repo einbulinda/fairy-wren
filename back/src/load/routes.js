@@ -13,6 +13,7 @@ const categoryRoutes = require("../modules/categories/categories.routes");
 const supplierRoutes = require("../modules/suppliers/suppliers.routes");
 const accountsRoutes = require("../modules/accounts/accounts.routes");
 const inventoryRoutes = require("../modules/inventory/inventory.routes");
+const paymentRoutes = require("../modules/payments/payments.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
@@ -28,5 +29,6 @@ router.use("/categories", authMiddleware, categoryRoutes);
 router.use("/suppliers", authMiddleware, supplierRoutes);
 router.use("/accounts", authMiddleware, accountsRoutes);
 router.use("/inventory", authMiddleware, inventoryRoutes);
+router.use("/payments", authMiddleware, paymentRoutes);
 
 module.exports = router;

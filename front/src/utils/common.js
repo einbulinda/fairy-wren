@@ -5,3 +5,9 @@ export const usersBills = (bills, user) => {
 
   return filteredBills;
 };
+
+export const formatCurrency = (value) =>
+  new Intl.NumberFormat("en-KE", {
+    style: "currency",
+    currency: "KES",
+  }).format(value || 0);

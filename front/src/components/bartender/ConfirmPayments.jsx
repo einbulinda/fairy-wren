@@ -1,18 +1,24 @@
 import { useMemo } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { useBills } from "../../hooks/useBills";
 import LoadingSpinner from "../shared/LoadingSpinner";
 import { Check, ClipboardCheck } from "lucide-react";
 import { calculateBillTotals } from "../../utils/calculations";
 import toast from "react-hot-toast";
+import { usePayments } from "../../hooks/usePayments";
 
 const ConfirmPayments = () => {
   const { user } = useAuth();
-  const { confirmPayment, bills, isLoading, reload } = useBills();
+  const {
+    bills: allBills,
+    confirmBill,
+    error,
+    isLoading,
+    reloadBills,
+  } = usePayments();
 
   const awaitingConfirmation = useMemo(() => {
-    return bills.filter((bill) => bill.status === "awaiting_confirmation");
-  }, [bills]);
+    return allBills.filter((bill) => bill.status === "awaiting_confirmation");
+  }, [allBills]);
 
   const handleConfirmPayment = async (billId) => {
     const confirmed = window.confirm("Confirm that payment has been received?");
@@ -20,9 +26,9 @@ const ConfirmPayments = () => {
 
     try {
       const confirmingUser = { confirmedBy: user.id };
-      await confirmPayment(billId, confirmingUser);
+      await confirmBill(billId, confirmingUser);
       toast.success("Payment confirmed!");
-      reload();
+      reloadBills();
     } catch (error) {
       toast.error("Failed to confirm payment");
       console.error(error);
@@ -32,6 +38,8 @@ const ConfirmPayments = () => {
   if (isLoading) {
     return <LoadingSpinner />;
   }
+
+  if (error) toast(error);
 
   return (
     <div className="space-y-4">
@@ -53,7 +61,7 @@ const ConfirmPayments = () => {
                       {bill.customer_name}
                     </h3>
                     <p className="text-sm text-gray-400">
-                      Served By: {bill.waitress_name}
+                      Served By: {bill.created_by_user.name}
                     </p>
 
                     <p className="text-xs text-gray-500">
@@ -69,7 +77,7 @@ const ConfirmPayments = () => {
                       {totals.total.toFixed(2)} KES
                     </div>
                     <div className="text-sm text-gray-400 mt-1">
-                      {bill.payment_method.toUpperCase()}
+                      {bill.payments[0].payment_type.toUpperCase()}
                     </div>
 
                     {bill.mpesa_code && (

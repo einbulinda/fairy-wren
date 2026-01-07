@@ -7,17 +7,17 @@ import LoadingSpinner from "./LoadingSpinner";
 const ITEMS_PER_PAGE = 10;
 
 const BillsView = () => {
-  const { bills, isLoading } = useBills();
+  const { allBills, isLoading } = useBills();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredBills = useMemo(() => {
-    if (!searchQuery.trim()) return bills;
+    if (!searchQuery.trim()) return allBills;
 
-    return bills.filter((bill) =>
+    return allBills.filter((bill) =>
       bill.customer_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery, bills]);
+  }, [searchQuery, allBills]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredBills.length / ITEMS_PER_PAGE);

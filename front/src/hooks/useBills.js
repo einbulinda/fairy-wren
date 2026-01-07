@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import {
-  fetchOpenBills,
+  // fetchOpenBills,
+  fetchAllBills,
   createBill,
   addBillRound,
-  confirmBillPayment,
+  // confirmBillPayment,
   markBillPaid,
 } from "../services/bills.service";
 import { useAuth } from "./useAuth";
@@ -16,6 +17,7 @@ import { usersBills } from "../utils/common";
 
 export const useBills = () => {
   const [bills, setBills] = useState([]);
+  const [allBills, setAllBills] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
@@ -23,13 +25,30 @@ export const useBills = () => {
   /**
    * Load open bills
    */
-  const loadOpenBills = useCallback(async () => {
+  // const loadOpenBills = useCallback(async () => {
+  //   setIsLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     const data = await fetchOpenBills();
+  //     setBills(usersBills(data, user));
+  //   } catch (err) {
+  //     setError(err.message || "Failed to load bills");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // }, [user]);
+
+  /**
+   * Load open bills
+   */
+  const loadAllBills = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await fetchOpenBills();
-      setBills(usersBills(data, user));
+      const data = await fetchAllBills();
+      setAllBills(usersBills(data, user));
     } catch (err) {
       setError(err.message || "Failed to load bills");
     } finally {
@@ -105,41 +124,42 @@ export const useBills = () => {
   /**
    * Confirm payment (manager confirmation)
    */
-  const confirmPayment = async (billId) => {
-    setIsLoading(true);
-    setError(null);
+  // const confirmPayment = async (billId) => {
+  //   setIsLoading(true);
+  //   setError(null);
 
-    try {
-      const updatedBill = await confirmBillPayment(billId);
+  //   try {
+  //     const updatedBill = await confirmBillPayment(billId);
 
-      // bill is no longer open → remove from open bills list
-      setBills((prev) => prev.filter((bill) => bill.id !== billId));
+  //     // bill is no longer open → remove from open bills list
+  //     setBills((prev) => prev.filter((bill) => bill.id !== billId));
 
-      return updatedBill;
-    } catch (err) {
-      setError(err.message || "Failed to confirm payment");
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  //     return updatedBill;
+  //   } catch (err) {
+  //     setError(err.message || "Failed to confirm payment");
+  //     throw err;
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   /**
    * Auto-load open bills on mount
    */
   useEffect(() => {
-    loadOpenBills();
-  }, [loadOpenBills]);
+    // loadOpenBills();
+    loadAllBills();
+  }, [loadAllBills]);
 
   return {
     bills,
     isLoading,
     error,
+    allBills,
 
-    reload: loadOpenBills,
+    reload: loadAllBills,
     openBill,
     addRound,
     payBill,
-    confirmPayment,
   };
 };

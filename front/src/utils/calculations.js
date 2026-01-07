@@ -41,3 +41,5 @@ export const getStockColor = (stock) => {
   if (stock < 50) return "text-yellow-500";
   return "text-green-500";
 };
+
+

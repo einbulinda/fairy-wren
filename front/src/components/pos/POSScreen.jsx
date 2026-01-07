@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../hooks/useAuth";
 import { useBills } from "../../hooks/useBills";
 import { useProducts } from "../../hooks/useProducts";
 import { useCategories } from "../../hooks/useCategories";
@@ -18,8 +17,6 @@ import CurrentBill from "./CurrentBill";
 import OpenBillsModal from "./OpenBillsModal";
 
 const POSScreen = ({ onBillUpdate }) => {
-  const { user } = useAuth();
-
   /* Bills domain */
   const {
     bills: openBills,
@@ -111,7 +108,6 @@ const POSScreen = ({ onBillUpdate }) => {
     try {
       const bill = await openBill({
         customerName: customerName.trim(),
-        createdBy: user.id,
       });
 
       setActiveBillId(bill.id);
@@ -182,11 +178,6 @@ const POSScreen = ({ onBillUpdate }) => {
     setCurrentRoundItems((prev) => prev.filter((item) => item.id !== itemId));
   };
 
-  // Rounds Count
-  // const roundsCounts = Array.isArray(currentBill?.rounds)
-  //   ? currentBill.rounds.length
-  //   : 0;
-
   const addRoundToBill = async () => {
     if (!currentBill || currentRoundItems.length === 0) {
       toast.error("No items to add");
@@ -196,11 +187,12 @@ const POSScreen = ({ onBillUpdate }) => {
     try {
       await addBillRound(currentBill.id, {
         items: currentRoundItems,
-        // roundNumber: roundsCounts + 1,
+        //roundNumber: roundsCounts + 1, /** Logic sent to server */
       });
 
       setCurrentRoundItems([]);
       toast.success("Round added to bill");
+      setShowMobileBill(false);
     } catch (error) {
       console.error(error);
       toast.error("Failed to add round");
