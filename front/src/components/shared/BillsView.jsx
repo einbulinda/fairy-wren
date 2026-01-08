@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useBills } from "../../hooks/useBills";
 import { calculateBillTotals } from "../../utils/calculations";
 import LoadingSpinner from "./LoadingSpinner";
+import { titleCase } from "../../utils/common";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -103,6 +104,7 @@ const BillsView = () => {
       <div className="grid gap-3 sm:gap-4">
         {paginatedBills.map((bill) => {
           const totals = calculateBillTotals(bill);
+          const roundsCount = bill.rounds?.length ?? 0;
           return (
             <div
               key={bill.id}
@@ -112,11 +114,12 @@ const BillsView = () => {
                 {/* Left Side - Bill Info */}
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base sm:text-xl font-bold truncate">
-                    {bill.customer_name}
+                    {titleCase(bill.customer_name)}
                   </h3>
                   <div className="space-y-0.5 sm:space-y-1 mt-1">
                     <p className="text-xs sm:text-sm text-gray-400">
-                      Served By: {bill.waitress_name}
+                      {console.log(bill)}
+                      Served By: {titleCase(bill.created_by_user.name)}
                     </p>
                     <p className="text-xs text-gray-500">
                       {new Date(bill.created_at).toLocaleDateString()} at{" "}
@@ -126,8 +129,7 @@ const BillsView = () => {
                       })}
                     </p>
                     <p className="text-xs sm:text-sm text-gray-400">
-                      {bill?.rounds.length} round
-                      {bill?.rounds.length !== 1 ? "s" : ""}
+                      {roundsCount} round{roundsCount !== 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>

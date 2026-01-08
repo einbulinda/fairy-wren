@@ -11,3 +11,12 @@ export const formatCurrency = (value) =>
     style: "currency",
     currency: "KES",
   }).format(value || 0);
+
+// Title Case
+export const titleCase = (s) => {
+  return s
+    .toLowerCase()
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
