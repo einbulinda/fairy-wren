@@ -38,6 +38,14 @@ const ReceiptModal = ({ bill, onClose }) => {
             font-family: 'Courier New', monospace;
             font-size: 9pt;
             color: #000;
+            text-align:center;
+          }
+
+          .thermal-row,
+          .thermal-item-details {
+            display: flex;
+            justify-content: space-between;
+            text-align: left;
           }
           .receipt-copy {
             padding: 5mm;
@@ -49,7 +57,8 @@ const ReceiptModal = ({ bill, onClose }) => {
           img {
             display: block;
             margin: 0 auto 6px auto;
-            max-width: 200px;
+            max-width: 120px;
+            height: auto;
           }
           .copy-label {
             text-align: center;
@@ -60,9 +69,16 @@ const ReceiptModal = ({ bill, onClose }) => {
             border-top: 2px dashed #000;
             border-bottom: 2px dashed #000;
           }
+          .thermal-logo-img {
+            display: block;
+            margin: 0 auto 4px auto;
+            max-width: 45px;
+            width: 45px;
+            height: auto;
+          }
           .thermal-header {
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
           }
           .thermal-logo {
             font-size: 14pt;
@@ -156,7 +172,7 @@ const ReceiptModal = ({ bill, onClose }) => {
           ${customerReceipt.innerHTML}
         </div>
         <div class="receipt-copy">
-          <div class="copy-label">★★★ FAIRY COPY ★★★</div>
+          <div class="copy-label">★★★ BAR COPY ★★★</div>
           ${fairyReceipt.innerHTML}
         </div>
       </body>
@@ -174,14 +190,16 @@ const ReceiptModal = ({ bill, onClose }) => {
   };
 
   // Render receipt content function to avoid duplication
-  const renderReceiptContent = () => (
+  const renderReceiptContent = ({ showLogo = true } = {}) => (
     <>
       <div className="thermal-header text-center">
-        <img
-          src={RECEIPT_LOGO_BASE64}
-          alt="Fairy Wren"
-          className="thermal-logo-img"
-        />
+        {showLogo && (
+          <img
+            src={RECEIPT_LOGO_BASE64}
+            alt="Fairy Wren"
+            className="thermal-logo-img"
+          />
+        )}
         <div className="thermal-logo">★ FAIRY WREN ★</div>
         <div className="thermal-subtitle">Hashers Club - Utawala</div>
         <div className="thermal-divider">================================</div>
@@ -362,7 +380,7 @@ const ReceiptModal = ({ bill, onClose }) => {
                   <div key={round.id} className="mb-4">
                     <div className="text-xs font-semibold text-purple-400 mb-2 flex items-center gap-2">
                       <span className="bg-purple-500/20 px-2 py-1 rounded">
-                        Order # {round.round_number}
+                        ROUND {round.round_number}
                       </span>
                       <span className="text-gray-500">
                         {new Date(round.created_at).toLocaleTimeString([], {
@@ -433,11 +451,13 @@ const ReceiptModal = ({ bill, onClose }) => {
           {/* Hidden Thermal Print Templates */}
           {/* Customer Copy */}
           <div className="thermal-receipt-customer">
-            {renderReceiptContent()}
+            {renderReceiptContent({ showLogo: true })}
           </div>
 
           {/* Fairy Copy (Bartender) */}
-          <div className="thermal-receipt-fairy">{renderReceiptContent()}</div>
+          <div className="thermal-receipt-fairy">
+            {renderReceiptContent({ showLogo: false })}
+          </div>
 
           <div className="p-4 sm:p-6 border-t border-gray-700 shrink-0 space-y-2 sm:space-y-0 sm:flex sm:gap-2 no-print">
             <button
