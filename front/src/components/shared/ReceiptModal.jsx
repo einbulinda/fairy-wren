@@ -4,6 +4,7 @@ import { calculateBillTotals } from "../../utils/calculations";
 import PaymentModal from "../../trash/PaymentModal";
 import fwLogo from "/fairy-logo-only.png";
 import { RECEIPT_LOGO_BASE64 } from "../../utils/receiptAssets";
+import { titleCase } from "../../utils/common";
 
 const ReceiptModal = ({ bill, onClose }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -20,173 +21,175 @@ const ReceiptModal = ({ bill, onClose }) => {
 
     if (!customerReceipt || !fairyReceipt) return;
 
-    const printWindow = window.open("", "", "width=380,height=600");
+    const printSingleCopy = (content, title) => {
+      const win = window.open("", "", "width=380,height=600");
 
-    printWindow.document.write(`
-    <html>
-      <head>
-        <title>Receipt - ${bill.customer_name}</title>
-        <style>
-          @page {
-            size: 80mm auto;
-            margin: 0;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-            width: 80mm;
-            font-family: 'Courier New', monospace;
-            font-size: 9pt;
-            color: #000;
-            text-align:center;
-          }
+      win.document.write(`
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              width: 80mm;
+              font-family: 'Courier New', monospace;
+              font-size: 9pt;
+              color: #000;
+              // text-align:center;
+            }
 
-          .thermal-row,
-          .thermal-item-details {
-            display: flex;
-            justify-content: space-between;
-            text-align: left;
-          }
-          .receipt-copy {
-            padding: 5mm;
-            page-break-after: always;
-          }
-          .receipt-copy:last-child {
-            page-break-after: auto;
-          }
-          img {
-            display: block;
-            margin: 0 auto 6px auto;
-            max-width: 120px;
-            height: auto;
-          }
-          .copy-label {
-            text-align: center;
-            font-size: 11pt;
-            font-weight: bold;
-            margin: 8px 0;
-            padding: 4px;
-            border-top: 2px dashed #000;
-            border-bottom: 2px dashed #000;
-          }
-          .thermal-logo-img {
-            display: block;
-            margin: 0 auto 4px auto;
-            max-width: 45px;
-            width: 45px;
-            height: auto;
-          }
-          .thermal-header {
-            text-align: center;
-            margin-bottom: 6px;
-          }
-          .thermal-logo {
-            font-size: 14pt;
-            font-weight: bold;
-            margin-bottom: 2px;
-          }
-          .thermal-subtitle {
-            font-size: 8pt;
-            margin-bottom: 4px;
-          }
-          .thermal-divider {
-            margin: 4px 0;
-            font-size: 8pt;
-          }
-          .thermal-divider-bold {
-            margin: 4px 0;
-            font-weight: bold;
-            font-size: 8pt;
-          }
-          .thermal-info {
-            margin-bottom: 8px;
-          }
-          .thermal-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 2px 0;
-            font-size: 8pt;
-          }
-          .thermal-items {
-            margin-bottom: 8px;
-          }
-          .thermal-round {
-            margin-bottom: 8px;
-          }
-          .thermal-round-header {
-            font-size: 8pt;
-            font-weight: bold;
-            margin-bottom: 4px;
-          }
-          .thermal-item {
-            margin-bottom: 4px;
-          }
-          .thermal-item-name {
-            font-size: 9pt;
-            font-weight: bold;
-            margin-bottom: 1px;
-          }
-          .thermal-item-details {
-            display: flex;
-            justify-content: space-between;
-            font-size: 8pt;
-          }
-          .thermal-item-total {
-            font-weight: bold;
-          }
-          .thermal-totals {
-            margin-bottom: 8px;
-          }
-          .thermal-grand-total {
-            font-size: 11pt;
-            font-weight: bold;
-            margin: 4px 0;
-          }
-          .thermal-footer {
-            text-align: center;
-            margin-top: 8px;
-          }
-          .thermal-qr-text {
-            font-size: 9pt;
-            margin: 4px 0;
-          }
-          .thermal-thanks {
-            font-size: 9pt;
-            margin: 4px 0;
-          }
-          .thermal-thanks-sub {
-            font-size: 9pt;
-            font-weight: bold;
-            margin: 2px 0;
-          }
-          .thermal-id {
-            font-size: 7pt;
-            margin-top: 6px;
-            color: #666;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="receipt-copy">
-          <div class="copy-label">★★★ CUSTOMER COPY ★★★</div>
-          ${customerReceipt.innerHTML}
-        </div>
-        <div class="receipt-copy">
-          <div class="copy-label">★★★ BAR COPY ★★★</div>
-          ${fairyReceipt.innerHTML}
-        </div>
-      </body>
-    </html>
-  `);
+            .thermal-row,
+            .thermal-item-details {
+              display: flex;
+              justify-content: space-between;
+              text-align: left;
+            }
+            .receipt-copy {
+              padding: 5mm;
+              page-break-after: always;
+            }
+            .receipt-copy:last-child {
+              page-break-after: auto;
+            }
+            img {
+              display: block;
+              margin: 0 auto 6px auto;
+              max-width: 120px;
+              height: auto;
+            }
+            .copy-label {
+              text-align: center;
+              font-size: 11pt;
+              font-weight: bold;
+              margin: 8px 0;
+              padding: 4px;
+              border-top: 2px dashed #000;
+              border-bottom: 2px dashed #000;
+            }
+            .thermal-logo-img {
+              display: block;
+              margin: 0 auto 4px auto;
+              max-width: 45px;
+              width: 45px;
+              height: auto;
+            }
+            .thermal-header {
+              text-align: center;
+              margin-bottom: 6px;
+            }
+            .thermal-logo {
+              font-size: 14pt;
+              font-weight: bold;
+              margin-bottom: 2px;
+            }
+            .thermal-subtitle {
+              font-size: 8pt;
+              margin-bottom: 4px;
+            }
+            .thermal-divider {
+              margin: 4px 0;
+              font-size: 8pt;
+              text-align: center;
+            }
+            .thermal-divider-bold {
+              margin: 4px 0;
+              font-weight: bold;
+              font-size: 8pt;
+            }
+            .thermal-info {
+              margin-bottom: 8px;
+            }
+            .thermal-row {
+              display: flex;
+              justify-content: space-between;
+              margin: 2px 0;
+              font-size: 8pt;
+            }
+            .thermal-items {
+              margin-bottom: 8px;
+            }
+            .thermal-round {
+              margin-bottom: 8px;
+            }
+            .thermal-round-header {
+              font-size: 8pt;
+              font-weight: bold;
+              margin-bottom: 4px;
+            }
+            .thermal-item {
+              margin-bottom: 4px;
+            }
+            .thermal-item-name {
+              font-size: 9pt;
+              font-weight: bold;
+              margin-bottom: 1px;
+            }
+            .thermal-item-details {
+              display: flex;
+              justify-content: space-between;
+              font-size: 8pt;
+            }
+            .thermal-item-total {
+              font-weight: bold;
+            }
+            .thermal-totals {
+              margin-bottom: 8px;
+            }
+            .thermal-grand-total {
+              font-size: 11pt;
+              font-weight: bold;
+              margin: 4px 0;
+            }
+            .thermal-footer {
+              text-align: center;
+              margin-top: 8px;
+            }
+            .thermal-qr-text {
+              font-size: 9pt;
+              margin: 4px 0;
+            }
+            .thermal-thanks {
+              font-size: 9pt;
+              margin: 4px 0;
+            }
+            .thermal-thanks-sub {
+              font-size: 9pt;
+              font-weight: bold;
+              margin: 2px 0;
+            }
+            .thermal-id {
+              font-size: 7pt;
+              margin-top: 6px;
+              color: #666;
+            }
+          </style>
+        </head>
+        <body>${content}</body>
+      </html>
+    `);
 
-    printWindow.document.close();
-    printWindow.focus();
+      win.document.close();
+      win.focus();
 
-    // Give Chrome time to render images
+      // Give Chrome time to render images
+      setTimeout(() => {
+        win.print();
+        win.close();
+      }, 300);
+    };
+
+    // 1️⃣ Customer copy (printer cuts after job)
+    printSingleCopy(customerReceipt.innerHTML, "Customer Receipt");
+
+    // 2️⃣ Bartender copy (printer cuts again)
     setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 300);
+      printSingleCopy(fairyReceipt.innerHTML, "Bar Receipt");
+    }, 800);
   };
 
   // Render receipt content function to avoid duplication
@@ -202,7 +205,9 @@ const ReceiptModal = ({ bill, onClose }) => {
         )}
         <div className="thermal-logo">★ FAIRY WREN ★</div>
         <div className="thermal-subtitle">Hashers Club - Utawala</div>
-        <div className="thermal-divider">================================</div>
+        <div className="thermal-divider">
+          ----------------------------------------
+        </div>
       </div>
 
       <div className="thermal-info">
@@ -212,11 +217,12 @@ const ReceiptModal = ({ bill, onClose }) => {
         </div>
         <div className="thermal-row">
           <span>Customer:</span>
-          <span>{bill.customer_name}</span>
+
+          <span>{titleCase(bill.customer_name)}</span>
         </div>
         <div className="thermal-row">
-          <span>Server:</span>
-          <span>{bill.created_by_user.name}</span>
+          <span>Served By:</span>
+          <span>{titleCase(bill.created_by_user.name)}</span>
         </div>
         <div className="thermal-row">
           <span>Date:</span>
@@ -231,7 +237,9 @@ const ReceiptModal = ({ bill, onClose }) => {
             })}
           </span>
         </div>
-        <div className="thermal-divider">================================</div>
+        <div className="thermal-divider">
+          ----------------------------------------
+        </div>
       </div>
 
       <div className="thermal-items">
@@ -259,7 +267,9 @@ const ReceiptModal = ({ bill, onClose }) => {
             ))}
           </div>
         ))}
-        <div className="thermal-divider">================================</div>
+        <div className="thermal-divider">
+          ----------------------------------------
+        </div>
       </div>
 
       <div className="thermal-totals">
@@ -268,7 +278,7 @@ const ReceiptModal = ({ bill, onClose }) => {
           <span>KSh. {totals.subtotal.toLocaleString()}</span>
         </div>
         <div className="thermal-divider-bold">
-          ================================
+          ----------------------------------------
         </div>
         <div className="thermal-row thermal-grand-total">
           <span>TOTAL:</span>
@@ -277,13 +287,17 @@ const ReceiptModal = ({ bill, onClose }) => {
       </div>
 
       <div className="thermal-footer">
-        <div className="thermal-divider">================================</div>
+        <div className="thermal-divider">
+          ----------------------------------------
+        </div>
         <div className="thermal-qr-text">
           PayBill: 522522
           <br />
           Account: 8040662
         </div>
-        <div className="thermal-divider">================================</div>
+        <div className="thermal-divider">
+          ----------------------------------------
+        </div>
         <div className="thermal-thanks">Thank you for your visit!</div>
         <div className="thermal-thanks-sub">Please come again!</div>
         <div className="thermal-id">Bill ID: {bill.id}</div>
@@ -352,11 +366,11 @@ const ReceiptModal = ({ bill, onClose }) => {
                   </div>
                   <div className="text-gray-400">Customer</div>
                   <div className="text-right font-semibold text-white truncate">
-                    {bill.customer_name}
+                    {titleCase(bill.customer_name)}
                   </div>
-                  <div className="text-gray-400">Server</div>
+                  <div className="text-gray-400">Served By:</div>
                   <div className="text-right text-white truncate">
-                    {bill.created_by_user.name}
+                    {titleCase(bill.created_by_user.name)}
                   </div>
                   <div className="text-gray-400">Date</div>
                   <div className="text-right text-white">
