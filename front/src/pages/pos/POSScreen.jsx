@@ -467,11 +467,13 @@ const POSScreen = () => {
                   </button>
 
                   {/* Category Buttons in 2-column grid */}
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`
+                  {categories
+                    .filter((c) => c.active == true)
+                    .map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`
                         text-center px-2 py-3 rounded-lg transition-all duration-200 font-medium text-sm
                         ${
                           selectedCategory === cat.id
@@ -479,10 +481,10 @@ const POSScreen = () => {
                             : "bg-gray-800/40 border border-purple-500/20 text-gray-300 hover:text-white hover:bg-gray-800/60"
                         }
                       `}
-                    >
-                      <span className="block truncate">{cat.name}</span>
-                    </button>
-                  ))}
+                      >
+                        <span className="block truncate">{cat.name}</span>
+                      </button>
+                    ))}
                 </div>
               </div>
             </aside>
