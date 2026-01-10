@@ -48,3 +48,6 @@ export const markBillPaid = (billId, payload) =>
 // Confirm Bill Payment
 export const confirmBillPayment = (billId) =>
   api.patch(`/bills/${billId}/confirm`);
+
+// Voiding a Bill
+export const voidBill = (billId) => api.patch(`/bills/${billId}/void`);

@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
 import {
-  // fetchOpenBills,
   fetchAllBills,
   createBill,
   addBillRound,
-  // confirmBillPayment,
+  voidBill,
   markBillPaid,
 } from "../services/bills.service";
 import { useAuth } from "./useAuth";
@@ -21,23 +20,6 @@ export const useBills = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-
-  /**
-   * Load open bills
-   */
-  // const loadOpenBills = useCallback(async () => {
-  //   setIsLoading(true);
-  //   setError(null);
-
-  //   try {
-  //     const data = await fetchOpenBills();
-  //     setBills(usersBills(data, user));
-  //   } catch (err) {
-  //     setError(err.message || "Failed to load bills");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // }, [user]);
 
   /**
    * Load open bills
@@ -69,7 +51,6 @@ export const useBills = () => {
       return newBill;
     } catch (err) {
       setError(err.message || "Failed to create bill");
-      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +73,6 @@ export const useBills = () => {
       return updatedBill;
     } catch (err) {
       setError(err.message || "Failed to add round");
-      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -115,33 +95,29 @@ export const useBills = () => {
       return updatedBill;
     } catch (err) {
       setError(err.message || "Failed to mark bill as paid");
-      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
   /**
-   * Confirm payment (manager confirmation)
+   * Void bill
    */
-  // const confirmPayment = async (billId) => {
-  //   setIsLoading(true);
-  //   setError(null);
-
-  //   try {
-  //     const updatedBill = await confirmBillPayment(billId);
-
-  //     // bill is no longer open → remove from open bills list
-  //     setBills((prev) => prev.filter((bill) => bill.id !== billId));
-
-  //     return updatedBill;
-  //   } catch (err) {
-  //     setError(err.message || "Failed to confirm payment");
-  //     throw err;
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+  const cancelBill = async (billId) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const updatedBill = await voidBill(billId);
+      setBills((prev) =>
+        prev.map((bill) => (bill.id === billId ? updatedBill : bill))
+      );
+      return updatedBill;
+    } catch (err) {
+      setError(err.message || "Failed to void bill");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   /**
    * Auto-load open bills on mount
@@ -161,5 +137,6 @@ export const useBills = () => {
     openBill,
     addRound,
     payBill,
+    cancelBill,
   };
 };

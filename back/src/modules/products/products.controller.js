@@ -56,7 +56,7 @@ exports.createProduct = async (req, res) => {
         name,
         price,
         category_id,
-        stock: stock || 0,
+        current_stock: stock || 0,
         active,
       })
       .select()

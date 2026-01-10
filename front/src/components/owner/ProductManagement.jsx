@@ -46,10 +46,10 @@ const ProductManagement = () => {
   // Statistics
   const activeProductsCount = products.filter((p) => p.active).length;
   const totalStockValue = products.reduce(
-    (sum, p) => sum + p.price * p.stock,
+    (sum, p) => sum + p.price * p.current_stock,
     0
   );
-  const lowStockCount = products.filter((p) => p.stock < 20).length;
+  const lowStockCount = products.filter((p) => p.current_stock < 20).length;
 
   // Filter and Search Logic
   const filteredProducts = useMemo(() => {
@@ -129,7 +129,7 @@ const ProductManagement = () => {
       name: product.name,
       price: product.price,
       categoryId: product.category_id,
-      stock: product.stock,
+      stock: product.current_stock,
     });
     setShowProductModal(true);
   };
@@ -170,7 +170,10 @@ const ProductManagement = () => {
       return;
     }
 
-    if (productData.stock === "" || parseInt(productData.stock) < 0) {
+    if (
+      productData.current_stock === "" ||
+      parseInt(productData.current_stock) < 0
+    ) {
       toast.error("Please enter valid stock quantity");
       return;
     }
@@ -180,7 +183,7 @@ const ProductManagement = () => {
         name: productData.name.trim(),
         price: parseFloat(productData.price),
         category_id: productData.categoryId,
-        stock: parseInt(productData.stock),
+        stock: parseInt(productData.current_stock),
       };
 
       if (editingProduct) {
@@ -188,7 +191,7 @@ const ProductManagement = () => {
           name: productPayload.name,
           price: productPayload.price,
           category_id: productPayload.categoryId,
-          stock: productPayload.stock,
+          stock: productPayload.current_stock,
         });
         toast.success("Product updated successfully");
       } else {
@@ -237,7 +240,7 @@ const ProductManagement = () => {
 
         <button
           onClick={handleAddProduct}
-          className="px-4 py-2.5 sm:py-2 bg-gradient-to-r from-pink-500 to-purple-500 rounded-lg font-semibold hover:from-pink-600 hover:to-purple-600 
+          className="px-4 py-2.5 sm:py-2 bg-linear-to-r from-pink-500 to-purple-500 rounded-lg font-semibold hover:from-pink-600 hover:to-purple-600 
           flex items-center justify-center sm:justify-start transition-all active:scale-95 text-sm sm:text-base"
         >
           <Plus size={18} className="mr-2" />
@@ -247,13 +250,13 @@ const ProductManagement = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-3 sm:p-4 rounded-lg">
+        <div className="bg-linear-to-br from-blue-600 to-blue-700 p-3 sm:p-4 rounded-lg">
           <div className="text-xs sm:text-sm text-blue-200">Total Products</div>
           <div className="text-2xl sm:text-3xl font-bold text-white">
             {products.length}
           </div>
         </div>
-        <div className="bg-gradient-to-br from-green-600 to-green-700 p-3 sm:p-4 rounded-lg">
+        <div className="bg-linear-to-br from-green-600 to-green-700 p-3 sm:p-4 rounded-lg">
           <div className="text-xs sm:text-sm text-green-200">
             Active Products
           </div>
@@ -261,13 +264,13 @@ const ProductManagement = () => {
             {activeProductsCount}
           </div>
         </div>
-        <div className="bg-gradient-to-br from-purple-600 to-purple-700 p-3 sm:p-4 rounded-lg">
+        <div className="bg-linear-to-br from-purple-600 to-purple-700 p-3 sm:p-4 rounded-lg">
           <div className="text-xs sm:text-sm text-purple-200">Stock Value</div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">
             KSh. {totalStockValue.toLocaleString()}
           </div>
         </div>
-        <div className="bg-gradient-to-br from-red-600 to-red-700 p-3 sm:p-4 rounded-lg">
+        <div className="bg-linear-to-br from-red-600 to-red-700 p-3 sm:p-4 rounded-lg">
           <div className="text-xs sm:text-sm text-red-200">Low Stock</div>
           <div className="text-2xl sm:text-3xl font-bold text-white">
             {lowStockCount}
@@ -422,16 +425,16 @@ const ProductManagement = () => {
                         <Package size={16} className="text-gray-400" />
                         <span
                           className={`text-sm font-bold ${
-                            product.stock < 20
+                            product.current_stock < 20
                               ? "text-red-500"
-                              : product.stock < 50
+                              : product.current_stock < 50
                               ? "text-yellow-500"
                               : "text-green-500"
                           }`}
                         >
-                          {product.stock}
+                          {product.current_stock}
                         </span>
-                        {product.stock < 20 && (
+                        {product.current_stock < 20 && (
                           <span className="text-xs text-red-400">(Low)</span>
                         )}
                       </div>
@@ -509,13 +512,13 @@ const ProductManagement = () => {
           return (
             <div
               key={product.id}
-              className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden hover:border-pink-500 transition-all shadow-lg"
+              className="bg-linear-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden hover:border-pink-500 transition-all shadow-lg"
             >
-              {/* Header with gradient */}
+              {/* Header with linear */}
               <div
                 className="h-2"
                 style={{
-                  background: `linear-gradient(to right, ${categoryInfo.color}, ${categoryInfo.color}80)`,
+                  background: `linear-linear(to right, ${categoryInfo.color}, ${categoryInfo.color}80)`,
                 }}
               />
 
@@ -549,9 +552,9 @@ const ProductManagement = () => {
                 {/* Price & Stock - Prominent Display */}
                 <div className="grid grid-cols-2 gap-3">
                   {/* Price Card */}
-                  <div className="bg-gradient-to-br from-pink-500/10 to-purple-500/10 border border-pink-500/30 rounded-lg p-3">
+                  <div className="bg-linear-to-br from-pink-500/10 to-purple-500/10 border border-pink-500/30 rounded-lg p-3">
                     <div className="text-xs text-gray-400 mb-1">Price</div>
-                    <div className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500">
+                    <div className="text-lg font-bold text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-purple-500">
                       {product.price.toLocaleString()}
                     </div>
                     <div className="text-xs text-gray-500">KSh.</div>
@@ -560,9 +563,9 @@ const ProductManagement = () => {
                   {/* Stock Card */}
                   <div
                     className={`rounded-lg p-3 border ${
-                      product.stock < 20
+                      product.current_stock < 20
                         ? "bg-red-500/10 border-red-500/30"
-                        : product.stock < 50
+                        : product.current_stock < 50
                         ? "bg-yellow-500/10 border-yellow-500/30"
                         : "bg-green-500/10 border-green-500/30"
                     }`}
@@ -570,17 +573,17 @@ const ProductManagement = () => {
                     <div className="text-xs text-gray-400 mb-1">Stock</div>
                     <div
                       className={`text-lg font-bold ${
-                        product.stock < 20
+                        product.current_stock < 20
                           ? "text-red-400"
-                          : product.stock < 50
+                          : product.current_stock < 50
                           ? "text-yellow-400"
                           : "text-green-400"
                       }`}
                     >
-                      {product.stock}
+                      {product.current_stock}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {product.stock < 20 ? "Low Stock" : "Units"}
+                      {product.current_stock < 20 ? "Low Stock" : "Units"}
                     </div>
                   </div>
                 </div>
@@ -589,7 +592,7 @@ const ProductManagement = () => {
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     onClick={() => handleEditProduct(product)}
-                    className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:from-blue-700 hover:to-blue-800 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+                    className="px-4 py-2.5 bg-linear-to-r from-blue-600 to-blue-700 rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:from-blue-700 hover:to-blue-800 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
                   >
                     <Edit2 size={16} />
                     Edit
@@ -600,8 +603,8 @@ const ProductManagement = () => {
                     }
                     className={`px-4 py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg ${
                       product.active
-                        ? "bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 shadow-orange-500/20"
-                        : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-green-500/20"
+                        ? "bg-linear-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 shadow-orange-500/20"
+                        : "bg-linear-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-green-500/20"
                     }`}
                   >
                     {product.active ? (
@@ -623,7 +626,7 @@ const ProductManagement = () => {
         })}
 
         {filteredProducts?.length === 0 && (
-          <div className="text-center py-12 text-gray-500 bg-gradient-to-br from-gray-800 to-gray-800/50 rounded-xl border border-gray-700">
+          <div className="text-center py-12 text-gray-500 bg-linear-to-br from-gray-800 to-gray-800/50 rounded-xl border border-gray-700">
             <Package size={48} className="mx-auto mb-4 opacity-50" />
             <p className="text-lg font-medium">No products found</p>
             <p className="text-sm mt-2">
@@ -673,7 +676,7 @@ const ProductManagement = () => {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg transition-all text-sm sm:text-base ${
                       currentPage === pageNum
-                        ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold"
+                        ? "bg-linear-to-r from-pink-500 to-purple-500 text-white font-bold"
                         : "bg-gray-700 hover:bg-gray-600 text-gray-300"
                     }`}
                   >

@@ -32,10 +32,10 @@ where bill_id = p_bill_id;
 if v_payment_total = 0 then raise exception 'No payments recorded for bill';
 end if;
 -- Enforce full settlement
-if v_payment_total <> v_bill_total then raise exception 'Payment total (%) does not match bill total (%)',
-v_payment_total,
-v_bill_total;
-end if;
+--if v_payment_total <> v_bill_total then raise exception 'Payment total (%) does not match bill total (%)',
+--v_payment_total,
+--v_bill_total;
+--end if;
 -- Mark bill as completed
 update bills
 set status = 'completed',

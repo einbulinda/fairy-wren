@@ -1,10 +1,10 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { usePayments } from "../../hooks/usePayments";
-import { USER_ROLES } from "../../utils/constants";
-import { useAuth } from "../../hooks/useAuth";
+import { usePayments } from "../hooks/usePayments";
+import { USER_ROLES } from "../utils/constants";
+import { useAuth } from "../hooks/useAuth";
 import { X, Smartphone, Banknote } from "lucide-react";
-import { useBills } from "../../hooks/useBills";
+import { useBills } from "../hooks/useBills";
 
 const PaymentModal = ({ totals, billId, onCloseModal, onClose }) => {
   const { confirmBill, reloadBills } = usePayments();

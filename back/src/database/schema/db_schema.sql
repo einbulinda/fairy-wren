@@ -265,3 +265,13 @@ END IF;
 RETURN NEXT;
 END;
 $$;
+-- Update Stocks Function
+create or replace function public.increment_stock(p_product_id uuid, p_quantity numeric) returns void language plpgsql as $$ begin
+update products
+set current_stock = current_stock + p_quantity
+where id = p_product_id;
+if not found then raise exception 'Product not found: %',
+p_product_id;
+end if;
+end;
+$$;

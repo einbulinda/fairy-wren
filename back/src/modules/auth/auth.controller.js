@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const supabase = require("../../config/supabase");
 const { signToken } = require("../../utils/jwt");
+const logger = require("../../utils/logger");
 
 exports.login = async (req, res) => {
   try {

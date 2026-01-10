@@ -6,22 +6,16 @@ const OpenBillsModal = ({ bills: allBills, onSelectBill, onClose }) => {
   const safeRounds = bills?.rounds ?? [];
 
   return (
-    <div className="fixed inset-0 bg-black backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-      <div className="bg-gray-800 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl border-2 border-pink-500 max-h-[90vh] sm:max-h-[80vh] overflow-hidden flex flex-col animate-slide-up">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+      <div className="bg-gray-900/95 backdrop-blur-md border-2 border-purple-500/30 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-purple-500/20">
         {/* Header */}
-        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-700 shrink-0">
-          <h3 className="text-xl sm:text-2xl font-bold text-pink-500">
-            Open Bills{" "}
-            {bills.length > 0 && (
-              <span className="ml-2 text-sm sm:text-base text-gray-400 font-normal">
-                ({bills.length})
-              </span>
-            )}
+        <div className="flex justify-between items-center p-6 border-b border-purple-500/20 shrink-0">
+          <h3 className="text-2xl font-bold bg-linear-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+            Open Bills ({bills.length})
           </h3>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-            aria-label="Close modal"
+            className="p-2 hover:bg-purple-500/20 rounded-lg transition-colors"
           >
             <X size={24} className="text-gray-400 hover:text-white" />
           </button>
@@ -35,7 +29,7 @@ const OpenBillsModal = ({ bills: allBills, onSelectBill, onClose }) => {
               <div
                 key={bill.id}
                 onClick={() => onSelectBill(bill)}
-                className="bg-gray-700 p-3 sm:p-4 rounded-lg border-2 border-purple-500 hover:border-pink-500 cursor-pointer transition-all hover:shadow-lg hover:shadow-pink-500/20 active:scale-98"
+                className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border-2 border-purple-500/30 hover:border-pink-500/50 cursor-pointer transition-all hover:shadow-lg hover:shadow-pink-500/20 active:scale-98"
               >
                 <div className="flex justify-between items-start gap-3">
                   {/* Left side - Bill info */}

@@ -29,6 +29,7 @@ exports.fetchBillsWithPayments = async () => {
       rounds (
         id,
         round_number,
+        created_at,
         round_items (
           id,
           quantity,
@@ -51,7 +52,15 @@ exports.fetchBillsWithPayments = async () => {
 /**
  * Confirm bill and mark payments as paid
  */
-exports.confirmBill = async ({ billId, userId, paymentMode }) => {
+exports.confirmBill = async ({ billId, userId, paymentMode, amount }) => {
+  await supabase.from("payments").insert({
+    amount,
+    payment_type: paymentMode,
+    bill_id: billId,
+    is_paid: false,
+    created_by: userId,
+  });
+
   const { error } = await supabase.rpc("confirm_bill_and_payments", {
     p_bill_id: billId,
     p_user_id: userId,
