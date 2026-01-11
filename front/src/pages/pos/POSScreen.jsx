@@ -323,7 +323,7 @@ const POSScreen = () => {
               `}
             >
               <ShoppingCart size={18} />
-              <span>POS</span>
+              <span>SALE</span>
             </button>
 
             <button
