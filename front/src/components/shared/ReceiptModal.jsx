@@ -30,21 +30,24 @@ const ReceiptModal = ({ bill, onClose }) => {
           <title>${title}</title>
           <style>
             @page {
-              size: 80mm auto;
+              size: 72mm auto;
               margin: 0;
             }
             body {
               margin: 0;
               padding: 0;
-              width: 80mm;
+              width: 70mm;
               font-family: 'Courier New', monospace;
-              font-size: 9pt;
+              font-size: 8pt;
               color: #000;
               // text-align:center;
             }
 
             .thermal-row,
             .thermal-item-details {
+              max-width:70mm;
+              font-size: 7.5pt;
+              box-sizing: border-box;
               display: flex;
               justify-content: space-between;
               text-align: left;
