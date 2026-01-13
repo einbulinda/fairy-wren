@@ -2,13 +2,15 @@ import { useState, useCallback, useEffect } from "react";
 import {
   createCategory,
   updateCategory,
+  fetchCategories,
   toggleStatus,
+  fetchCategory
 } from "../services/categories.service";
 
-import {
-  getAllCategories,
-  getCategoryById,
-} from "../repositories/categories.repository";
+// import {
+//   getAllCategories,
+//   getCategoryById,
+// } from "../repositories/categories.repository";
 
 export const useCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -21,7 +23,7 @@ export const useCategories = () => {
     setError(null);
 
     try {
-      const data = await getAllCategories();
+      const data = await fetchCategories();
       setCategories(data);
     } catch (err) {
       setError(err.message || "Failed to load products");
@@ -36,7 +38,7 @@ export const useCategories = () => {
     setError(null);
 
     try {
-      return await getCategoryById(categoryId);
+      return await fetchCategory(categoryId);
     } catch (error) {
       setError(error.message || "Failed to fetch category");
     } finally {
