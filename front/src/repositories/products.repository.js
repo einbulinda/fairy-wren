@@ -12,3 +12,12 @@ export async function getAllProducts() {
     return await getOfflineProducts();
   }
 }
+
+export async function getProductById(productId) {
+  try {
+    return await productsAPI.product(productId);
+  } catch {
+    const products = await getOfflineProducts();
+    return products.find((p) => p.id === productId);
+  }
+}

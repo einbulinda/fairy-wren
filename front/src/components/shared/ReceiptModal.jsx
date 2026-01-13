@@ -1,199 +1,10 @@
-import { useState } from "react";
-import { X, DollarSign, Printer } from "lucide-react";
+import { X, Printer } from "lucide-react";
 import { calculateBillTotals } from "../../utils/calculations";
-import PaymentModal from "../../trash/PaymentModal";
-import fwLogo from "/fairy-logo-only.png";
 import { RECEIPT_LOGO_BASE64 } from "../../utils/receiptAssets";
-import { titleCase } from "../../utils/common";
+import { printReceipt, titleCase } from "../../utils/common";
 
 const ReceiptModal = ({ bill, onClose }) => {
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-
   const totals = calculateBillTotals(bill);
-
-  const handleMarkAsPaid = () => {
-    setShowPaymentModal(true);
-  };
-
-  const handlePrint = () => {
-    const customerReceipt = document.querySelector(".thermal-receipt-customer");
-    const fairyReceipt = document.querySelector(".thermal-receipt-fairy");
-
-    if (!customerReceipt || !fairyReceipt) return;
-
-    const printSingleCopy = (content, title) => {
-      const win = window.open("", "", "width=380,height=600");
-
-      win.document.write(`
-      <html>
-        <head>
-          <title>${title}</title>
-          <style>
-            @page {
-              size: 72mm auto;
-              margin: 0;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              width: 70mm;
-              font-family: 'Courier New', monospace;
-              font-size: 8pt;
-              color: #000;
-              // text-align:center;
-            }
-
-            .thermal-row,
-            .thermal-item-details {
-              max-width:70mm;
-              font-size: 7.5pt;
-              box-sizing: border-box;
-              display: flex;
-              justify-content: space-between;
-              text-align: left;
-            }
-            .receipt-copy {
-              padding: 5mm;
-              page-break-after: always;
-            }
-            .receipt-copy:last-child {
-              page-break-after: auto;
-            }
-            img {
-              display: block;
-              margin: 0 auto 6px auto;
-              max-width: 120px;
-              height: auto;
-            }
-            .copy-label {
-              text-align: center;
-              font-size: 11pt;
-              font-weight: bold;
-              margin: 8px 0;
-              padding: 4px;
-              border-top: 2px dashed #000;
-              border-bottom: 2px dashed #000;
-            }
-            .thermal-logo-img {
-              display: block;
-              margin: 0 auto 4px auto;
-              max-width: 45px;
-              width: 45px;
-              height: auto;
-            }
-            .thermal-header {
-              text-align: center;
-              margin-bottom: 6px;
-            }
-            .thermal-logo {
-              font-size: 14pt;
-              font-weight: bold;
-              margin-bottom: 2px;
-            }
-            .thermal-subtitle {
-              font-size: 8pt;
-              margin-bottom: 4px;
-            }
-            .thermal-divider {
-              margin: 4px 0;
-              font-size: 8pt;
-              text-align: center;
-            }
-            .thermal-divider-bold {
-              margin: 4px 0;
-              font-weight: bold;
-              font-size: 8pt;
-            }
-            .thermal-info {
-              margin-bottom: 8px;
-            }
-            .thermal-row {
-              display: flex;
-              justify-content: space-between;
-              margin: 2px 0;
-              font-size: 8pt;
-            }
-            .thermal-items {
-              margin-bottom: 8px;
-            }
-            .thermal-round {
-              margin-bottom: 8px;
-            }
-            .thermal-round-header {
-              font-size: 8pt;
-              font-weight: bold;
-              margin-bottom: 4px;
-            }
-            .thermal-item {
-              margin-bottom: 4px;
-            }
-            .thermal-item-name {
-              font-size: 9pt;
-              font-weight: bold;
-              margin-bottom: 1px;
-            }
-            .thermal-item-details {
-              display: flex;
-              justify-content: space-between;
-              font-size: 8pt;
-            }
-            .thermal-item-total {
-              font-weight: bold;
-            }
-            .thermal-totals {
-              margin-bottom: 8px;
-            }
-            .thermal-grand-total {
-              font-size: 11pt;
-              font-weight: bold;
-              margin: 4px 0;
-            }
-            .thermal-footer {
-              text-align: center;
-              margin-top: 8px;
-            }
-            .thermal-qr-text {
-              font-size: 9pt;
-              margin: 4px 0;
-            }
-            .thermal-thanks {
-              font-size: 9pt;
-              margin: 4px 0;
-            }
-            .thermal-thanks-sub {
-              font-size: 9pt;
-              font-weight: bold;
-              margin: 2px 0;
-            }
-            .thermal-id {
-              font-size: 7pt;
-              margin-top: 6px;
-              color: #666;
-            }
-          </style>
-        </head>
-        <body>${content}</body>
-      </html>
-    `);
-
-      win.document.close();
-      win.focus();
-
-      // Give Chrome time to render images
-      setTimeout(() => {
-        win.print();
-        win.close();
-      }, 300);
-    };
-
-    // 1️⃣ Customer copy (printer cuts after job)
-    printSingleCopy(customerReceipt.innerHTML, "Customer Receipt");
-
-    // 2️⃣ Bartender copy (printer cuts again)
-    setTimeout(() => {
-      printSingleCopy(fairyReceipt.innerHTML, "Bar Receipt");
-    }, 800);
-  };
 
   // Render receipt content function to avoid duplication
   const renderReceiptContent = ({ showLogo = true } = {}) => (
@@ -220,7 +31,6 @@ const ReceiptModal = ({ bill, onClose }) => {
         </div>
         <div className="thermal-row">
           <span>Customer:</span>
-
           <span>{titleCase(bill.customer_name)}</span>
         </div>
         <div className="thermal-row">
@@ -308,95 +118,90 @@ const ReceiptModal = ({ bill, onClose }) => {
     </>
   );
 
+  // Handle backdrop click to close
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 no-print">
-        <div
-          className="bg-gray-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl border-2 border-pink-500 max-h-[95vh] sm:max-h-[90vh]
-        overflow-hidden flex flex-col animate-slide-up"
-        >
+      <div
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 no-print"
+        onClick={handleBackdropClick}
+      >
+        <div className="bg-linear-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-md rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md border-2 border-purple-500/30 max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col animate-slide-up shadow-2xl shadow-purple-500/20">
           {/* Header */}
-          <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-700 shrink-0">
-            <h3 className="text-xl sm:text-2xl font-bold text-pink-500">
-              Final Receipt
+          <div className="flex justify-between items-center p-4 border-b border-purple-500/20 shrink-0 bg-gray-900/50">
+            <h3 className="text-lg font-bold text-transparent bg-clip-text bg-linear-to-r from-pink-400 to-purple-400">
+              Receipt Preview
             </h3>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handlePrint}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors hidden"
-                title="Print Receipt"
-              >
-                <Printer size={20} className="text-gray-400 hover:text-white" />
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                title="Close Modal"
-              >
-                <X size={24} className="text-gray-400 hover:text-white" />
-              </button>
-            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-purple-500/20 rounded-lg transition-colors"
+              title="Close"
+            >
+              <X size={20} className="text-purple-300 hover:text-white" />
+            </button>
           </div>
 
-          {/* Receipt Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            {/* Screen Preview (not printed) */}
-            <div className="bg-linear-to-br from-gray-900 to-gray-800 p-6 sm:p-8 rounded-xl border border-gray-700 shadow-2xl no-print">
-              {/* Start: Receipt header */}
-              <div className="text-center mb-6">
-                <div className="inline-block bg-linear-to-br from-pink-500 to-purple-500 p-4 rounded-2xl mb-4">
-                  <img
-                    src={fwLogo}
-                    alt="Fairy Wren"
-                    className="h-16 w-auto brightness-0 invert"
-                  />
+          {/* Receipt Content - Thermal Style with Theme */}
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div className="bg-gray-900/60 backdrop-blur-sm rounded-xl border border-purple-500/20 p-6 font-mono text-sm shadow-xl">
+              {/* Header */}
+              <div className="text-center mb-4 pb-3 border-b-2 border-dashed border-purple-500/30">
+                <div className="text-2xl font-bold text-pink-400 mb-1 tracking-wider">
+                  ★ FAIRY WREN ★
                 </div>
-
-                <h1 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-purple-500 mb-1">
-                  FAIRY WREN
-                </h1>
-                <p className="text-sm text-gray-400">Hashers Club - Utawala</p>
-                <div className="w-full h-px bg-linear-to-r from-transparent via-pink-500 to-transparent mt-4"></div>
+                <div className="text-xs text-purple-300">
+                  Hashers Club - Utawala
+                </div>
               </div>
-              {/* End: Receipt header */}
 
-              {/* Start: Bill info */}
-              <div className="bg-gray-800/50 rounded-lg p-4 mb-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="text-gray-400">Bill #</div>
-                  <div className="text-right font-mono text-pink-400">
+              {/* Bill Info */}
+              <div className="space-y-1.5 mb-4 pb-3 border-b-2 border-dashed border-purple-500/30">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Bill #:</span>
+                  <span className="text-pink-400 font-semibold">
                     {bill.id.slice(0, 8).toUpperCase()}
-                  </div>
-                  <div className="text-gray-400">Customer</div>
-                  <div className="text-right font-semibold text-white truncate">
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Customer:</span>
+                  <span className="text-white font-semibold">
                     {titleCase(bill.customer_name)}
-                  </div>
-                  <div className="text-gray-400">Served By:</div>
-                  <div className="text-right text-white truncate">
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Served By:</span>
+                  <span className="text-white">
                     {titleCase(bill.created_by_user.name)}
-                  </div>
-                  <div className="text-gray-400">Date</div>
-                  <div className="text-right text-white">
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Date:</span>
+                  <span className="text-white">
                     {new Date(bill.created_at).toLocaleDateString()}
-                  </div>
-                  <div className="text-gray-400">Time</div>
-                  <div className="text-right text-white">
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Time:</span>
+                  <span className="text-white">
                     {new Date(bill.created_at).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                  </div>
+                  </span>
                 </div>
               </div>
-              {/* End: Bill info */}
 
-              {/* Start: Items by round */}
-              <div className="mb-4">
-                <div className="w-full h-px bg-linear-to-r from-transparent via-purple-500 to-transparent mb-3"></div>
-                {bill.rounds.map((round) => (
-                  <div key={round.id} className="mb-4">
-                    <div className="text-xs font-semibold text-purple-400 mb-2 flex items-center gap-2">
-                      <span className="bg-purple-500/20 px-2 py-1 rounded">
+              {/* Items by Round */}
+              <div className="space-y-3 mb-4 pb-3 border-b-2 border-dashed border-purple-500/30">
+                {bill.rounds.map((round, idx) => (
+                  <div key={idx} className="space-y-2">
+                    <div className="text-xs font-bold text-purple-400 flex items-center gap-2">
+                      <span className="bg-purple-500/20 px-2 py-0.5 rounded">
                         ROUND {round.round_number}
                       </span>
                       <span className="text-gray-500">
@@ -406,102 +211,83 @@ const ReceiptModal = ({ bill, onClose }) => {
                         })}
                       </span>
                     </div>
-                    <div className="space-y-2">
-                      {round.round_items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex justify-between text-sm"
-                        >
-                          <div className="flex-1">
-                            <div className="font-medium text-white">
-                              {item.product.name}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                              {item.quantity} x KSh.{" "}
-                              {item.price.toLocaleString()}
-                            </div>
-                          </div>
-                          <div className="font-bold text-pink-400 ml-4">
-                            KSh. {(item.price * item.quantity).toLocaleString()}
-                          </div>
+                    {round.round_items.map((item) => (
+                      <div key={item.id} className="space-y-0.5">
+                        <div className="text-xs font-bold text-white">
+                          {item.product.name}
                         </div>
-                      ))}
-                    </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-400">
+                            {item.quantity} x KSh. {item.price.toLocaleString()}
+                          </span>
+                          <span className="text-pink-400 font-bold">
+                            KSh. {(item.price * item.quantity).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))}
-                <div className="w-full h-px bg-linear-to-r from-transparent via-purple-500 to-transparent my-3"></div>
               </div>
 
-              {/* End: Items by round */}
-
-              {/* Start: Totals */}
-              <div className="bg-linear-to-br from-pink-500/10 to-purple-500/10 border border-pink-500/30 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between text-base text-gray-300">
-                  <span>Subtotal</span>
-                  <span className="font-semibold">
+              {/* Totals */}
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400 font-bold">SUBTOTAL:</span>
+                  <span className="text-white font-semibold">
                     KSh. {totals.subtotal.toLocaleString()}
                   </span>
                 </div>
-                <div className="w-full h-px bg-pink-500/20"></div>
-                <div className="flex justify-between text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-purple-500">
-                  <span>TOTAL</span>
-                  <span>KSh. {totals.total.toLocaleString()}</span>
+                <div className="border-t-2 border-purple-500/30 pt-2">
+                  <div className="flex justify-between text-base">
+                    <span className="text-purple-300 font-bold">TOTAL:</span>
+                    <span className="text-pink-400 font-bold text-lg">
+                      KSh. {totals.total.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
-              {/* End: Totals */}
 
-              {/* Start: Footer */}
-              <div className="text-center mt-6 space-y-2">
-                <div className="w-full h-px bg-linear-to-r from-transparent via-pink-500 to-transparent mb-3"></div>
-                <p className="text-sm text-gray-400">
+              {/* Footer */}
+              <div className="text-center space-y-2 pt-3 border-t-2 border-dashed border-purple-500/30">
+                <div className="text-xs text-purple-300">
+                  <div>PayBill: 522522</div>
+                  <div>Account: 8040662</div>
+                </div>
+                <div className="text-xs text-gray-400 pt-2">
                   Thank you for your visit!
-                </p>
-                <p className="text-sm text-pink-400 font-semibold">
-                  Please come again! 🍻
-                </p>
-                <p className="text-xs text-gray-600 mt-3">ID: {bill.id}</p>
+                </div>
+                <div className="text-xs text-pink-400 font-semibold">
+                  Please come again!
+                </div>
+                <div className="text-[10px] text-gray-600 pt-2">
+                  Bill ID: {bill.id}
+                </div>
               </div>
-              {/* End: Footer */}
             </div>
           </div>
 
-          {/* Hidden Thermal Print Templates */}
-          {/* Customer Copy */}
-          <div className="thermal-receipt-customer">
-            {renderReceiptContent({ showLogo: true })}
-          </div>
-
-          {/* Fairy Copy (Bartender) */}
-          <div className="thermal-receipt-fairy">
-            {renderReceiptContent({ showLogo: false })}
-          </div>
-
-          <div className="p-4 sm:p-6 border-t border-gray-700 shrink-0 space-y-2 sm:space-y-0 sm:flex sm:gap-2 no-print">
+          {/* Print Button */}
+          <div className="p-4 border-t border-purple-500/20 shrink-0 bg-gray-900/50 no-print">
             <button
-              onClick={handlePrint}
-              className="w-full sm:flex-1 py-2.5 sm:py-3 bg-linear-to-r from-blue-600 to-indigo-600 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center transition-all active:scale-95 text-sm sm:text-base"
+              onClick={printReceipt}
+              className="w-full py-4 bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30 text-base touch-manipulation"
             >
-              <Printer size={18} className="mr-2" /> Print Receipt (2 Copies)
-            </button>
-            <button
-              onClick={handleMarkAsPaid}
-              className="w-full sm:flex-1 py-2.5 sm:py-3 bg-linear-to-r from-green-600 to-emerald-600 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 flex items-center justify-center transition-all active:scale-95 text-sm sm:text-base"
-            >
-              <DollarSign size={18} className="mr-2" />
-              Mark as Paid
+              <Printer size={20} />
+              Print Receipt (2 Copies)
             </button>
           </div>
         </div>
       </div>
 
-      {showPaymentModal && (
-        <PaymentModal
-          totals={totals}
-          billId={bill.id}
-          onClose={onClose}
-          onCloseModal={() => setShowPaymentModal(false)}
-        />
-      )}
+      {/* Hidden Thermal Print Templates */}
+      <div className="thermal-receipt-customer">
+        {renderReceiptContent({ showLogo: true })}
+      </div>
+
+      <div className="thermal-receipt-fairy">
+        {renderReceiptContent({ showLogo: false })}
+      </div>
 
       <style jsx>{`
         @keyframes slide-up {
@@ -516,6 +302,22 @@ const ReceiptModal = ({ bill, onClose }) => {
         }
         .animate-slide-up {
           animation: slide-up 0.3s ease-out;
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(139, 92, 246, 0.1);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(236, 72, 153, 0.5);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(236, 72, 153, 0.7);
         }
 
         /* Hide thermal receipts on screen */

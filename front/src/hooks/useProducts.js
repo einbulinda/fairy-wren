@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { getAllProducts } from "../repositories/products.repository";
+import {
+  getAllProducts,
+  getProductById,
+} from "../repositories/products.repository";
 import productsAPI from "../services/products.service";
 
 export const useProducts = () => {
@@ -27,8 +30,7 @@ export const useProducts = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const product = await productsAPI.product(productId);
-      return product;
+      return await getProductById(productId);
     } catch (err) {
       setError(err.message || "Failed to fetch product details");
     } finally {

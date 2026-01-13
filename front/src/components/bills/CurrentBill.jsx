@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Plus,
   Minus,
@@ -7,22 +6,21 @@ import {
   AlertCircle,
   X,
   Receipt,
+  FileText,
 } from "lucide-react";
 import { calculateBillTotals } from "../../utils/calculations";
-import ReceiptModal from "../shared/ReceiptModal";
 
 const CurrentBill = ({
   bill,
   currentRoundItems,
-  onUpdateQuantity,
+  onClose,
   onRemoveItem,
+  onUpdateQuantity,
   onAddRound,
-  onCloseBill,
-  isMobile = false,
+  onOpenPayment,
+  onVoidBill,
+  onShowReceipt,
 }) => {
-  const safeRounds = bill?.rounds ?? [];
-  const [showReceiptModal, setShowReceiptModal] = useState(false);
-
   const calculateCurrentRoundTotal = () => {
     return currentRoundItems.reduce(
       (sum, item) => sum + item.price * item.quantity,
@@ -30,170 +28,65 @@ const CurrentBill = ({
     );
   };
 
-  const handleCloseWithReceipt = (bill) => {
-    if (currentRoundItems.length > 0) {
-      alert("Please add current round before closing");
-      return;
-    }
-    if (!bill || safeRounds.length === 0) {
-      alert("Cannot close bill with no items");
-      return;
-    }
-    setShowReceiptModal(true);
-  };
-
   const currentRoundTotal = calculateCurrentRoundTotal();
   const billTotals = calculateBillTotals(bill);
 
   return (
-    <>
-      <div
-        className={`bg-gray-800 rounded-lg border border-gray-700 h-screen ${
-          isMobile ? "p-4" : "p-4 sm:p-5 sticky top-4"
-        }`}
-      >
-        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-pink-500">
-          Current Bill
-        </h2>
+    <div className="lg:col-span-1">
+      <div className="bg-linear-to-br from-gray-900/60 to-gray-800/60 backdrop-blur-md rounded-xl border border-purple-500/20 p-5 shadow-xl sticky top-4 max-h-[calc(100vh-120px)] flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-purple-300 flex items-center gap-2">
+            <Receipt size={20} />
+            Current Bill
+          </h3>
+          {bill && (
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+          )}
+        </div>
 
         {bill ? (
-          <>
-            {/* Bill Header */}
-            <div className="mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-gray-700">
-              <div className="text-xs sm:text-sm  text-gray-400">Customer</div>
-              <div className="font-semibold text-base sm:text-lg truncate">
+          <div className="space-y-4 flex-1 overflow-y-auto">
+            {/* Customer Info */}
+            <div className="bg-purple-900/20 backdrop-blur-sm rounded-lg p-3 border border-purple-500/20">
+              <p className="text-xs text-purple-300 font-semibold mb-1">
+                Customer
+              </p>
+              <p className="text-lg font-bold text-white">
                 {bill.customer_name}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {new Date(bill.created_at).toLocaleString()}
-              </div>
-              <div className="text-xs sm:text-sm text-pink-500 mt-2">
-                {safeRounds.length || 0} round{" "}
-                {safeRounds.length !== 1 ? "s" : ""} added
-              </div>
+              </p>
             </div>
 
-            {/* Current Round Items */}
-            <div className="mb-3 sm:mb-4">
-              <h3 className="text-xs sm:text-sm font-semibold text-purple-400 mb-2">
-                Current Round {safeRounds.length + 1}
-              </h3>
-
-              {currentRoundItems.length > 0 ? (
-                <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
-                  {currentRoundItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex flex-col sm:flex-row sm:items-center gap-2 bg-purple-900 bg-opacity-30 p-2 sm:p-3 rounded-lg"
-                    >
-                      {/* Product Name */}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm sm:text-base truncate">
-                          {item.productName}
-                        </div>
-                        <div className="text-xs text-gray-400 sm:hidden">
-                          KSh. {item.price.toLocaleString()} each
-                        </div>
-                      </div>
-
-                      {/* Quantity Controls */}
-                      <div className="flex items-center justify-between sm:justify-end gap-2">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => onUpdateQuantity(item.id, -1)}
-                            className="bg-gray-600 rounded hover:bg-gray-500 p-1.5 sm:p-2 transition-colors active:scale-95"
-                            aria-label="Decrease quantity"
-                          >
-                            <Minus size={14} className="sm:w-4 sm:h-4" />
-                          </button>
-                          <span className="w-10 sm:w-12 text-center font-semibold text-sm sm:text-base">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => onUpdateQuantity(item.id, 1)}
-                            className="p-1.5 sm:p-2 bg-gray-600 rounded hover:bg-gray-500 transition-colors active:scale-95"
-                            aria-label="Increase quantity"
-                          >
-                            <Plus size={14} className="sm:w-4 sm:h-4" />
-                          </button>
-                          <button
-                            onClick={() => onRemoveItem(item.id)}
-                            className="p-1.5 sm:p-2 bg-red-600 rounded hover:bg-red-700 transition-colors active:scale-95 ml-1"
-                            aria-label="Remove item"
-                          >
-                            <Trash2 size={14} className="sm:w-4 sm:h-4" />
-                          </button>
-                        </div>
-
-                        {/* Item Total */}
-                        <div className="font-semibold text-pink-500 text-sm sm:text-base whitespace-nowrap">
-                          KSh. {(item.price * item.quantity).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-6 sm:py-8 text-xs sm:text-sm">
-                  No items in current round
-                </div>
-              )}
-
-              {currentRoundItems.length > 0 && (
-                <>
-                  <div className="mt-3 pt-3 border-t border-purple-500">
-                    <div className="flex justify-between text-sm sm:text-base">
-                      <span className="font-medium">Round Total:</span>
-                      <span className="font-bold text-pink-500">
-                        Ksh. {currentRoundTotal.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={onAddRound}
-                    className="mt-3 w-full py-2.5 sm:py-3 rounded-lg font-semibold 
-                    bg-linear-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 transition-all active:scale-98 
-                    flex items-center justify-center text-sm sm:text-base"
-                  >
-                    <Check size={18} className="mr-1.5" />
-                    Add Order to Bill
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Bill summary */}
-            {safeRounds.length > 0 && (
-              <div className="border-t border-gray-700 pt-3 sm:pt-4">
-                <h3 className="text-xs sm:text-sm font-semibold text-gray-400 mb-2">
-                  Bill Summary
-                </h3>
-
-                <div className="space-y-2 max-h-40 sm:max-h-48 overflow-y-auto mb-3">
-                  {safeRounds.map((round) => (
+            {/* Previous Rounds */}
+            {bill.rounds && bill.rounds.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs text-purple-300 font-semibold uppercase tracking-wider">
+                  Previous Rounds
+                </p>
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                  {bill.rounds.map((round) => (
                     <div
                       key={round.id}
-                      className="bg-gray-700 p-2 sm:p-3 rounded-lg"
+                      className="bg-gray-800/40 backdrop-blur-sm rounded-lg p-2 border border-purple-500/10"
                     >
-                      <div className="text-xs text-gray-400 mb-1">
-                        Round {round.round_number} -{" "}
-                        {new Date(round.created_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                      <div className="text-xs text-purple-400 font-semibold mb-1">
+                        Round {round.round_number}
                       </div>
-                      <div className="space-y-1">
-                        {(round.round_items ?? []).map((item) => (
+                      <div className="space-y-0.5">
+                        {round.round_items.map((item) => (
                           <div
-                            key={item.id}
-                            className="flex justify-between text-xs sm:text-sm gap-2"
+                            key={item.product.id}
+                            className="flex justify-between text-xs"
                           >
-                            <span className="truncate flex-1">
-                              {item.quantity} x {item.product.name}
+                            <span className="text-gray-300">
+                              {item.quantity}x {item.product.name}
                             </span>
-                            <span className="text-pink-500 font-medium whitespace-nowrap">
-                              KSh.{" "}
-                              {(item.price * item.quantity).toLocaleString()}
+                            <span className="font-mono font-semibold text-pink-400">
+                              KSh {(item.price * item.quantity).toFixed(2)}
                             </span>
                           </div>
                         ))}
@@ -201,66 +94,162 @@ const CurrentBill = ({
                     </div>
                   ))}
                 </div>
-
-                <div className="space-y-2 bg-gray-700 p-3 sm:p-4 rounded-lg">
-                  <div className="flex justify-between text-sm sm:text-base">
-                    <span className="text-gray-300">Subtotal:</span>
-                    <span className="font-semibold">
-                      KSh. {billTotals.subtotal.toLocaleString()}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-base sm:text-xl font-bold text-pink-500 pt-2 border-t border-gray-600">
-                    <span>TOTAL:</span>
-                    <span>{billTotals.total.toLocaleString()} KES</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 sm:mt-4">
-                  <button
-                    onClick={() => handleCloseWithReceipt(bill)}
-                    className="py-2.5 sm:py-3 bg-linear-to-r from-green-600 to-emerald-600 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 transition-all active:scale-98 
-                    flex items-center justify-center text-sm sm:text-base"
-                  >
-                    <Receipt size={16} className="mr-1.5 sm:w-5 sm:h-5" />
-                    Close & Receipt
-                  </button>
-                  <button
-                    onClick={onCloseBill}
-                    className="py-2.5 sm:py-3 bg-linear-to-r from-blue-600 to-indigo-600 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all 
-                    active:scale-98 flex items-center justify-center text-sm sm:text-base"
-                  >
-                    <X size={16} className="mr-1.5 sm:w-5 sm:h-5" />
-                    Close View
-                  </button>
-                </div>
               </div>
             )}
-          </>
+
+            {/* Current Round Items */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-purple-300 font-semibold uppercase tracking-wider">
+                  Current Round
+                </p>
+                {currentRoundItems.length > 0 && (
+                  <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">
+                    {currentRoundItems.length} items
+                  </span>
+                )}
+              </div>
+
+              {currentRoundItems.length > 0 ? (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {currentRoundItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-linear-to-r from-purple-900/30 to-pink-900/30 backdrop-blur-sm rounded-lg p-2 border border-purple-500/20"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <p className="font-medium text-white text-sm truncate">
+                            {item.productName}
+                          </p>
+                          <p className="text-xs text-purple-300">
+                            KSh {item.price.toFixed(2)} each
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => onRemoveItem(item.id)}
+                          className="text-red-400 hover:text-red-300 transition-colors shrink-0"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 bg-gray-900/40 rounded-lg p-0.5">
+                          <button
+                            onClick={() => onUpdateQuantity(item.id, -1)}
+                            className="p-1 rounded hover:bg-purple-500/20 text-purple-300 transition-colors"
+                          >
+                            <Minus size={13} />
+                          </button>
+                          <span className="text-sm font-bold text-white px-2">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => onUpdateQuantity(item.id, 1)}
+                            className="p-1 rounded hover:bg-purple-500/20 text-purple-300 transition-colors"
+                          >
+                            <Plus size={13} />
+                          </button>
+                        </div>
+                        <span className="font-mono font-bold text-pink-400 text-sm">
+                          KSh {(item.price * item.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500 text-xs bg-gray-900/20 rounded-lg border border-purple-500/10">
+                  No items in current round
+                </div>
+              )}
+            </div>
+
+            {/* Totals */}
+            <div className="space-y-1.5 pt-3 border-t border-purple-500/20">
+              {billTotals && billTotals.subtotal > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Previous:</span>
+                  <span className="font-mono text-white">
+                    KSh {billTotals.subtotal.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              {currentRoundTotal > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Current:</span>
+                  <span className="font-mono text-white">
+                    KSh {currentRoundTotal.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-1.5 border-t border-purple-500/10">
+                <span className="text-base font-bold text-purple-300">
+                  Total:
+                </span>
+                <span className="text-xl font-bold bg-linear-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                  KSh{" "}
+                  {((billTotals?.subtotal || 0) + currentRoundTotal).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-3 pt-3">
+              {currentRoundItems.length > 0 && (
+                <button
+                  onClick={onAddRound}
+                  className="w-full py-3.5 bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 active:scale-95 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30 text-base touch-manipulation"
+                >
+                  <Plus size={20} />
+                  Add Round to Bill
+                </button>
+              )}
+              {bill.rounds && bill.rounds.length > 0 && (
+                <button
+                  onClick={onOpenPayment}
+                  disabled={currentRoundItems.length > 0}
+                  className={`w-full py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg text-base touch-manipulation ${
+                    currentRoundItems.length > 0
+                      ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                      : "bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 active:scale-95 shadow-green-500/30"
+                  }`}
+                >
+                  <Check size={20} />
+                  Process Payment
+                </button>
+              )}
+
+              {/* View Receipt - Only show if bill has rounds */}
+              {bill.rounds && bill.rounds.length > 0 && (
+                <button
+                  onClick={() => onShowReceipt(true)}
+                  className="w-full py-3.5 bg-gray-700 hover:bg-gray-600 active:scale-95 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation"
+                >
+                  <FileText size={18} />
+                  View Receipt
+                </button>
+              )}
+
+              {/* Void Bill Button - Always available for open bills */}
+              <button
+                onClick={onVoidBill}
+                className="w-full py-3.5 bg-red-900/40 border-2 border-red-500/30 hover:bg-red-900/60 hover:border-red-500/50 active:scale-95 text-red-400 hover:text-red-300 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation"
+              >
+                <AlertCircle size={18} />
+                Void Bill
+              </button>
+            </div>
+          </div>
         ) : (
-          <div className="text-center text-gray-500 py-8 sm:py-12">
-            <AlertCircle
-              size={40}
-              className="sm:w-12 sm:h-12 mx-auto mb-2 opacity-50"
-            />
-            <p className="text-sm sm:text-base font-medium">No active bill</p>
-            <p className="text-xs sm:text-sm mt-1">
-              Start new bill or select open bill
-            </p>
+          <div className="text-center py-12 text-gray-500 flex-1 flex flex-col items-center justify-center">
+            <AlertCircle size={40} className="mx-auto mb-2 opacity-50" />
+            <p className="font-medium text-sm">No active bill</p>
+            <p className="text-xs mt-1">Start new or select open bill</p>
           </div>
         )}
       </div>
-
-      {showReceiptModal && bill && (
-        <ReceiptModal bill={bill} onClose={() => setShowReceiptModal(false)} />
-      )}
-
-      <style jsx>{`
-        .active\\:scale-98:active {
-          transform: scale(0.98);
-        }
-      `}</style>
-    </>
+    </div>
   );
 };
 

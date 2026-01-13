@@ -1,12 +1,14 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   createCategory,
-  fetchCategory,
   updateCategory,
   toggleStatus,
 } from "../services/categories.service";
 
-import { getAllCategories } from "../repositories/categories.repository";
+import {
+  getAllCategories,
+  getCategoryById,
+} from "../repositories/categories.repository";
 
 export const useCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -34,8 +36,7 @@ export const useCategories = () => {
     setError(null);
 
     try {
-      const category = await fetchCategory(categoryId);
-      return category;
+      return await getCategoryById(categoryId);
     } catch (error) {
       setError(error.message || "Failed to fetch category");
     } finally {

@@ -1,4 +1,4 @@
-import { fetchCategories } from "../services/categories.service";
+import { fetchCategories, fetchCategory } from "../services/categories.service";
 import {
   saveCategories,
   getOfflineCategories,
@@ -12,5 +12,14 @@ export async function getAllCategories() {
     return response.data;
   } catch {
     return await getOfflineCategories();
+  }
+}
+
+export async function getCategoryById(categoryId) {
+  try {
+    return await fetchCategory(categoryId);
+  } catch {
+    const category = await getOfflineCategories();
+    return category.find((c) => c.id === categoryId);
   }
 }
