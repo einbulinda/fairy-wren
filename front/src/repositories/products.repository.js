@@ -1,13 +1,12 @@
-import {}
-
+import productsAPI from "../services/products.service";
 import { saveProducts, getOfflineProducts } from "../offline/products.store";
 
-export async function fetchProducts() {
+export async function getAllProducts() {
   try {
-    const response = await api.get("/products");
+    const products = await productsAPI.products();
 
-    await saveProducts(response.data);
-    return response.data;
+    await saveProducts(products);
+    return products;
   } catch (error) {
     console.warn("Products API unavailable. Loading offline data.", error);
     return await getOfflineProducts();

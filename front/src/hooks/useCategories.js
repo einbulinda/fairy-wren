@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   createCategory,
-  fetchProducts,
   fetchCategory,
   updateCategory,
   toggleStatus,
 } from "../services/categories.service";
+
+import { getAllCategories } from "../repositories/categories.repository";
 
 export const useCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -18,7 +19,7 @@ export const useCategories = () => {
     setError(null);
 
     try {
-      const data = await fetchProducts();
+      const data = await getAllCategories();
       setCategories(data);
     } catch (err) {
       setError(err.message || "Failed to load products");

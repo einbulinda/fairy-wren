@@ -1,12 +1,12 @@
-import api from "../services/api";
+import { fetchCategories } from "../services/categories.service";
 import {
   saveCategories,
   getOfflineCategories,
 } from "../offline/categories.store";
 
-export async function fetchCategories() {
+export async function getAllCategories() {
   try {
-    const response = await api.get("/categories");
+    const response = await fetchCategories();
 
     await saveCategories(response.data);
     return response.data;

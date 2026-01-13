@@ -2,7 +2,7 @@ import api from "./api";
 import normalizeError from "../utils/errorFormatter";
 
 // Fetch Categories
-export const fetchProducts = async () => {
+export const fetchCategories = async () => {
   try {
     const response = await api.get("/categories");
     return response.data;
