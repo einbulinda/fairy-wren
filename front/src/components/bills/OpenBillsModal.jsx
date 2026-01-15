@@ -3,7 +3,6 @@ import { calculateBillTotals } from "../../utils/calculations";
 
 const OpenBillsModal = ({ bills: allBills, onSelectBill, onClose }) => {
   const bills = allBills.filter((b) => b.status === "open");
-  const safeRounds = bills?.rounds ?? [];
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
@@ -25,6 +24,7 @@ const OpenBillsModal = ({ bills: allBills, onSelectBill, onClose }) => {
         <div className="overflow-y-auto space-y-3 flex-1 p-4 sm:p-6">
           {bills.map((bill) => {
             const totals = calculateBillTotals(bill);
+            const safeRounds = bill?.rounds ?? [];
             return (
               <div
                 key={bill.id}

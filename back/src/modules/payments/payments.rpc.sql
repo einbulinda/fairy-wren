@@ -1,53 +1,113 @@
-create or replace function confirm_bill_and_payments(
+create or replace function public.process_payment(
         p_bill_id uuid,
+        p_amount numeric,
+        p_payment_type varchar,
         p_user_id uuid,
-        p_payment_mode character varying(20) default null
-    ) returns void language plpgsql as $$
-declare v_bill_total numeric;
-v_payment_total numeric;
-begin -- Validate payment mode if provided
-if p_payment_mode is not null
-and p_payment_mode not in ('cash', 'mpesa') then raise exception 'Invalid payment mode: %',
-p_payment_mode;
-end if;
--- Lock bill row
-select total into v_bill_total
+        p_user_role varchar
+    ) returns json language plpgsql as $$
+declare v_bill record;
+v_payment record;
+begin -- Lock bill row
+select * into v_bill
 from bills
 where id = p_bill_id for
 update;
 if not found then raise exception 'Bill not found';
 end if;
--- Prevent double confirmation
-if exists (
-    select 1
-    from bills
-    where id = p_bill_id
-        and status = 'completed'
-) then raise exception 'Bill already completed';
+if v_bill.status = 'completed' then raise exception 'Bill already completed';
 end if;
--- Calculate total payments (paid or unpaid)
-select coalesce(sum(amount), 0) into v_payment_total
+-- if p_amount <> v_bill.total_amount then raise exception 'Only full payment is allowed';
+-- end if;
+-- Fetch existing payment (if any)
+select * into v_payment
 from payments
-where bill_id = p_bill_id;
-if v_payment_total = 0 then raise exception 'No payments recorded for bill';
+where bill_id = p_bill_id
+    and status in ('pending', 'confirmed') for
+update;
+/* ===============================
+ CASE 1: NON-BARTENDER INITIATES
+ =============================== */
+if p_user_role <> 'bartender' then if v_bill.status <> 'open'
+or v_payment.id is not null then raise exception 'Payment already initiated or bill not open';
 end if;
--- Enforce full settlement
---if v_payment_total <> v_bill_total then raise exception 'Payment total (%) does not match bill total (%)',
---v_payment_total,
---v_bill_total;
---end if;
--- Mark bill as completed
+insert into payments (
+        bill_id,
+        amount,
+        payment_type,
+        status,
+        created_by
+    )
+values (
+        p_bill_id,
+        p_amount,
+        p_payment_type,
+        'pending',
+        p_user_id
+    );
 update bills
-set status = 'completed',
-    updated_at = now(),
-    updated_by = p_user_id
+set status = 'awaiting_confirmation'
 where id = p_bill_id;
--- Finalize payments
+return json_build_object(
+    'status',
+    'pending',
+    'message',
+    'Payment awaiting bartender confirmation'
+);
+end if;
+/* ===============================
+ CASE 2: BARTENDER CONFIRMS
+ =============================== */
+if p_user_role = 'bartender'
+and v_payment.id is not null
+and v_payment.status = 'pending'
+and v_bill.status = 'awaiting_confirmation' then
 update payments
-set is_paid = true,
-    payment_type = coalesce(payment_type, p_payment_mode),
-    updated_at = now(),
-    updated_by = p_user_id
-where bill_id = p_bill_id;
+set status = 'confirmed',
+    updated_by = p_user_id,
+    updated_at = now()
+where id = v_payment.id;
+update bills
+set status = 'completed'
+where id = p_bill_id;
+return json_build_object(
+    'status',
+    'confirmed',
+    'message',
+    'Payment confirmed and bill completed'
+);
+end if;
+/* ===============================
+ CASE 3: BARTENDER DIRECT PAY
+ =============================== */
+if p_user_role = 'bartender'
+and v_payment.id is null
+and v_bill.status = 'open' then
+insert into payments (
+        bill_id,
+        amount,
+        payment_type,
+        status,
+        created_by,
+        updated_by
+    )
+values (
+        p_bill_id,
+        p_amount,
+        p_payment_type,
+        'confirmed',
+        p_user_id,
+        p_user_id
+    );
+update bills
+set status = 'completed'
+where id = p_bill_id;
+return json_build_object(
+    'status',
+    'confirmed',
+    'message',
+    'Direct payment completed'
+);
+end if;
+raise exception 'Invalid payment state or role';
 end;
 $$;

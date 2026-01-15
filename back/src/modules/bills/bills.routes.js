@@ -7,7 +7,6 @@ router.post("/:billId/rounds", billsController.addRound);
 router.get("/open", billsController.openBills);
 router.get("/:billId", billsController.getBillById);
 router.get("/", billsController.getAllBills);
-router.patch("/:billId/mark-paid", billsController.payBills);
 router.patch("/:billId/void", billsController.voidOpenBill);
 
 module.exports = router;

@@ -110,6 +110,8 @@ const AllBillsView = ({ bills }) => {
         return "Completed";
       case "open":
         return "Open";
+      case "void":
+        return "Void";
       default:
         return status;
     }
@@ -168,6 +170,7 @@ const AllBillsView = ({ bills }) => {
               <option value="open">Open</option>
               <option value="awaiting_confirmation">Pending</option>
               <option value="completed">Completed</option>
+              <option value="void">Cancelled</option>
             </select>
           </div>
 

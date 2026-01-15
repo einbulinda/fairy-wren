@@ -45,7 +45,9 @@ const MainLayout = () => {
 
   // Check if user has sidebar (Manager and Owner only)
   const hasSidebar = useMemo(() => {
-    return [USER_ROLES.MANAGER, USER_ROLES.OWNER].includes(user.role);
+    return [USER_ROLES.MANAGER, USER_ROLES.OWNER, USER_ROLES.ADMIN].includes(
+      user.role
+    );
   }, [user.role]);
 
   /**
@@ -68,6 +70,7 @@ const MainLayout = () => {
         ];
 
       case USER_ROLES.OWNER:
+      case USER_ROLES.ADMIN:
         return [
           { id: "dashboard", label: "Dashboard", icon: BarChart3 },
           { id: "products", label: "Products", icon: Grid },
@@ -97,6 +100,7 @@ const MainLayout = () => {
       [USER_ROLES.BARTENDER]: "pos",
       [USER_ROLES.MANAGER]: "inventory",
       [USER_ROLES.OWNER]: "dashboard",
+      [USER_ROLES.ADMIN]: "dashboard",
     };
 
     const allowedViews = navigationTabs.map((t) => t.id);

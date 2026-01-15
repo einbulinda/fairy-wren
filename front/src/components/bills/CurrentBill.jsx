@@ -33,7 +33,7 @@ const CurrentBill = ({
 
   return (
     <div className="lg:col-span-1">
-      <div className="bg-linear-to-br from-gray-900/60 to-gray-800/60 backdrop-blur-md rounded-xl border border-purple-500/20 p-5 shadow-xl sticky top-4 max-h-[calc(100vh-120px)] flex flex-col">
+      <div className="bg-linear-to-br from-gray-900/60 to-gray-800/60 backdrop-blur-md rounded-xl border border-purple-500/20 p-5 shadow-xl sticky  max-h-[calc(100vh-120px)] flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-purple-300 flex items-center gap-2">
             <Receipt size={20} />
@@ -216,7 +216,7 @@ const CurrentBill = ({
                   }`}
                 >
                   <Check size={20} />
-                  Process Payment
+                  Payment
                 </button>
               )}
 
@@ -227,7 +227,7 @@ const CurrentBill = ({
                   className="w-full py-3.5 bg-gray-700 hover:bg-gray-600 active:scale-95 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation"
                 >
                   <FileText size={18} />
-                  View Receipt
+                  Receipt
                 </button>
               )}
 
@@ -237,7 +237,7 @@ const CurrentBill = ({
                 className="w-full py-3.5 bg-red-900/40 border-2 border-red-500/30 hover:bg-red-900/60 hover:border-red-500/50 active:scale-95 text-red-400 hover:text-red-300 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation"
               >
                 <AlertCircle size={18} />
-                Void Bill
+                Void
               </button>
             </div>
           </div>

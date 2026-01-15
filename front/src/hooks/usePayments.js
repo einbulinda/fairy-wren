@@ -30,7 +30,7 @@ export const usePayments = () => {
   /**
    * Confirm bill (payments → paid)
    */
-  const confirmBill = async (billId, payload) => {
+  const processPayment = async (billId, payload) => {
     setIsLoading(true);
     setError(null);
 
@@ -73,6 +73,6 @@ export const usePayments = () => {
     isLoading,
     error,
     reloadBills: loadBills,
-    confirmBill,
+    processPayment,
   };
 };

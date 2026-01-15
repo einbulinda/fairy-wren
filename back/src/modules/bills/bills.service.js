@@ -170,51 +170,6 @@ exports.addRound = async ({ billId, items, userId }) => {
   return { round, items: roundItems };
 };
 
-/* ---------------- PAY BILL ---------------- */
-exports.payBill = async ({ billId, amount, paymentMethod, userId }) => {
-  logger.info("Marking Bill Paid", {
-    billId,
-    paymentMethod,
-    amount,
-    userId,
-  });
-
-  await supabase
-    .from("bills")
-    .update({
-      status: "awaiting_confirmation",
-      updated_by: userId,
-    })
-    .eq("id", billId);
-
-  const { data: payment, error } = await supabase
-    .from("payments")
-    .insert({
-      bill_id: billId,
-      amount,
-      payment_type: paymentMethod,
-      created_by: userId,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    logger.error("Database error marking bill paid", {
-      billId,
-      paymentMethod,
-      amount,
-      userId,
-    });
-    throw error;
-  }
-
-  logger.info("Bill marked paid successfully", {
-    paymentId: payment.id,
-  });
-
-  return payment;
-};
-
 /* ---------------- OPEN BILLS ---------------- */
 exports.getOpenBills = async () => {
   logger.info("Getting Open Bills");

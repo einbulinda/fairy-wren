@@ -1,5 +1,6 @@
 const paymentService = require("./payments.service");
 const logger = require("../../utils/logger");
+const { mapActionToMessage } = require("../../utils/common");
 
 /**
  * GET /api/payments
@@ -28,9 +29,8 @@ exports.getBills = async (req, res) => {
  * Confirm bill and mark payments as paid
  */
 exports.confirmBillController = async (req, res) => {
-  console.log("Payment Payload", req.body);
   const { billId } = req.params;
-  const userId = req.user?.id;
+  const { id: userId, role } = req.user;
   const { paymentMethod: paymentMode, amount } = req.body;
 
   logger.info("Confirm Bill Request Received", {
@@ -38,37 +38,39 @@ exports.confirmBillController = async (req, res) => {
     userId,
     paymentMode,
     amount,
+    role,
   });
 
-  if (!billId) {
-    logger.warn("Bill ID is missing", { billId });
+  if (!billId || !amount || !paymentMode) {
     return res.status(400).json({
       success: false,
-      message: "Bill ID is required",
-    });
-  }
-
-  if (!userId) {
-    logger.warn("User ID is missing", { userId });
-    return res.status(401).json({
-      success: false,
-      message: "Unauthorized",
+      code: "VALIDATION_ERROR",
+      message: "Missing required payment fields",
     });
   }
 
   try {
-    await paymentService.confirmBill({
+    const result = await paymentService.processPayment({
       billId,
       userId,
       paymentMode,
       amount,
+      role,
     });
 
     logger.info("Bill confirmation successful");
 
     return res.status(200).json({
       success: true,
-      message: "Bill confirmed successfully",
+      action: result.action,
+      bill: {
+        id: billId,
+        status: result.bill_status,
+      },
+      payment: {
+        status: result.payment_status,
+      },
+      message: mapActionToMessage(result.action),
     });
   } catch (error) {
     logger.error("Database error on confirming bill", {
@@ -78,9 +80,10 @@ exports.confirmBillController = async (req, res) => {
       error,
     });
 
-    return res.status(400).json({
+    return res.status(409).json({
       success: false,
-      message: error.message || "Failed to confirm bill",
+      code: "INVALID_STATE",
+      message: error.message,
     });
   }
 };

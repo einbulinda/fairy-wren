@@ -3,6 +3,7 @@ export const USER_ROLES = {
   BARTENDER: "bartender",
   MANAGER: "manager",
   OWNER: "owner",
+  ADMIN: "system developer",
 };
 
 export const BILL_STATUS = {

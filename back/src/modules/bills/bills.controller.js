@@ -61,39 +61,6 @@ exports.addRound = async (req, res) => {
   }
 };
 
-// Mark bill as paid
-exports.payBills = async (req, res) => {
-  const { billId } = req.params;
-  const { amount, paymentMethod } = req.body;
-  const { id: userId } = req.user;
-
-  logger.info("Mark bill as paid request received", {
-    billId,
-    amount,
-    paymentMethod,
-    userId,
-  });
-
-  try {
-    const payment = billService.payBill({
-      billId,
-      amount: amount,
-      paymentMethod,
-      userId,
-    });
-
-    res.json(payment);
-  } catch (err) {
-    logger.error("Marking bill paid failed", {
-      billId,
-      amount,
-      paymentMethod,
-      err,
-    });
-    res.status(500).json({ error: err.message });
-  }
-};
-
 // Get Open Bills
 exports.openBills = async (req, res) => {
   logger.info("Getting Open Bills request received");
