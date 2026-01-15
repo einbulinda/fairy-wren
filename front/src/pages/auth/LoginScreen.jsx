@@ -104,31 +104,33 @@ const LoginScreen = () => {
         </form>
 
         {/* Demo PINs - Development Only */}
-        <div className="mt-6 sm:mt-8 pt-6 border-t border-gray-700">
-          <details className="text-xs sm:text-sm text-gray-500">
-            <summary className="cursor-pointer text-center hover:text-gray-400 transition-colors">
-              Demo Access (Development)
-            </summary>
-            <div className="mt-3 space-y-1.5 bg-gray-700/30 rounded-lg p-3 sm:p-4">
-              <p className="flex justify-between">
-                <span className="text-gray-400">Waitress:</span>
-                <span className="font-mono text-yellow-400">1234</span>
-              </p>
-              <p className="flex justify-between">
-                <span className="text-gray-400">Bartender:</span>
-                <span className="font-mono text-yellow-400">5678</span>
-              </p>
-              <p className="flex justify-between">
-                <span className="text-gray-400">Manager:</span>
-                <span className="font-mono text-yellow-400">9999</span>
-              </p>
-              <p className="flex justify-between">
-                <span className="text-gray-400">Owner:</span>
-                <span className="font-mono text-yellow-400">0000</span>
-              </p>
-            </div>
-          </details>
-        </div>
+        {import.meta.env.DEV && (
+          <div className="mt-6 sm:mt-8 pt-6 border-t border-gray-700">
+            <details className="text-xs sm:text-sm text-gray-500">
+              <summary className="cursor-pointer text-center hover:text-gray-400 transition-colors">
+                Demo Access (Development)
+              </summary>
+              <div className="mt-3 space-y-1.5 bg-gray-700/30 rounded-lg p-3 sm:p-4">
+                <p className="flex justify-between">
+                  <span className="text-gray-400">Waitress:</span>
+                  <span className="font-mono text-yellow-400">1234</span>
+                </p>
+                <p className="flex justify-between">
+                  <span className="text-gray-400">Bartender:</span>
+                  <span className="font-mono text-yellow-400">5678</span>
+                </p>
+                <p className="flex justify-between">
+                  <span className="text-gray-400">Manager:</span>
+                  <span className="font-mono text-yellow-400">9999</span>
+                </p>
+                <p className="flex justify-between">
+                  <span className="text-gray-400">Owner:</span>
+                  <span className="font-mono text-yellow-400">0000</span>
+                </p>
+              </div>
+            </details>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-6 text-center">
