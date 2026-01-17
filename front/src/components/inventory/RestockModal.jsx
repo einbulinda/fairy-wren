@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { inventoryService } from "../../../services/inventory.service";
+import { inventoryService } from "../../services/inventory.service";
 import toast from "react-hot-toast";
 
 const RestockModal = ({ product, onClose, onSuccess }) => {

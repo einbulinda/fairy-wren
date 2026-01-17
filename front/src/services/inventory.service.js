@@ -21,4 +21,7 @@ export const inventoryService = {
 
   getLedger: (params) =>
     api.get("/inventory/ledger", { params }).then((res) => res.data),
+
+  receiveStock: (payload) =>
+    api.post("/inventory/receive", payload).then((res) => res.data),
 };

@@ -1,5 +1,9 @@
 const supabase = require("../../config/supabase");
 const logger = require("../../utils/logger");
+const {
+  reverseBillLedger,
+  postBillToLedger,
+} = require("../ledger/ledger.service");
 
 /* ---------------- CREATE BILL ---------------- */
 exports.createBill = async ({ customer_name, created_by }) => {
@@ -276,7 +280,6 @@ exports.getAllBills = async () => {
 };
 
 /* ---------------- VOID BILL ---------------- */
-/* ---------------- VOID BILL ---------------- */
 exports.voidBill = async ({ billId, userId }) => {
   logger.info("Starting bill void operation", {
     billId,
@@ -401,6 +404,8 @@ exports.voidBill = async ({ billId, userId }) => {
     });
     throw voidError;
   }
+
+  await reverseBillLedger(billId, "Bill voided by user");
 
   logger.info("Bill voided successfully", {
     billId,

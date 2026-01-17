@@ -85,6 +85,38 @@ async function getBillWithItems(billId) {
   return data;
 }
 
+// Reverse Bill Ledger Entries
+exports.reverseBillLedger = async (billId, reason = "Bill voided") => {
+  try {
+    // 1. Find all journal entries for this bill
+    const entries = await getBillJournalEntries(billId);
+
+    if (entries.length === 0) {
+      logger.warn("No journal entries found to reverse", { billId });
+      return;
+    }
+
+    // 2. Prevent double reversal
+    const alreadyReversed = entries.some((e) => e.reversed_entry_id);
+    if (alreadyReversed) {
+      logger.warn("Ledger already reversed for bill", { billId });
+      return;
+    }
+
+    // 3. Reverse each journal entry
+    for (const entry of entries) {
+      await reverseJournalEntry(entry, reason);
+    }
+
+    logger.info("Ledger reversal completed", { billId });
+  } catch (err) {
+    logger.error("Ledger reversal failed", {
+      billId,
+      error: err.message,
+    });
+  }
+};
+
 // Revenue Journal Posting
 async function postRevenueJournal(bill) {
   const revenueAccountId = await getRevenueAccount();
@@ -97,6 +129,8 @@ async function postRevenueJournal(bill) {
       entry_date: new Date(),
       reference: `BILL:${bill.id}`,
       description: "POS Sale",
+      source_type: "bill",
+      source_id: bill.id,
     })
     .select()
     .single();
@@ -128,6 +162,70 @@ async function postRevenueJournal(bill) {
   return entry.id;
 }
 
+// Fetch Journal Entries for a Bill
+async function getBillJournalEntries(billId) {
+  const { data, error } = await supabase
+    .from("journal_entries")
+    .select(
+      `
+      id,
+      reference,
+      source_type,
+      source_id,
+      reversed_entry_id,
+      journal_lines (
+        account_id,
+        debit,
+        credit
+      )
+    `
+    )
+    .eq("source_type", "bill")
+    .eq("source_id", billId);
+
+  if (error) throw error;
+  return data;
+}
+
+// Reverse Single Journal Entry
+async function reverseJournalEntry(originalEntry, reason) {
+  // 1. Create reversal header
+  const { data: reversalEntry, error } = await supabase
+    .from("journal_entries")
+    .insert({
+      entry_date: new Date(),
+      reference: `${originalEntry.reference}:REV`,
+      description: reason,
+      source_type: originalEntry.source_type,
+      source_id: originalEntry.source_id,
+      reversed_entry_id: originalEntry.id,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // 2. Reverse lines
+  const reversedLines = originalEntry.journal_lines.map((line) => ({
+    journal_entry_id: reversalEntry.id,
+    account_id: line.account_id,
+    debit: line.credit,
+    credit: line.debit,
+  }));
+
+  const { error: lineError } = await supabase
+    .from("journal_lines")
+    .insert(reversedLines);
+
+  if (lineError) throw lineError;
+
+  // 3. Mark original as reversed
+  await supabase
+    .from("journal_entries")
+    .update({ reversed_entry_id: reversalEntry.id })
+    .eq("id", originalEntry.id);
+}
+
 // COGS Journal Posting
 async function postCOGSJournal(bill) {
   let totalCOGS = 0;
@@ -147,6 +245,8 @@ async function postCOGSJournal(bill) {
       entry_date: new Date(),
       reference: `BILL:${bill.id}:COGS`,
       description: "Cost of Goods Sold",
+      source_type: "bill",
+      source_id: bill.id,
     })
     .select()
     .single();

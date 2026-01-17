@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuth } from "../hooks/useAuth";
 import fwLogo from "/fairy-wren-logo-removebg.png";
 import toast from "react-hot-toast";
 

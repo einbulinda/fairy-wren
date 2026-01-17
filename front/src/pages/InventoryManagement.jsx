@@ -1,17 +1,23 @@
-// StockLevels.jsx
+// InventoryManagement.jsx (Enhanced)
 import { useState, useMemo } from "react";
-import { useInventoryStock } from "../../../hooks/inventory/useInventoryStock";
-import { useStockTake } from "../../../hooks/inventory/useStockTake";
-import StockTable from "./StockTable";
-import RestockModal from "./RestockModal";
-import StockTakeView from "./StockTakeView";
+import { useInventoryStock } from "../hooks/inventory/useInventoryStock";
+import { useStockTake } from "../hooks/inventory/useStockTake";
+import { useSuppliers } from "../hooks/useSuppliers";
+import { useReceiveInventory } from "../hooks/inventory/useReceiveInventory";
+import { TruckIcon } from "lucide-react";
+import StockTable from "../components/inventory/StockTable";
+import StockTakeView from "../components/inventory/StockTakeView";
+import ReceiveInventoryModal from "../components/inventory/ReceiveInventoryModal";
 
 const InventoryManagement = () => {
   const { stock, loading, refresh } = useInventoryStock();
   const { stockTake, startStockTake, saveItems, completeStockTake } =
     useStockTake();
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const { suppliers, addSupplier, reload: reloadSuppliers } = useSuppliers();
+  const { receiveInventory } = useReceiveInventory();
+
   const [showStockTake, setShowStockTake] = useState(false);
+  const [showReceiveInventory, setShowReceiveInventory] = useState(false);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -37,6 +43,16 @@ const InventoryManagement = () => {
     await completeStockTake();
     setShowStockTake(false);
     refresh();
+  };
+
+  const handleReceiveInventorySuccess = async () => {
+    setShowReceiveInventory(false);
+    await refresh();
+  };
+
+  const handleAddSupplier = async (supplierData) => {
+    const newSupplier = await addSupplier(supplierData);
+    return newSupplier;
   };
 
   // Show stock take view when active
@@ -67,7 +83,27 @@ const InventoryManagement = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Receive Inventory Button */}
+          <button
+            onClick={() => setShowReceiveInventory(true)}
+            className="
+              flex items-center gap-2 px-4 py-2.5 rounded-lg
+              bg-linear-to-r from-green-600 to-emerald-600
+              hover:from-green-700 hover:to-emerald-700
+              text-white font-semibold
+              shadow-lg shadow-green-500/30
+              hover:shadow-green-500/50
+              transition-all duration-200
+              border border-green-500/30
+              group
+            "
+          >
+            <TruckIcon className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
+            <span className="hidden sm:inline">Receive Stock</span>
+            <span className="sm:hidden">Receive</span>
+          </button>
+
           {/* Stock Take Button */}
           <button
             onClick={handleStockTake}
@@ -354,22 +390,19 @@ const InventoryManagement = () => {
 
       {/* Stock Table */}
       <div className="bg-gray-900/20 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-purple-500/10">
-        <StockTable
-          stock={stock}
-          loading={loading}
-          onRestock={setSelectedProduct}
-        />
+        <StockTable stock={stock} loading={loading} />
       </div>
 
-      {/* Restock Modal */}
-      {selectedProduct && (
-        <RestockModal
-          product={selectedProduct}
-          onClose={() => setSelectedProduct(null)}
-          onSuccess={() => {
-            setSelectedProduct(null);
-            refresh();
-          }}
+      {/* Modals */}
+      {showReceiveInventory && (
+        <ReceiveInventoryModal
+          onClose={() => setShowReceiveInventory(false)}
+          onSuccess={handleReceiveInventorySuccess}
+          products={stock}
+          suppliers={suppliers}
+          onAddSupplier={handleAddSupplier}
+          onReceiveInventory={receiveInventory}
+          onReloadSuppliers={reloadSuppliers}
         />
       )}
     </div>

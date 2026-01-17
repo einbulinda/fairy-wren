@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import { useAuth } from "../../hooks/useAuth";
-import { useBills } from "../../hooks/useBills";
-import { usePayments } from "../../hooks/usePayments";
-import { useProducts } from "../../hooks/useProducts";
-import { useCategories } from "../../hooks/useCategories";
+import { useAuth } from "../hooks/useAuth";
+import { useBills } from "../hooks/useBills";
+import { usePayments } from "../hooks/usePayments";
+import { useProducts } from "../hooks/useProducts";
+import { useCategories } from "../hooks/useCategories";
 import {
   ShoppingCart,
   Receipt,
@@ -14,16 +14,16 @@ import {
   Plus,
   Grid as GridIcon,
 } from "lucide-react";
-import LoadingSpinner from "../../components/shared/LoadingSpinner";
-import { calculateBillTotals } from "../../utils/calculations";
+import LoadingSpinner from "../components/shared/LoadingSpinner";
+import { calculateBillTotals } from "../utils/calculations";
 import toast from "react-hot-toast";
-import ReceiptModal from "../../components/shared/ReceiptModal";
-import OpenBillsModal from "../../components/bills/OpenBillsModal";
-import AllBillsView from "../../components/bills/AllBillsView";
-import ProductGrid from "../../components/products/ProductGrid";
-import PaymentModal from "../../components/pos/PaymentModal";
-import CurrentBill from "../../components/bills/CurrentBill";
-import ConfirmPaymentsView from "../../components/pos/ConfirmPaymentsView";
+import ReceiptModal from "../components/shared/ReceiptModal";
+import OpenBillsModal from "../components/bills/OpenBillsModal";
+import AllBillsView from "../components/bills/AllBillsView";
+import ProductGrid from "../components/products/ProductGrid";
+import PaymentModal from "../components/pos/PaymentModal";
+import CurrentBill from "../components/bills/CurrentBill";
+import ConfirmPaymentsView from "../components/pos/ConfirmPaymentsView";
 
 const POSScreen = () => {
   const { user } = useAuth();

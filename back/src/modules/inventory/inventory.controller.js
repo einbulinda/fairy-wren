@@ -70,3 +70,19 @@ exports.getLedger = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.receiveInventory = async (req, res) => {
+  try {
+    const receipt = await inventoryService.receiveInventory({
+      ...req.body,
+      userId: req.user.id,
+    });
+
+    res.status(201).json({
+      success: true,
+      receipt,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

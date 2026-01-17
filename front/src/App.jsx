@@ -1,7 +1,7 @@
 import "./App.css";
 // import fairyLogo from "../public/fairy-wren-logo-removebg.png";
 import { useAuth } from "./hooks/useAuth";
-import LoginScreen from "./pages/auth/LoginScreen";
+import LoginScreen from "./pages/LoginScreen";
 import MainLayout from "./components/layout/MainLayout";
 import { Toaster } from "react-hot-toast";
 

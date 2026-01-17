@@ -5,7 +5,7 @@ const supabase = require("../../config/supabase");
 exports.getStock = async () => {
   const { data, error } = await supabase
     .from("products")
-    .select("id,name,unit,current_stock,cost_price")
+    .select("id,name,unit,current_stock,cost_price, categories(name)")
     .eq("track_inventory", true)
     .eq("active", true)
     .order("name");
@@ -133,4 +133,64 @@ exports.getLedger = async ({ productId, from, to }) => {
   if (error) throw error;
 
   return data;
+};
+
+exports.receiveInventory = async ({
+  supplier_id,
+  invoice_number,
+  purchase_date,
+  total_amount,
+  line_items,
+  userId,
+}) => {
+  if (!supplier_id) throw new Error("Supplier is required");
+  if (!invoice_number) throw new Error("Invoice number is required");
+  if (!purchase_date) throw new Error("Purchase date is required");
+
+  if (!Array.isArray(line_items) || line_items.length === 0) {
+    throw new Error("At least one product is required");
+  }
+
+  // 1) Create receipt header
+  const { data: receipt, error: receiptError } = await supabase
+    .from("inventory_receipts")
+    .insert({
+      supplier_id,
+      invoice_number,
+      purchase_date,
+      total_amount,
+      created_by: userId,
+    })
+    .select()
+    .single();
+
+  if (receiptError) throw receiptError;
+
+  // 2) Create receipt items
+  const receiptItems = line_items.map((item) => ({
+    receipt_id: receipt.id,
+    product_id: item.product_id,
+    quantity: Number(item.quantity),
+    unit_cost: Number(item.cost_price),
+    line_total: Number(item.quantity) * Number(item.cost_price),
+  }));
+
+  const { error: itemsError } = await supabase
+    .from("inventory_receipt_items")
+    .insert(receiptItems);
+
+  if (itemsError) throw itemsError;
+
+  // 3) Update stock + ledger per item
+  for (const item of line_items) {
+    await exports.restock({
+      productId: item.product_id,
+      quantity: Number(item.quantity),
+      unitCost: Number(item.cost_price),
+      userId,
+      notes: `Receipt ${invoice_number}`,
+    });
+  }
+
+  return receipt;
 };

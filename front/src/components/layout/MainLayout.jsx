@@ -23,7 +23,7 @@ import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
 
 // View components
-import POSScreen from "../../pages/pos/POSScreen";
+import POSScreen from "../../pages/POSScreen";
 import Dashboard from "../owner/dashboard/Dashboard";
 import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../owner/UserManagement";
@@ -31,7 +31,7 @@ import ProductManagement from "../owner/ProductManagement";
 import CategoriesManagement from "../owner/CategoriesManagement";
 import AccountsManagement from "../owner/AccountsManagement";
 import SupplierManagement from "../owner/SupplierManagement";
-import InventoryManagement from "../manager/inventory/InventoryManagement";
+import InventoryManagement from "../../pages/InventoryManagement";
 
 const getStorageKey = (role) => `fw_lastSeen_${role}`;
 

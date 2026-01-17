@@ -16,6 +16,9 @@ router.post("/stock-takes", inventoryController.createStockTake);
 router.post("/stock-takes/:id/items", inventoryController.saveStockTakeItems);
 router.post("/stock-takes/:id/complete", inventoryController.completeStockTake);
 
+/* Receive Stock */
+router.post("/receive", inventoryController.receiveInventory);
+
 module.exports = router;
 
 /*
