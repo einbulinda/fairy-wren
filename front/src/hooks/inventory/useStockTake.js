@@ -24,5 +24,11 @@ export const useStockTake = () => {
     setStockTake(null);
   };
 
-  return { stockTake, loading, startStockTake, saveItems, completeStockTake };
+  return {
+    stockTake,
+    loading,
+    startStockTake,
+    saveItems,
+    completeStockTake,
+  };
 };

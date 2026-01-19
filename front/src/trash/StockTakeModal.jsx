@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { useAuth } from "../../hooks/useAuth";
-import { useProducts } from "../../hooks/useProducts";
+import { useAuth } from "../hooks/useAuth";
+import { useProducts } from "../hooks/useProducts";
 import toast from "react-hot-toast";
 
 const StockTakeModal = ({ products, categories, onClose, onComplete }) => {

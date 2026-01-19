@@ -19,13 +19,7 @@ router.post("/stock-takes/:id/complete", inventoryController.completeStockTake);
 /* Receive Stock */
 router.post("/receive", inventoryController.receiveInventory);
 
-module.exports = router;
+/* Reports */
+router.get("/reports/stock-take", inventoryController.getStockTakeAdjustments);
 
-/*
-GET	    /api/inventory/stock	                Current stock levels
-POST	/api/inventory/restock	                Add stock
-POST	/api/inventory/stock-takes	            Create stock take
-POST	/api/inventory/stock-takes/:id/items	Save physical counts
-POST	/api/inventory/stock-takes/:id/complete	Apply variances
-GET	    /api/inventory/ledger	                Stock movement
-*/
+module.exports = router;

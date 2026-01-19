@@ -39,7 +39,7 @@ export default function StockTakeView({
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter((p) =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -141,7 +141,6 @@ export default function StockTakeView({
       setSavedCounts(snapshot);
 
       setHasSaved(true);
-      console.log("onSaveItems called successfully");
       toast.success("Stock counts saved successfully!");
     } catch (error) {
       toast.error(error.message || "Failed to save counts");
@@ -163,7 +162,7 @@ export default function StockTakeView({
 
     if (stats.totalCounted < stats.totalItems) {
       const confirmed = window.confirm(
-        `You've only counted ${stats.totalCounted} of ${stats.totalItems} items. Complete stock take anyway?`
+        `You've only counted ${stats.totalCounted} of ${stats.totalItems} items. Complete stock take anyway?`,
       );
       if (!confirmed) return;
     }
@@ -206,7 +205,7 @@ export default function StockTakeView({
 
   const handleClearAll = () => {
     const confirmed = window.confirm(
-      "Are you sure you want to clear all counts? This action cannot be undone."
+      "Are you sure you want to clear all counts? This action cannot be undone.",
     );
     if (confirmed) {
       setPreviousCounts({ ...counts });
@@ -386,8 +385,8 @@ export default function StockTakeView({
               !hasSaved
                 ? "Save your counts first"
                 : hasUnsavedChanges
-                ? "Save unsaved changes first"
-                : "Complete stock take"
+                  ? "Save unsaved changes first"
+                  : "Complete stock take"
             }
           >
             <svg
@@ -525,8 +524,8 @@ export default function StockTakeView({
                   stats.totalVariance > 0
                     ? "text-green-400"
                     : stats.totalVariance < 0
-                    ? "text-red-400"
-                    : "text-gray-400"
+                      ? "text-red-400"
+                      : "text-gray-400"
                 }`}
               >
                 {stats.totalVariance > 0 && "+"}

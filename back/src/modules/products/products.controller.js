@@ -1,197 +1,118 @@
-const supabase = require("../../config/supabase");
+const productService = require("./products.service");
+const logger = require("../../utils/logger");
 
-// Get all products
+/**
+ * Get all products
+ */
 exports.getProducts = async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*, categories(*)")
-      //.eq("active", true)
-      .order("name", { ascending: false });
-
-    if (error) throw error;
-
-    res.json(data);
+    const data = await productService.getProducts();
+    return res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error("Controller:getProducts failed", { error: err.message });
+    return res.status(500).json({ message: "Failed to fetch products" });
   }
 };
 
-// Get product by ID
+/**
+ * Get product by ID
+ */
 exports.getProductById = async (req, res) => {
   const { productId } = req.params;
-  try {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", productId)
-      .single();
-    if (error) throw error;
 
-    res.json(data);
+  try {
+    const data = await productService.getProductById(productId);
+    return res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error("Controller:getProductById failed", { error: err.message });
+    return res.status(404).json({ message: "Product not found" });
   }
 };
 
-// Create Product
+/**
+ * Create product
+ */
 exports.createProduct = async (req, res) => {
   const { payload } = req.body;
-  const { name, price, category_id, stock = 0, active = true } = payload;
 
-  if (!name)
-    return res.status(400).json({
-      message: "Product name is required",
-    });
-
-  if (price === undefined) {
-    return res.status(400).json({
-      message: "Product price is required",
-    });
+  if (!payload?.name) {
+    return res.status(400).json({ message: "Product name is required" });
   }
+
+  if (payload.price === undefined) {
+    return res.status(400).json({ message: "Product price is required" });
+  }
+
   try {
-    const { data, error } = await supabase
-      .from("products")
-      .insert({
-        name,
-        price,
-        category_id,
-        current_stock: stock || 0,
-        active,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const data = await productService.createProduct(payload);
+    return res.status(201).json(data);
+  } catch (err) {
+    logger.error("Controller:createProduct failed", { error: err.message });
+    return res.status(500).json({ message: "Failed to create product" });
   }
 };
 
-// Update Product
+/**
+ * Update product
+ */
 exports.updateProduct = async (req, res) => {
   const { productId } = req.params;
-  const { name, price, category_id, image_url, image_path, stock } = req.body;
 
   try {
-    const { data, error } = await supabase
-      .from("products")
-      .update({
-        name,
-        price,
-        category_id,
-        stock,
-      })
-      .eq("id", productId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    res.json(data);
+    const data = await productService.updateProduct(productId, req.body);
+    return res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error("Controller:updateProduct failed", { error: err.message });
+    return res.status(500).json({ message: "Failed to update product" });
   }
 };
 
-// Deactivate Product
+/**
+ * Activate / Deactivate product
+ */
 exports.deactivateProduct = async (req, res) => {
+  const { productId } = req.params;
+  const { status } = req.body;
+
   try {
-    const { productId } = req.params;
-    const { status } = req.body;
-
-    const { data, error } = await supabase
-      .from("products")
-      .update({ active: status })
-      .eq("id", productId)
-      .select()
-      .single();
-    if (error) throw error;
-
-    res.json(data);
+    const data = await productService.updateProductStatus(productId, status);
+    return res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error("Controller:deactivateProduct failed", { error: err.message });
+    return res.status(500).json({ message: "Failed to update product status" });
   }
 };
 
-// Update product stock
+/**
+ * Update stock
+ */
 exports.updateProductStock = async (req, res) => {
+  const { productId } = req.params;
+  const { quantity } = req.body;
+
   try {
-    const { productId } = req.params;
-    const { quantity } = req.body;
-
-    const { data, error } = await supabase
-      .from("products")
-      .update({ stock: quantity })
-      .eq("id", productId)
-      .select();
-
-    if (error) throw error;
-
-    res.json(data[0]);
+    const data = await productService.updateProductStock(productId, quantity);
+    return res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error("Controller:updateProductStock failed", {
+      error: err.message,
+    });
+    return res.status(500).json({ message: "Failed to update stock" });
   }
 };
 
-// Restock (Add Items to existing Stock)
+/**
+ * Increment stock
+ */
 exports.incrementStock = async (req, res) => {
   const { productId } = req.params;
   const { quantity } = req.body;
 
   try {
-    const { data, error } = await supabase.rpc("increment_stock", {
-      product_id: productId,
-      quantity: quantity,
-    });
-
-    if (error) throw error;
-
-    res.status(200).json(data);
+    const data = await productService.incrementStock(productId, quantity);
+    return res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Take Stock Take
-exports.createStockTake = async (req, res) => {
-  const { performedBy, performedByName, items } = req.body;
-
-  try {
-    // 1. Create stock take header
-    const { data, error } = await supabase
-      .from("stock_takes")
-      .insert({
-        performed_by: performedBy,
-        performed_by_name: performedByName,
-      })
-      .select();
-
-    if (error) throw error;
-
-    const stockTake = data[0];
-
-    // 2. Prepare stock take items
-    const stockItems = items.map((item) => ({
-      stock_take_id: stockTake.id,
-      product_id: item.productId,
-      product_name: item.productName,
-      expected_quantity: item.expected,
-      actual_quantity: item.actual,
-      variance: item.actual - item.expected,
-    }));
-
-    // 3. Insert items
-    const { error: itemsError } = await supabase
-      .from("stock_take_items")
-      .insert(stockItems);
-
-    if (itemsError) throw itemsError;
-
-    res.status(200).json(stockTake);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error("Controller:incrementStock failed", { error: err.message });
+    return res.status(500).json({ message: "Failed to increment stock" });
   }
 };

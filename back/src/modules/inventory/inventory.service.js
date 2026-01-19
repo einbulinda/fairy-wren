@@ -94,7 +94,7 @@ exports.completeStockTake = async (stockTakeId, userId) => {
 
   for (const item of items) {
     if (item.variance !== 0) {
-      // Ledger
+      // Ledger records adjustments (delta only)
       await supabase.from("inventory_ledger").insert({
         product_id: item.product_id,
         transaction_type: "STOCKTAKE_ADJUSTMENT",
@@ -103,18 +103,106 @@ exports.completeStockTake = async (stockTakeId, userId) => {
         created_by: userId,
       });
 
-      // Update product stock
-      await supabase.rpc("increment_stock", {
-        product_id: item.product_id,
-        quantity: item.variance,
-      });
+      // Inventory is AUTHORITATIVELY reset
+      await supabase
+        .from("products")
+        .update({
+          current_stock: item.physical_qty,
+        })
+        .eq("id", item.product_id);
     }
   }
 
+  // Lock the stock take
   await supabase
     .from("stock_takes")
-    .update({ status: "completed" })
+    .update({ status: "completed", completed_at: new Date() })
     .eq("id", stockTakeId);
+};
+
+exports.getStockTakeAdjustments = async ({ startDate, endDate }) => {
+  // 1️⃣ Get ledger entries
+  let query = supabase
+    .from("inventory_ledger")
+    .select(
+      `
+      id,
+      product_id,
+      quantity,
+      reference_id,
+      created_at,
+      created_by,
+      profiles (
+        name
+      ),
+      products (
+        name
+      )
+    `,
+    )
+    .eq("transaction_type", "STOCKTAKE_ADJUSTMENT");
+
+  if (startDate) query = query.gte("created_at", startDate);
+  if (endDate) {
+    const nextDay = new Date(endDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    query = query.lt("created_at", nextDay.toISOString());
+  }
+
+  const { data: ledger, error } = await query.order("created_at", {
+    ascending: false,
+  });
+
+  if (error) throw error;
+  if (!ledger.length) return [];
+
+  // 2️⃣ Get stock takes
+  const stockTakeIds = [...new Set(ledger.map((l) => l.reference_id))];
+
+  const { data: stockTakes, error: stError } = await supabase
+    .from("stock_takes")
+    .select("id, completed_at, performed_by")
+    .in("id", stockTakeIds);
+
+  if (stError) throw stError;
+
+  // 3️⃣ Get stock take items
+  const { data: items, error: itemsError } = await supabase
+    .from("stock_take_items")
+    .select(
+      `
+      stock_take_id,
+      product_id,
+      system_qty,
+      physical_qty,
+      variance
+    `,
+    )
+    .in("stock_take_id", stockTakeIds);
+
+  if (itemsError) throw itemsError;
+
+  // 4️⃣ Join in memory
+  return ledger.map((entry) => {
+    const stockTake = stockTakes.find((st) => st.id === entry.reference_id);
+
+    const item = items.find(
+      (i) =>
+        i.stock_take_id === entry.reference_id &&
+        i.product_id === entry.product_id,
+    );
+
+    return {
+      stockTakeId: entry.reference_id,
+      completedAt: stockTake?.completed_at ?? null,
+      productName: entry.products?.name ?? "Unknown",
+      systemQty: item?.system_qty ?? null,
+      physicalQty: item?.physical_qty ?? null,
+      adjustment: entry.quantity,
+      performedBy: stockTake?.profiles?.name ?? "Unknown User",
+      createdAt: entry.created_at,
+    };
+  });
 };
 
 /* ---------------- LEDGER ---------------- */

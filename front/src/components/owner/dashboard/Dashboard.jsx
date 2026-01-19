@@ -37,7 +37,7 @@ const Dashboard = () => {
   } = useReports(dateRange);
 
   // Security gate
-  if (user?.role !== "owner") {
+  if (user?.role !== "owner" && user?.role !== "system developer") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="bg-linear-to-br from-red-900/30 to-red-900/10 backdrop-blur-md border border-red-500/20 rounded-xl p-6 shadow-lg">

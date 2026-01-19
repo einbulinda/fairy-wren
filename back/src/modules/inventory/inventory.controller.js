@@ -86,3 +86,18 @@ exports.receiveInventory = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.getStockTakeAdjustments = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const data = await inventoryService.getStockTakeAdjustments({
+      startDate,
+      endDate,
+    });
+
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
