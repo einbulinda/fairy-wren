@@ -22,10 +22,11 @@ export default function StockTakeAdjustmentsReport() {
     }
   };
 
-  // Auto-fetch on mount with no date filters
-  useEffect(() => {
-    fetchReport();
-  }, []);
+  /**Fetching the reports on mount without set dates is resource intensive */
+  // // Auto-fetch on mount with no date filters
+  // useEffect(() => {
+  //   fetchReport();
+  // }, []);
 
   // Group data by stock take ID - add safety check
   const groupedData = (data || []).reduce((acc, item) => {
