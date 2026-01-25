@@ -1,0 +1,92 @@
+[
+    {
+        "stockTakeId": "f33842f7-881b-4fd2-98d4-ac6ced991cfb",
+        "completedAt": "2026-01-19",
+        "productName": "Baileys 375ml",
+        "systemQty": 4,
+        "physicalQty": 14,
+        "adjustment": 10,
+        "performedBy": "Unknown User",
+        "createdAt": "2026-01-19T14:15:46.564227+00:00"
+    },
+    {
+        "stockTakeId": "f33842f7-881b-4fd2-98d4-ac6ced991cfb",
+        "completedAt": "2026-01-19",
+        "productName": "4th Street Red 750ml",
+        "systemQty": 2,
+        "physicalQty": 12,
+        "adjustment": 10,
+        "performedBy": "Unknown User",
+        "createdAt": "2026-01-19T14:15:45.363707+00:00"
+    },
+    {
+        "stockTakeId": "4412686f-03b3-4efd-a44b-118ed48e417f",
+        "completedAt": null,
+        "productName": "Baileys 375ml",
+        "systemQty": 4,
+        "physicalQty": 100,
+        "adjustment": 96,
+        "performedBy": "Unknown User",
+        "createdAt": "2026-01-19T13:25:57.76689+00:00"
+    },
+    {
+        "stockTakeId": "2d91bc1f-0f95-4e2f-8887-fd999f80e546",
+        "completedAt": null,
+        "productName": "Balozi Can",
+        "systemQty": 20,
+        "physicalQty": 18,
+        "adjustment": -2,
+        "performedBy": "Unknown User",
+        "createdAt": "2026-01-19T13:13:45.70065+00:00"
+    },
+    {
+        "stockTakeId": "2d91bc1f-0f95-4e2f-8887-fd999f80e546",
+        "completedAt": null,
+        "productName": "Baileys 375ml",
+        "systemQty": 4,
+        "physicalQty": 6,
+        "adjustment": 2,
+        "performedBy": "Unknown User",
+        "createdAt": "2026-01-19T13:13:44.842533+00:00"
+    },
+    {
+        "stockTakeId": "2d91bc1f-0f95-4e2f-8887-fd999f80e546",
+        "completedAt": null,
+        "productName": "4th Street Red 750ml",
+        "systemQty": 2,
+        "physicalQty": 4,
+        "adjustment": 2,
+        "performedBy": "Unknown User",
+        "createdAt": "2026-01-19T13:13:43.781004+00:00"
+    },
+    {
+        "stockTakeId": "8fa73f19-bad7-49e7-8ad0-91d83e3569ea",
+        "completedAt": null,
+        "productName": "4th Street Red 750ml",
+        "systemQty": 2,
+        "physicalQty": 12,
+        "adjustment": 10,
+        "performedBy": "Unknown User",
+        "createdAt": "2026-01-19T13:10:53.337518+00:00"
+    },
+    {
+        "stockTakeId": "618d812b-ddaa-43eb-9297-1e09345fec48",
+        "completedAt": null,
+        "productName": "4th Street Red 750ml",
+        "systemQty": 2,
+        "physicalQty": 211,
+        "adjustment": 209,
+        "performedBy": "Unknown User",
+        "createdAt": "2026-01-19T09:06:00.449063+00:00"
+    },
+    {
+        "stockTakeId": "1a82703e-4692-4861-ae71-559d617ae08b",
+        "completedAt": null,
+        "productName": "Baileys 375ml",
+        "systemQty": 4,
+        "physicalQty": 41,
+        "adjustment": 37,
+        "performedBy": "Unknown User",
+        "createdAt": "2026-01-19T08:04:38.317843+00:00"
+    }
+]

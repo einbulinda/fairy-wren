@@ -32,6 +32,7 @@ import CategoriesManagement from "../owner/CategoriesManagement";
 import AccountsManagement from "../owner/AccountsManagement";
 import SupplierManagement from "../owner/SupplierManagement";
 import InventoryManagement from "../../pages/InventoryManagement";
+import StockTakeEntry from "../../pages/StockTakeEntry";
 
 const getStorageKey = (role) => `fw_lastSeen_${role}`;
 
@@ -46,7 +47,7 @@ const MainLayout = () => {
   // Check if user has sidebar (Manager and Owner only)
   const hasSidebar = useMemo(() => {
     return [USER_ROLES.MANAGER, USER_ROLES.OWNER, USER_ROLES.ADMIN].includes(
-      user.role
+      user.role,
     );
   }, [user.role]);
 
@@ -79,6 +80,7 @@ const MainLayout = () => {
           { id: "users", label: "Users", icon: Users },
           { id: "pos", label: "POS", icon: ShoppingCart },
           { id: "inventory", label: "Inventory", icon: Package },
+          { id: "stock-take", label: "Stock Take Entry", icon: Package },
           { id: "accounts", label: "Chart of Accounts", icon: Landmark },
           { id: "suppliers", label: "Suppliers", icon: Truck },
         ];
@@ -139,7 +141,7 @@ const MainLayout = () => {
       if (user.role === USER_ROLES.BARTENDER) {
         setPendingConfirmCount(
           openBills.filter((bill) => bill.status === "awaiting_confirmation")
-            .length
+            .length,
         );
       }
     } catch (error) {
@@ -180,6 +182,8 @@ const MainLayout = () => {
         return <AccountsManagement />;
       case "suppliers":
         return <SupplierManagement />;
+      case "stock-take":
+        return <StockTakeEntry />;
       default:
         return null;
     }

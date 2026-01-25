@@ -20,9 +20,19 @@ const Dashboard = () => {
   const { user } = useAuth();
 
   /** Date range state */
+  const today = new Date();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  const formatDate = (date) => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const [dateRange, setDateRange] = useState({
-    startDate: new Date().toISOString().slice(0, 10),
-    endDate: new Date().toISOString().slice(0, 10),
+    startDate: formatDate(firstDayOfMonth),
+    endDate: formatDate(today),
   });
 
   const {
@@ -36,11 +46,23 @@ const Dashboard = () => {
     error,
   } = useReports(dateRange);
 
+  // Format date range for display
+  const formatDateRange = () => {
+    const start = new Date(dateRange.startDate);
+    const end = new Date(dateRange.endDate);
+
+    const options = { month: "short", day: "numeric", year: "numeric" };
+    const startStr = start.toLocaleDateString("en-US", options);
+    const endStr = end.toLocaleDateString("en-US", options);
+
+    return `${startStr} - ${endStr}`;
+  };
+
   // Security gate
   if (user?.role !== "owner" && user?.role !== "system developer") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="bg-linear-to-br from-red-900/30 to-red-900/10 backdrop-blur-md border border-red-500/20 rounded-xl p-6 shadow-lg">
+        <div className="bg-gradient-to-br from-red-900/30 to-red-900/10 backdrop-blur-md border border-red-500/20 rounded-xl p-6 shadow-lg">
           <p className="text-red-400 font-semibold text-lg">Access denied.</p>
           <p className="text-gray-400 text-sm mt-2">
             Owner access required to view this dashboard.
@@ -61,8 +83,8 @@ const Dashboard = () => {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold bg-linear-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Owner Dashboard
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Dashboard
           </h1>
           <p className="text-gray-400 text-sm mt-1">
             Financial & operational overview
@@ -118,12 +140,14 @@ const Dashboard = () => {
           icon={<DollarSign className="w-6 h-6" />}
           color="green"
           highlight
+          isCurrency
         />
         <KPICard
           title="Average Bill Value"
           value={averageBillValue}
           icon={<TrendingUp className="w-6 h-6" />}
           color="blue"
+          isCurrency
         />
         <KPICard
           title="Outstanding Bills"
@@ -154,13 +178,16 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* PAYMENTS SPLIT */}
         <div className="bg-gray-900/20 backdrop-blur-sm border border-purple-500/10 rounded-xl p-4 sm:p-6 shadow-lg">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-green-500/20 border border-green-500/30">
-              <DollarSign className="w-5 h-5 text-green-400" />
+          <div className="flex flex-col gap-1 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/20 border border-green-500/30">
+                <DollarSign className="w-5 h-5 text-green-400" />
+              </div>
+              <h2 className="text-lg font-semibold text-white">
+                Payment Methods
+              </h2>
             </div>
-            <h2 className="text-lg font-semibold text-white">
-              Payment Methods
-            </h2>
+            <p className="text-xs text-gray-400 ml-11">{formatDateRange()}</p>
           </div>
           <PaymentTypeBreakdown data={paymentTypes} />
         </div>

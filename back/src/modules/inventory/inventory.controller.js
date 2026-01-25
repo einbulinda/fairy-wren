@@ -101,3 +101,61 @@ exports.getStockTakeAdjustments = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
+exports.createStockTakeSession = async (req, res) => {
+  try {
+    const { stockTakeName, stockTakeType, location } = req.body;
+    const { id: userId } = req.user;
+
+    const stockTakeSession = await inventoryService.createStockTakeSession({
+      userId,
+      stockTakeName,
+      stockTakeType,
+      location,
+    });
+    res.status(200).json(stockTakeSession);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.recordStockTakeItem = async (req, res) => {
+  try {
+    const payload = req.body;
+    const data = await inventoryService.recordStockTakeItem(payload);
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.completeStockTakeSession = async (req, res) => {
+  try {
+    const { id: stockTakeId } = req.params;
+    const { id: userId } = req.user;
+    const data = await inventoryService.completeStockTakeSession(
+      stockTakeId,
+      userId,
+    );
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+exports.getIncompleteStockTakes = async (req, res) => {
+  try {
+    const data = await inventoryService.getIncompleteStockTakes(req.user.id);
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+exports.getStockTakeItems = async (req, res) => {
+  try {
+    const { id: sessionId } = req.params;
+    const data = await inventoryService.getStockTakeItems(sessionId);
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

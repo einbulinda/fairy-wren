@@ -14,11 +14,6 @@ export const inventoryService = {
       .post(`/inventory/stock-takes/${stockTakeId}/items`, { items })
       .then((res) => res.data),
 
-  completeStockTake: (stockTakeId) =>
-    api
-      .post(`/inventory/stock-takes/${stockTakeId}/complete`)
-      .then((res) => res.data),
-
   getLedger: (params) =>
     api.get("/inventory/ledger", { params }).then((res) => res.data),
 
@@ -27,4 +22,22 @@ export const inventoryService = {
 
   stockTakeReports: (params) =>
     api.get("inventory/reports/stock-take", { params }).then((res) => res.data),
+  createStockTakeSession: (payload) =>
+    api.post("/inventory/stock-take-sessions", payload).then((res) => res.data),
+  recordStockTakeItem: (payload) =>
+    api
+      .post("/inventory/stock-take-sessions/item", payload)
+      .then((res) => res.data),
+  completeStockTake: (currentSessionId) =>
+    api
+      .post(`/inventory/stock-take-sessions/${currentSessionId}/complete`)
+      .then((res) => res.data),
+  getIncompleteStockTakes: () =>
+    api
+      .get("/inventory/stock-take-sessions/incomplete")
+      .then((res) => res.data),
+  getStockTakeItems: (sessionId) =>
+    api
+      .get(`/inventory/stock-take-sessions/${sessionId}/items`)
+      .then((res) => res.data),
 };

@@ -99,20 +99,16 @@ $$;
  2.PAYMENT TYPE BREAKDOWN (CASH / MPESA)
  */
 create or replace function rpc_payment_type_summary(p_start_date date, p_end_date date) returns table (
-        business_date date,
         payment_type varchar,
         total_amount numeric(12, 2)
     ) language sql stable as $$
-select date(created_at) as business_date,
-    payment_type,
+select payment_type,
     sum(amount) as total_amount
 from payments
 where is_paid = true
     and date(created_at) between p_start_date and p_end_date
-group by date(created_at),
-    payment_type
-order by business_date,
-    payment_type;
+group by payment_type
+order by payment_type;
 $$;
 /*
  3.TOTAL REVENUE (SINGLE NUMBER KPI)
@@ -176,9 +172,8 @@ group by c.id,
     c.name
 order by total_sales desc;
 $$;
-
 /*
-INDEXING
-*/
+ INDEXING
+ */
 create index if not exists idx_payments_paid_date on payments (is_paid, created_at);
 create index if not exists idx_bills_created_at on bills (created_at);
