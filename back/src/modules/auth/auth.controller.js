@@ -1,8 +1,7 @@
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
-const supabase = require("../../config/supabase");
+const getSupabase = require("../../config/supabase");
 const { signToken } = require("../../utils/jwt");
-const logger = require("../../utils/logger");
 
 exports.login = async (req, res) => {
   try {
@@ -20,6 +19,7 @@ exports.login = async (req, res) => {
       .digest("hex");
 
     //3. Find user with the fingerprint
+    const supabase = await getSupabase();
     const { data: user, error } = await supabase
       .from("profiles")
       .select("id,name, pin_hash, role, active")

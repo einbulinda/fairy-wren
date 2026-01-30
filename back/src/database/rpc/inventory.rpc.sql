@@ -265,6 +265,7 @@ v_result := jsonb_build_object('success', true, 'status', 'approved');
 RETURN v_result;
 END;
 $$ LANGUAGE plpgsql;
+/*---Stock Take Rejection Function*/
 CREATE OR REPLACE FUNCTION reject_stock_take(
         p_stock_take_id UUID,
         p_reviewed_by_id UUID,
@@ -308,7 +309,7 @@ DECLARE v_item RECORD;
 BEGIN -- Loop through all items in the stock take
 FOR v_item IN
 SELECT product_id,
-    adjustment,
+    variance,
     reason,
     notes
 FROM stock_take_items
@@ -334,7 +335,7 @@ VALUES (
             WHEN v_item.adjustment > 0 THEN 'adjustment_in'
             ELSE 'adjustment_out'
         END,
-        ABS(v_item.adjustment),
+        ABS(v_item.variance),
         'stock_take',
         p_stock_take_id,
         v_item.reason,

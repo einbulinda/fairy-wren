@@ -2,7 +2,11 @@ const express = require("express");
 const cors = require("cors");
 const routes = require("./load/routes");
 const errorHandler = require("./middleware/errorHandler");
+const requestContext = require("./middleware/requestContext");
+const requestTimer = require("./middleware/requestTimer");
 const timeout = require("connect-timeout");
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpecs = require("./docs/swagger");
 
 const app = express();
 
@@ -15,15 +19,17 @@ app.use(
       "https://pos.fairywren.co.ke",
       "https://www.pos.fairywren.co.ke",
       "http://localhost:5173",
-      "http://localhost:4173/",
-      "http://192.168.100.191:8000",
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json({ limit: "2mb" }));
+
+// Correlation ID and Request Timers
+app.use(requestContext);
+app.use(requestTimer);
 
 // Timeout Protection
 const haltOnTimedout = (req, res, next) => {
@@ -38,7 +44,8 @@ app.get("/", (req, res) => {
   res.status(404).json({ message: "Not found" });
 });
 
-// app.use("/api", routes); //For Development ONLY
+// Swagger Documentation
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 app.use("/", routes);
 app.use(haltOnTimedout);

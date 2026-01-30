@@ -1,118 +1,65 @@
-const productService = require("./products.service");
-const logger = require("../../utils/logger");
+const service = require("./products.service");
+const { respond, buildContext } = require("../../utils/common");
 
-/**
- * Get all products
- */
-exports.getProducts = async (req, res) => {
+
+exports.listProducts = async (req, res, next) => {
   try {
-    const data = await productService.getProducts();
-    return res.status(200).json(data);
+    const data = await service.list(req.query);
+    respond(res, 200, data);
   } catch (err) {
-    logger.error("Controller:getProducts failed", { error: err.message });
-    return res.status(500).json({ message: "Failed to fetch products" });
+    next(err);
   }
 };
 
-/**
- * Get product by ID
- */
-exports.getProductById = async (req, res) => {
-  const { productId } = req.params;
-
+exports.getProduct = async (req, res, next) => {
   try {
-    const data = await productService.getProductById(productId);
-    return res.status(200).json(data);
+    const data = await service.getById(req.params.productId);
+    respond(res, 200, data);
   } catch (err) {
-    logger.error("Controller:getProductById failed", { error: err.message });
-    return res.status(404).json({ message: "Product not found" });
+    next(err);
   }
 };
 
-/**
- * Create product
- */
-exports.createProduct = async (req, res) => {
-  const { payload } = req.body;
-
-  if (!payload?.name) {
-    return res.status(400).json({ message: "Product name is required" });
-  }
-
-  if (payload.price === undefined) {
-    return res.status(400).json({ message: "Product price is required" });
-  }
-
+exports.createProduct = async (req, res, next) => {
   try {
-    const data = await productService.createProduct(payload);
-    return res.status(201).json(data);
+    const data = await service.create(req.body, buildContext(req));
+    respond(res, 201, data);
   } catch (err) {
-    logger.error("Controller:createProduct failed", { error: err.message });
-    return res.status(500).json({ message: "Failed to create product" });
+    next(err);
   }
 };
 
-/**
- * Update product
- */
-exports.updateProduct = async (req, res) => {
-  const { productId } = req.params;
-
+exports.updateProduct = async (req, res, next) => {
   try {
-    const data = await productService.updateProduct(productId, req.body);
-    return res.status(200).json(data);
+    const data = await service.update(
+      req.params.productId,
+      req.body,
+      buildContext(req),
+    );
+    respond(res, 200, data);
   } catch (err) {
-    logger.error("Controller:updateProduct failed", { error: err.message });
-    return res.status(500).json({ message: "Failed to update product" });
+    next(err);
   }
 };
 
-/**
- * Activate / Deactivate product
- */
-exports.deactivateProduct = async (req, res) => {
-  const { productId } = req.params;
-  const { status } = req.body;
-
+exports.updateProductStatus = async (req, res, next) => {
   try {
-    const data = await productService.updateProductStatus(productId, status);
-    return res.status(200).json(data);
+    const data = await service.updateStatus(
+      req.params.productId,
+      req.body.status,
+      buildContext(req),
+    );
+    respond(res, 200, data);
   } catch (err) {
-    logger.error("Controller:deactivateProduct failed", { error: err.message });
-    return res.status(500).json({ message: "Failed to update product status" });
+    next(err);
   }
 };
 
-/**
- * Update stock
- */
-exports.updateProductStock = async (req, res) => {
-  const { productId } = req.params;
-  const { quantity } = req.body;
-
+exports.archiveProduct = async (req, res, next) => {
   try {
-    const data = await productService.updateProductStock(productId, quantity);
-    return res.status(200).json(data);
+    await service.archive(req.params.productId, buildContext(req));
+    res.status(204).send();
   } catch (err) {
-    logger.error("Controller:updateProductStock failed", {
-      error: err.message,
-    });
-    return res.status(500).json({ message: "Failed to update stock" });
-  }
-};
-
-/**
- * Increment stock
- */
-exports.incrementStock = async (req, res) => {
-  const { productId } = req.params;
-  const { quantity } = req.body;
-
-  try {
-    const data = await productService.incrementStock(productId, quantity);
-    return res.status(200).json(data);
-  } catch (err) {
-    logger.error("Controller:incrementStock failed", { error: err.message });
-    return res.status(500).json({ message: "Failed to increment stock" });
+    next(err);
   }
 };

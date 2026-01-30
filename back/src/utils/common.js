@@ -1,4 +1,4 @@
-exports.mapActionToMessage = (action) => {
+const mapActionToMessage = (action) => {
   switch (action) {
     case "payment_initiated":
       return "Payment initiated. Awaiting bartender confirmation.";
@@ -10,3 +10,17 @@ exports.mapActionToMessage = (action) => {
       return "Payment processed.";
   }
 };
+
+const buildContext = (req) => ({
+  userId: req.user?.id,
+  correlationId: req.correlationId,
+});
+
+const respond = (res, status, data) => {
+  if (res.locals.correlationId)
+    res.setHeader("X-Request-ID", res.locals.correlationId);
+
+  return res.status(status).json({ success: true, data });
+};
+
+module.exports = { mapActionToMessage, buildContext, respond };
