@@ -9,7 +9,7 @@ router.post("/", controller.createUser);
 
 // Resource
 router.get("/:userId", controller.getUser);
-router.patch("/:userId", controller.updateUser);
+router.put("/:userId", controller.updateUser);
 
 // Explicit sub-resources (VERY IMPORTANT)
 router.patch("/:userId/status", controller.updateUserStatus);

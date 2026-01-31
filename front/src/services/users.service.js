@@ -30,7 +30,7 @@ export const createUserApi = async ({ name, pin, role }) => {
 // Update User
 export const updateUserApi = async (userId, { name, role }) => {
   try {
-    const response = await api.patch(`/users/${userId}`, { name, role });
+    const response = await api.put(`/users/${userId}`, { name, role });
     return response.data;
   } catch (error) {
     throw error.response?.data || { error: "Error updating user." };

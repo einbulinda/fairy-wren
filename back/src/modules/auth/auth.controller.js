@@ -1,57 +1,28 @@
-const crypto = require("crypto");
-const bcrypt = require("bcrypt");
-const getSupabase = require("../../config/supabase");
-const { signToken } = require("../../utils/jwt");
-
-exports.login = async (req, res) => {
+const service = require("./auth.service");
+const { respond } = require("../../utils/common");
+exports.login = async (req, res, next) => {
   try {
-    const { pin } = req.body;
-
-    // 1. Validate PIN exists on request body
-    if (!pin) {
-      return res.status(400).json({ error: "PIN is required" });
-    }
-
-    //2. Compute fingerprint
-    const fingerprint = crypto
-      .createHmac("sha256", process.env.PIN_PEPPER)
-      .update(pin)
-      .digest("hex");
-
-    //3. Find user with the fingerprint
-    const supabase = await getSupabase();
-    const { data: user, error } = await supabase
-      .from("profiles")
-      .select("id,name, pin_hash, role, active")
-      .eq("pin_fingerprint", fingerprint)
-      .eq("active", true)
-      .single();
-
-    if (error || !user) {
-      return res.status(401).json({ error: "Invalid PIN" });
-    }
-
-    //4. Verify Hash
-    const valid = await bcrypt.compare(pin, user.pin_hash);
-
-    if (!valid) return res.status(401).json({ error: "Invalid PIN" });
-
-    // Create JWT Token and keep payload small
-    const token = signToken({
-      id: user.id,
-      role: user.role,
-      name: user.name,
-    });
-
-    const userData = {
-      id: user.id,
-      name: user.name,
-      role: user.role,
-      active: user.active,
+    const context = {
+      correlationId: req.correlationId,
     };
 
-    res.status(200).json({ token, user: userData });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const { token, user } = await service.login(req.body, context);
+
+    respond(res, 200, {
+      success: true,
+      user,
+      token,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.me = async (req, res, next) => {
+  try {
+    const data = await service.me(req.user);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
   }
 };

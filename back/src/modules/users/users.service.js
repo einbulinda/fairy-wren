@@ -24,17 +24,17 @@ exports.create = async (payload, context) => {
   // 2️. DTO normalization
   const dto = CreateUserDTO(payload);
 
-  // 2. Compute fingerprint (deterministic)
+  // 3. Compute fingerprint (deterministic)
   const fingerprint = crypto
     .createHmac("sha256", process.env.PIN_PEPPER)
     .update(dto.pin)
     .digest("hex");
 
-  // 3. Optional pre-check (UX improvement)
+  // 4. Optional pre-check (UX improvement)
   const { data: existingUser } = await repo.userExists(fingerprint);
-  if (existingUser) throw new Error("USER_DETAILS_EXISTS");
+  if (existingUser) throw new Error("PIN_ALREADY_IN_USE");
 
-  // 4. Hash PIN (non-deterministic)
+  // 5. Hash PIN (non-deterministic)
   const pinHash = await bcrypt.hash(dto.pin, 10);
 
   const { data, error } = await repo.create({
@@ -46,10 +46,13 @@ exports.create = async (payload, context) => {
     active: true,
   });
 
-  // 7️. Race-condition safe handling
+  // Discard plain pin
+  dto.pin = undefined;
+
+  // 6. Race-condition safe handling
   if (error) {
     if (error.code === "23505") {
-      throw new Error("USER_DETAILS_EXISTS");
+      throw new Error("PIN_ALREADY_IN_USE");
     }
     throw new Error("FAILED_TO_CREATE_USER");
   }
@@ -57,10 +60,10 @@ exports.create = async (payload, context) => {
   await auditRepo.log({
     entity: "profiles",
     entity_id: data.id,
-    action: "CREATE",
+    action: "USER_CREATED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
-    metadata: { name: data.name, price: data.price },
+    metadata: { name: data.name, role: data.role },
   });
 
   return data;
@@ -68,15 +71,15 @@ exports.create = async (payload, context) => {
 
 exports.update = async (id, payload, context) => {
   const dto = UpdateUserDTO(payload);
-  if (Object.keys(dto).length === 0) throw new Error("No_FIELDS_TO_UPDATE");
+  if (Object.keys(dto).length === 0) throw new Error("NO_FIELDS_TO_UPDATE");
 
   const { data, error } = await repo.update(id, dto);
-  if (error || !data) throw new Error("FAILED_TO_UPDATE_PRODUCT");
+  if (error || !data) throw new Error("FAILED_TO_UPDATE_USER");
 
   await auditRepo.log({
     entity: "profiles",
     entity_id: id,
-    action: "UPDATE",
+    action: "USER_UPDATED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
     metadata: dto,
@@ -98,7 +101,7 @@ exports.archive = async (id, context) => {
   await auditRepo.log({
     entity: "profiles",
     entity_id: id,
-    action: "ARCHIVE",
+    action: "USER_ARCHIVED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
   });

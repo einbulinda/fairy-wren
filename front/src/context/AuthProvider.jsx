@@ -31,7 +31,9 @@ export const AuthProvider = ({ children }) => {
 
   // Login Handler
   const login = async (pin) => {
-    const { user, token } = await loginWithPin(pin);
+    const {
+      data: { user, token },
+    } = await loginWithPin(pin);
 
     const expiryTime = Date.now() + SESSION_DURATION;
     setUser(user);

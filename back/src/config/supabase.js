@@ -2,7 +2,7 @@ const { createClient } = require("@supabase/supabase-js");
 
 let client = null;
 
-module.exports = () => {
+module.exports = function getSupabase() {
   if (client) return client;
 
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {

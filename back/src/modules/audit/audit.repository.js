@@ -1,4 +1,4 @@
-const supabase = require("../../config/supabase");
+const getSupabase = require("../../config/supabase");
 
 exports.log = async ({
   entity,
@@ -8,6 +8,7 @@ exports.log = async ({
   correlation_id,
   metadata,
 }) => {
+  const supabase = getSupabase();
   supabase.from("audit_logs").insert({
     entity,
     entity_id,

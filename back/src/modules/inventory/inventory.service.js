@@ -80,7 +80,7 @@ exports.createStockTake = async (userId) => {
 
   const { data, error } = await supabase
     .from("stock_takes")
-    .insert({ performed_by: userId })
+    .insert({ performed_by_id: userId })
     .select()
     .single();
 

@@ -1,6 +1,9 @@
 const express = require("express");
 const productRoutes = require("../modules/products/products.routes");
+const usersRoutes = require("../modules/users/users.routes");
+const authRoutes = require("../modules/auth/auth.routes");
 const requestContext = require("../middleware/requestContext");
+const errorHandler = require("../middleware/errorHandler");
 
 const app = express();
 
@@ -9,18 +12,17 @@ app.use(express.json());
 
 // Mock Auth
 app.use((req, res, next) => {
-  req.user = { id: "test-user" };
+  if (req.headers.authorization === "Bearer test-token") {
+    req.user = { id: "test-user", role: "owner", name: "John" };
+  }
   next();
 });
 
 app.use("/products", productRoutes);
+app.use("/users", usersRoutes);
+app.use("/auth", authRoutes);
 
 // minimal error handler
-app.use((err, req, res, next) => {
-  res.status(500).json({
-    success: false,
-    error: { code: err.message },
-  });
-});
+app.use(errorHandler);
 
 module.exports = app;
