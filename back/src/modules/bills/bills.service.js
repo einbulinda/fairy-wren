@@ -1,420 +1,166 @@
-const supabase = require("../../config/supabase");
-const logger = require("../../utils/logger");
+const repo = require("./bills.repository");
+const auditRepo = require("../audit/audit.repository");
+const inventoryService = require("../inventory/inventory.service");
 const {
-  reverseBillLedger,
-  postBillToLedger,
-} = require("../ledger/ledger.service");
+  AddRoundDTO,
+  CreateBillDTO,
+  UpdateBillStatusDTO,
+  VoidBillDTO,
+} = require("./bills.dto");
 
-/* ---------------- CREATE BILL ---------------- */
-exports.createBill = async ({ customer_name, created_by }) => {
-  logger.info("Creating Bill", { customer_name, created_by });
-  const { data, error } = await supabase
-    .from("bills")
-    .insert({
-      customer_name,
-      created_by,
-      status: "open",
-    })
-    .select()
-    .single();
-
-  logger.error("Database error creating bill", {
-    customer_name,
-    created_by,
-    error,
+/* ---------- Bills ---------- */
+exports.createBill = async (payload, context) => {
+  const dto = CreateBillDTO(payload);
+  const { data, error } = repo.createBill({
+    customer_name: dto.customer_name,
+    status: "open",
+    created_by: context.userId,
   });
 
-  if (error) throw error;
+  if (error) throw new Error("FAILED_TO_CREATE_BILL");
 
-  logger.info("Bill created successfully", {
-    billId: data.id,
+  await auditRepo.log({
+    entity: "bills",
+    entity_id: data.id,
+    action: "BILL_CREATED",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
   });
+
   return data;
 };
 
-/* ---------------- ADD ROUND ---------------- */
-exports.addRound = async ({ billId, items, userId }) => {
-  logger.info("Starting add round operation", {
-    billId,
-    userId,
+exports.getBill = async (id) => {
+  const { data, error } = await repo.findBillById(id);
+  if (error || !data) throw new Error("BILL_NOT_FOUND");
+  return data;
+};
+
+exports.listBills = async (filters) => {
+  const { data, error } = await repo.listBills(filters);
+  if (error) throw new Error("FAILED_TO_FETCH_BILLS");
+  return data;
+};
+
+exports.updateStatus = async (id, payload, context) => {
+  const dto = UpdateBillStatusDTO(payload);
+  if (!dto.status) throw new Error("INVALID_BILL_STATUS");
+
+  const { data, error } = await repo.updateBillStatus(
+    id,
+    dto.status,
+    context.userId,
+  );
+
+  if (error || !data) throw new Error("FAILED_TO_UPDATE_BILL");
+
+  await auditRepo.log({
+    entity: "bills",
+    entity_id: id,
+    action: "BILL_STATUS_UPDATED",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
+    metadata: { status: dto.status },
   });
 
-  /* 1. Validate stock availability */
+  return data;
+};
 
-  for (const item of items) {
-    const { data: product, error } = await supabase
-      .from("products")
-      .select("current_stock")
-      .eq("id", item.id)
-      .single();
+exports.voidBill = async (id, payload, context) => {
+  dto = VoidBillDTO(payload);
+  /**
+   * 1. Restore inventory + ledger (Inventory module)
+   */
+  await inventoryService.restoreStockForBill({
+    id,
+    userId: context.userId,
+    reason: dto.reason,
+  });
 
-    logger.error("Failed to fetch product stock", {
-      billId,
-      productId: item.id,
-      error,
-    });
+  /**
+   * 2. Update bill status
+   */
+  const { error } = await repo.updateBillStatus(id, "void", context.userId);
 
-    if (error) throw error;
+  if (error) throw new Error("FAILED_TO_VOID_BILL");
 
-    if (product.current_stock < item.quantity) {
-      logger.warn("Insufficient stock detected", {
-        billId,
-        productId: item.id,
-        requested: item.quantity,
-        available: product.current_stock,
-      });
+  await auditRepo.log({
+    entity: "bills",
+    entity_id: id,
+    action: "BILL_VOIDED",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
+    metadata: { reason: dto.reason },
+  });
 
-      throw new Error(`Insufficient stock for product ${item.productId}`);
-    }
+  return { id, status: "void" };
+};
+
+/* ---------- Rounds ---------- */
+
+exports.addRound = async (billId, payload, context) => {
+  const dto = AddRoundDTO(payload);
+
+  if (!dto.items.length) {
+    throw new Error("INVALID_ROUND_DATA");
   }
 
   /**
-   * 2. Determine next round number for the bill
+   * 1. Validate stock availability (Inventory module)
    */
+  await inventoryService.assertStockAvailable(dto.items);
 
-  const { data: lastRound, error: lastRoundError } = await supabase
-    .from("rounds")
-    .select("round_number")
-    .eq("bill_id", billId)
-    .order("round_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (lastRoundError) {
-    logger.error("Failed to resolve last round", {
-      billId,
-      error: lastRoundError,
-    });
-    throw lastRoundError;
-  }
-
-  const nextRoundNumber = lastRound ? lastRound.round_number + 1 : 1;
-
-  logger.debug("Next round number determined", {
-    billId,
-    nextRoundNumber,
-  });
+  /**
+   * 2. Determine next round number
+   */
+  const roundNumber = await repo.getNextRoundNumber(billId);
 
   /**
    * 3. Create round
    */
-
-  const { data: round, error: roundError } = await supabase
-    .from("rounds")
-    .insert({
-      bill_id: billId,
-      round_number: nextRoundNumber,
-      created_by: userId,
-    })
-    .select()
-    .single();
-
-  if (roundError) {
-    logger.error("Failed to create round", {
-      billId,
-      nextRoundNumber,
-      error: roundError,
-    });
-    throw roundError;
-  }
-
-  logger.info("Round created", {
-    billId,
-    roundId: round.id,
+  const { data: round, error: roundError } = await repo.createRound({
+    bill_id: billId,
+    round_number: roundNumber,
+    created_by: context.userId,
   });
+
+  if (roundError) throw new Error("FAILED_TO_CREATE_ROUND");
 
   /**
    * 4. Insert round items
    */
-  const roundItems = items.map((item) => ({
+  const items = dto.items.map((item) => ({
     round_id: round.id,
-    product_id: item.id,
-    price: item.price,
+    product_id: item.product_id,
     quantity: item.quantity,
+    price: item.price,
   }));
 
-  const { error: itemsError } = await supabase
-    .from("round_items")
-    .insert(roundItems);
+  const { error: itemsError } = await repo.insertRoundItems(items);
 
-  if (itemsError) {
-    logger.error("Failed to insert round items", {
-      billId,
-      roundId: round.id,
-      error: itemsError,
-    });
-
-    throw itemsError;
-  }
+  if (itemsError) throw new Error("FAILED_TO_ADD_ROUND_ITEMS");
 
   /**
-   *  4. Deduct inventory (ledger + snapshot)
+   * 5. Deduct inventory + post ledger (Inventory module)
    */
-
-  for (const item of items) {
-    await supabase.from("inventory_ledger").insert({
-      product_id: item.id,
-      transaction_type: "SALE",
-      quantity: -item.quantity,
-      reference_id: billId,
-      created_by: userId,
-    });
-
-    await supabase.rpc("increment_stock", {
-      p_product_id: item.id,
-      p_quantity: -item.quantity,
-    });
-  }
-
-  logger.info("Round completed successfully", {
+  await inventoryService.consumeStockForSale({
     billId,
-    roundId: round.id,
+    items: dto.items,
+    userId: context.userId,
   });
 
-  return { round, items: roundItems };
-};
-
-/* ---------------- OPEN BILLS ---------------- */
-exports.getOpenBills = async () => {
-  logger.info("Getting Open Bills");
-  const { data, error } = await supabase
-    .from("bills")
-    .select(
-      `
-      id,
-      customer_name,
-      status,
-      created_at,
-      updated_at,
-      created_by_user:profiles!bills_created_by_fkey(id, name),
-      updated_by_user:profiles!fk_bills_updated_by(id, name),
-      rounds (
-        id,
-        round_number,
-        round_items (
-          id,
-          quantity,
-          price,
-          product:products(id, name)
-        )
-      )
-    `
-    )
-    .eq("status", "open")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    logger.error("Database Error getting open bills", { error });
-    throw error;
-  }
-
-  return data;
-};
-
-/* ---------------- BILL BY ID ---------------- */
-
-exports.getBillById = async (billId) => {
-  logger.info("Getting Open Bills", { billId });
-  const { data, error } = await supabase
-    .from("bills")
-    .select(
-      `
-      *,
-      rounds (
-        *,
-        round_items (
-          *,
-          product:products(id, name, price)
-        )
-      )
-    `
-    )
-    .eq("id", billId)
-    .single();
-
-  if (error) {
-    logger.error("Database error getting a Bill", { billId, error });
-    throw error;
-  }
-
-  logger.info("Getting bill by ID successful", { billId });
-  return data;
-};
-
-/* ---------------- ALL BILLS ---------------- */
-
-exports.getAllBills = async () => {
-  logger.info("Getting All Bills");
-  const { data, error } = await supabase
-    .from("bills")
-    .select(
-      `
-      id,
-      customer_name,
-      status,
-      created_at,
-      updated_at,
-      created_by_user:profiles!bills_created_by_fkey(id, name),
-      updated_by_user:profiles!fk_bills_updated_by(id, name),
-      rounds (
-        id,
-        round_number,
-        round_items (
-          id,
-          quantity,
-          price,
-          product:products(id, name)
-        )
-      )
-    `
-    )
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    logger.error("Database error getting all bills", { error });
-    throw error;
-  }
-
-  logger.info("Getting bill by ID successful");
-  return data;
-};
-
-/* ---------------- VOID BILL ---------------- */
-exports.voidBill = async ({ billId, userId }) => {
-  logger.info("Starting bill void operation", {
-    billId,
-    userId,
+  await auditRepo.log({
+    entity: "rounds",
+    entity_id: round.id,
+    action: "ROUND_CREATED",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
+    metadata: {
+      bill_id: billId,
+      round_number: roundNumber,
+      item_count: items.length,
+    },
   });
 
-  /**
-   * 1. Fetch bill and validate status
-   */
-  const { data: bill, error: billError } = await supabase
-    .from("bills")
-    .select("id, status")
-    .eq("id", billId)
-    .single();
-
-  if (billError) {
-    logger.error("Failed to fetch bill for voiding", {
-      billId,
-      error: billError,
-    });
-    throw billError;
-  }
-
-  if (bill.status !== "open") {
-    logger.warn("Attempt to void non-open bill blocked", {
-      billId,
-      currentStatus: bill.status,
-    });
-    throw new Error("Only open bills can be voided");
-  }
-
-  /**
-   * 2. Fetch all round items (may be empty)
-   */
-  const { data: itemsData, error: itemsError } = await supabase
-    .from("round_items")
-    .select(
-      `
-      id,
-      quantity,
-      product_id,
-      round:rounds!inner(
-        id,
-        bill_id
-      )
-    `
-    )
-    .eq("round.bill_id", billId);
-
-  if (itemsError) {
-    logger.error("Failed to fetch round items for bill void", {
-      billId,
-      error: itemsError,
-    });
-    throw itemsError;
-  }
-
-  // Defensive normalization
-  const roundItems = Array.isArray(itemsData) ? itemsData : [];
-
-  if (roundItems.length === 0) {
-    logger.info("No rounds found for bill; skipping inventory reversal", {
-      billId,
-    });
-  }
-
-  /**
-   * 3. Restore inventory (ledger + stock snapshot)
-   */
-  for (const item of roundItems) {
-    // Ledger reversal entry
-    const { error: ledgerError } = await supabase
-      .from("inventory_ledger")
-      .insert({
-        product_id: item.product_id,
-        transaction_type: "VOID_REVERSAL",
-        quantity: item.quantity,
-        reference_id: billId,
-        created_by: userId,
-      });
-
-    if (ledgerError) {
-      logger.error("Failed to insert inventory reversal ledger", {
-        billId,
-        productId: item.product_id,
-        error: ledgerError,
-      });
-      throw ledgerError;
-    }
-
-    // Restore stock snapshot
-    const { error: stockError } = await supabase.rpc("increment_stock", {
-      p_product_id: item.product_id,
-      p_quantity: item.quantity,
-    });
-
-    if (stockError) {
-      logger.error("Failed to restore product stock", {
-        billId,
-        productId: item.product_id,
-        error: stockError,
-      });
-      throw stockError;
-    }
-  }
-
-  /**
-   * 4. Mark bill as void
-   */
-  const { error: voidError } = await supabase
-    .from("bills")
-    .update({
-      status: "void",
-      updated_by: userId,
-    })
-    .eq("id", billId);
-
-  if (voidError) {
-    logger.error("Failed to mark bill as void", {
-      billId,
-      error: voidError,
-    });
-    throw voidError;
-  }
-
-  await reverseBillLedger(billId, "Bill voided by user");
-
-  logger.info("Bill voided successfully", {
-    billId,
-    reversedItems: roundItems.length,
-  });
-
-  return {
-    billId,
-    status: "void",
-    reversedItems: roundItems.length,
-  };
+  return { round, items };
 };

@@ -74,7 +74,7 @@ async function getBillWithItems(billId) {
           cogs_account_id
         )
       )
-            `
+            `,
     )
     .eq("id", billId)
     .single();
@@ -92,14 +92,14 @@ exports.reverseBillLedger = async (billId, reason = "Bill voided") => {
     const entries = await getBillJournalEntries(billId);
 
     if (entries.length === 0) {
-      logger.warn("No journal entries found to reverse", { billId });
+      // logger.warn("No journal entries found to reverse", { billId });
       return;
     }
 
     // 2. Prevent double reversal
     const alreadyReversed = entries.some((e) => e.reversed_entry_id);
     if (alreadyReversed) {
-      logger.warn("Ledger already reversed for bill", { billId });
+      // logger.warn("Ledger already reversed for bill", { billId });
       return;
     }
 
@@ -108,12 +108,12 @@ exports.reverseBillLedger = async (billId, reason = "Bill voided") => {
       await reverseJournalEntry(entry, reason);
     }
 
-    logger.info("Ledger reversal completed", { billId });
+    // logger.info("Ledger reversal completed", { billId });
   } catch (err) {
-    logger.error("Ledger reversal failed", {
-      billId,
-      error: err.message,
-    });
+    // logger.error("Ledger reversal failed", {
+    //   billId,
+    //   error: err.message,
+    // });
   }
 };
 
@@ -178,7 +178,7 @@ async function getBillJournalEntries(billId) {
         debit,
         credit
       )
-    `
+    `,
     )
     .eq("source_type", "bill")
     .eq("source_id", billId);

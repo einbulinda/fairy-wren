@@ -4,7 +4,7 @@ import api from "./api";
 // Fetch all Open Bills
 export const fetchOpenBills = async () => {
   try {
-    const response = await api.get("/bills/open");
+    const response = await api.get("/bills?status=open");
     return response.data;
   } catch (error) {
     throw normalizeError(error, "Error fetching open bills.");
@@ -43,11 +43,11 @@ export const addBillRound = async (billId, payload) => {
 
 // Mark Bill as Paid
 export const markBillPaid = (billId, payload) =>
-  api.patch(`/bills/${billId}/mark-paid`, payload);
+  api.patch(`/bills/${billId}/status`, payload);
 
 // Confirm Bill Payment
-export const confirmBillPayment = (billId) =>
-  api.patch(`/bills/${billId}/confirm`);
+export const confirmBillPayment = (billId, payload) =>
+  api.patch(`/bills/${billId}/status`, payload);
 
 // Voiding a Bill
-export const voidBill = (billId) => api.patch(`/bills/${billId}/void`);
+export const voidBill = (billId) => api.delete(`/bills/${billId}`);

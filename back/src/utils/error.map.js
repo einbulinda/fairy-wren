@@ -45,6 +45,50 @@ const ERROR_MAP = {
     message: "Failed to update product",
   },
 
+  // ===== BILLS ======
+  BILL_NOT_FOUND: { status: 404, message: "Bill not found" },
+  FAILED_TO_CREATE_BILL: { status: 500, message: "Failed to create bill" },
+  FAILED_TO_FETCH_BILLS: { status: 500, message: "Failed to fetch bills" },
+  INVALID_BILL_STATUS: { status: 400, message: "Invalid bill status" },
+  FAILED_TO_UPDATE_BILL: { status: 500, message: "Failed to update bill" },
+
+  INVALID_ROUND_DATA: { status: 400, message: "Invalid round data" },
+  FAILED_TO_CREATE_ROUND: { status: 500, message: "Failed to create round" },
+  FAILED_TO_ADD_ROUND_ITEMS: {
+    status: 500,
+    message: "Failed to add round items",
+  },
+  INSUFFICIENT_STOCK: {
+    status: 409,
+    message: "Insufficient stock for one or more items",
+  },
+
+  // ======== CATEGORIES ========
+  FAILED_TO_FETCH_CATEGORIES: {
+    status: 500,
+    message: "Failed to fetch categories",
+  },
+  CATEGORY_NOT_FOUND: {
+    status: 404,
+    message: "Category not found",
+  },
+  INVALID_CATEGORY_DATA: {
+    status: 400,
+    message: "Invalid category data",
+  },
+  FAILED_TO_CREATE_CATEGORY: {
+    status: 500,
+    message: "Failed to create category",
+  },
+  FAILED_TO_UPDATE_CATEGORY: {
+    status: 500,
+    message: "Failed to update category",
+  },
+  FAILED_TO_ARCHIVE_CATEGORY: {
+    status: 500,
+    message: "Failed to archive category",
+  },
+
   // ===== COMMON =====
   UNAUTHORIZED: {
     status: 401,

@@ -1,95 +1,51 @@
-const supabase = require("../../config/supabase");
+const service = require("./categories.service");
+const { respond, buildContext } = require("../../utils/common");
 
-// Create a Category
-exports.createCategory = async (req, res) => {
-  const { name, color } = req.body;
-
+exports.listCategories = async (req, res, next) => {
   try {
-    const { data, error } = await supabase
-      .from("categories")
-      .insert({ name, color })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    res.status(201).json(data);
+    const data = await service.list();
+    respond(res, 200, data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-// Fetch categories
-exports.fetchCategories = async (req, res) => {
+exports.getCategory = async (req, res, next) => {
   try {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("id, name, active, color");
-
-    if (error) throw error;
-
-    res.status(200).json(data);
+    const data = await service.getById(req.params.id);
+    respond(res, 200, data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-// Fetch Category by ID
-exports.fetchCategory = async (req, res) => {
-  const { categoryId } = req.params;
+exports.createCategory = async (req, res, next) => {
   try {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("id, name, active")
-      .eq("id", categoryId)
-      .single();
-
-    if (error) {
-      res.status(500).json({ error: error.message });
-    }
-
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const data = await service.create(req.body, buildContext(req));
+    respond(res, 201, data);
+  } catch (err) {
+    next(err);
   }
 };
 
-// Update Category Status
-exports.updateCategory = async (req, res) => {
-  const { categoryId } = req.params;
-  const { name, color } = req.body;
-
+exports.updateCategory = async (req, res, next) => {
   try {
-    const { data, error } = await supabase
-      .from("categories")
-      .update({ name, color })
-      .eq("id", categoryId)
-      .select()
-      .single();
-
-    if (error) res.status(500).json({ error: error.message });
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const data = await service.update(
+      req.params.id,
+      req.body,
+      buildContext(req),
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
   }
 };
 
-// Toggle Status
-exports.toggleStatus = async (req, res) => {
-  const { categoryId } = req.params;
-  const { active } = req.body;
-
+exports.archiveCategory = async (req, res, next) => {
   try {
-    const { data, error } = await supabase
-      .from("categories")
-      .update({ active })
-      .eq("id", categoryId)
-      .select()
-      .single();
-
-    if (error) res.status(500).json({ error: error.message });
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    await service.archive(req.params.id, req.query.active, buildContext(req));
+    respond(res, 204, { success: true });
+  } catch (err) {
+    next(err);
   }
 };

@@ -1,120 +1,62 @@
-const billService = require("./bills.service");
-const logger = require("../../utils/logger");
+const service = require("./bills.service");
+const { respond, buildContext } = require("../../utils/common");
 
-// Create a new bill
-exports.createBill = async (req, res) => {
-  const { customerName: customer_name } = req.body;
-  const { id: created_by } = req.user;
-
-  logger.info("Create bill request received", {
-    customer_name,
-    created_by,
-  });
-
+exports.createBill = async (req, res, next) => {
   try {
-    const bill = await billService.createBill({
-      customer_name,
-      created_by,
-    });
-
-    res.json(bill);
+    const data = await service.createBill(req.body, buildContext(req));
+    respond(res, 201, data);
   } catch (err) {
-    logger.error("Create bill request failed", {
-      customer_name,
-      created_by,
-      err,
-    });
-
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-// Add round
-exports.addRound = async (req, res) => {
-  const { billId } = req.params;
-  const { items } = req.body;
-  const { id: userId } = req.user;
-
-  logger.info("Add round request received", {
-    billId,
-    userId,
-    itemsCount: items.length,
-  });
-
+exports.getBill = async (req, res, next) => {
   try {
-    //Create Round
-    const result = await billService.addRound({
-      billId,
-      items,
-      userId,
-    });
-
-    res.json(result);
+    const data = await service.getBill(req.params.id);
+    respond(res, 200, data);
   } catch (err) {
-    logger.error("Add round request failed", {
-      billId,
-      userId,
-      err,
-    });
-
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-// Get Open Bills
-exports.openBills = async (req, res) => {
-  logger.info("Getting Open Bills request received");
+exports.listBills = async (req, res, next) => {
   try {
-    const data = await billService.getOpenBills();
-    res.json(data);
+    const data = await service.listBills(req.query);
+    respond(res, 200, data);
   } catch (err) {
-    logger.error("Getting Open Bills failed", {
-      err,
-    });
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-// Get Bill by ID
-exports.getBillById = async (req, res) => {
-  const { billId } = req.params;
-
-  logger.info("Getting bill by ID received", { billId });
+exports.updateBillStatus = async (req, res, next) => {
   try {
-    const data = await billService.getBillById(req.params.billId);
-    res.json(data);
+    const data = await service.updateStatus(
+      req.params.id,
+      req.body,
+      buildContext(req),
+    );
+    respond(res, 200, data);
   } catch (err) {
-    logger.error("Getting Open Bills failed", { billId, err });
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-// Get All Bills
-exports.getAllBills = async (req, res) => {
-  logger.info("Getting all bills request received");
-  try {
-    const data = await billService.getAllBills();
-    res.json(data);
-  } catch (err) {
-    logger.error("Getting All Bills failed", { err });
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Void Open Bill
-exports.voidOpenBill = async (req, res) => {
-  const { billId } = req.params;
+exports.voidBill = async (req, res, next) => {
   const { id: userId } = req.user;
   logger.info("Void open bill request received", { billId, userId });
   try {
-    const result = await billService.voidBill({ billId, userId });
-    res.json(result);
+    await service.voidBill(req.params.id, buildContext(req));
+    res.status(204).send();
   } catch (err) {
-    logger.error("Voiding open bill failed", {
-      billId,
-      userId,
-      error: err.message,
-    });
-    res.status(500).json({ error: err.message });
+    next(err);
+  }
+};
+
+exports.addRound = async (req, res, next) => {
+  try {
+    await service.addRound(req.params.id, req.body, buildContext(req));
+    respond(res, 201, { success: true });
+  } catch (err) {
+    next(err);
   }
 };

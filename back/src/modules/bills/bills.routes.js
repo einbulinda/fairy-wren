@@ -1,12 +1,18 @@
 const express = require("express");
-const router = express.Router();
-const billsController = require("./bills.controller");
+const controller = require("./bills.controller");
 
-router.post("/", billsController.createBill);
-router.post("/:billId/rounds", billsController.addRound);
-router.get("/open", billsController.openBills);
-router.get("/:billId", billsController.getBillById);
-router.get("/", billsController.getAllBills);
-router.patch("/:billId/void", billsController.voidOpenBill);
+const router = express.Router();
+
+// Bills
+router.get("/", controller.listBills);
+router.post("/", controller.createBill);
+router.get("/:id", controller.getBill);
+
+// Bill lifecycle
+router.patch("/:id/status", controller.updateBillStatus);
+router.delete("/:id", controller.voidBill);
+
+// Rounds (POS ordering waves)
+router.post("/:id/rounds", controller.addRound);
 
 module.exports = router;

@@ -2,6 +2,9 @@ const express = require("express");
 const productRoutes = require("../modules/products/products.routes");
 const usersRoutes = require("../modules/users/users.routes");
 const authRoutes = require("../modules/auth/auth.routes");
+const billsRoutes = require("../modules/bills/bills.routes");
+const categoryRoutes = require("../modules/categories/categories.routes");
+
 const requestContext = require("../middleware/requestContext");
 const errorHandler = require("../middleware/errorHandler");
 
@@ -21,6 +24,8 @@ app.use((req, res, next) => {
 app.use("/products", productRoutes);
 app.use("/users", usersRoutes);
 app.use("/auth", authRoutes);
+app.use("/bills", billsRoutes);
+app.use("/categories", categoryRoutes);
 
 // minimal error handler
 app.use(errorHandler);

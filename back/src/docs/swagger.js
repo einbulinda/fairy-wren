@@ -31,5 +31,5 @@ module.exports = swaggerJSDoc({
     },
     security: [{ bearerAuth: [] }],
   },
-  apis: ["./src/modules/**/*.docs.js"],
+  apis: ["./src/modules/**/*.docs.js", "./src/modules/**/*.schemas.js"],
 });

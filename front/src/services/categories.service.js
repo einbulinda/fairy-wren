@@ -35,10 +35,7 @@ export const createCategory = async (payload) => {
 // Update Status
 export const toggleStatus = async (categoryId, payload) => {
   try {
-    const response = await api.patch(
-      `/categories/${categoryId}/status-update`,
-      payload
-    );
+    const response = await api.delete(`/categories/${categoryId}?${payload}`);
     return response.data;
   } catch (error) {
     throw normalizeError(error, "Error updating the selected category.");

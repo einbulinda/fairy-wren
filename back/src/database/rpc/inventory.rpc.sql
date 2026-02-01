@@ -74,17 +74,30 @@ v_product_name VARCHAR(200);
 v_previous_adj_date TIMESTAMP WITH TIME ZONE;
 v_adj_frequency INTEGER;
 v_result JSONB;
-BEGIN -- Get current system quantity and cost
-SELECT COALESCE(current_stock, 0),
-    COALESCE(unit_cost, 0),
+BEGIN -- =========================================
+-- Get current system quantity and cost
+-- =========================================
+SELECT current_stock,
+    unit_cost,
     name INTO v_system_qty,
     v_cost_per_unit,
     v_product_name
 FROM products
 WHERE id = p_product_id;
+-- If product not found → Fail fast
+IF NOT FOUND THEN RAISE EXCEPTION 'Product % not found in products table',
+p_product_id;
+END IF;
+-- Null protection (if DB fields are nullable)
+v_system_qty := COALESCE(v_system_qty, 0);
+v_cost_per_unit := COALESCE(v_cost_per_unit, 0);
+-- =========================================
 -- Calculate adjustment
+-- =========================================
 v_adjustment := p_physical_qty - v_system_qty;
+-- =========================================
 -- Check for previous adjustments
+-- =========================================
 SELECT MAX(sti.created_at),
     COUNT(*) INTO v_previous_adj_date,
     v_adj_frequency
@@ -93,7 +106,9 @@ FROM stock_take_items sti
 WHERE sti.product_id = p_product_id
     AND st.completed_at IS NOT NULL
     AND sti.created_at < NOW();
+-- =========================================
 -- Insert stock take item
+-- =========================================
 INSERT INTO stock_take_items (
         stock_take_id,
         product_id,
@@ -120,7 +135,9 @@ VALUES (
         COALESCE(v_adj_frequency, 0),
         NOW()
     );
--- Build result
+-- =========================================
+-- Build result JSON
+-- =========================================
 v_result := jsonb_build_object(
     'product_name',
     v_product_name,
