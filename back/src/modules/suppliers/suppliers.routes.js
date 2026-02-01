@@ -1,9 +1,13 @@
 const express = require("express");
-const router = express.Router();
-const supplierController = require("./suppliers.controller");
+const controller = require("./suppliers.controller");
 
-router.get("/", supplierController.fetchSuppliers);
-router.post("/", supplierController.createSupplier);
-router.patch("/:supplierId", supplierController.editSupplier);
+const router = express.Router();
+
+router.get("/", controller.listSuppliers);
+router.post("/", controller.createSupplier);
+
+router.get("/:id", controller.getSupplier);
+router.patch("/:id", controller.updateSupplier);
+router.delete("/:id", controller.archiveSupplier);
 
 module.exports = router;

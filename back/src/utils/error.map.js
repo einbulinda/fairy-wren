@@ -89,6 +89,32 @@ const ERROR_MAP = {
     message: "Failed to archive category",
   },
 
+  // ======SUPPLIERS ======
+  FAILED_TO_FETCH_SUPPLIERS: {
+    status: 500,
+    message: "Failed to fetch suppliers",
+  },
+  SUPPLIER_NOT_FOUND: {
+    status: 404,
+    message: "Supplier not found",
+  },
+  INVALID_SUPPLIER_DATA: {
+    status: 400,
+    message: "Invalid supplier data",
+  },
+  FAILED_TO_CREATE_SUPPLIER: {
+    status: 500,
+    message: "Failed to create supplier",
+  },
+  FAILED_TO_UPDATE_SUPPLIER: {
+    status: 500,
+    message: "Failed to update supplier",
+  },
+  FAILED_TO_ARCHIVE_SUPPLIER: {
+    status: 500,
+    message: "Failed to archive supplier",
+  },
+
   // ===== COMMON =====
   UNAUTHORIZED: {
     status: 401,

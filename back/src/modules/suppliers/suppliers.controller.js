@@ -1,65 +1,53 @@
-const supabase = require("../../config/supabase");
+const service = require("./suppliers.service");
+const { respond, buildContext } = require("../../utils/common");
 
-exports.fetchSuppliers = async (req, res) => {
+exports.listSuppliers = async (req, res, next) => {
   try {
-    const { data, error } = await supabase
-      .from("suppliers")
-      .select("*")
-      .order("name", { ascending: false });
-
-    if (error) throw error;
-
-    res.status(200).json(data);
+    const data = await service.list();
+    respond(res, 200, data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-// Save a Supplier
-exports.createSupplier = async (req, res) => {
+exports.getSupplier = async (req, res, next) => {
   try {
-    const { name, phone, email, contact_person, address } = req.body;
-
-    if (!name?.trim()) {
-      return res.status(400).json({ error: "Supplier name is required" });
-    }
-
-    const { data, error } = await supabase
-      .from("suppliers")
-      .insert({
-        name,
-        phone,
-        email,
-        contact_person,
-        address,
-        created_by: req.user.id,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    res.status(201).json({ success: true, supplier: data });
+    const data = await service.getById(req.params.id);
+    respond(res, 200, data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-// Edit Supplier
-exports.editSupplier = async (req, res) => {
+exports.createSupplier = async (req, res, next) => {
   try {
-    const { name, phone, email, active } = req.body;
-    const { supplierId } = req.params;
-
-    const { error } = await supabase
-      .from("suppliers")
-      .update({ name, phone, email, active, updated_by: req.user.id })
-      .eq("id", supplierId);
-
-    if (error) throw error;
-
-    res.status(201).json({ success: true });
+    const data = await service.create(req.body, buildContext(req));
+    respond(res, 201, data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
+  }
+};
+
+exports.updateSupplier = async (req, res, next) => {
+  try {
+    const data = await service.update(
+      req.params.id,
+      req.body,
+      buildContext(req),
+    );
+
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.archiveSupplier = async (req, res, next) => {
+  try {
+    await service.archive(req.params.id, req.query.active, buildContext(req));
+
+    respond(res, 204, { success: true });
+  } catch (err) {
+    next(err);
   }
 };
