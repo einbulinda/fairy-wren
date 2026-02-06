@@ -8,6 +8,10 @@ const ERROR_MAP = {
     status: 401,
     message: "Invalid PIN or credentials",
   },
+  TOO_MANY_LOGIN_ATTEMPTS: {
+    status: 429,
+    message: "Too many login attempts. Please try again later.",
+  },
 
   // ===== USERS =====
   INVALID_USER_DATA: {
@@ -113,6 +117,163 @@ const ERROR_MAP = {
   FAILED_TO_ARCHIVE_SUPPLIER: {
     status: 500,
     message: "Failed to archive supplier",
+  },
+
+  // ======================================================
+  // INVENTORY
+  // ======================================================
+  INVALID_RESTOCK_DATA: {
+    status: 400,
+    message: "Invalid restock data",
+  },
+  FAILED_TO_FETCH_INVENTORY_STOCK: {
+    status: 500,
+    message: "Failed to fetch inventory stock",
+  },
+
+  /* ---------------- STOCK VISIBILITY ---------------- */
+
+  FAILED_TO_FETCH_INVENTORY_STOCK: {
+    status: 500,
+    message: "Failed to fetch inventory stock",
+  },
+
+  /* ---------------- MANUAL RESTOCK ---------------- */
+
+  INVALID_RESTOCK_DATA: {
+    status: 400,
+    message: "Invalid restock data provided",
+  },
+
+  PRODUCT_NOT_FOUND: {
+    status: 404,
+    message: "Product not found",
+  },
+
+  FAILED_TO_RESTOCK: {
+    status: 500,
+    message: "Failed to restock inventory",
+  },
+
+  /* ---------------- PROCUREMENT / RECEIVING ---------------- */
+
+  SUPPLIER_REQUIRED: {
+    status: 400,
+    message: "Supplier is required",
+  },
+
+  INVOICE_NUMBER_REQUIRED: {
+    status: 400,
+    message: "Invoice number is required",
+  },
+
+  PURCHASE_DATE_REQUIRED: {
+    status: 400,
+    message: "Purchase date is required",
+  },
+
+  RECEIPT_ITEMS_REQUIRED: {
+    status: 400,
+    message: "At least one receipt item is required",
+  },
+
+  FAILED_TO_CREATE_RECEIPT: {
+    status: 500,
+    message: "Failed to create inventory receipt",
+  },
+
+  FAILED_TO_CREATE_RECEIPT_ITEMS: {
+    status: 500,
+    message: "Failed to create inventory receipt items",
+  },
+
+  /* ---------------- STOCK TAKE (RPC-BASED) ---------------- */
+
+  STOCK_TAKE_NAME_REQUIRED: {
+    status: 400,
+    message: "Stock take name is required",
+  },
+
+  FAILED_TO_CREATE_STOCK_TAKE: {
+    status: 500,
+    message: "Failed to create stock take session",
+  },
+
+  INVALID_STOCK_TAKE_ITEM: {
+    status: 400,
+    message: "Invalid stock take item data",
+  },
+
+  FAILED_TO_RECORD_STOCK_TAKE_ITEM: {
+    status: 500,
+    message: "Failed to record stock take item",
+  },
+
+  STOCK_TAKE_ID_REQUIRED: {
+    status: 400,
+    message: "Stock take ID is required",
+  },
+
+  FAILED_TO_COMPLETE_STOCK_TAKE: {
+    status: 500,
+    message: "Failed to complete stock take",
+  },
+
+  FAILED_TO_APPROVE_STOCK_TAKE: {
+    status: 500,
+    message: "Failed to approve stock take",
+  },
+
+  REJECTION_REASON_REQUIRED: {
+    status: 400,
+    message: "Rejection reason is required",
+  },
+
+  FAILED_TO_REJECT_STOCK_TAKE: {
+    status: 500,
+    message: "Failed to reject stock take",
+  },
+
+  FAILED_TO_FETCH_STOCK_TAKES: {
+    status: 500,
+    message: "Failed to fetch stock take sessions",
+  },
+
+  FAILED_TO_FETCH_STOCK_TAKE_ITEMS: {
+    status: 500,
+    message: "Failed to fetch stock take items",
+  },
+
+  FAILED_TO_FETCH_STOCK_TAKE_ADJUSTMENTS: {
+    status: 500,
+    message: "Failed to fetch stock take adjustments",
+  },
+
+  INVALID_PAYMENT_DATA: {
+    status: 400,
+    message: "Invalid payment data provided",
+  },
+
+  FAILED_TO_PROCESS_PAYMENT: {
+    status: 500,
+    message: "Failed to process payment",
+  },
+
+  FAILED_TO_FETCH_PAYMENTS: {
+    status: 500,
+    message: "Failed to fetch payments",
+  },
+
+  FAILED_TO_FETCH_BILLS_WITH_PAYMENTS: {
+    status: 500,
+    message: "Failed to fetch bills with payments",
+  },
+
+  /* ---------------- INVENTORY LEDGER ---------------- */
+
+  FAILED_TO_FETCH_LEDGER: {
+    status: 500,
+    message: "Failed to fetch inventory ledger",
   },
 
   // ===== COMMON =====

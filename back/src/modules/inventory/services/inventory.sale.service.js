@@ -1,12 +1,13 @@
-const repo = require("./inventory.repository");
-const ledgerService = require("../ledger/ledger.service");
+const productsRepo = require("../repos/inventory.products.repository");
+const adjustmentsRepo = require("../repos/inventory.adjustments.repository");
+const ledgerService = require("../../ledger/ledger.service");
 
 /**
  * Validate stock before sale
  */
 exports.assertStockAvailable = async (items) => {
   for (const item of items) {
-    const { data } = await repo.getCurrentStock(item.product_id);
+    const { data } = await productsRepo.getProductCostSnapshot(item.product_id); //
 
     if (data.current_stock < item.quantity) {
       throw new Error("INSUFFICIENT_STOCK");
@@ -26,7 +27,7 @@ exports.consumeStockForSale = async ({ billId, items, userId }) => {
       created_by: userId,
     });
 
-    await repo.incrementStock(item.product_id, -item.quantity);
+    await adjustmentsRepo.incrementStock(item.product_id, -item.quantity);
   }
 };
 

@@ -5,6 +5,8 @@ const authRoutes = require("../modules/auth/auth.routes");
 const billsRoutes = require("../modules/bills/bills.routes");
 const categoryRoutes = require("../modules/categories/categories.routes");
 const supplierRoutes = require("../modules/suppliers/suppliers.routes");
+const inventoryRoutes = require("../modules/inventory/inventory.routes");
+const paymentRoutes = require("../modules/payments/payments.routes");
 
 const requestContext = require("../middleware/requestContext");
 const errorHandler = require("../middleware/errorHandler");
@@ -28,6 +30,8 @@ app.use("/auth", authRoutes);
 app.use("/bills", billsRoutes);
 app.use("/categories", categoryRoutes);
 app.use("/suppliers", supplierRoutes);
+app.use("/inventory", inventoryRoutes);
+app.use("/payments", paymentRoutes);
 
 // minimal error handler
 app.use(errorHandler);

@@ -1,33 +1,83 @@
-const paymentService = require("./payments.service");
-const logger = require("../../utils/logger");
-const { mapActionToMessage } = require("../../utils/common");
+const service = require("./payments.service");
+const { respond, buildContext } = require("../../utils/common");
+
+/* ======================================================
+   PROCESS PAYMENT
+   ====================================================== */
 
 /**
- * GET /api/payments
- * Fetch all bills with associated payments
+ * POST /payments
+ * Process a payment against a bill (RPC-backed)
  */
-exports.getBills = async (req, res) => {
+exports.processPayment = async (req, res, next) => {
   try {
-    const bills = await paymentService.fetchBillsWithPayments();
+    const data = await service.processPayments(
+      {
+        billId: req.body.billId,
+        amount: req.body.amount,
+        paymentType: req.body.paymentType,
+        mpesaCode: req.body.mpesaCode,
+      },
+      buildContext(req),
+    );
 
-    return res.status(200).json({
-      success: true,
-      data: bills,
-    });
-  } catch (error) {
-    console.error("Get bills failed:", error);
+    respond(res, 201, data);
+  } catch (err) {
+    next(err);
+  }
+};
+/* ======================================================
+   LIST PAYMENTS (FILTERED)
+   ====================================================== */
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch bills",
+/**
+ * GET /payments
+ * Query params:
+ *  - type (cash | mpesa)
+ *  - from (ISO date)
+ *  - to (ISO date)
+ *  - isPaid (true | false)
+ */
+exports.listPayments = async (req, res, next) => {
+  try {
+    const data = await service.listPayments({
+      type: req.query.type,
+      from: req.query.from,
+      to: req.query.to,
+      isPaid:
+        req.query.isPaid !== undefined
+          ? req.query.isPaid === "true"
+          : undefined,
     });
+
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ======================================================
+   FETCH BILLS WITH PAYMENTS
+   ====================================================== */
+
+/**
+ * GET /api/v2/payments/bills
+ * Fetch bills with associated payments
+ */
+exports.fetchBillsWithPayments = async (req, res, next) => {
+  try {
+    const data = await service.fetchBillsWithPayments();
+
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
   }
 };
 
 /**
  * PATCH /api/payments/:billId
  * Confirm bill and mark payments as paid
- */
+
 exports.confirmBillController = async (req, res) => {
   const { billId } = req.params;
   const { id: userId, role } = req.user;
@@ -86,4 +136,5 @@ exports.confirmBillController = async (req, res) => {
       message: error.message,
     });
   }
-};
+}; 
+*/

@@ -1,105 +1,93 @@
-const supabase = require("../../config/supabase");
-const { postBillToLedger } = require("../ledger/ledger.service");
-const logger = require("../../utils/logger");
+const paymentsCommandRepo = require("./payments.command.repository");
+const paymentsReadRepo = require("./payments.read.repository");
+const paymentsBillsReadRepo = require("./payments.bills.read.repository");
+const auditRepo = "../audit/audit.repository";
+
+/* ======================================================
+   PROCESS PAYMENT (RPC)
+   ====================================================== */
 
 /**
- * Fetch bills with associated payments
+ * Process a payment against a bill
+ * v1: processPayment
  */
 
-exports.fetchBillsWithPayments = async () => {
-  logger.info("Fetching bills with payments");
-  const { data, error } = await supabase
-    .from("bills")
-    .select(
-      `
-      id,
-      customer_name,
-      status,
-      subtotal,
-      tax,
-      total,
-      created_at,
-      updated_at,
-      payments (
-        id,
-        amount,
-        payment_type,
-        is_paid,
-        mpesa_code,
-        created_at
-      ),created_by_user:profiles!bills_created_by_fkey(id, name),
-      updated_by_user:profiles!fk_bills_updated_by(id, name),
-      rounds (
-        id,
-        round_number,
-        created_at,
-        round_items (
-          id,
-          quantity,
-          price,
-          product:products(id, name)
-        )
-      )
-    `
-    )
-    .order("created_at", { ascending: false });
+exports.processPayments = async (payload, context) => {
+  const { billId, amount, paymentMode } = payload;
+
+  if (!billId || !amount || !paymentMode) {
+    throw new Error("INVALID_PAYMENT_DATA");
+  }
+
+  const { data, error } = await paymentsCommandRepo.processPayment({
+    billId,
+    amount,
+    paymentMode,
+    userId: context.userId,
+    role: context.role,
+  });
 
   if (error) {
-    logger.error("Error fetching bills with payments", { error });
-    // throw error;
+    throw new Error("FAILED_TO_PROCESS_PAYMENT");
   }
 
-  logger.info("Fetched bills with payments", { count: data?.length ?? 0 });
-  return data ?? [];
+  /**
+   * Audit: payment processing is financially material
+   * DB handles status transitions; API logs responsibility
+   */
+  await auditRepo.log({
+    entity: "payments",
+    entity_id: data?.payment_id ?? billId,
+    action: "PAYMENT_PROCESSED",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
+    metadata: {
+      billId,
+      amount,
+      paymentMode,
+      mpesaCode,
+    },
+  });
+
+  return data;
 };
 
+/* ======================================================
+   LIST PAYMENTS (READ)
+   ====================================================== */
+
 /**
- * Process Payments
+ * List payments filtered by type / date / paid status
  */
-exports.processPayment = async ({
-  billId,
-  userId,
-  paymentMode,
-  amount,
-  role,
-}) => {
-  try {
-    logger.info("Confirming bill", { billId, userId, paymentMode, amount });
+exports.listPayments = async (filters = {}) => {
+  const { type, from, to } = filters;
 
-    const { data, error } = await supabase.rpc("process_payment", {
-      p_bill_id: billId,
-      p_amount: amount,
-      p_payment_type: paymentMode,
-      p_user_id: userId,
-      p_user_role: role,
-    });
+  const { data, error } = await paymentsReadRepo.listPayments({
+    type,
+    from,
+    to,
+  });
 
-    if (error) {
-      logger.error("Error processing payment", {
-        error,
-        billId,
-        userId,
-        paymentMode,
-        amount,
-      });
-      throw new Error(error.message);
-    }
-
-    logger.info("Payment processed successfully", {
-      billId,
-      userId,
-      paymentMode,
-      amount,
-    });
-    return data;
-  } catch (error) {
-    logger.error("Error processing payment", {
-      billId,
-      userId,
-      paymentMode,
-      amount,
-      error,
-    });
-    throw new Error("Payment processing failed");
+  if (error) {
+    throw new Error("FAILED_TO_FETCH_PAYMENTS");
   }
+
+  return data;
+};
+
+/* ======================================================
+   FETCH BILLS WITH PAYMENTS (READ)
+   ====================================================== */
+
+/**
+ * v1: fetchBillsWithPayments
+ */
+exports.fetchBillsWithPayments = async () => {
+  const { data, error } = await paymentsBillsReadRepo.fetchBillsWithPayments();
+
+  if (error) {
+    throw new Error("FAILED_TO_FETCH_BILLS_WITH_PAYMENTS");
+  }
+
+  return data;
 };

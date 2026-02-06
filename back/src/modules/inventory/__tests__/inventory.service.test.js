@@ -1,8 +1,8 @@
-const service = require("../inventory.service");
-const repo = require("../inventory.repository");
+const service = require("../services/inventory.sale.service");
+const repo = require("../repos/inventory.bills.repository");
 const ledgerService = require("../../ledger/ledger.service");
 
-jest.mock("../inventory.repository");
+jest.mock("../repos/inventory.bills.repository");
 jest.mock("../../ledger/ledger.service");
 
 describe("Inventory Service", () => {

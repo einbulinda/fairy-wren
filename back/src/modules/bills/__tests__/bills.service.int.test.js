@@ -1,10 +1,10 @@
 const billsService = require("../bills.service");
 const billsRepo = require("../bills.repository");
-const inventoryService = require("../../inventory/inventory.service");
+const inventoryService = require("../../inventory/services/inventory.sale.service");
 const auditRepo = require("../../audit/audit.repository");
 
 jest.mock("../bills.repository");
-jest.mock("../../inventory/inventory.service");
+jest.mock("../../inventory/services/inventory.sale.service");
 jest.mock("../../audit/audit.repository");
 
 describe("Bills ↔ Inventory Integration", () => {

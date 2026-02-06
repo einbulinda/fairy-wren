@@ -1,8 +1,10 @@
 const express = require("express");
-const router = express.Router();
-const paymentController = require("./payments.controller");
+const controller = require("./payments.controller");
 
-router.get("/", paymentController.getBills);
-router.patch("/:billId", paymentController.confirmBillController);
+const router = express.Router();
+
+router.get("/", controller.listPayments);
+router.post("/", controller.processPayment);
+router.get("/bills", controller.fetchBillsWithPayments);
 
 module.exports = router;

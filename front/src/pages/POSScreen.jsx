@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useBills } from "../hooks/useBills";
 import { usePayments } from "../hooks/usePayments";
 import { useProducts } from "../hooks/useProducts";
 import { useCategories } from "../hooks/useCategories";
+import { useBootstrap } from "../hooks/usePOS";
 import {
   ShoppingCart,
   Receipt,
@@ -27,24 +28,30 @@ import ConfirmPaymentsView from "../components/pos/ConfirmPaymentsView";
 
 const POSScreen = () => {
   const { user } = useAuth();
-  const {
-    products,
-    isLoading: productsLoading,
-    reload: productsReload,
-  } = useProducts();
-  const { categories, isLoading: categoriesLoading } = useCategories();
-  const {
-    openBill: startABill,
-    addRound: addRoundToBill,
-    cancelBill,
-    isLoading: billsLoading,
-  } = useBills();
-  const {
-    bills: paymentBills,
-    processPayment,
-    reloadBills,
-    isLoading: paymentsLoading,
-  } = usePayments();
+  // const {
+  //   products,
+  //   isLoading: productsLoading,
+  //   reload: productsReload,
+  // } = useProducts();
+  // const { categories, isLoading: categoriesLoading } = useCategories();
+  // const {
+  //   openBill: startABill,
+  //   addRound: addRoundToBill,
+  //   cancelBill,
+  //   isLoading: billsLoading,
+  // } = useBills();
+  // const {
+  //   bills: paymentBills,
+  //   processPayment,
+  //   reloadBills,
+  //   isLoading: paymentsLoading,
+  // } = usePayments();
+
+  const { loading: posLoading, posData } = useBootstrap();
+
+  useEffect(() => {
+    console.log(posData);
+  }, [posData]);
 
   // Tab state
   const [activeTab, setActiveTab] = useState("pos"); // 'pos', 'bills', 'confirm'
@@ -76,7 +83,7 @@ const POSScreen = () => {
 
     if (searchTerm) {
       filtered = filtered.filter((p) =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -86,7 +93,7 @@ const POSScreen = () => {
   // Bills awaiting confirmation
   const awaitingConfirmation = useMemo(() => {
     return paymentBills.filter(
-      (bill) => bill.status === "awaiting_confirmation"
+      (bill) => bill.status === "awaiting_confirmation",
     );
   }, [paymentBills]);
 
@@ -131,8 +138,8 @@ const POSScreen = () => {
         currentRoundItems.map((item) =>
           item.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
+            : item,
+        ),
       );
     } else {
       setCurrentRoundItems([
@@ -153,15 +160,15 @@ const POSScreen = () => {
         .map((item) =>
           item.id === itemId
             ? { ...item, quantity: Math.max(0, item.quantity + delta) }
-            : item
+            : item,
         )
-        .filter((item) => item.quantity > 0)
+        .filter((item) => item.quantity > 0),
     );
   };
 
   const handleRemoveItem = (itemId) => {
     setCurrentRoundItems(
-      currentRoundItems.filter((item) => item.id !== itemId)
+      currentRoundItems.filter((item) => item.id !== itemId),
     );
   };
 
@@ -196,7 +203,7 @@ const POSScreen = () => {
     if (!activeBill) return;
 
     const confirmed = window.confirm(
-      `Are you sure you want to VOID this bill for ${activeBill.customer_name}?\n\nThis action cannot be undone and will permanently delete this bill.`
+      `Are you sure you want to VOID this bill for ${activeBill.customer_name}?\n\nThis action cannot be undone and will permanently delete this bill.`,
     );
 
     if (!confirmed) return;
@@ -264,7 +271,13 @@ const POSScreen = () => {
 
   const billTotals = activeBill ? calculateBillTotals(activeBill) : null;
 
-  if (productsLoading || categoriesLoading || billsLoading || paymentsLoading) {
+  if (
+    productsLoading ||
+    categoriesLoading ||
+    billsLoading ||
+    paymentsLoading ||
+    posLoading
+  ) {
     return <LoadingSpinner />;
   }
 

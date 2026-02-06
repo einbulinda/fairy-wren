@@ -1,6 +1,6 @@
 const repo = require("./bills.repository");
 const auditRepo = require("../audit/audit.repository");
-const inventoryService = require("../inventory/inventory.service");
+const inventoryService = require("../inventory/services/inventory.sale.service");
 const {
   AddRoundDTO,
   CreateBillDTO,
