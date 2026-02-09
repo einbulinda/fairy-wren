@@ -1,4 +1,4 @@
-import api from "./api";
+import api from "@/api";
 
 export const fetchTotalRevenue = async (startDate, endDate) => {
   const { data } = await api.get("/reports/total-revenue", {

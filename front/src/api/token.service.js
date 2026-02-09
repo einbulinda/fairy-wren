@@ -11,9 +11,25 @@ export const TokenService = {
     return Number(localStorage.getItem(EXPIRY_KEY));
   },
 
+  getUser() {
+    const user = localStorage.getItem(USER_KEY);
+    return user ? JSON.parse(user) : null;
+  },
+
+  save({ token, expiry, user }) {
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(EXPIRY_KEY, expiry.toString());
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  },
+
   isExpired() {
     const expiry = this.getExpiry();
-    return !expiry || Date.now() > expiry;
+
+    // If expiry is missing, do NOT auto-expire on refresh
+    if (!expiry || Number.isNaN(expiry)) {
+      return false;
+    }
+    return Date.now() > expiry;
   },
 
   clear() {

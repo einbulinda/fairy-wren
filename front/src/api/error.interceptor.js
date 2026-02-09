@@ -8,7 +8,6 @@ export function attachErrorInterceptor(api) {
 
       if (status === 401) {
         TokenService.clear();
-        window.location.replace("/");
       }
 
       if (!error.response) {

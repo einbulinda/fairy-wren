@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useAuth } from "../../hooks/useAuth";
-import { USER_ROLES } from "../../utils/constants";
+import { useAuth } from "@/hooks/useAuth";
+import { USER_ROLES } from "@/utils/constants";
 import {
   User,
   LogOut,
@@ -18,12 +18,12 @@ import {
   Landmark,
   Truck,
 } from "lucide-react";
-import { fetchOpenBills } from "../../services/bills.service";
+import { BillsService } from "@/services/bills.service";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
 
 // View components
-import POSScreen from "../../pages/POSScreen";
+import POSScreen from "@/pages/POSScreen";
 import Dashboard from "../owner/dashboard/Dashboard";
 import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../owner/UserManagement";
@@ -134,7 +134,7 @@ const MainLayout = () => {
         return;
       }
 
-      const openBills = await fetchOpenBills();
+      const openBills = await BillsService.list();
       setOpenBillsCount(openBills.length);
 
       // Fetch pending confirmation count for bartender

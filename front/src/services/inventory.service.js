@@ -1,4 +1,4 @@
-import api from "./api";
+import api from "@/api";
 
 export const inventoryService = {
   getStock: () => api.get("/inventory/stock").then((res) => res.data),

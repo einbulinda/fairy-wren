@@ -1,81 +1,63 @@
-import normalizeError from "../utils/errorFormatter";
-import api from "./api";
+import api from "@/api";
+import normalizeError from "@/utils/errorFormatter";
 
-const productsAPI = {
-  // Fetch Products
-  products: async () => {
+const BASE_PATH = "/products";
+
+export const ProductsService = {
+  async list(params = {}) {
     try {
-      const response = await api.get("/products");
-      return response.data;
+      const { data } = await api.get(BASE_PATH, { params });
+      return data;
     } catch (error) {
-      throw normalizeError(error, "Error fetching products list");
+      throw normalizeError(error, "Error fetching products.");
     }
   },
 
-  // Fetch Single Product
-  product: async (productId) => {
+  async getById(productId) {
     try {
-      const response = await api.get(`/products/${productId}`);
-      return response.data;
+      const { data } = await api.get(`${BASE_PATH}/${productId}`);
+      return data;
     } catch (error) {
-      throw normalizeError(
-        error,
-        `Error fetching details for product ${productId}`,
-      );
+      throw normalizeError(error, "Error fetching product details.");
     }
   },
 
-  // Create Products
-  createProduct: async (payload) => {
+  async create(payload) {
     try {
-      const response = await api.post("/products", { payload });
-      return response.data;
+      const { data } = await api.post(BASE_PATH, payload);
+      return data;
     } catch (error) {
-      throw normalizeError(error, "Error creating new product");
+      throw normalizeError(error, "Error creating product.");
     }
   },
 
-  // Update Product Details
-  updateProduct: async (productId, payload) => {
+  async update(productId, payload) {
     try {
-      const updatedProduct = await api.put(`products/${productId}`, payload);
-      return updatedProduct.data;
+      const { data } = await api.patch(`${BASE_PATH}/${productId}`, payload);
+      return data;
     } catch (error) {
-      throw normalizeError(
-        error,
-        `Error encountered in updating product ${productId}`,
-      );
+      throw normalizeError(error, "Error updating product.");
     }
   },
 
-  // Update Status of product
-  productStatus: async (productId, payload) => {
+  async toggleStatus(productId, payload) {
     try {
-      const response = await api.patch(
-        `/products/${productId}/status`,
+      const { data } = await api.patch(
+        `${BASE_PATH}/${productId}/status`,
         payload,
       );
-      return response;
+      return data;
     } catch (error) {
-      throw normalizeError(
-        error,
-        `Error encountered in updating product ${productId}`,
-      );
+      throw normalizeError(error, "Error updating selected product status");
     }
   },
 
-  // Deactivate Product
-  deactivateProduct: async (productId) => {
+  async delete(productId) {
     try {
-      const response = await api.delete(`/products/${productId}`);
-      return response.data;
+      const { data } = api.delete(`${BASE_PATH}/${productId}`);
+      return data;
     } catch (error) {
-      throw normalizeError(
-        error,
-        `Error encountered in deactivating product ${productId}`,
-      );
+      throw normalizeError(error, "Error archiving selected product.");
     }
   },
 };
-
-export default productsAPI;

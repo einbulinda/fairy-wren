@@ -1,117 +1,114 @@
-import { useState, useCallback, useEffect } from "react";
-import {
-  createCategory,
-  updateCategory,
-  toggleStatus,
-  fetchCategories,
-  fetchCategory,
-} from "../services/categories.service";
+import { useEffect } from "react";
+import { CategoriesService } from "@/services/categories.service";
+import { useAppStore } from "@/store/app.store";
 
 export const useCategories = () => {
-  const [categories, setCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Load categories
-  const loadCategories = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await fetchCategories();
-      setCategories(data);
-    } catch (err) {
-      setError(err.message || "Failed to load products");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Get A Category
-  const fetchCategoryById = useCallback(async (categoryId) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      return await fetchCategory(categoryId);
-    } catch (error) {
-      setError(error.message || "Failed to fetch category");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Create a category
-  const saveCategory = useCallback(async (payload) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const newCategory = await createCategory(payload);
-      setCategories((prev) => [newCategory, ...prev]);
-      return newCategory;
-    } catch (err) {
-      setError(err.message || "Failed to save new category");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Update a category
-  const updateCategoryDtls = useCallback(async (categoryId, payload) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const updatedCategory = await updateCategory(categoryId, payload);
-
-      setCategories((prev) =>
-        prev.map((category) =>
-          category.id === categoryId ? updatedCategory : category
-        )
-      );
-      return updatedCategory;
-    } catch (error) {
-      setError(error.message || "Failed to update category");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Update a category status
-  const statusUpdate = useCallback(async (categoryId, payload) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const updatedStatus = await toggleStatus(categoryId, payload);
-
-      setCategories((prev) =>
-        prev.map((category) =>
-          category.id === categoryId ? updatedStatus : category
-        )
-      );
-      return updatedStatus;
-    } catch (error) {
-      setError(error.message || "Failed to update category");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const categories = useAppStore((s) => s.categories);
+  const categoriesLoaded = useAppStore((s) => s.categoriesLoaded);
+  const setCategories = useAppStore((s) => s.setCategories);
 
   useEffect(() => {
-    loadCategories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (categoriesLoaded) return;
+
+    CategoriesService.list()
+      .then((res) => setCategories(res.data))
+      .catch(console.error);
+  }, [categoriesLoaded, setCategories]);
+
+  // // Load categories
+  // const loadCategories = useCallback(async () => {
+  //   setIsLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     const data = await fetchCategories();
+  //     setCategories(data);
+  //   } catch (err) {
+  //     setError(err.message || "Failed to load products");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // }, []);
+
+  // // Get A Category
+  // const fetchCategoryById = useCallback(async (categoryId) => {
+  //   setIsLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     return await fetchCategory(categoryId);
+  //   } catch (error) {
+  //     setError(error.message || "Failed to fetch category");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // }, []);
+
+  // // Create a category
+  // const saveCategory = useCallback(async (payload) => {
+  //   setIsLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     const newCategory = await createCategory(payload);
+  //     setCategories((prev) => [newCategory, ...prev]);
+  //     return newCategory;
+  //   } catch (err) {
+  //     setError(err.message || "Failed to save new category");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // }, []);
+
+  // // Update a category
+  // const updateCategoryDtls = useCallback(async (categoryId, payload) => {
+  //   setIsLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     const updatedCategory = await updateCategory(categoryId, payload);
+
+  //     setCategories((prev) =>
+  //       prev.map((category) =>
+  //         category.id === categoryId ? updatedCategory : category,
+  //       ),
+  //     );
+  //     return updatedCategory;
+  //   } catch (error) {
+  //     setError(error.message || "Failed to update category");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // }, []);
+
+  // // Update a category status
+  // const statusUpdate = useCallback(async (categoryId, payload) => {
+  //   setIsLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     const updatedStatus = await toggleStatus(categoryId, payload);
+
+  //     setCategories((prev) =>
+  //       prev.map((category) =>
+  //         category.id === categoryId ? updatedStatus : category,
+  //       ),
+  //     );
+  //     return updatedStatus;
+  //   } catch (error) {
+  //     setError(error.message || "Failed to update category");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // }, []);
+
+  // useEffect(() => {
+  //   loadCategories();
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []);
 
   return {
     categories,
-    isLoading,
-    error,
-    reload: loadCategories,
-    saveCategory,
-    fetchCategoryById,
-    updateCategoryDtls,
-    statusUpdate,
+    loading: !categoriesLoaded,
   };
 };

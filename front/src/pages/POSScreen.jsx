@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useBills } from "../hooks/useBills";
 import { usePayments } from "../hooks/usePayments";
 import { useProducts } from "../hooks/useProducts";
 import { useCategories } from "../hooks/useCategories";
-import { useBootstrap } from "../hooks/usePOS";
+import { BillsService } from "@/services/bills.service";
+import { PaymentService } from "@/services/payment.service";
 import {
   ShoppingCart,
   Receipt,
@@ -28,30 +29,14 @@ import ConfirmPaymentsView from "../components/pos/ConfirmPaymentsView";
 
 const POSScreen = () => {
   const { user } = useAuth();
-  // const {
-  //   products,
-  //   isLoading: productsLoading,
-  //   reload: productsReload,
-  // } = useProducts();
-  // const { categories, isLoading: categoriesLoading } = useCategories();
-  // const {
-  //   openBill: startABill,
-  //   addRound: addRoundToBill,
-  //   cancelBill,
-  //   isLoading: billsLoading,
-  // } = useBills();
-  // const {
-  //   bills: paymentBills,
-  //   processPayment,
-  //   reloadBills,
-  //   isLoading: paymentsLoading,
-  // } = usePayments();
-
-  const { loading: posLoading, posData } = useBootstrap();
-
-  useEffect(() => {
-    console.log(posData);
-  }, [posData]);
+  const { products, loading: productsLoading } = useProducts({ active: true });
+  const { categories, loading: categoriesLoading } = useCategories();
+  const {
+    bills,
+    loading: billsLoading,
+    error: billsError,
+  } = useBills({ status: "open" });
+  const { payments, loading: paymentsLoading } = usePayments();
 
   // Tab state
   const [activeTab, setActiveTab] = useState("pos"); // 'pos', 'bills', 'confirm'
@@ -75,10 +60,10 @@ const POSScreen = () => {
 
   // Filter products
   const filteredProducts = useMemo(() => {
-    let filtered = products.filter((p) => p.active);
+    let filtered = products;
 
     if (selectedCategory !== "all") {
-      filtered = filtered.filter((p) => p.category_id === selectedCategory);
+      filtered = products.filter((p) => p.category_id === selectedCategory);
     }
 
     if (searchTerm) {
@@ -91,16 +76,11 @@ const POSScreen = () => {
   }, [products, selectedCategory, searchTerm]);
 
   // Bills awaiting confirmation
-  const awaitingConfirmation = useMemo(() => {
-    return paymentBills.filter(
-      (bill) => bill.status === "awaiting_confirmation",
-    );
-  }, [paymentBills]);
-
-  // Get open bills
-  const openBills = useMemo(() => {
-    return paymentBills.filter((b) => b.status === "open");
-  }, [paymentBills]);
+  // const awaitingConfirmation = useMemo(() => {
+  //   return paymentBills.filter(
+  //     (bill) => bill.status === "awaiting_confirmation",
+  //   );
+  // }, [paymentBills]);
 
   // POS Functions
   const handleStartNewBill = async () => {
@@ -108,11 +88,12 @@ const POSScreen = () => {
     if (!customerName?.trim()) return;
 
     try {
-      const newBill = await startABill({ customerName: customerName.trim() });
+      const newBill = await BillsService.create({
+        customer_name: customerName.trim(),
+      });
       setActiveBill(newBill);
       setCurrentRoundItems([]);
-      toast.success("New bill started!");
-      reloadBills();
+      toast.success("New bill opened!");
     } catch (error) {
       toast.error("Failed to create bill");
       console.error(error);
@@ -179,15 +160,14 @@ const POSScreen = () => {
     }
 
     try {
-      await addRoundToBill(activeBill.id, { items: currentRoundItems });
+      await BillsService.addRound(activeBill.id, { items: currentRoundItems });
       setCurrentRoundItems([]);
 
       // Refresh the active bill
-      const updatedBill = paymentBills.find((b) => b.id === activeBill.id);
-      setActiveBill(updatedBill);
+      // const updatedBill = paymentBills.find((b) => b.id === activeBill.id);
+      // setActiveBill(updatedBill);
 
       toast.success("Round added to bill!");
-      await Promise.all([productsReload(), reloadBills(), handleCloseView()]);
     } catch (error) {
       toast.error("Failed to add round");
       console.error(error);
@@ -210,12 +190,11 @@ const POSScreen = () => {
 
     try {
       // Call void bill API
-      await cancelBill(activeBill.id);
+      await BillsService.void(activeBill.id);
 
       toast.success(`Bill for ${activeBill.customer_name} has been voided`);
       setActiveBill(null);
       setCurrentRoundItems([]);
-      await Promise.all([productsReload(), reloadBills()]);
     } catch (error) {
       toast.error("Failed to void bill");
       console.error(error);
@@ -248,8 +227,9 @@ const POSScreen = () => {
         throw new Error("Invalid bill for payment");
       }
 
-      await processPayment(bill.id, {
-        paymentMethod,
+      await PaymentService.process({
+        billId: bill.id,
+        paymentMode: paymentMethod,
         amount: totals.total,
       });
 
@@ -260,7 +240,6 @@ const POSScreen = () => {
       setShowPaymentModal(false);
       setActiveBill(null);
       setCurrentRoundItems([]);
-      await reloadBills();
     } catch (error) {
       toast.error(error.message || "Failed to process payment");
       console.error(error);
@@ -271,13 +250,7 @@ const POSScreen = () => {
 
   const billTotals = activeBill ? calculateBillTotals(activeBill) : null;
 
-  if (
-    productsLoading ||
-    categoriesLoading ||
-    billsLoading ||
-    paymentsLoading ||
-    posLoading
-  ) {
+  if (productsLoading || categoriesLoading || billsLoading || paymentsLoading) {
     return <LoadingSpinner />;
   }
 
@@ -326,7 +299,7 @@ const POSScreen = () => {
                 }
               `}
               >
-                {paymentBills.length}
+                {bills.length}
               </span>
             </button>
 
@@ -344,7 +317,7 @@ const POSScreen = () => {
               >
                 <ClipboardCheck size={18} />
                 <span>Confirm</span>
-                {awaitingConfirmation.length > 0 && (
+                {payments.length > 0 && (
                   <span
                     className={`
                     px-2 py-0.5 rounded-full text-xs font-bold
@@ -355,7 +328,7 @@ const POSScreen = () => {
                     }
                   `}
                   >
-                    {awaitingConfirmation.length}
+                    {payments.length}
                   </span>
                 )}
               </button>
@@ -379,7 +352,7 @@ const POSScreen = () => {
                   className="px-4 py-2 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20"
                 >
                   <Receipt size={18} />
-                  <span>Open Bills ({openBills.length})</span>
+                  <span>Open Bills ({bills.length})</span>
                 </button>
               </div>
             </>
@@ -403,7 +376,7 @@ const POSScreen = () => {
               className="flex-1 px-3 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20 relative"
             >
               <Receipt size={20} />
-              <span>Open ({openBills.length})</span>
+              <span>Open ({bills.length})</span>
             </button>
           </div>
         </div>
@@ -585,7 +558,7 @@ const POSScreen = () => {
         {/* All Bills View */}
         {activeTab === "bills" && (
           <div className="p-4 overflow-y-auto h-full">
-            <AllBillsView bills={paymentBills} />
+            <AllBillsView bills={payments} />
           </div>
         )}
 
@@ -593,7 +566,7 @@ const POSScreen = () => {
         {activeTab === "confirm" && (
           <div className="p-4 overflow-y-auto h-full">
             <ConfirmPaymentsView
-              awaitingConfirmation={awaitingConfirmation}
+              awaitingConfirmation={payments}
               canAccessConfirm={canAccessConfirm}
               onProcessPayment={handleProcessPayment}
             />
@@ -640,9 +613,9 @@ const POSScreen = () => {
                 size={24}
                 className={activeTab === "bills" ? "text-purple-400" : ""}
               />
-              {paymentBills.length > 0 && (
+              {payments.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {paymentBills.length}
+                  {payments.length}
                 </span>
               )}
             </div>
@@ -667,9 +640,9 @@ const POSScreen = () => {
                   size={24}
                   className={activeTab === "confirm" ? "text-purple-400" : ""}
                 />
-                {awaitingConfirmation.length > 0 && (
+                {payments.length > 0 && (
                   <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                    {awaitingConfirmation.length}
+                    {payments.length}
                   </span>
                 )}
               </div>
@@ -682,7 +655,7 @@ const POSScreen = () => {
       {/* Modals */}
       {showOpenBillsModal && (
         <OpenBillsModal
-          bills={openBills}
+          bills={bills}
           onSelectBill={handleSelectOpenBill}
           onClose={() => setShowOpenBillsModal(false)}
         />

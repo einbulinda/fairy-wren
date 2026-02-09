@@ -15,8 +15,7 @@ exports.processPayment = async (req, res, next) => {
       {
         billId: req.body.billId,
         amount: req.body.amount,
-        paymentType: req.body.paymentType,
-        mpesaCode: req.body.mpesaCode,
+        paymentMode: req.body.paymentMode,
       },
       buildContext(req),
     );

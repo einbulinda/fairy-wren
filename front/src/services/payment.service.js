@@ -1,19 +1,36 @@
-import api from "./api";
+import api from "@/api";
+import normalizeError from "@/utils/errorFormatter";
 
-/**
- * Fetch all bills with payments
- */
-export const fetchBills = async () => {
-  const response = await api.get("/bills");
-  return response.data.data; // { success, data }
-};
+const BASE_PATH = "/payments";
 
-// Fetch all payments
+export const PaymentService = {
+  // GET /payments
+  async list(params = {}) {
+    try {
+      const { data } = await api.get(BASE_PATH, { params });
+      return data;
+    } catch (error) {
+      throw normalizeError(error, "Error fetching payments.");
+    }
+  },
 
-/**
- * Confirm bill and mark payments as paid
- */
-export const confirmBill = async (billId, payload) => {
-  const response = await api.post("/payments", payload);
-  return response.data;
+  // POST /payments
+  async process(payload) {
+    try {
+      const { data } = await api.post(BASE_PATH, payload);
+      return data;
+    } catch (error) {
+      throw normalizeError(error, "Error processing payment.");
+    }
+  },
+
+  // GET /payments/bills
+  async listBillsWithPayments(params = {}) {
+    try {
+      const { data } = await api.get(`${BASE_PATH}/bills`, { params });
+      return data;
+    } catch (error) {
+      throw normalizeError(error, "Error fetching bills with payments.");
+    }
+  },
 };

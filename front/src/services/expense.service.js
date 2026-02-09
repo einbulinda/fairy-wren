@@ -1,4 +1,4 @@
-import api from "./api";
+import api from "@/api";
 
 // Fetch Expenses
 export const fetchExpenses = () => api.get("/expenses").then((res) => res.data);

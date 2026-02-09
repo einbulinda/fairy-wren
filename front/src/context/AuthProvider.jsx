@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import AuthContext from "./AuthContext";
-import { loginWithPin } from "../services/auth.service";
+import AuthContext from "@/context/AuthContext";
+import { loginWithPin } from "@/services/auth.service";
+import { TokenService } from "@/api/token.service";
 
 const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
 
@@ -9,24 +10,20 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Restore session on refresh
-  useEffect(() => {
-    const storedUser = localStorage.getItem("fw_user");
-    const token = localStorage.getItem("token");
-    const expiry = localStorage.getItem("token_expiry");
 
-    queueMicrotask(() => {
-      if (storedUser && token && expiry) {
-        if (Date.now() < Number(expiry)) {
-          setUser(JSON.parse(storedUser));
-        } else {
-          // Token expired → clean up
-          localStorage.removeItem("fw_user");
-          localStorage.removeItem("token");
-          localStorage.removeItem("token_expiry");
-        }
+  useEffect(() => {
+    const storedUser = TokenService.getUser();
+    const token = TokenService.getToken();
+
+    if (storedUser && token && !TokenService.isExpired()) {
+      setUser(storedUser);
+    } else {
+      // Only clear if token exists AND is expired
+      if (token && TokenService.isExpired()) {
+        TokenService.clear();
       }
-      setLoading(false);
-    }, []);
+    }
+    setLoading(false);
   }, []);
 
   // Login Handler
@@ -35,22 +32,21 @@ export const AuthProvider = ({ children }) => {
       data: { user, token },
     } = await loginWithPin(pin);
 
-    const expiryTime = Date.now() + SESSION_DURATION;
+    TokenService.save({
+      token,
+      expiry: Date.now() + SESSION_DURATION,
+      user,
+    });
+
     setUser(user);
-
-    localStorage.setItem("fw_user", JSON.stringify(user));
-    localStorage.setItem("token", token);
-    localStorage.setItem("token_expiry", expiryTime.toString());
-
     return user;
   };
 
   // Logout Handler
   const logout = () => {
+    TokenService.clear();
     setUser(null);
-    localStorage.removeItem("fw_user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("token_expiry");
+    window.location.replace("/");
   };
 
   return (

@@ -1,9 +1,7 @@
 import { X } from "lucide-react";
 import { calculateBillTotals } from "../../utils/calculations";
 
-const OpenBillsModal = ({ bills: allBills, onSelectBill, onClose }) => {
-  const bills = allBills.filter((b) => b.status === "open");
-
+const OpenBillsModal = ({ bills, onSelectBill, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
       <div className="bg-gray-900/95 backdrop-blur-md border-2 border-purple-500/30 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-purple-500/20">

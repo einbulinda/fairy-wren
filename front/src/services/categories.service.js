@@ -1,53 +1,53 @@
-import api from "./api";
-import normalizeError from "../utils/errorFormatter";
+import api from "@/api";
+import normalizeError from "@/utils/errorFormatter";
 
-// Fetch Categories
-export const fetchCategories = async () => {
-  try {
-    const response = await api.get("/categories");
-    return response.data;
-  } catch (error) {
-    throw normalizeError(error, "Error fetching categories list.");
-  }
-};
+const BASE_PATH = "/categories";
 
-// Fetch A Category by ID
-export const fetchCategory = async (categoryId) => {
-  try {
-    const response = await api.get(`/categories/${categoryId}`);
-    return response.data;
-  } catch (error) {
-    throw normalizeError(error, "Error getting category selected.");
-  }
-};
+export const CategoriesService = {
+  async list() {
+    try {
+      const { data } = await api.get(BASE_PATH);
+      return data;
+    } catch (error) {
+      throw normalizeError(error, "Error Fetching Categories");
+    }
+  },
 
-// Create a category
-export const createCategory = async (payload) => {
-  try {
-    console.log("Adding a category ", payload);
-    const response = await api.post("/categories", payload);
-    return response.data;
-  } catch (error) {
-    throw normalizeError(error, "Error creating a new category.");
-  }
-};
+  async getById(id) {
+    try {
+      const { data } = api.get(`${BASE_PATH}/${id}`);
+      return data;
+    } catch (error) {
+      throw normalizeError(error, "Error Fetching Category Details");
+    }
+  },
 
-// Update Status
-export const toggleStatus = async (categoryId, payload) => {
-  try {
-    const response = await api.delete(`/categories/${categoryId}?${payload}`);
-    return response.data;
-  } catch (error) {
-    throw normalizeError(error, "Error updating the selected category.");
-  }
-};
+  async create(payload) {
+    try {
+      const { data } = api.post(BASE_PATH, payload);
+      return data;
+    } catch (error) {
+      throw normalizeError(error, "Error Creating Category");
+    }
+  },
 
-// Update a category
-export const updateCategory = async (categoryId, payload) => {
-  try {
-    const response = await api.patch(`/categories/${categoryId}`, { payload });
-    return response.data;
-  } catch (error) {
-    throw normalizeError(error, "Error updating the selected category.");
-  }
+  async update(id, payload) {
+    try {
+      const { data } = await api.patch(`${BASE_PATH}/${id}`, payload);
+      return data;
+    } catch (error) {
+      throw normalizeError(error, "Error Updating Selected Category.");
+    }
+  },
+
+  async toggleStatus(categoryId, params = {}) {
+    try {
+      const { data } = await api.delete(`${BASE_PATH}/${categoryId}`, {
+        params,
+      });
+      return data;
+    } catch (error) {
+      throw normalizeError(error, "Error Updating Category Status.");
+    }
+  },
 };
