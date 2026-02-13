@@ -24,7 +24,7 @@ import fwLogo from "/fairy-logo-only.png";
 
 // View components
 import POSScreen from "@/pages/POSScreen";
-import Dashboard from "../owner/dashboard/Dashboard";
+// import Dashboard from "../owner/dashboard/Dashboard";
 import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../owner/UserManagement";
 import ProductManagement from "../owner/ProductManagement";
@@ -75,7 +75,7 @@ const MainLayout = () => {
       case USER_ROLES.OWNER:
       case USER_ROLES.ADMIN:
         return [
-          { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+          // { id: "dashboard", label: "Dashboard", icon: BarChart3 },
           { id: "products", label: "Products", icon: Grid },
           { id: "expenses", label: "Expenses", icon: DollarSign },
           { id: "categories", label: "Categories", icon: FolderTree },
@@ -103,8 +103,8 @@ const MainLayout = () => {
       [USER_ROLES.WAITRESS]: "pos",
       [USER_ROLES.BARTENDER]: "pos",
       [USER_ROLES.MANAGER]: "inventory",
-      [USER_ROLES.OWNER]: "dashboard",
-      [USER_ROLES.ADMIN]: "dashboard",
+      [USER_ROLES.OWNER]: "products",
+      [USER_ROLES.ADMIN]: "inventory",
     };
 
     const allowedViews = navigationTabs.map((t) => t.id);
@@ -169,8 +169,8 @@ const MainLayout = () => {
         return <POSScreen onBillUpdate={fetchCounts} />;
       case "inventory":
         return <InventoryManagement />;
-      case "dashboard":
-        return <Dashboard />;
+      // case "dashboard":
+      //   return <Dashboard />;
       case "expenses":
         return <ExpenseManagement />;
       case "users":

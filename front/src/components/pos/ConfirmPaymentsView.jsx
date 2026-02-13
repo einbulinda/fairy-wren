@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Lock,
   ClipboardCheck,
@@ -41,7 +41,6 @@ const ConfirmPaymentsView = ({
     key: "marked_paid_at",
     direction: "desc",
   });
-  const [confirmingBillId, setConfirmingBillId] = useState(null);
 
   // Copy to clipboard helper
   const copyBillId = (text) => {
@@ -158,14 +157,13 @@ const ConfirmPaymentsView = ({
   }
 
   const handleConfirmPayment = async (bill) => {
-    setConfirmingBillId(bill.id);
     try {
       await onProcessPayment(bill);
       toast.success("Payment confirmed");
     } catch (err) {
       toast.error(err.message || "Confirmation failed");
     } finally {
-      setConfirmingBillId(null);
+      setExpandedBillId(null);
     }
   };
 
