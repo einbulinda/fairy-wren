@@ -66,12 +66,10 @@ exports.receiveInventory = async (payload, context) => {
     performed_by: context.userId,
     correlation_id: context.correlationId,
     metadata: {
-      quantity,
       supplier_id,
-      newStock: currentStock + quantity,
       invoice_number,
       total_amount,
-      notes,
+      item_count: line_items.length,
     },
   });
 

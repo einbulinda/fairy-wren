@@ -25,6 +25,7 @@ exports.listBills = async (req, res, next) => {
     const data = await service.listBills(req.query);
     respond(res, 200, data);
   } catch (err) {
+    console.error("Error listing bills:", err);
     next(err);
   }
 };

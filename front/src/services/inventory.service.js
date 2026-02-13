@@ -18,15 +18,15 @@ export const inventoryService = {
     api.get("/inventory/ledger", { params }).then((res) => res.data),
 
   receiveStock: (payload) =>
-    api.post("/inventory/receive", payload).then((res) => res.data),
+    api.post("/inventory/receipts", payload).then((res) => res.data),
 
   stockTakeReports: (params) =>
     api.get("inventory/reports/stock-take", { params }).then((res) => res.data),
   createStockTakeSession: (payload) =>
     api.post("/inventory/stock-take-sessions", payload).then((res) => res.data),
-  recordStockTakeItem: (payload) =>
+  recordStockTakeItem: (id, payload) =>
     api
-      .post("/inventory/stock-take-sessions/item", payload)
+      .post(`/inventory/stock-take-sessions/${id}/item`, payload)
       .then((res) => res.data),
   completeStockTake: (currentSessionId) =>
     api

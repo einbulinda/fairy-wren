@@ -14,7 +14,7 @@ export const useSuppliers = () => {
     setIsLoading(true);
 
     try {
-      const data = await fetchSuppliers();
+      const { data } = await fetchSuppliers();
       setSuppliers(data);
     } catch (error) {
       setError(error);

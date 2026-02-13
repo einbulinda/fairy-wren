@@ -175,24 +175,5 @@ exports.getInventoryLedger = async (req, res, next) => {
 
 //TODO: TO CHECK IF THE BELOW ARE DUPLICATES
 
-/* ---------- STOCK VISIBILITY ---------- */
-exports.getInventoryItems = async (req, res, next) => {
-  try {
-    const { data, error } = await readRepo.getTrackedStock();
-    if (error) throw new Error("FAILED_TO_FETCH_INVENTORY_STOCK");
-
-    respond(res, 200, data);
-  } catch (e) {
-    next(e);
-  }
-};
-
-/* ---------- RESTOCK ---------- */
-exports.createInventoryReceipt = async (req, res, next) => {
-  try {
-    const result = await restockService.restock(req.body, buildContext(req));
-    respond(res, 201, result);
-  } catch (e) {
-    next(e);
-  }
-};
+/* ---------- STOCK VISIBILITY (DUPLICATE - REMOVED) ---------- */
+// Duplicate of getInventoryItems (line 11) - removed to avoid shadowing

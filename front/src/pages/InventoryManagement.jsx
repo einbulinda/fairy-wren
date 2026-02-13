@@ -1,6 +1,5 @@
 // InventoryManagement.jsx (Enhanced with Tabs)
 import { useState, useMemo } from "react";
-import { useInventoryStock } from "../hooks/inventory/useInventoryStock";
 import { useStockTake } from "../hooks/inventory/useStockTake";
 import { useSuppliers } from "../hooks/useSuppliers";
 import { useReceiveInventory } from "../hooks/inventory/useReceiveInventory";
@@ -14,9 +13,13 @@ import StockTable from "../components/inventory/StockTable";
 import StockTakeView from "../components/inventory/StockTakeView";
 import StockTakeReports from "../components/inventory/StockTakeReports";
 import ReceiveInventoryTab from "../components/inventory/ReceiveInventoryTab";
+import { useProducts } from "@/hooks/useProducts";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
 const InventoryManagement = () => {
-  const { stock, loading, refresh } = useInventoryStock();
+  const { products: stock, loading: productsLoading } = useProducts({
+    active: true,
+  });
   const { stockTake, startStockTake, saveItems, completeStockTake } =
     useStockTake();
   const { suppliers, addSupplier, reload: reloadSuppliers } = useSuppliers();
@@ -48,12 +51,10 @@ const InventoryManagement = () => {
   const handleStockTakeComplete = async () => {
     await completeStockTake();
     setShowStockTake(false);
-    refresh();
   };
 
   const handleReceiveInventorySuccess = async () => {
     setActiveTab("stock");
-    await refresh();
   };
 
   const handleAddSupplier = async (supplierData) => {
@@ -70,10 +71,12 @@ const InventoryManagement = () => {
         onBack={() => setShowStockTake(false)}
         onSaveItems={saveItems}
         onComplete={handleStockTakeComplete}
-        onRefresh={refresh}
+        // onRefresh={refresh}
       />
     );
   }
+
+  if (productsLoading) <LoadingSpinner />;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -405,8 +408,8 @@ const InventoryManagement = () => {
                 Stock Overview
               </h2>
               <button
-                onClick={refresh}
-                disabled={loading}
+                // onClick={refresh}
+                disabled={productsLoading}
                 className="
                   flex items-center gap-2 px-3 py-2 rounded-lg
                   bg-gray-900/40 backdrop-blur-md
@@ -421,7 +424,7 @@ const InventoryManagement = () => {
               >
                 <svg
                   className={`w-4 h-4 transition-transform duration-500 ${
-                    loading ? "animate-spin" : "group-hover:rotate-180"
+                    productsLoading ? "animate-spin" : "group-hover:rotate-180"
                   }`}
                   fill="none"
                   stroke="currentColor"
@@ -437,7 +440,7 @@ const InventoryManagement = () => {
                 <span className="hidden sm:inline font-medium">Refresh</span>
               </button>
             </div>
-            <StockTable stock={stock} loading={loading} />
+            <StockTable stock={stock} loading={productsLoading} />
           </div>
         </>
       ) : activeTab == "reports" ? (

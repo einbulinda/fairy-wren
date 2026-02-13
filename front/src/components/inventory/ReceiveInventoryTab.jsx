@@ -129,6 +129,7 @@ const ReceiveInventoryTab = ({
       onSuccess();
     } catch (error) {
       console.error("Error receiving inventory:", error);
+      toast.error(error.message || "Failed to receive inventory");
     } finally {
       setLoading(false);
     }
@@ -178,7 +179,7 @@ const ReceiveInventoryTab = ({
                     required
                   >
                     <option value="">Select Supplier</option>
-                    {suppliers.map((supplier) => (
+                    {suppliers?.map((supplier) => (
                       <option key={supplier.id} value={supplier.id}>
                         {supplier.name}
                       </option>
