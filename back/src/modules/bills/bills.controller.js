@@ -4,6 +4,7 @@ const { respond, buildContext } = require("../../utils/common");
 exports.createBill = async (req, res, next) => {
   try {
     const data = await service.createBill(req.body, buildContext(req));
+
     respond(res, 201, data);
   } catch (err) {
     next(err);
@@ -43,7 +44,6 @@ exports.updateBillStatus = async (req, res, next) => {
 
 exports.voidBill = async (req, res, next) => {
   const { id: userId } = req.user;
-  logger.info("Void open bill request received", { billId, userId });
   try {
     await service.voidBill(req.params.id, buildContext(req));
     res.status(204).send();
@@ -57,6 +57,7 @@ exports.addRound = async (req, res, next) => {
     await service.addRound(req.params.id, req.body, buildContext(req));
     respond(res, 201, { success: true });
   } catch (err) {
+    console.log("Error adding round:", err);
     next(err);
   }
 };

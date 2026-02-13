@@ -13,6 +13,7 @@ const mapActionToMessage = (action) => {
 
 const buildContext = (req) => ({
   userId: req.user?.id,
+  role: req.user?.role,
   correlationId: req.correlationId,
 });
 

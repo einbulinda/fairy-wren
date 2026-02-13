@@ -4,9 +4,9 @@ import normalizeError from "@/utils/errorFormatter";
 const BASE_PATH = "/categories";
 
 export const CategoriesService = {
-  async list() {
+  async list(params = {}) {
     try {
-      const { data } = await api.get(BASE_PATH);
+      const { data } = await api.get(BASE_PATH, { params });
       return data;
     } catch (error) {
       throw normalizeError(error, "Error Fetching Categories");

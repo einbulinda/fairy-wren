@@ -1,7 +1,7 @@
 const paymentsCommandRepo = require("./payments.command.repository");
 const paymentsReadRepo = require("./payments.read.repository");
 const paymentsBillsReadRepo = require("./payments.bills.read.repository");
-const auditRepo = "../audit/audit.repository";
+const auditRepo = require("../audit/audit.repository");
 
 /* ======================================================
    PROCESS PAYMENT (RPC)
@@ -45,7 +45,6 @@ exports.processPayments = async (payload, context) => {
       billId,
       amount,
       paymentMode,
-      mpesaCode,
     },
   });
 
@@ -82,8 +81,9 @@ exports.listPayments = async (filters = {}) => {
 /**
  * v1: fetchBillsWithPayments
  */
-exports.fetchBillsWithPayments = async () => {
-  const { data, error } = await paymentsBillsReadRepo.fetchBillsWithPayments();
+exports.fetchBillsWithPayments = async (filters) => {
+  const { data, error } =
+    await paymentsBillsReadRepo.fetchBillsWithPayments(filters);
 
   if (error) {
     throw new Error("FAILED_TO_FETCH_BILLS_WITH_PAYMENTS");

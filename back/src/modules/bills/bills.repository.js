@@ -4,7 +4,37 @@ const getSupabase = require("../../config/supabase");
 
 exports.createBill = async (payload) => {
   const supabase = getSupabase();
-  return supabase.from("bills").insert(payload).select().single();
+  const result = await supabase
+    .from("bills")
+    .insert(payload)
+    .select(
+      `
+      id,
+      customer_name,
+      status,
+      created_at,
+      updated_at,
+      created_by,
+      rounds (
+        id,
+        round_number,
+        round_items (
+          id,
+          quantity,
+          price,
+          product:products(id, name)
+        )
+      )
+    `,
+    )
+    .single();
+
+  // Ensure rounds array exists
+  if (result.data && !result.data.rounds) {
+    result.data.rounds = [];
+  }
+
+  return result;
 };
 
 exports.findBillById = async (id) => {

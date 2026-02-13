@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Lock,
   ClipboardCheck,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { calculateBillTotals } from "../../utils/calculations";
 import toast from "react-hot-toast";
+import { PaymentService } from "@/services/payment.service";
 
 /**
  * ConfirmPaymentsView Component
@@ -29,17 +30,20 @@ import toast from "react-hot-toast";
  * - Access control for bartender role
  */
 
-const ConfirmPaymentsView = ({
-  awaitingConfirmation,
-  canAccessConfirm,
-  onProcessPayment,
-}) => {
+const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedBillId, setExpandedBillId] = useState(null);
   const [sortConfig, setSortConfig] = useState({
     key: "marked_paid_at",
     direction: "desc",
   });
+  const [paidBills, setPaidBills] = useState([]);
+
+  useEffect(() => {
+    PaymentService.listBillsWithPayments({ status: "awaiting_confirmation" })
+      .then((res) => res.data)
+      .then((data) => setPaidBills(data));
+  }, []);
 
   // Copy to clipboard helper
   const copyBillId = (text) => {
@@ -74,7 +78,7 @@ const ConfirmPaymentsView = ({
 
   // Filter and sort bills
   const filteredAndSortedBills = useMemo(() => {
-    let filtered = awaitingConfirmation;
+    let filtered = paidBills;
 
     // Apply search filter
     if (searchTerm) {
@@ -84,7 +88,7 @@ const ConfirmPaymentsView = ({
           bill.created_by_user.name
             .toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          bill.mpesa_code?.toLowerCase().includes(searchTerm.toLowerCase())
+          bill.mpesa_code?.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -123,7 +127,7 @@ const ConfirmPaymentsView = ({
     });
 
     return sorted;
-  }, [awaitingConfirmation, searchTerm, sortConfig]);
+  }, [paidBills, searchTerm, sortConfig]);
 
   // Access restriction check
   if (!canAccessConfirm) {
@@ -139,7 +143,7 @@ const ConfirmPaymentsView = ({
   }
 
   // Empty state
-  if (awaitingConfirmation.length === 0) {
+  if (paidBills.length === 0) {
     return (
       <div className="text-center text-gray-400 py-16 bg-gray-900/20 backdrop-blur-sm rounded-xl border border-purple-500/10">
         <ClipboardCheck
@@ -289,7 +293,7 @@ const ConfirmPaymentsView = ({
                       </td>
                       <td className="px-4 py-4">
                         <span className="text-sm text-gray-300">
-                          {bill.created_by_user.name}
+                          {bill.created_by.name}
                         </span>
                       </td>
                       <td className="px-4 py-4">
@@ -314,7 +318,7 @@ const ConfirmPaymentsView = ({
                                   day: "numeric",
                                   hour: "2-digit",
                                   minute: "2-digit",
-                                }
+                                },
                               )
                             : "N/A"}
                         </span>
@@ -460,7 +464,7 @@ const ConfirmPaymentsView = ({
                         </h3>
                       </div>
                       <p className="text-sm text-gray-400 ml-6">
-                        Served by: {bill.created_by_user.name}
+                        Served by: {bill.created_by.name}
                       </p>
                       {bill.marked_paid_at && (
                         <p className="text-xs text-gray-500 ml-6 mt-1">
@@ -471,7 +475,7 @@ const ConfirmPaymentsView = ({
                               day: "numeric",
                               hour: "2-digit",
                               minute: "2-digit",
-                            }
+                            },
                           )}
                         </p>
                       )}

@@ -1,23 +1,21 @@
 const getSupabase = require("../../config/supabase");
 
-exports.fetchBillsWithPayments = async () => {
+exports.fetchBillsWithPayments = async (filters = {}) => {
   const supabase = getSupabase();
 
-  return supabase
-    .from("bills")
-    .select(
-      `
+  query = supabase.from("bills").select(
+    `
       id,
       customer_name,
       status,
       created_at,
       updated_at,
-      created_by_user:profiles!bills_created_by_fkey(id, name),
-      updated_by_user:profiles!fk_bills_updated_by(id, name),
+      created_by:profiles!bills_created_by_fkey(id, name),
+      updated_by:profiles!fk_bills_updated_by(id, name),
       payments (
         id,
         amount,
-        payment_mode,
+        payment_type,
         created_at
       ),
       rounds (
@@ -31,6 +29,9 @@ exports.fetchBillsWithPayments = async () => {
         )
       )
     `,
-    )
-    .order("created_at", { ascending: false });
+  );
+
+  if (filters.status) query.eq("status", filters.status);
+
+  return query.order("created_at", { ascending: false });
 };

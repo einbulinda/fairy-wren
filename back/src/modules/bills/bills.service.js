@@ -11,7 +11,7 @@ const {
 /* ---------- Bills ---------- */
 exports.createBill = async (payload, context) => {
   const dto = CreateBillDTO(payload);
-  const { data, error } = repo.createBill({
+  const { data, error } = await repo.createBill({
     customer_name: dto.customer_name,
     status: "open",
     created_by: context.userId,
@@ -21,7 +21,7 @@ exports.createBill = async (payload, context) => {
 
   await auditRepo.log({
     entity: "bills",
-    entity_id: data.id,
+    entity_id: data?.id,
     action: "BILL_CREATED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
@@ -66,15 +66,15 @@ exports.updateStatus = async (id, payload, context) => {
   return data;
 };
 
-exports.voidBill = async (id, payload, context) => {
-  dto = VoidBillDTO(payload);
+exports.voidBill = async (id, context) => {
+  // dto = VoidBillDTO(payload);
   /**
    * 1. Restore inventory + ledger (Inventory module)
    */
   await inventoryService.restoreStockForBill({
     id,
     userId: context.userId,
-    reason: dto.reason,
+    // reason: dto.reason,
   });
 
   /**
@@ -108,6 +108,7 @@ exports.addRound = async (billId, payload, context) => {
   /**
    * 1. Validate stock availability (Inventory module)
    */
+
   await inventoryService.assertStockAvailable(dto.items);
 
   /**
@@ -118,6 +119,7 @@ exports.addRound = async (billId, payload, context) => {
   /**
    * 3. Create round
    */
+
   const { data: round, error: roundError } = await repo.createRound({
     bill_id: billId,
     round_number: roundNumber,
@@ -131,7 +133,7 @@ exports.addRound = async (billId, payload, context) => {
    */
   const items = dto.items.map((item) => ({
     round_id: round.id,
-    product_id: item.product_id,
+    product_id: item.id,
     quantity: item.quantity,
     price: item.price,
   }));
@@ -140,14 +142,15 @@ exports.addRound = async (billId, payload, context) => {
 
   if (itemsError) throw new Error("FAILED_TO_ADD_ROUND_ITEMS");
 
-  /**
-   * 5. Deduct inventory + post ledger (Inventory module)
-   */
-  await inventoryService.consumeStockForSale({
-    billId,
-    items: dto.items,
-    userId: context.userId,
-  });
+  /** Stock is only updated on COmpleting the Bill Via DB Triggers */
+  // /**
+  //  * 5. Deduct inventory + post ledger (Inventory module)
+  //  */
+  // await inventoryService.consumeStockForSale({
+  //   billId,
+  //   items: dto.items,
+  //   userId: context.userId,
+  // });
 
   await auditRepo.log({
     entity: "rounds",

@@ -30,7 +30,7 @@ const AllBillsView = ({ bills }) => {
     // Search filter
     if (searchTerm.trim()) {
       filtered = filtered.filter((bill) =>
-        bill.customer_name.toLowerCase().includes(searchTerm.toLowerCase())
+        bill.customer_name.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -42,14 +42,14 @@ const AllBillsView = ({ bills }) => {
     // Date range filter
     if (startDate) {
       filtered = filtered.filter(
-        (bill) => new Date(bill.created_at) >= new Date(startDate)
+        (bill) => new Date(bill.created_at) >= new Date(startDate),
       );
     }
     if (endDate) {
       const endOfDay = new Date(endDate);
       endOfDay.setHours(23, 59, 59, 999);
       filtered = filtered.filter(
-        (bill) => new Date(bill.created_at) <= endOfDay
+        (bill) => new Date(bill.created_at) <= endOfDay,
       );
     }
 
@@ -310,7 +310,7 @@ const AllBillsView = ({ bills }) => {
                             })}
                           </p>
                           <p className="text-sm text-gray-400">
-                            {bill.rounds?.length || 0} round
+                            {bill.rounds?.length || 0} order
                             {bill.rounds?.length !== 1 ? "s" : ""}
                           </p>
                         </div>
@@ -321,7 +321,7 @@ const AllBillsView = ({ bills }) => {
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3">
                     <div
                       className={`px-3 py-1.5 rounded-lg border font-semibold text-sm ${getStatusColor(
-                        bill.status
+                        bill.status,
                       )}`}
                     >
                       {getStatusLabel(bill.status)}
@@ -345,7 +345,7 @@ const AllBillsView = ({ bills }) => {
                 <div className="border-t border-purple-500/20 p-5 pt-4 space-y-3 bg-gray-800/30">
                   <h4 className="text-sm font-semibold text-purple-300 mb-3 flex items-center gap-2">
                     <Receipt size={16} />
-                    Round Details
+                    Order Details
                   </h4>
                   {bill.rounds.map((round) => (
                     <div
@@ -353,7 +353,7 @@ const AllBillsView = ({ bills }) => {
                       className="bg-gray-900/40 backdrop-blur-sm rounded-lg p-4 border border-purple-500/10"
                     >
                       <div className="text-xs text-purple-400 font-semibold mb-2 uppercase">
-                        Round {round.round_number}
+                        Order # {round.round_number}
                       </div>
                       <div className="space-y-2">
                         {round.round_items.map((item) => (
@@ -376,14 +376,14 @@ const AllBillsView = ({ bills }) => {
                       </div>
                       <div className="mt-3 pt-3 border-t border-purple-500/10 flex justify-between items-center">
                         <span className="text-xs text-gray-400 uppercase font-medium">
-                          Round Total
+                          Order Total
                         </span>
                         <span className="font-bold text-purple-300">
                           KSh{" "}
                           {round.round_items
                             .reduce(
                               (sum, item) => sum + item.price * item.quantity,
-                              0
+                              0,
                             )
                             .toLocaleString()}
                         </span>

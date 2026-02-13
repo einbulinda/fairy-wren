@@ -12,7 +12,8 @@ exports.processPayment = async ({
   role,
 }) => {
   const supabase = getSupabase();
-  return supabase.rpc("process_payment", {
+
+  return await supabase.rpc("process_payment", {
     p_bill_id: billId,
     p_amount: amount,
     p_payment_type: paymentMode,

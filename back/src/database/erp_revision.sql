@@ -616,11 +616,685 @@ ALTER TABLE inventory_items
   DROP COLUMN IF EXISTS name CASCADE,
   DROP COLUMN IF EXISTS cost_price CASCADE;
 
--- Mapping
-UPDATE inventory_items ii
-SET product_id = p.id
+TRUNCATE TABLE inventory_items;
+
+
+/*
+::Adding Inventory Categories
+*/
+WITH inventory_parent AS (
+  SELECT id 
+  FROM chart_of_accounts 
+  WHERE name = 'Inventory' 
+  LIMIT 1
+)
+INSERT INTO chart_of_accounts (
+  name,
+  account_class,
+  parent_id
+)
+SELECT 
+  c.name AS name,
+  'asset' AS account_class,  -- ⚠️ Consider 'inventory' if your system supports it (see below)
+  ip.id AS parent_id
+FROM categories c
+CROSS JOIN inventory_parent ip
+WHERE NOT EXISTS (
+  SELECT 1 
+  FROM chart_of_accounts ca 
+  WHERE ca.name = c.name 
+    AND ca.parent_id = ip.id
+)
+ON CONFLICT (name, parent_id) DO NOTHING;  -- Requires UNIQUE constraint on (name, parent_id);
+
+
+--=======================================
+
+/*
+BackFill products to categories inventory
+*/
+
+ALTER TABLE inventory_items
+ADD CONSTRAINT inventory_items_one_per_product
+UNIQUE (product_id);
+
+
+WITH cogs_account AS (
+  -- Get the fixed COGS account ID (required)
+  SELECT id 
+  FROM chart_of_accounts 
+  WHERE name = 'Inventory Purchases' 
+  LIMIT 1
+),
+inventory_accounts AS (
+  -- Map categories to their corresponding inventory accounts
+  SELECT 
+    cat.id AS category_id,
+    coa.id AS account_id
+  FROM categories cat
+  JOIN chart_of_accounts coa 
+    ON coa.name = cat.name  -- Account name = Category name
+),
+product_accounts AS (
+  -- Get account mappings for every product
+  SELECT 
+    p.id AS product_id,
+    ca.id AS cogs_account_id,
+    ia.account_id AS inventory_account_id
+  FROM products p
+  CROSS JOIN cogs_account ca
+  LEFT JOIN inventory_accounts ia 
+    ON ia.category_id = p.category_id
+  WHERE ca.id IS NOT NULL  -- Skip if COGS account missing
+)
+-- UPSERT pattern: Update existing rows + Insert missing rows
+INSERT INTO inventory_items (
+  product_id,
+  cogs_account_id,
+  inventory_account_id
+)
+SELECT 
+  pa.product_id,
+  pa.cogs_account_id,
+  pa.inventory_account_id
+FROM product_accounts pa
+ON CONFLICT (product_id) DO UPDATE  -- Requires UNIQUE constraint on product_id
+SET 
+  cogs_account_id = EXCLUDED.cogs_account_id,
+  inventory_account_id = EXCLUDED.inventory_account_id
+WHERE 
+  inventory_items.cogs_account_id IS NULL 
+  OR inventory_items.inventory_account_id IS NULL
+  OR inventory_items.cogs_account_id != EXCLUDED.cogs_account_id
+  OR inventory_items.inventory_account_id != EXCLUDED.inventory_account_id;
+
+/*
+========================================
+Trigger too Early
+========================================
+*/
+DROP TRIGGER IF EXISTS trg_validate_journal_balance ON journal_lines;
+  
+CREATE CONSTRAINT TRIGGER trg_validate_journal_balance
+AFTER INSERT OR UPDATE ON journal_lines
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION validate_journal_balance();
+
+/*
+Protect Double Posting*/
+ALTER TABLE round_items
+ADD CONSTRAINT round_items_inventory_posted_once
+CHECK (
+  inventory_posted = true
+  OR inventory_posted = false
+);
+
+/*
+=============================================
+VIEW TO FETCH products
+=============================================
+*/
+CREATE OR REPLACE VIEW inventory_on_hand AS
+SELECT
+  im.product_id,
+  COALESCE(SUM(im.quantity), 0) AS current_stock
+FROM inventory_movements im
+GROUP BY im.product_id;
+
+
+-- Index for Performance
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_product
+ON inventory_movements(product_id);
+
+-- Final VIEW
+CREATE OR REPLACE VIEW products_with_stock AS
+SELECT
+  p.id,
+  p.name,
+  p.price,
+  p.active,
+  p.category_id,
+  c.name AS category_name,
+  COALESCE(ih.current_stock, 0) AS current_stock
 FROM products p
-WHERE ii.name = p.name;
+LEFT JOIN inventory_on_hand ih ON ih.product_id = p.id
+LEFT JOIN categories c ON c.id = p.category_id;
+
+/*
+====================================================================
+MAKING PAYMENTS
+====================================================================
+Dr Accounts Receivable (or Cash if direct)
+Cr Sales Revenue
+
+| Table               | Responsibility                         |
+| ------------------- | -------------------------------------- |
+| `payments`          | Workflow + audit (pending / confirmed) |
+| `journal_entries`   | Financial truth                        |
+| `journal_lines`     | Double-entry                           |
+| `chart_of_accounts` | Control accounts                       |
+| `bills`             | Commercial document                    |
+
+
+CHART OF Accounts
+| Code | Name                | Type      |
+| ---- | ------------------- | --------- |
+| 1010 | Cash on Hand        | Asset     |
+| 1020 | Mpesa / Bank        | Asset     |
+| 1100 | Accounts Receivable | Asset     |
+| 4000 | Sales Revenue       | Income    |
+| 2100 | Tax Payable         | Liability |
+
+*/
+
+--REVISED RPC 
+DECLARE
+  v_bill bills%ROWTYPE;
+  v_payment payments%ROWTYPE;
+  v_cash_account UUID;
+  v_sales_account UUID;
+  v_tax_account UUID;
+  v_journal_id UUID;
+BEGIN
+  -- Lock bill
+  SELECT * INTO v_bill
+  FROM bills
+  WHERE id = p_bill_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Bill not found';
+  END IF;
+
+  -- Lock payment if exists
+  SELECT * INTO v_payment
+  FROM payments
+  WHERE bill_id = p_bill_id
+    AND status IN ('pending', 'confirmed')
+  FOR UPDATE;
+
+  /* ===============================
+     CASE 1: NON-BARTENDER INITIATES
+     =============================== */
+  IF p_user_role <> 'bartender' THEN
+    IF v_bill.status <> 'open' OR v_payment.id IS NOT NULL THEN
+      RAISE EXCEPTION 'Payment already initiated or bill not open';
+    END IF;
+
+    INSERT INTO payments (
+      bill_id,
+      amount,
+      payment_type,
+      status,
+      created_by
+    )
+    VALUES (
+      p_bill_id,
+      p_amount,
+      p_payment_type,
+      'pending',
+      p_user_id
+    );
+
+    UPDATE bills
+    SET status = 'awaiting_confirmation'
+    WHERE id = p_bill_id;
+
+    RETURN json_build_object(
+      'status', 'pending',
+      'message', 'Payment awaiting confirmation'
+    );
+  END IF;
+
+  /* ===============================
+     CASE 2: BARTENDER CONFIRMS
+     =============================== */
+  IF p_user_role = 'bartender'
+     AND v_payment.id IS NOT NULL
+     AND v_payment.status = 'pending'
+     AND v_bill.status = 'awaiting_confirmation'
+  THEN
+    UPDATE payments
+    SET status = 'confirmed',
+        updated_by = p_user_id,
+        updated_at = now()
+    WHERE id = v_payment.id;
+
+    -- 🔹 ACCOUNTING STARTS HERE
+    SELECT id INTO v_cash_account
+    FROM chart_of_accounts
+    WHERE code = CASE
+      WHEN v_payment.payment_type = 'cash' THEN '1010'
+      ELSE '1020'
+    END;
+
+    SELECT id INTO v_sales_account
+    FROM chart_of_accounts WHERE code = '4000';
+
+    SELECT id INTO v_tax_account
+    FROM chart_of_accounts WHERE code = '2100';
+
+    INSERT INTO journal_entries (
+      entry_date,
+      source_type,
+      source_id,
+      description
+    )
+    VALUES (
+      CURRENT_DATE,
+      'payment',
+      v_payment.id,
+      'POS payment'
+    )
+    RETURNING id INTO v_journal_id;
+
+    -- Dr Cash / Bank
+    INSERT INTO journal_lines (journal_entry_id, account_id, debit)
+    VALUES (v_journal_id, v_cash_account, v_payment.amount);
+
+    -- Cr Sales
+    INSERT INTO journal_lines (journal_entry_id, account_id, credit)
+    VALUES (v_journal_id, v_sales_account, v_bill.subtotal);
+
+    -- Cr Tax
+    IF v_bill.tax > 0 THEN
+      INSERT INTO journal_lines (journal_entry_id, account_id, credit)
+      VALUES (v_journal_id, v_tax_account, v_bill.tax);
+    END IF;
+
+    UPDATE bills
+    SET status = 'completed'
+    WHERE id = p_bill_id;
+
+    RETURN json_build_object(
+      'status', 'confirmed',
+      'message', 'Payment confirmed and posted'
+    );
+  END IF;
+
+  /* ===============================
+     CASE 3: BARTENDER DIRECT PAY
+     =============================== */
+  IF p_user_role = 'bartender'
+     AND v_payment.id IS NULL
+     AND v_bill.status = 'open'
+  THEN
+    INSERT INTO payments (
+      bill_id,
+      amount,
+      payment_type,
+      status,
+      created_by,
+      updated_by
+    )
+    VALUES (
+      p_bill_id,
+      p_amount,
+      p_payment_type,
+      'confirmed',
+      p_user_id,
+      p_user_id
+    )
+    RETURNING * INTO v_payment;
+
+    -- 🔹 SAME JOURNAL LOGIC HERE (reuse via function ideally)
+
+    UPDATE bills
+    SET status = 'completed'
+    WHERE id = p_bill_id;
+
+    RETURN json_build_object(
+      'status', 'confirmed',
+      'message', 'Direct payment completed'
+    );
+  END IF;
+
+  RAISE EXCEPTION 'Invalid payment state or role';
+END;
+
+/*Check Scope of Changes*/
+SELECT
+  source_type,
+  source_id,
+  COUNT(*) AS cnt
+FROM journal_entries
+GROUP BY source_type, source_id
+HAVING COUNT(*) > 1
+ORDER BY cnt DESC;
+/*
+============================
+INDEXING
+============================
+*/
+CREATE UNIQUE INDEX IF NOT EXISTS uq_journal_source
+ON journal_entries (source_type, source_id);
+
+/*
+====================================
+PARTIAL UNIQUE INDEX 
+====================================
+*/
+CREATE UNIQUE INDEX uq_journal_source_live
+ON journal_entries (source_type, source_id)
+WHERE source_type IN ('payment', 'sale');
+
+-- LEGACY BACKFILL
+UPDATE journal_entries
+SET description = description || ' (legacy backfill)'
+WHERE source_type = 'sale_backfill';
+
+
+/*
+===========================================
+JOURNAL POSTING HELPER FUNCTION
+===========================================
+*/
+CREATE OR REPLACE FUNCTION post_payment_journal(p_payment_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_payment payments%ROWTYPE;
+  v_totals RECORD;
+  v_cash_account uuid;
+  v_sales_account uuid;
+  v_journal_id uuid;
+BEGIN
+  /* Idempotency guard */
+  IF EXISTS (
+    SELECT 1
+    FROM journal_entries
+    WHERE source_type = 'payment'
+      AND source_id = p_payment_id
+  ) THEN
+    RETURN;
+  END IF;
+
+  SELECT * INTO v_payment
+  FROM payments
+  WHERE id = p_payment_id;
+
+  SELECT * INTO v_totals
+  FROM bill_totals
+  WHERE bill_id = v_payment.bill_id;
+
+  IF v_totals.total <= 0 THEN
+    RAISE EXCEPTION 'Cannot journal zero-value payment';
+  END IF;
+
+  /* Resolve accounts */
+  SELECT id INTO v_cash_account
+  FROM chart_of_accounts
+  WHERE code = CASE
+    WHEN v_payment.payment_type = 'cash' THEN '1010'
+    ELSE '1020'
+  END;
+
+  SELECT id INTO v_sales_account
+  FROM chart_of_accounts
+  WHERE code = '4000';
+
+  /* Create journal entry */
+  INSERT INTO journal_entries (
+    entry_date,
+    source_type,
+    source_id,
+    description
+  )
+  VALUES (
+    CURRENT_DATE,
+    'payment',
+    p_payment_id,
+    'POS payment'
+  )
+  RETURNING id INTO v_journal_id;
+
+  /* Dr Cash / Bank */
+  INSERT INTO journal_lines (
+    journal_entry_id,
+    account_id,
+    debit
+  )
+  VALUES (
+    v_journal_id,
+    v_cash_account,
+    v_totals.total
+  );
+
+  /* Cr Sales */
+  INSERT INTO journal_lines (
+    journal_entry_id,
+    account_id,
+    credit
+  )
+  VALUES (
+    v_journal_id,
+    v_sales_account,
+    v_totals.total
+  );
+END;
+$$;
+
+
+
+/*
+=======================================================
+process_payment RPC function (PostgreSQL)
+- Validates bill existence and amount
+- Inserts payment record with status 'pending'
+- Updates bill status to 'paid' if fully settled
+=======================================================
+*/
+
+CREATE OR REPLACE FUNCTION process_payment(
+  p_bill_id uuid,
+  p_amount numeric,
+  p_payment_type text,
+  p_user_id uuid,
+  p_user_role text
+)
+RETURNS json
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_bill bills%ROWTYPE;
+  v_payment payments%ROWTYPE;
+  v_totals RECORD;
+BEGIN
+  /* =====================================================
+     Lock bill
+     ===================================================== */
+  SELECT * INTO v_bill
+  FROM bills
+  WHERE id = p_bill_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Bill not found';
+  END IF;
+
+  /* =====================================================
+     Fetch authoritative totals
+     ===================================================== */
+  SELECT * INTO v_totals
+  FROM bill_totals
+  WHERE bill_id = p_bill_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Bill totals not found';
+  END IF;
+
+  /* =====================================================
+     Enforce payment amount = outstanding balance
+     ===================================================== */
+  IF p_amount <> v_totals.balance_due THEN
+    RAISE EXCEPTION
+      'Only full payment is allowed. Expected %, received %',
+      v_totals.balance_due,
+      p_amount;
+  END IF;
+
+  /* =====================================================
+     Lock existing payment (if any)
+     ===================================================== */
+  SELECT * INTO v_payment
+  FROM payments
+  WHERE bill_id = p_bill_id
+    AND status IN ('pending', 'confirmed')
+  FOR UPDATE;
+
+  /* =====================================================
+     CASE 1: NON-BARTENDER → INITIATE PAYMENT (PENDING)
+     ===================================================== */
+  IF p_user_role <> 'bartender' THEN
+    IF v_bill.status <> 'open' OR v_payment.id IS NOT NULL THEN
+      RAISE EXCEPTION 'Payment already initiated or bill not open';
+    END IF;
+
+    INSERT INTO payments (
+      bill_id,
+      amount,
+      payment_type,
+      status,
+      is_paid,
+      created_by
+    )
+    VALUES (
+      p_bill_id,
+      p_amount,
+      p_payment_type,
+      'pending',
+      false,
+      p_user_id
+    );
+
+    UPDATE bills
+    SET status = 'awaiting_confirmation'
+    WHERE id = p_bill_id;
+
+    RETURN json_build_object(
+      'status', 'pending',
+      'message', 'Payment awaiting confirmation'
+    );
+  END IF;
+
+  /* =====================================================
+     CASE 2: BARTENDER CONFIRMS EXISTING PAYMENT
+     ===================================================== */
+  IF p_user_role = 'bartender'
+     AND v_payment.id IS NOT NULL
+     AND v_payment.status = 'pending'
+     AND v_bill.status = 'awaiting_confirmation'
+  THEN
+    UPDATE payments
+    SET status = 'confirmed',
+        is_paid = true,
+        updated_by = p_user_id,
+        updated_at = now()
+    WHERE id = v_payment.id;
+
+    -- Accounting event
+    PERFORM post_payment_journal(v_payment.id);
+
+    UPDATE bills
+    SET status = 'completed'
+    WHERE id = p_bill_id;
+
+    RETURN json_build_object(
+      'status', 'confirmed',
+      'message', 'Payment confirmed and bill completed'
+    );
+  END IF;
+
+  /* =====================================================
+     CASE 3: BARTENDER DIRECT PAYMENT
+     ===================================================== */
+  IF p_user_role = 'bartender'
+     AND v_payment.id IS NULL
+     AND v_bill.status = 'open'
+  THEN
+    INSERT INTO payments (
+      bill_id,
+      amount,
+      payment_type,
+      status,
+      is_paid,
+      created_by,
+      updated_by
+    )
+    VALUES (
+      p_bill_id,
+      p_amount,
+      p_payment_type,
+      'confirmed',
+      true,
+      p_user_id,
+      p_user_id
+    )
+    RETURNING * INTO v_payment;
+
+    -- Accounting event
+    PERFORM post_payment_journal(v_payment.id);
+
+    UPDATE bills
+    SET status = 'completed'
+    WHERE id = p_bill_id;
+
+    RETURN json_build_object(
+      'status', 'confirmed',
+      'message', 'Direct payment completed'
+    );
+  END IF;
+
+  RAISE EXCEPTION 'Invalid payment state or role';
+END;
+$$;
+
+
+/*
+======================================================
+CANONICAL BILL VIEW
+======================================================
+*/
+DROP VIEW IF EXISTS bill_totals;
+
+CREATE VIEW bill_totals AS
+SELECT
+  b.id AS bill_id,
+
+  -- Customer info
+  b.customer_name AS customer,
+
+  -- Creator info
+  b.created_by AS created_by_id,
+  u.name        AS created_by_name,
+
+  COALESCE(SUM(ri.quantity * ri.price), 0) AS subtotal,
+  0::numeric AS tax,
+  COALESCE(SUM(ri.quantity * ri.price), 0) AS total,
+
+  COALESCE(
+    SUM(CASE WHEN p.status = 'confirmed' THEN p.amount ELSE 0 END),
+    0
+  ) AS amount_paid,
+
+  COALESCE(SUM(ri.quantity * ri.price), 0)
+  -
+  COALESCE(
+    SUM(CASE WHEN p.status = 'confirmed' THEN p.amount ELSE 0 END),
+    0
+  ) AS balance_due
+
+FROM bills b
+LEFT JOIN profiles u ON u.id = b.created_by
+LEFT JOIN rounds r   ON r.bill_id = b.id
+LEFT JOIN round_items ri ON ri.round_id = r.id
+LEFT JOIN payments p ON p.bill_id = b.id
+GROUP BY b.id, b.customer_name, b.created_by, u.name;
+
+
+
 
 
 

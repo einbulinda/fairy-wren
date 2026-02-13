@@ -26,8 +26,8 @@ exports.getProductCostSnapshot = async (productId) => {
   const supabase = getSupabase();
 
   return supabase
-    .from("products")
-    .select("current_stock, cost_price")
+    .from("products_with_stock")
+    .select("current_stock, name, id")
     .eq("id", productId)
     .single();
 };

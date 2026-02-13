@@ -1,7 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useBills } from "../hooks/useBills";
-import { usePayments } from "../hooks/usePayments";
 import { useProducts } from "../hooks/useProducts";
 import { useCategories } from "../hooks/useCategories";
 import { BillsService } from "@/services/bills.service";
@@ -15,6 +14,7 @@ import {
   X,
   Plus,
   Grid as GridIcon,
+  AlertTriangle,
 } from "lucide-react";
 import LoadingSpinner from "../components/shared/LoadingSpinner";
 import { calculateBillTotals } from "../utils/calculations";
@@ -29,14 +29,32 @@ import ConfirmPaymentsView from "../components/pos/ConfirmPaymentsView";
 
 const POSScreen = () => {
   const { user } = useAuth();
-  const { products, loading: productsLoading } = useProducts({ active: true });
-  const { categories, loading: categoriesLoading } = useCategories();
+  const {
+    products,
+    loading: productsLoading,
+    //refetch: refetchProducts,
+  } = useProducts({ active: true });
+  const { categories, loading: categoriesLoading } = useCategories({
+    active: true,
+  });
   const {
     bills,
+    setBills,
+    createBill,
+    addRound: addRoundService,
+    reload: reloadBills,
     loading: billsLoading,
     error: billsError,
-  } = useBills({ status: "open" });
-  const { payments, loading: paymentsLoading } = usePayments();
+  } = useBills();
+
+  const openBills = useMemo(
+    () => bills.filter((b) => b.status === "open"),
+    [bills],
+  );
+  const confirmPaidBills = useMemo(
+    () => bills.filter((b) => b.status === "awaiting_confirmation"),
+    [bills],
+  );
 
   // Tab state
   const [activeTab, setActiveTab] = useState("pos"); // 'pos', 'bills', 'confirm'
@@ -45,18 +63,73 @@ const POSScreen = () => {
   const [activeBill, setActiveBill] = useState(null);
   const [currentRoundItems, setCurrentRoundItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+
+  // Operation states
+  const [addingRound, setAddingRound] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   // Modals
   const [showOpenBillsModal, setShowOpenBillsModal] = useState(false);
+  const [showNewBillModal, setShowNewBillModal] = useState(false);
+  const [newBillCustomerName, setNewBillCustomerName] = useState("");
+  const [isCreatingBill, setIsCreatingBill] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [paymentLoading, setPaymentLoading] = useState(false);
 
   // Role checks
   const isBartender = user?.role === "bartender";
   const canAccessConfirm = isBartender;
+
+  // 🔒 CRITICAL: Helper to calculate TOTAL quantity across ENTIRE bill + current round
+  const getTotalQuantityInBill = useCallback(
+    (productId) => {
+      if (!activeBill) return 0;
+
+      // Sum quantities from ALL rounds in bill (including optimistic updates)
+      const fromRounds = (activeBill.rounds || []).reduce((sum, round) => {
+        if (!round.items) return sum;
+        const item = round.items.find(
+          (i) => i.product_id === productId || i.id === productId,
+        );
+        return sum + (item?.quantity || 0);
+      }, 0);
+
+      // Add current round items
+      const fromCurrentRound =
+        currentRoundItems.find((i) => i.id === productId)?.quantity || 0;
+
+      return fromRounds + fromCurrentRound;
+    },
+    [activeBill, currentRoundItems],
+  );
+
+  // 🔒 Compute stock warnings for current round items
+  const stockWarnings = useMemo(() => {
+    if (!activeBill) return {};
+
+    return currentRoundItems.reduce((warnings, item) => {
+      const product = products.find((p) => p.id === item.id);
+      if (!product || typeof product.current_stock !== "number")
+        return warnings;
+
+      const totalInBill = getTotalQuantityInBill(item.id);
+      if (totalInBill > product.current_stock) {
+        warnings[item.id] = {
+          message: `⚠️ Exceeds available stock (${product.current_stock})`,
+          severity: "error",
+        };
+      } else if (product.current_stock <= 3) {
+        warnings[item.id] = {
+          message: `⚠️ Low stock (${product.current_stock} left)`,
+          severity: "warning",
+        };
+      }
+      return warnings;
+    }, {});
+  }, [currentRoundItems, activeBill, products]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -66,40 +139,67 @@ const POSScreen = () => {
       filtered = products.filter((p) => p.category_id === selectedCategory);
     }
 
-    if (searchTerm) {
+    if (debouncedSearchTerm) {
       filtered = filtered.filter((p) =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()),
+        p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()),
       );
     }
 
     return filtered;
-  }, [products, selectedCategory, searchTerm]);
+  }, [products, selectedCategory, debouncedSearchTerm]);
 
-  // Bills awaiting confirmation
-  // const awaitingConfirmation = useMemo(() => {
-  //   return paymentBills.filter(
-  //     (bill) => bill.status === "awaiting_confirmation",
-  //   );
-  // }, [paymentBills]);
+  // 📱 MOBILE: Lock body scroll when bill modal is open
+  useEffect(() => {
+    const isMobile = window.innerWidth < 1024;
+    if (activeBill && isMobile) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [activeBill]);
+
+  // ⚡ SEARCH DEBOUNCE: Wait 300ms after user stops typing before filtering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // POS Functions
-  const handleStartNewBill = async () => {
-    const customerName = prompt("Enter Customer Name/Table:");
-    if (!customerName?.trim()) return;
+  const handleStartNewBill = () => {
+    setNewBillCustomerName("");
+    setShowNewBillModal(true);
+  };
 
+  // Create bill from modal
+  const handleCreateNewBill = useCallback(async () => {
+    if (!newBillCustomerName.trim()) {
+      toast.error("Please enter customer name");
+      return;
+    }
+
+    setIsCreatingBill(true);
     try {
-      const newBill = await BillsService.create({
-        customer_name: customerName.trim(),
+      const newBill = await createBill({
+        customer_name: newBillCustomerName.trim(),
       });
+
       setActiveBill(newBill);
       setCurrentRoundItems([]);
-      toast.success("New bill opened!");
+      setShowNewBillModal(false);
+      toast.success(`Bill created for ${newBill.customer_name}`);
     } catch (error) {
       toast.error("Failed to create bill");
       console.error(error);
+    } finally {
+      setIsCreatingBill(false);
     }
-  };
+  }, [newBillCustomerName, createBill]);
 
+  // Select an OPEN bill from modal
   const handleSelectOpenBill = (bill) => {
     setActiveBill(bill);
     setCurrentRoundItems([]);
@@ -107,79 +207,202 @@ const POSScreen = () => {
     toast.success(`Switched to ${bill.customer_name}'s bill`);
   };
 
-  const handleAddProduct = (product) => {
-    if (!activeBill) {
-      toast.error("Please start or select an open a bill first");
-      return;
-    }
+  const handleAddProduct = useCallback(
+    (product) => {
+      if (!activeBill) {
+        toast.error("Please start or select an open bill first");
+        return;
+      }
 
-    const existing = currentRoundItems.find((item) => item.id === product.id);
-    if (existing) {
-      setCurrentRoundItems(
-        currentRoundItems.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        ),
+      // 🔒 VALIDATE AGAINST ENTIRE BILL + CURRENT ROUND
+      if (
+        typeof product.current_stock === "number" &&
+        product.current_stock >= 0
+      ) {
+        const totalInBill = getTotalQuantityInBill(product.id);
+        const newTotal = totalInBill + 1;
+
+        if (newTotal > product.current_stock) {
+          const alreadyText =
+            totalInBill > 0
+              ? `\nBill already contains ${totalInBill} unit${totalInBill === 1 ? "" : "s"}`
+              : "";
+
+          toast.error(
+            `Only ${product.current_stock} unit${product.current_stock === 1 ? "" : "s"} of "${product.name}" available.${alreadyText}\nCannot add more to this bill.`,
+            { duration: 4000 },
+          );
+          return;
+        }
+      }
+
+      const existing = currentRoundItems.find((item) => item.id === product.id);
+      if (existing) {
+        setCurrentRoundItems(
+          currentRoundItems.map((item) =>
+            item.id === product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item,
+          ),
+        );
+      } else {
+        setCurrentRoundItems([
+          ...currentRoundItems,
+          {
+            id: product.id,
+            productName: product.name,
+            price: product.price,
+            quantity: 1,
+          },
+        ]);
+      }
+    },
+    [activeBill, currentRoundItems],
+  );
+
+  const handleUpdateQuantity = useCallback(
+    (itemId, delta) => {
+      // 🔒 VALIDATE INCREASES AGAINST ENTIRE BILL
+      if (delta > 0) {
+        const product = products.find((p) => p.id === itemId);
+        if (
+          product &&
+          typeof product.current_stock === "number" &&
+          product.current_stock >= 0
+        ) {
+          const totalInBill = getTotalQuantityInBill(itemId);
+          // Current round quantity is already included in totalInBill
+          // New total would be: totalInBill (current state) + delta
+          if (totalInBill + delta > product.current_stock) {
+            toast.error(
+              `Insufficient stock for "${product.name}".\nAvailable: ${product.current_stock} | Already in bill: ${totalInBill}`,
+              { duration: 4000 },
+            );
+            return;
+          }
+        }
+      }
+
+      setCurrentRoundItems((items) =>
+        items
+          .map((item) =>
+            item.id === itemId
+              ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+              : item,
+          )
+          .filter((item) => item.quantity > 0),
       );
-    } else {
-      setCurrentRoundItems([
-        ...currentRoundItems,
-        {
-          id: product.id,
-          productName: product.name,
-          price: product.price,
-          quantity: 1,
-        },
-      ]);
-    }
-  };
+    },
+    [products],
+  );
 
-  const handleUpdateQuantity = (itemId, delta) => {
-    setCurrentRoundItems((items) =>
-      items
-        .map((item) =>
-          item.id === itemId
-            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
-            : item,
-        )
-        .filter((item) => item.quantity > 0),
-    );
-  };
+  const handleRemoveItem = useCallback((itemId) => {
+    setCurrentRoundItems((items) => items.filter((item) => item.id !== itemId));
+  }, []);
 
-  const handleRemoveItem = (itemId) => {
-    setCurrentRoundItems(
-      currentRoundItems.filter((item) => item.id !== itemId),
-    );
-  };
-
-  const handleAddRound = async () => {
+  const handleAddRound = useCallback(async () => {
     if (currentRoundItems.length === 0) {
       toast.error("Add items to the round first");
       return;
     }
 
-    try {
-      await BillsService.addRound(activeBill.id, { items: currentRoundItems });
-      setCurrentRoundItems([]);
-
-      // Refresh the active bill
-      // const updatedBill = paymentBills.find((b) => b.id === activeBill.id);
-      // setActiveBill(updatedBill);
-
-      toast.success("Round added to bill!");
-    } catch (error) {
-      toast.error("Failed to add round");
-      console.error(error);
+    if (!activeBill) {
+      toast.error("No active bill selected");
+      return;
     }
-  };
+
+    // 🔒 FINAL VALIDATION BEFORE SUBMIT
+    const invalidItem = currentRoundItems.find((item) => {
+      const product = products.find((p) => p.id === item.id);
+      if (!product || typeof product.current_stock !== "number") return false;
+
+      const totalInBill = getTotalQuantityInBill(item.id);
+      return totalInBill > product.current_stock;
+    });
+
+    if (invalidItem) {
+      const product = products.find((p) => p.id === invalidItem.id);
+      toast.error(
+        `Cannot add round: "${product.name}" exceeds available stock (${product.current_stock}).\nPlease adjust quantities.`,
+        { duration: 5000, icon: <AlertTriangle className="text-yellow-400" /> },
+      );
+      return;
+    }
+
+    setAddingRound(true);
+
+    // 1️⃣ Create optimistic round
+    const optimisticRound = {
+      id: `tmp-${crypto.randomUUID()}`,
+      created_at: new Date().toISOString(),
+      items: currentRoundItems.map((item) => ({
+        product_id: item.id,
+        name: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+      })),
+      optimistic: true,
+    };
+
+    // 2️⃣ Optimistically update active bill
+    const optimisticBill = {
+      ...activeBill,
+      rounds: [...(activeBill.rounds || []), optimisticRound],
+    };
+
+    setActiveBill(optimisticBill);
+    setBills((prev) =>
+      prev.map((b) => (b.id === activeBill.id ? optimisticBill : b)),
+    );
+    setCurrentRoundItems([]);
+
+    try {
+      // 3️⃣ Persist to backend
+      const updatedBill = await addRoundService(activeBill.id, {
+        items: currentRoundItems,
+      });
+
+      // 4️⃣ Replace optimistic bill with real one
+      setActiveBill(updatedBill);
+      setBills((prev) =>
+        prev.map((b) => (b.id === updatedBill.id ? updatedBill : b)),
+      );
+
+      toast.success("Round added to bill!", { icon: "✅" });
+    } catch (error) {
+      console.error("Round addition failed:", error);
+
+      // 🎯 Show specific backend error if available
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to add round. Reverting changes.";
+
+      toast.error(errorMsg, { duration: 5000 });
+
+      // 5️⃣ Roll back optimistic update
+      setActiveBill(activeBill);
+      setBills((prev) =>
+        prev.map((b) => (b.id === activeBill.id ? activeBill : b)),
+      );
+      setCurrentRoundItems(currentRoundItems); // Restore items
+    } finally {
+      setAddingRound(false);
+    }
+  }, [activeBill, currentRoundItems, products, addRoundService, setBills]);
 
   const handleCloseView = () => {
+    if (currentRoundItems.length > 0) {
+      const confirmed = window.confirm(
+        "You have unsaved items in the current round.\nAre you sure you want to close without adding them to the bill?",
+      );
+      if (!confirmed) return;
+    }
     setActiveBill(null);
     setCurrentRoundItems([]);
   };
 
-  const handleVoidBill = async () => {
+  const handleVoidBill = useCallback(async () => {
     if (!activeBill) return;
 
     const confirmed = window.confirm(
@@ -189,29 +412,31 @@ const POSScreen = () => {
     if (!confirmed) return;
 
     try {
-      // Call void bill API
       await BillsService.void(activeBill.id);
-
       toast.success(`Bill for ${activeBill.customer_name} has been voided`);
+
+      // Refresh bills list
+      await reloadBills();
+
       setActiveBill(null);
       setCurrentRoundItems([]);
     } catch (error) {
       toast.error("Failed to void bill");
       console.error(error);
     }
-  };
+  }, [activeBill, reloadBills]);
 
-  const handleOpenPaymentModal = () => {
+  const handleOpenPaymentModal = useCallback(() => {
     if (currentRoundItems.length > 0) {
       toast.error("Please add current round before payment");
       return;
     }
-    if (!activeBill || activeBill.rounds.length === 0) {
+    if (!activeBill || !activeBill.rounds?.length) {
       toast.error("Cannot process payment for empty bill");
       return;
     }
     setShowPaymentModal(true);
-  };
+  }, [activeBill, currentRoundItems.length]);
 
   const handleProcessPayment = async (bill) => {
     setPaymentLoading(true);
@@ -222,7 +447,6 @@ const POSScreen = () => {
         throw new Error("Invalid bill total");
       }
 
-      // Safety net to prevent silent fails
       if (!bill?.id || !bill?.rounds?.length) {
         throw new Error("Invalid bill for payment");
       }
@@ -233,15 +457,24 @@ const POSScreen = () => {
         amount: totals.total,
       });
 
-      user.role === "bartender"
-        ? toast.success("Payment processed successfully.")
-        : toast.success("Payment processed. Awaiting Confirmation.");
+      toast.success(
+        user.role === "bartender"
+          ? "Payment processed successfully."
+          : "Payment processed. Awaiting Confirmation.",
+      );
+
+      // Refresh data after payment
+      reloadBills();
 
       setShowPaymentModal(false);
       setActiveBill(null);
       setCurrentRoundItems([]);
     } catch (error) {
-      toast.error(error.message || "Failed to process payment");
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to process payment";
+      toast.error(errorMsg);
       console.error(error);
     } finally {
       setPaymentLoading(false);
@@ -250,9 +483,11 @@ const POSScreen = () => {
 
   const billTotals = activeBill ? calculateBillTotals(activeBill) : null;
 
-  if (productsLoading || categoriesLoading || billsLoading || paymentsLoading) {
+  if (productsLoading || categoriesLoading || billsLoading) {
     return <LoadingSpinner />;
   }
+
+  if (billsError) toast.error(billsError.message);
 
   return (
     <div className="h-full flex flex-col">
@@ -317,7 +552,7 @@ const POSScreen = () => {
               >
                 <ClipboardCheck size={18} />
                 <span>Confirm</span>
-                {payments.length > 0 && (
+                {confirmPaidBills.length > 0 && (
                   <span
                     className={`
                     px-2 py-0.5 rounded-full text-xs font-bold
@@ -328,7 +563,7 @@ const POSScreen = () => {
                     }
                   `}
                   >
-                    {payments.length}
+                    {confirmPaidBills.length}
                   </span>
                 )}
               </button>
@@ -342,17 +577,27 @@ const POSScreen = () => {
               <div className="flex gap-2">
                 <button
                   onClick={handleStartNewBill}
-                  className="px-4 py-2 bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20"
+                  disabled={isCreatingBill}
+                  className="px-4 py-2 bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Plus size={18} />
-                  <span>New Bill</span>
+                  {isCreatingBill ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={18} />
+                      <span>New Bill</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => setShowOpenBillsModal(true)}
                   className="px-4 py-2 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20"
                 >
                   <Receipt size={18} />
-                  <span>Open Bills ({bills.length})</span>
+                  <span>Open Bills ({openBills.length})</span>
                 </button>
               </div>
             </>
@@ -366,17 +611,27 @@ const POSScreen = () => {
           <div className="flex gap-2">
             <button
               onClick={handleStartNewBill}
-              className="flex-1 px-3 py-2.5 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20"
+              disabled={isCreatingBill}
+              className="flex-1 px-3 py-2.5 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Plus size={20} />
-              <span>New Bill</span>
+              {isCreatingBill ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus size={20} />
+                  <span>New Bill</span>
+                </>
+              )}
             </button>
             <button
               onClick={() => setShowOpenBillsModal(true)}
               className="flex-1 px-3 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20 relative"
             >
               <Receipt size={20} />
-              <span>Open ({bills.length})</span>
+              <span>Open ({openBills.length})</span>
             </button>
           </div>
         </div>
@@ -384,23 +639,19 @@ const POSScreen = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden md:pb-0 pb-16">
-        {/* Added pb-16 for mobile bottom nav space */}
         {/* POS View */}
         {activeTab === "pos" && (
           <div className="h-screen flex overflow-hidden">
             {/* LEFT COLUMN - Category Side Panel for Large Screens */}
             <aside className="hidden lg:flex flex-col w-64 xl:w-72 border-r border-purple-500/20 bg-gray-900/20 h-full overflow-hidden">
-              {/* Fixed Header */}
               <div className="shrink-0 p-4 border-b border-purple-500/20">
                 <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
                   Categories
                 </h3>
               </div>
 
-              {/* Scrollable Categories Area */}
               <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
                 <div className="grid grid-cols-2 gap-2">
-                  {/* All Products Button - Spans 2 columns */}
                   <button
                     onClick={() => setSelectedCategory("all")}
                     className={`
@@ -416,14 +667,11 @@ const POSScreen = () => {
                     <span>All Products</span>
                   </button>
 
-                  {/* Category Buttons in 2-column grid */}
-                  {categories
-                    .filter((c) => c.active == true)
-                    .map((cat) => (
-                      <button
-                        key={cat.id}
-                        onClick={() => setSelectedCategory(cat.id)}
-                        className={`
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`
                         text-center px-2 py-3 rounded-lg transition-all duration-200 font-medium text-sm
                         ${
                           selectedCategory === cat.id
@@ -431,19 +679,18 @@ const POSScreen = () => {
                             : "bg-gray-800/40 border border-purple-500/20 text-gray-300 hover:text-white hover:bg-gray-800/60"
                         }
                       `}
-                      >
-                        <span className="block truncate">{cat.name}</span>
-                      </button>
-                    ))}
+                    >
+                      <span className="block truncate">{cat.name}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </aside>
 
-            {/* Category Tabs for Mobile/Tablet - Horizontal Scrollable */}
+            {/* Category Tabs for Mobile/Tablet */}
             <div className="lg:hidden border-b border-purple-500/20 bg-gray-900/20">
               <div className="overflow-x-auto px-3 py-3">
                 <div className="flex gap-2 min-w-max">
-                  {/* All Products */}
                   <button
                     onClick={() => setSelectedCategory("all")}
                     className={`
@@ -459,7 +706,6 @@ const POSScreen = () => {
                     All Products
                   </button>
 
-                  {/* Categories */}
                   {categories.map((cat) => (
                     <button
                       key={cat.id}
@@ -480,9 +726,8 @@ const POSScreen = () => {
               </div>
             </div>
 
-            {/* CENTER COLUMN - Products Section with Fixed Search */}
+            {/* CENTER COLUMN - Products Section */}
             <div className="flex-1 flex flex-col overflow-hidden lg:border-r lg:border-purple-500/20">
-              {/* Fixed Search Bar */}
               <div className="shrink-0 p-4 border-b border-purple-500/20 bg-gray-900/20">
                 <div className="relative">
                   <input
@@ -490,24 +735,33 @@ const POSScreen = () => {
                     placeholder="Quick search products..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    autoFocus={activeTab === "pos"}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setSearchTerm("");
+                      if (e.key === "Enter" && filteredProducts.length > 0) {
+                        handleAddProduct(filteredProducts[0]);
+                      }
+                    }}
                     className="w-full pl-11 pr-11 py-3 rounded-xl bg-gray-900/60 backdrop-blur-md border-2 border-purple-500/30 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-200 text-base"
+                    aria-label="Search products"
                   />
                   <Search
                     className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-400"
                     size={20}
+                    aria-hidden="true"
                   />
                   {searchTerm && (
                     <button
                       onClick={() => setSearchTerm("")}
                       className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      aria-label="Clear search"
                     >
-                      <X size={20} />
+                      <X size={20} aria-hidden="true" />
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Scrollable Products Grid */}
               <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
                 <ProductGrid
                   products={filteredProducts}
@@ -517,8 +771,8 @@ const POSScreen = () => {
               </div>
             </div>
 
-            {/* RIGHT COLUMN - Current Bill Section */}
-            <div className="hidden lg:block w-96 xl:w-md bg-gray-900/20 max-h-screen overflow-hidden">
+            {/* RIGHT COLUMN - Current Bill Section (Desktop) */}
+            <div className="hidden lg:block w-96 xl:w-[420px] bg-gray-900/20 max-h-screen overflow-hidden">
               <div className="h-full overflow-y-auto">
                 <CurrentBill
                   bill={activeBill}
@@ -530,14 +784,16 @@ const POSScreen = () => {
                   onOpenPayment={handleOpenPaymentModal}
                   onVoidBill={handleVoidBill}
                   onShowReceipt={() => setShowReceiptModal(true)}
+                  isAddingRound={addingRound}
+                  stockWarnings={stockWarnings}
                 />
               </div>
             </div>
 
-            {/* Mobile Current Bill - Shows as overlay/modal */}
+            {/* Mobile Current Bill Modal */}
             {activeBill && (
               <div className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-end">
-                <div className="w-full max-h-[80vh] bg-gray-900 rounded-t-2xl border-t-2 border-purple-500/30 overflow-hidden">
+                <div className="w-full max-h-[85vh] bg-gray-900 rounded-t-2xl border-t-2 border-purple-500/30 overflow-hidden flex flex-col">
                   <CurrentBill
                     bill={activeBill}
                     onClose={handleCloseView}
@@ -548,6 +804,8 @@ const POSScreen = () => {
                     onOpenPayment={handleOpenPaymentModal}
                     onVoidBill={handleVoidBill}
                     onShowReceipt={() => setShowReceiptModal(true)}
+                    isAddingRound={addingRound}
+                    stockWarnings={stockWarnings}
                   />
                 </div>
               </div>
@@ -558,7 +816,7 @@ const POSScreen = () => {
         {/* All Bills View */}
         {activeTab === "bills" && (
           <div className="p-4 overflow-y-auto h-full">
-            <AllBillsView bills={payments} />
+            <AllBillsView bills={bills} />
           </div>
         )}
 
@@ -566,7 +824,7 @@ const POSScreen = () => {
         {activeTab === "confirm" && (
           <div className="p-4 overflow-y-auto h-full">
             <ConfirmPaymentsView
-              awaitingConfirmation={payments}
+              awaitingConfirmation={confirmPaidBills}
               canAccessConfirm={canAccessConfirm}
               onProcessPayment={handleProcessPayment}
             />
@@ -577,7 +835,6 @@ const POSScreen = () => {
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-md border-t-2 border-purple-500/30 safe-area-inset-bottom z-50">
         <div className="grid grid-cols-3 h-16">
-          {/* POS Tab */}
           <button
             onClick={() => setActiveTab("pos")}
             className={`
@@ -588,15 +845,16 @@ const POSScreen = () => {
                   : "text-gray-400 active:bg-gray-800/50"
               }
             `}
+            aria-label="POS View"
           >
             <ShoppingCart
               size={24}
               className={activeTab === "pos" ? "text-purple-400" : ""}
+              aria-hidden="true"
             />
             <span className="text-xs font-medium">POS</span>
           </button>
 
-          {/* All Bills Tab */}
           <button
             onClick={() => setActiveTab("bills")}
             className={`
@@ -607,22 +865,23 @@ const POSScreen = () => {
                   : "text-gray-400 active:bg-gray-800/50"
               }
             `}
+            aria-label="All Bills"
           >
             <div className="relative">
               <FileText
                 size={24}
                 className={activeTab === "bills" ? "text-purple-400" : ""}
+                aria-hidden="true"
               />
-              {payments.length > 0 && (
+              {confirmPaidBills.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {payments.length}
+                  {confirmPaidBills.length}
                 </span>
               )}
             </div>
             <span className="text-xs font-medium">Bills</span>
           </button>
 
-          {/* Confirm Tab - Only for Bartenders */}
           {canAccessConfirm && (
             <button
               onClick={() => setActiveTab("confirm")}
@@ -634,15 +893,17 @@ const POSScreen = () => {
                     : "text-gray-400 active:bg-gray-800/50"
                 }
               `}
+              aria-label="Confirm Payments"
             >
               <div className="relative">
                 <ClipboardCheck
                   size={24}
                   className={activeTab === "confirm" ? "text-purple-400" : ""}
+                  aria-hidden="true"
                 />
-                {payments.length > 0 && (
+                {confirmPaidBills.length > 0 && (
                   <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                    {payments.length}
+                    {confirmPaidBills.length}
                   </span>
                 )}
               </div>
@@ -655,7 +916,7 @@ const POSScreen = () => {
       {/* Modals */}
       {showOpenBillsModal && (
         <OpenBillsModal
-          bills={bills}
+          bills={openBills}
           onSelectBill={handleSelectOpenBill}
           onClose={() => setShowOpenBillsModal(false)}
         />
@@ -679,6 +940,72 @@ const POSScreen = () => {
           bill={activeBill}
           onClose={() => setShowReceiptModal(false)}
         />
+      )}
+
+      {/* New Bill Modal */}
+      {showNewBillModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-gray-900 rounded-2xl border border-purple-500/30 p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Create New Bill
+            </h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Enter customer name or table number
+            </p>
+
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Customer name or table number"
+                value={newBillCustomerName}
+                onChange={(e) => setNewBillCustomerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newBillCustomerName.trim()) {
+                    handleCreateNewBill();
+                  }
+                  if (e.key === "Escape") {
+                    setShowNewBillModal(false);
+                  }
+                }}
+                autoFocus
+                disabled={isCreatingBill}
+                className="w-full px-4 py-3 bg-gray-800/60 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all disabled:opacity-50"
+                aria-label="Customer name"
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowNewBillModal(false)}
+                  disabled={isCreatingBill}
+                  className="flex-1 px-4 py-3 bg-gray-800/60 hover:bg-gray-800 border border-gray-700/50 text-gray-300 rounded-lg font-medium transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateNewBill}
+                  disabled={!newBillCustomerName.trim() || isCreatingBill}
+                  className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
+                    !newBillCustomerName.trim() || isCreatingBill
+                      ? "bg-gray-700/50 text-gray-500 cursor-not-allowed"
+                      : "bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/30"
+                  }`}
+                >
+                  {isCreatingBill ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-gray-400 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={18} />
+                      Create Bill
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

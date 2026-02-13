@@ -33,6 +33,7 @@ import AccountsManagement from "../owner/AccountsManagement";
 import SupplierManagement from "../owner/SupplierManagement";
 import InventoryManagement from "../../pages/InventoryManagement";
 import StockTakeEntry from "../../pages/StockTakeEntry";
+import { useBills } from "@/hooks/useBills";
 
 const getStorageKey = (role) => `fw_lastSeen_${role}`;
 
@@ -43,6 +44,7 @@ const MainLayout = () => {
   const [openBillsCount, setOpenBillsCount] = useState(0);
   const [pendingConfirmCount, setPendingConfirmCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { bills: openBills } = useBills({ active: true });
 
   // Check if user has sidebar (Manager and Owner only)
   const hasSidebar = useMemo(() => {
@@ -134,7 +136,6 @@ const MainLayout = () => {
         return;
       }
 
-      const openBills = await BillsService.list();
       setOpenBillsCount(openBills.length);
 
       // Fetch pending confirmation count for bartender
@@ -147,7 +148,7 @@ const MainLayout = () => {
     } catch (error) {
       console.error("Failed to fetch counts:", error);
     }
-  }, [user.role]);
+  }, [user.role, openBills]);
 
   /**
    * Cleanup now works correctly.

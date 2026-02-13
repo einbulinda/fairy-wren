@@ -3,7 +3,7 @@ const { respond, buildContext } = require("../../utils/common");
 
 exports.listCategories = async (req, res, next) => {
   try {
-    const data = await service.list();
+    const data = await service.list(req.query);
     respond(res, 200, data);
   } catch (err) {
     next(err);

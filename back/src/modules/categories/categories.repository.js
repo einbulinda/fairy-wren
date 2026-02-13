@@ -1,11 +1,12 @@
 const getSupabase = require("../../config/supabase");
 
-exports.findAll = async () => {
+exports.findAll = async (filters = {}) => {
   const supabase = getSupabase();
-  return supabase
-    .from("categories")
-    .select("id,name,active,color")
-    .order("name");
+
+  const query = supabase.from("categories").select("id,name,active,color");
+
+  if (filters.status) query.eq("status", filters.status);
+  return query.order("name");
 };
 
 exports.findById = async (id) => {

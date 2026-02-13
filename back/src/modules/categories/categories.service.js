@@ -2,8 +2,8 @@ const repo = require("./categories.repository");
 const auditRepo = require("../audit/audit.repository");
 const { CreateCategoryDTO, UpdateCategoryDTO } = require("./categories.dto");
 
-exports.list = async () => {
-  const { data, error } = await repo.findAll();
+exports.list = async (filters) => {
+  const { data, error } = await repo.findAll(filters);
   if (error) throw new Error("FAILED_TO_FETCH_CATEGORIES");
   return data;
 };

@@ -59,7 +59,7 @@ const ReceiptModal = ({ bill, onClose }) => {
         {bill.rounds.map((round, idx) => (
           <div key={idx} className="thermal-round">
             <div className="thermal-round-header">
-              ROUND {round.round_number} -{" "}
+              ORDER {round.round_number} -{" "}
               {new Date(round.created_at).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -202,7 +202,7 @@ const ReceiptModal = ({ bill, onClose }) => {
                   <div key={idx} className="space-y-2">
                     <div className="text-xs font-bold text-purple-400 flex items-center gap-2">
                       <span className="bg-purple-500/20 px-2 py-0.5 rounded">
-                        ROUND {round.round_number}
+                        ORDER {round.round_number}
                       </span>
                       <span className="text-gray-500">
                         {new Date(round.created_at).toLocaleTimeString([], {

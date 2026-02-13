@@ -7,7 +7,7 @@ const ledgerService = require("../../ledger/ledger.service");
  */
 exports.assertStockAvailable = async (items) => {
   for (const item of items) {
-    const { data } = await productsRepo.getProductCostSnapshot(item.product_id); //
+    const { data } = await productsRepo.getProductCostSnapshot(item.id); //
 
     if (data.current_stock < item.quantity) {
       throw new Error("INSUFFICIENT_STOCK");

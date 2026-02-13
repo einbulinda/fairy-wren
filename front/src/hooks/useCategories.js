@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { CategoriesService } from "@/services/categories.service";
 import { useAppStore } from "@/store/app.store";
 
-export const useCategories = () => {
+export const useCategories = (params = {}) => {
   const categories = useAppStore((s) => s.categories);
   const categoriesLoaded = useAppStore((s) => s.categoriesLoaded);
   const setCategories = useAppStore((s) => s.setCategories);
@@ -10,10 +10,10 @@ export const useCategories = () => {
   useEffect(() => {
     if (categoriesLoaded) return;
 
-    CategoriesService.list()
+    CategoriesService.list(params)
       .then((res) => setCategories(res.data))
       .catch(console.error);
-  }, [categoriesLoaded, setCategories]);
+  }, [categoriesLoaded, setCategories, JSON.stringify(params)]);
 
   // // Load categories
   // const loadCategories = useCallback(async () => {

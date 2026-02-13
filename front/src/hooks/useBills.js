@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { BillsService } from "@/services/bills.service";
 
 export const useBills = (params = {}) => {
@@ -6,140 +6,114 @@ export const useBills = (params = {}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let active = true;
+  // stable dependency
+  const paramsKey = useMemo(() => JSON.stringify(params), [params]);
+
+  /**
+   * Load / reload bills
+   */
+  const loadBills = useCallback(async () => {
     setLoading(true);
-    BillsService.list(params)
-      .then(({ data }) => {
-        if (active) setBills(data);
-      })
-      .catch((err) => {
-        if (active) setError(err);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    setError(null);
 
-    return () => {
-      active = false;
-    };
-  }, [JSON.stringify(params)]);
+    try {
+      const { data } = await BillsService.list(params);
+      setBills(data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [paramsKey]);
 
-  return { bills, loading, error };
+  /**
+   * Initial load + params change
+   */
+  useEffect(() => {
+    loadBills();
+  }, [loadBills]);
 
-  // const loadAllBills = useCallback(async () => {
-  //   setIsLoading(true);
-  //   setError(null);
+  /**
+   * Optimistically replace a bill in state
+   */
+  const replaceBill = useCallback((updatedBill) => {
+    setBills((prev) =>
+      prev.map((b) => (b.id === updatedBill.id ? updatedBill : b)),
+    );
+  }, []);
 
-  //   try {
-  //     const data = await fetchAllBills();
-  //     setAllBills(usersBills(data, user));
-  //   } catch (err) {
-  //     setError(err.message || "Failed to load bills");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // }, [user]);
+  /**
+   * Create a new bill (optimistic insert)
+   */
+  const createBill = useCallback(async (payload) => {
+    setError(null);
 
-  // /**
-  //  * Create a new bill
-  //  */
-  // const openBill = async (payload) => {
-  //   setIsLoading(true);
-  //   setError(null);
+    const { data } = await BillsService.create(payload);
 
-  //   try {
-  //     const newBill = await createBill(payload);
-  //     setBills((prev) => [newBill, ...prev]); // optimistic insert
-  //     return newBill;
-  //   } catch (err) {
-  //     setError(err.message || "Failed to create bill");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+    setBills((prev) => [data, ...prev]);
+    return data;
+  }, []);
 
-  // /**
-  //  * Add a round to a bill
-  //  */
-  // const addRound = async (billId, payload) => {
-  //   setIsLoading(true);
-  //   setError(null);
+  /**
+   * Add a round to a bill
+   * (expects backend to return updated bill)
+   */
+  const addRound = useCallback(
+    async (billId, payload) => {
+      setError(null);
 
-  //   try {
-  //     const updatedBill = await addBillRound(billId, payload);
+      const updatedBill = await BillsService.addRound(billId, payload);
+      replaceBill(updatedBill);
 
-  //     setBills((prev) =>
-  //       prev.map((bill) => (bill.id === billId ? updatedBill : bill)),
-  //     );
+      return updatedBill;
+    },
+    [replaceBill],
+  );
 
-  //     return updatedBill;
-  //   } catch (err) {
-  //     setError(err.message || "Failed to add round");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+  /**
+   * Mark bill as paid
+   */
+  const payBill = useCallback(
+    async (billId, payload) => {
+      setError(null);
 
-  // /**
-  //  * Mark bill as paid
-  //  */
-  // const payBill = async (billId, payload) => {
-  //   setIsLoading(true);
-  //   setError(null);
+      const updatedBill = await BillsService.pay(billId, payload);
+      replaceBill(updatedBill);
 
-  //   try {
-  //     const updatedBill = await markBillPaid(billId, payload);
+      return updatedBill;
+    },
+    [replaceBill],
+  );
 
-  //     setBills((prev) =>
-  //       prev.map((bill) => (bill.id === billId ? updatedBill : bill)),
-  //     );
+  /**
+   * Void bill
+   */
+  const voidBill = useCallback(
+    async (billId) => {
+      setError(null);
 
-  //     return updatedBill;
-  //   } catch (err) {
-  //     setError(err.message || "Failed to mark bill as paid");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+      const updatedBill = await BillsService.void(billId);
+      replaceBill(updatedBill);
 
-  // /**
-  //  * Void bill
-  //  */
-  // const cancelBill = async (billId) => {
-  //   setIsLoading(true);
-  //   setError(null);
-  //   try {
-  //     const updatedBill = await voidBill(billId);
-  //     setBills((prev) =>
-  //       prev.map((bill) => (bill.id === billId ? updatedBill : bill)),
-  //     );
-  //     return updatedBill;
-  //   } catch (err) {
-  //     setError(err.message || "Failed to void bill");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+      return updatedBill;
+    },
+    [replaceBill],
+  );
 
-  // /**
-  //  * Auto-load open bills on mount
-  //  */
-  // useEffect(() => {
-  //   // loadOpenBills();
-  //   loadAllBills();
-  // }, [loadAllBills]);
+  return {
+    // state
+    bills,
+    loading,
+    error,
 
-  // return {
-  //   bills,
-  //   isLoading,
-  //   error,
-  //   allBills,
+    // core actions
+    reload: loadBills,
+    createBill,
 
-  //   reload: loadAllBills,
-  //   openBill,
-  //   addRound,
-  //   payBill,
-  //   cancelBill,
-  // };
+    // mutations
+    setBills, // exposed intentionally (POS optimistic updates)
+    addRound,
+    payBill,
+    voidBill,
+  };
 };
