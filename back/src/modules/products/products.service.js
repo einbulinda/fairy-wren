@@ -4,7 +4,9 @@ const auditRepo = require("../audit/audit.repository");
 
 exports.list = async (filters) => {
   const { data, error } = await repo.findAll(filters);
-  if (error) throw new Error("FAILED_TO_FETCH_PRODUCTS");
+  if (error) {
+    throw new Error("FAILED_TO_FETCH_PRODUCTS");
+  }
   return data;
 };
 

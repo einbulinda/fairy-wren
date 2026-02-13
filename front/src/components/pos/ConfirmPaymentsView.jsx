@@ -30,20 +30,18 @@ import { PaymentService } from "@/services/payment.service";
  * - Access control for bartender role
  */
 
-const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
+const ConfirmPaymentsView = ({
+  awaitingConfirmation,
+  canAccessConfirm,
+  onProcessPayment,
+}) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedBillId, setExpandedBillId] = useState(null);
   const [sortConfig, setSortConfig] = useState({
     key: "marked_paid_at",
     direction: "desc",
   });
-  const [paidBills, setPaidBills] = useState([]);
-
-  useEffect(() => {
-    PaymentService.listBillsWithPayments({ status: "awaiting_confirmation" })
-      .then((res) => res.data)
-      .then((data) => setPaidBills(data));
-  }, []);
+  const [confirmingBillId, setConfirmingBillId] = useState(null);
 
   // Copy to clipboard helper
   const copyBillId = (text) => {
@@ -78,7 +76,7 @@ const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
 
   // Filter and sort bills
   const filteredAndSortedBills = useMemo(() => {
-    let filtered = paidBills;
+    let filtered = awaitingConfirmation;
 
     // Apply search filter
     if (searchTerm) {
@@ -127,7 +125,7 @@ const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
     });
 
     return sorted;
-  }, [paidBills, searchTerm, sortConfig]);
+  }, [awaitingConfirmation, searchTerm, sortConfig]);
 
   // Access restriction check
   if (!canAccessConfirm) {
@@ -143,7 +141,7 @@ const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
   }
 
   // Empty state
-  if (paidBills.length === 0) {
+  if (awaitingConfirmation.length === 0) {
     return (
       <div className="text-center text-gray-400 py-16 bg-gray-900/20 backdrop-blur-sm rounded-xl border border-purple-500/10">
         <ClipboardCheck
@@ -158,6 +156,18 @@ const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
       </div>
     );
   }
+
+  const handleConfirmPayment = async (bill) => {
+    setConfirmingBillId(bill.id);
+    try {
+      await onProcessPayment(bill);
+      toast.success("Payment confirmed");
+    } catch (err) {
+      toast.error(err.message || "Confirmation failed");
+    } finally {
+      setConfirmingBillId(null);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -293,7 +303,7 @@ const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
                       </td>
                       <td className="px-4 py-4">
                         <span className="text-sm text-gray-300">
-                          {bill.created_by.name}
+                          {bill.created_by_user.name}
                         </span>
                       </td>
                       <td className="px-4 py-4">
@@ -320,14 +330,14 @@ const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
                                   minute: "2-digit",
                                 },
                               )
-                            : "N/A"}
+                            : "Pending"}
                         </span>
                       </td>
                       <td className="px-4 py-4">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onProcessPayment(bill);
+                            handleConfirmPayment(bill);
                           }}
                           className="px-4 py-2 bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:shadow-green-500/40 transition-all duration-200 border border-green-500/30 mx-auto"
                         >
@@ -464,7 +474,7 @@ const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
                         </h3>
                       </div>
                       <p className="text-sm text-gray-400 ml-6">
-                        Served by: {bill.created_by.name}
+                        Served by: {bill.created_by_user.name}
                       </p>
                       {bill.marked_paid_at && (
                         <p className="text-xs text-gray-500 ml-6 mt-1">
@@ -583,7 +593,7 @@ const ConfirmPaymentsView = ({ canAccessConfirm, onProcessPayment }) => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onProcessPayment(bill);
+                    handleConfirmPayment(bill);
                   }}
                   className="w-full mt-3 py-3 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 transition-all duration-200 border border-green-500/30"
                 >
