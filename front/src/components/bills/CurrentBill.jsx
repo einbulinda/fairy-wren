@@ -48,8 +48,9 @@ const CurrentBill = ({
 
   return (
     <div className="lg:col-span-1 flex flex-col h-full">
-      <div className="bg-linear-to-br from-gray-900/60 to-gray-800/60 backdrop-blur-md rounded-xl border border-purple-500/20 p-5 shadow-xl flex-1 overflow-hidden">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-linear-to-br from-gray-900/60 to-gray-800/60 backdrop-blur-md rounded-xl border border-purple-500/20 p-5 shadow-xl flex-1 overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4 shrink-0">
           <h3 className="text-lg font-bold text-purple-300 flex items-center gap-2">
             <Receipt size={20} />
             Current Bill
@@ -65,6 +66,7 @@ const CurrentBill = ({
           )}
         </div>
 
+        {/* Scrollable Content Area */}
         {bill ? (
           <div className="space-y-4 flex-1 overflow-y-auto">
             {/* Customer Info */}
@@ -373,9 +375,9 @@ const CurrentBill = ({
           </div>
         )}
 
-        {/* Action Buttons - Sticky Footer */}
+        {/* Action Buttons - Fixed Footer */}
         {bill && (
-          <div className="space-y-2.5 pt-4 mt-4 border-t border-purple-500/10">
+          <div className="space-y-2.5 pt-4 mt-4 border-t border-purple-500/10 shrink-0">
             {/* Add Round Button */}
             {currentRoundItems.length > 0 && (
               <button
