@@ -30,19 +30,14 @@ router.post(
   "/stock-take-sessions/:id/complete",
   controller.completeStockTakeSession,
 );
-router.post(
-  "/stock-take-sessions/:id/approve",
-  controller.approveStockTake,
-);
-router.post(
-  "/stock-take-sessions/:id/reject",
-  controller.rejectStockTake,
-);
+router.post("/stock-take-sessions/:id/approve", controller.approveStockTake);
+router.post("/stock-take-sessions/:id/reject", controller.rejectStockTake);
 
 /* ======================================================
    STOCK TAKE REPORTING
    ====================================================== */
 router.get("/stock-take-adjustments", controller.getStockTakeAdjustments);
+router.get("/reports/stock-take", controller.getStockTakeReports);
 
 /* ======================================================
    INVENTORY LEDGER

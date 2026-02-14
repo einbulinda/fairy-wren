@@ -7,7 +7,7 @@ CREATE TABLE public.approval_requests (
     requested_by uuid NOT NULL,
     status character varying DEFAULT 'pending'::character varying CHECK (
         status::text = ANY (
-            ARRAY ['pending'::character varying, 'approved'::character varying, 'rejected'::character varying]::text []
+            ARRAY ['pending'::character varying::text, 'approved'::character varying::text, 'rejected'::character varying::text]
         )
     ),
     created_at timestamp with time zone DEFAULT now(),
@@ -43,6 +43,28 @@ CREATE TABLE public.bills (
     CONSTRAINT bills_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
     CONSTRAINT fk_bills_updated_by FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.capital_contributions (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    amount numeric NOT NULL,
+    cash_account_id uuid,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT capital_contributions_pkey PRIMARY KEY (id),
+    CONSTRAINT capital_contributions_cash_account_id_fkey FOREIGN KEY (cash_account_id) REFERENCES public.cash_accounts(id)
+);
+CREATE TABLE public.cash_accounts (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    name text NOT NULL,
+    type text CHECK (
+        type = ANY (
+            ARRAY ['bank'::text, 'petty_cash'::text, 'mobile_money'::text]
+        )
+    ),
+    gl_account_id uuid NOT NULL,
+    active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT cash_accounts_pkey PRIMARY KEY (id),
+    CONSTRAINT cash_accounts_gl_account_id_fkey FOREIGN KEY (gl_account_id) REFERENCES public.chart_of_accounts(id)
+);
 CREATE TABLE public.categories (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     name character varying NOT NULL,
@@ -54,7 +76,6 @@ CREATE TABLE public.categories (
 );
 CREATE TABLE public.chart_of_accounts (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
-    code character varying NOT NULL UNIQUE,
     name character varying NOT NULL,
     account_class text NOT NULL CHECK (
         account_class = ANY (
@@ -65,8 +86,25 @@ CREATE TABLE public.chart_of_accounts (
     active boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
+    normal_balance text CHECK (
+        normal_balance = ANY (ARRAY ['debit'::text, 'credit'::text])
+    ),
+    is_control_account boolean DEFAULT false,
+    code character varying,
     CONSTRAINT chart_of_accounts_pkey PRIMARY KEY (id),
     CONSTRAINT chart_of_accounts_parent_fk FOREIGN KEY (parent_id) REFERENCES public.chart_of_accounts(id)
+);
+CREATE TABLE public.customer_invoices (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    customer_name text NOT NULL,
+    total numeric NOT NULL,
+    status text CHECK (
+        status = ANY (
+            ARRAY ['open'::text, 'partially_paid'::text, 'paid'::text]
+        )
+    ),
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT customer_invoices_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.customer_tabs (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -76,6 +114,12 @@ CREATE TABLE public.customer_tabs (
     created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT customer_tabs_pkey PRIMARY KEY (id),
     CONSTRAINT customer_tabs_bill_id_fkey FOREIGN KEY (bill_id) REFERENCES public.bills(id)
+);
+CREATE TABLE public.employees (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    name text NOT NULL,
+    mpesa_no text NOT NULL,
+    CONSTRAINT employees_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.expenses (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -100,13 +144,10 @@ CREATE TABLE public.inventory (
 );
 CREATE TABLE public.inventory_items (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
-    name character varying NOT NULL,
     inventory_account_id uuid NOT NULL,
     cogs_account_id uuid NOT NULL,
-    cost_price numeric NOT NULL,
-    CONSTRAINT inventory_items_pkey PRIMARY KEY (id),
-    CONSTRAINT inventory_asset_fk FOREIGN KEY (inventory_account_id) REFERENCES public.chart_of_accounts(id),
-    CONSTRAINT inventory_cogs_fk FOREIGN KEY (cogs_account_id) REFERENCES public.chart_of_accounts(id)
+    product_id uuid UNIQUE,
+    CONSTRAINT inventory_items_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.inventory_ledger (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -123,20 +164,54 @@ CREATE TABLE public.inventory_ledger (
     created_at timestamp with time zone DEFAULT now(),
     unit_cost numeric,
     CONSTRAINT inventory_ledger_pkey PRIMARY KEY (id),
-    CONSTRAINT inventory_ledger_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
-    CONSTRAINT inventory_ledger_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+    CONSTRAINT inventory_ledger_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
+    CONSTRAINT inventory_ledger_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
 );
 CREATE TABLE public.inventory_movements (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
-    item_id uuid NOT NULL,
+    product_id uuid NOT NULL,
     movement_date date NOT NULL,
     quantity numeric NOT NULL,
     movement_type text NOT NULL CHECK (
-        movement_type = ANY (ARRAY ['purchase'::text, 'sale'::text])
+        movement_type = ANY (
+            ARRAY ['purchase'::text, 'sale'::text, 'adjustment_in'::text, 'adjustment_out'::text, 'opening_balance'::text]
+        )
     ),
     created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT inventory_movements_pkey PRIMARY KEY (id),
-    CONSTRAINT inventory_movements_item_fk FOREIGN KEY (item_id) REFERENCES public.inventory_items(id)
+    reference_type character varying NOT NULL,
+    reference_id uuid NOT NULL,
+    reason character varying,
+    notes character varying,
+    unit_cost numeric DEFAULT 0,
+    CONSTRAINT inventory_movements_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.inventory_receipt_items (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    receipt_id uuid NOT NULL,
+    product_id uuid NOT NULL,
+    quantity numeric NOT NULL,
+    unit_cost numeric NOT NULL DEFAULT 0,
+    line_total numeric NOT NULL DEFAULT 0,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT inventory_receipt_items_pkey PRIMARY KEY (id),
+    CONSTRAINT inventory_receipt_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
+    CONSTRAINT inventory_receipt_items_receipt_id_fkey FOREIGN KEY (receipt_id) REFERENCES public.inventory_receipts(id)
+);
+CREATE TABLE public.inventory_receipts (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    supplier_id uuid NOT NULL,
+    invoice_number character varying NOT NULL,
+    purchase_date date NOT NULL,
+    total_amount numeric NOT NULL DEFAULT 0,
+    status character varying NOT NULL DEFAULT 'posted'::character varying,
+    notes text,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by uuid,
+    updated_by uuid,
+    CONSTRAINT inventory_receipts_pkey PRIMARY KEY (id),
+    CONSTRAINT inventory_receipts_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
+    CONSTRAINT inventory_receipts_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.journal_entries (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -144,6 +219,9 @@ CREATE TABLE public.journal_entries (
     reference text,
     description text,
     created_at timestamp with time zone DEFAULT now(),
+    source_type text,
+    source_id uuid,
+    reversed_entry_id uuid,
     CONSTRAINT journal_entries_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.journal_lines (
@@ -153,8 +231,8 @@ CREATE TABLE public.journal_lines (
     debit numeric DEFAULT 0,
     credit numeric DEFAULT 0,
     CONSTRAINT journal_lines_pkey PRIMARY KEY (id),
-    CONSTRAINT journal_lines_entry_fk FOREIGN KEY (journal_entry_id) REFERENCES public.journal_entries(id),
-    CONSTRAINT journal_lines_account_fk FOREIGN KEY (account_id) REFERENCES public.chart_of_accounts(id)
+    CONSTRAINT journal_lines_account_fk FOREIGN KEY (account_id) REFERENCES public.chart_of_accounts(id),
+    CONSTRAINT journal_lines_entry_fk FOREIGN KEY (journal_entry_id) REFERENCES public.journal_entries(id)
 );
 CREATE TABLE public.payments (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -162,19 +240,34 @@ CREATE TABLE public.payments (
     amount numeric NOT NULL CHECK (amount > 0::numeric),
     payment_type character varying NOT NULL CHECK (
         payment_type::text = ANY (
-            ARRAY ['cash'::character varying, 'mpesa'::character varying]::text []
+            ARRAY ['cash'::character varying::text, 'mpesa'::character varying::text]
         )
     ),
     is_paid boolean DEFAULT false,
-    mpesa_code character varying,
+    mpesa_code text,
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
     updated_by uuid,
+    status USER - DEFINED DEFAULT 'pending'::payment_status,
     CONSTRAINT payments_pkey PRIMARY KEY (id),
-    CONSTRAINT payments_bill_id_fkey FOREIGN KEY (bill_id) REFERENCES public.bills(id),
     CONSTRAINT fk_payments_created_by FOREIGN KEY (created_by) REFERENCES public.profiles(id),
-    CONSTRAINT fk_payments_updated_by FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
+    CONSTRAINT fk_payments_updated_by FOREIGN KEY (updated_by) REFERENCES public.profiles(id),
+    CONSTRAINT payments_bill_id_fkey FOREIGN KEY (bill_id) REFERENCES public.bills(id)
+);
+CREATE TABLE public.payroll_items (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    payroll_run_id uuid,
+    employee_id uuid,
+    net_amount numeric NOT NULL,
+    CONSTRAINT payroll_items_pkey PRIMARY KEY (id),
+    CONSTRAINT payroll_items_payroll_run_id_fkey FOREIGN KEY (payroll_run_id) REFERENCES public.payroll_runs(id),
+    CONSTRAINT payroll_items_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES public.employees(id)
+);
+CREATE TABLE public.payroll_runs (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    period date NOT NULL,
+    CONSTRAINT payroll_runs_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.products (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -216,9 +309,13 @@ CREATE TABLE public.round_items (
     product_id uuid NOT NULL,
     quantity integer NOT NULL CHECK (quantity > 0),
     price numeric NOT NULL CHECK (price >= 0::numeric),
+    inventory_posted boolean DEFAULT false CHECK (
+        inventory_posted = true
+        OR inventory_posted = false
+    ),
     CONSTRAINT round_items_pkey PRIMARY KEY (id),
-    CONSTRAINT round_items_round_id_fkey FOREIGN KEY (round_id) REFERENCES public.rounds(id),
-    CONSTRAINT round_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
+    CONSTRAINT round_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
+    CONSTRAINT round_items_round_id_fkey FOREIGN KEY (round_id) REFERENCES public.rounds(id)
 );
 CREATE TABLE public.rounds (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -239,6 +336,26 @@ CREATE TABLE public.sales (
     CONSTRAINT sales_pkey PRIMARY KEY (id),
     CONSTRAINT sales_revenue_account_fk FOREIGN KEY (revenue_account_id) REFERENCES public.chart_of_accounts(id)
 );
+CREATE TABLE public.stock_take_audit_log (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    stock_take_id uuid NOT NULL,
+    action_type character varying NOT NULL CHECK (
+        action_type::text = ANY (
+            ARRAY ['created'::character varying::text, 'item_added'::character varying::text, 'item_updated'::character varying::text, 'completed'::character varying::text, 'approved'::character varying::text, 'rejected'::character varying::text, 'reopened'::character varying::text, 'deleted'::character varying::text]
+        )
+    ),
+    performed_by_id uuid NOT NULL,
+    performed_by_name character varying,
+    action_timestamp timestamp with time zone DEFAULT now(),
+    old_values jsonb,
+    new_values jsonb,
+    ip_address inet,
+    user_agent text,
+    notes text,
+    CONSTRAINT stock_take_audit_log_pkey PRIMARY KEY (id),
+    CONSTRAINT stock_take_audit_log_performed_by_id_fkey FOREIGN KEY (performed_by_id) REFERENCES public.profiles(id),
+    CONSTRAINT stock_take_audit_log_stock_take_id_fkey FOREIGN KEY (stock_take_id) REFERENCES public.stock_takes(id)
+);
 CREATE TABLE public.stock_take_items (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     stock_take_id uuid,
@@ -247,16 +364,62 @@ CREATE TABLE public.stock_take_items (
     physical_qty integer NOT NULL,
     variance integer NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
+    cost_per_unit numeric,
+    total_value_adjustment numeric,
+    variance_percentage numeric,
+    reason character varying CHECK (
+        reason IS NULL
+        OR (
+            reason::text = ANY (
+                ARRAY ['receiving_error'::character varying::text, 'count_mistake'::character varying::text, 'damaged_broken'::character varying::text, 'theft_shortage'::character varying::text, 'spillage_waste'::character varying::text, 'expired_product'::character varying::text, 'system_error'::character varying::text, 'transfer'::character varying::text, 'other'::character varying::text]
+            )
+        )
+    ),
+    notes text,
+    adjustment_frequency integer DEFAULT 0,
+    previous_adjustment_date timestamp with time zone,
     CONSTRAINT stock_take_items_pkey PRIMARY KEY (id),
-    CONSTRAINT stock_take_items_stock_take_id_fkey FOREIGN KEY (stock_take_id) REFERENCES public.stock_takes(id),
-    CONSTRAINT stock_take_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
+    CONSTRAINT stock_take_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
+    CONSTRAINT stock_take_items_stock_take_id_fkey FOREIGN KEY (stock_take_id) REFERENCES public.stock_takes(id)
 );
 CREATE TABLE public.stock_takes (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
-    performed_by uuid,
     created_at timestamp with time zone DEFAULT now(),
+    performed_by_id uuid,
+    performed_by_role character varying,
+    stock_take_name character varying,
+    stock_take_type character varying DEFAULT 'full'::character varying CHECK (
+        stock_take_type::text = ANY (
+            ARRAY ['full'::character varying::text, 'partial'::character varying::text, 'spot_check'::character varying::text, 'cycle_count'::character varying::text]
+        )
+    ),
+    reviewed_by_id uuid,
+    reviewed_at timestamp with time zone,
+    approval_status character varying DEFAULT 'pending'::character varying CHECK (
+        approval_status::text = ANY (
+            ARRAY ['pending'::character varying::text, 'approved'::character varying::text, 'rejected'::character varying::text, 'under_review'::character varying::text]
+        )
+    ),
+    approval_notes text,
+    completed_at timestamp with time zone,
+    adjustments_applied boolean DEFAULT false,
+    location character varying,
     CONSTRAINT stock_takes_pkey PRIMARY KEY (id),
-    CONSTRAINT stock_takes_performed_by_fkey FOREIGN KEY (performed_by) REFERENCES public.profiles(id)
+    CONSTRAINT stock_takes_performed_by_id_fkey FOREIGN KEY (performed_by_id) REFERENCES public.profiles(id),
+    CONSTRAINT stock_takes_reviewed_by_id_fkey FOREIGN KEY (reviewed_by_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.supplier_bills (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    supplier_id uuid,
+    total numeric NOT NULL,
+    status text CHECK (
+        status = ANY (
+            ARRAY ['open'::text, 'partially_paid'::text, 'paid'::text]
+        )
+    ),
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT supplier_bills_pkey PRIMARY KEY (id),
+    CONSTRAINT supplier_bills_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES public.suppliers(id)
 );
 CREATE TABLE public.suppliers (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -268,7 +431,9 @@ CREATE TABLE public.suppliers (
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_by uuid,
+    contact_person character varying,
+    address text,
     CONSTRAINT suppliers_pkey PRIMARY KEY (id),
-    CONSTRAINT suppliers_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id),
-    CONSTRAINT suppliers_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+    CONSTRAINT suppliers_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
+    CONSTRAINT suppliers_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
 );

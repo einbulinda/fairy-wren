@@ -157,6 +157,19 @@ exports.getStockTakeAdjustments = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /inventory/reports/stock-take
+ * Alias for getStockTakeAdjustments with cleaner endpoint path
+ */
+exports.getStockTakeReports = async (req, res, next) => {
+  try {
+    const data = await stockTakeService.getAdjustmentsReport(req.query);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 /* ======================================================
    INVENTORY LEDGER
    ====================================================== */

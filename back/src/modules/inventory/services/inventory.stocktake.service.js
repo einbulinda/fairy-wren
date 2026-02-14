@@ -1,5 +1,6 @@
 const stockTakeRepo = require("../repos/inventory.stocktake.repository");
 const readRepo = require("../repos/inventory.read.repository");
+const stockTakeReadRepo = require("../repos/inventory.stocktake.read.repository");
 const adjustmentsRepo = require("../repos/inventory.adjustments.repository");
 const auditRepo = require("../../audit/audit.repository");
 
@@ -99,6 +100,7 @@ exports.approve = async (stockTakeId, { notes }, context) => {
   );
 
   if (error) {
+    console.log("Error approving stock take:", error);
     throw new Error("FAILED_TO_APPROVE_STOCK_TAKE");
   }
 
@@ -168,9 +170,10 @@ exports.getSessionItems = async (sessionId) => {
 
 exports.getAdjustmentsReport = async (filters) => {
   const { data, error } =
-    await adjustmentsRepo.getStockTakeAdjustments(filters);
+    await stockTakeReadRepo.getStockTakeAdjustments(filters);
 
   if (error) {
+    console.log("Error fetching stock take adjustments:", error);
     throw new Error("FAILED_TO_FETCH_STOCK_TAKE_ADJUSTMENTS");
   }
 

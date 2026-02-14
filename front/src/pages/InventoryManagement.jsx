@@ -3,20 +3,23 @@ import { useState, useMemo } from "react";
 import { useStockTake } from "../hooks/inventory/useStockTake";
 import { useSuppliers } from "../hooks/useSuppliers";
 import { useReceiveInventory } from "../hooks/inventory/useReceiveInventory";
+import { useAuth } from "../hooks/useAuth";
 import {
   Package,
   TruckIcon,
-  ClipboardList,
   ChartNoAxesCombined,
+  ClipboardCheck,
 } from "lucide-react";
 import StockTable from "../components/inventory/StockTable";
 import StockTakeView from "../components/inventory/StockTakeView";
 import StockTakeReports from "../components/inventory/StockTakeReports";
 import ReceiveInventoryTab from "../components/inventory/ReceiveInventoryTab";
+import ApprovalTab from "../components/inventory/ApprovalTab";
 import { useProducts } from "@/hooks/useProducts";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
 const InventoryManagement = () => {
+  const { user } = useAuth();
   const { products: stock, loading: productsLoading } = useProducts({
     active: true,
   });
@@ -25,7 +28,7 @@ const InventoryManagement = () => {
   const { suppliers, addSupplier, reload: reloadSuppliers } = useSuppliers();
   const { receiveInventory } = useReceiveInventory();
 
-  const [activeTab, setActiveTab] = useState("stock"); // 'stock' | 'receive'
+  const [activeTab, setActiveTab] = useState("stock"); // 'stock' | 'receive' | 'reports' | 'approvals'
   const [showStockTake, setShowStockTake] = useState(false);
 
   // Calculate stats
@@ -93,7 +96,7 @@ const InventoryManagement = () => {
           </div>
 
           {/* Stock Take Button - Only show on stock tab */}
-          {activeTab === "stock" && (
+          {/* {activeTab === "stock" && (
             <button
               onClick={handleStockTake}
               className="
@@ -112,7 +115,7 @@ const InventoryManagement = () => {
               <ClipboardList className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
               <span>Stock Take</span>
             </button>
-          )}
+          )} */}
         </div>
 
         {/* Tabs */}
@@ -172,6 +175,27 @@ const InventoryManagement = () => {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-linear-to-r from-purple-500 to-pink-500" />
             )}
           </button>
+
+          {user?.role === "owner" && (
+            <button
+              onClick={() => setActiveTab("approvals")}
+              className={`
+                flex items-center gap-2 px-4 sm:px-6 py-3 font-semibold transition-all relative
+                ${
+                  activeTab === "approvals"
+                    ? "text-purple-400"
+                    : "text-gray-400 hover:text-gray-300"
+                }
+              `}
+            >
+              <ClipboardCheck className="w-5 h-5" />
+              <span className="hidden sm:inline">Approvals</span>
+              <span className="sm:hidden">Approvals</span>
+              {activeTab === "approvals" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-linear-to-r from-purple-500 to-pink-500" />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -445,6 +469,8 @@ const InventoryManagement = () => {
         </>
       ) : activeTab == "reports" ? (
         <StockTakeReports />
+      ) : activeTab === "approvals" ? (
+        <ApprovalTab />
       ) : (
         <ReceiveInventoryTab
           products={stock}

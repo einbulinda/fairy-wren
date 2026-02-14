@@ -24,7 +24,7 @@ exports.getStockTakeAdjustments = async (filters) => {
     );
 
   if (filters.status) {
-    query = query.eq("stock_takes.status", filters.status);
+    query = query.eq("stock_takes.approval_status", filters.status);
   }
 
   if (filters.performedById) {

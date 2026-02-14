@@ -24,7 +24,9 @@ export const inventoryService = {
     api.get("inventory/reports/stock-take", { params }).then((res) => res.data),
 
   createStockTakeSession: (payload) =>
-    api.post("/inventory/stock-take-sessions", payload).then((res) => res.data.data),
+    api
+      .post("/inventory/stock-take-sessions", payload)
+      .then((res) => res.data.data),
 
   recordStockTakeItem: (id, payload) =>
     api
@@ -43,4 +45,14 @@ export const inventoryService = {
     api
       .get(`/inventory/stock-take-sessions/${sessionId}/items`)
       .then((res) => res.data.data),
+
+  approveStockTake: (stockTakeId, payload) =>
+    api
+      .post(`/inventory/stock-take-sessions/${stockTakeId}/approve`, payload)
+      .then((res) => res.data),
+
+  rejectStockTake: (stockTakeId, payload) =>
+    api
+      .post(`/inventory/stock-take-sessions/${stockTakeId}/reject`, payload)
+      .then((res) => res.data),
 };

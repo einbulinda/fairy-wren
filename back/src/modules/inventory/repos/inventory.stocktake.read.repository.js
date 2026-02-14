@@ -1,4 +1,4 @@
-const getSupabase = require("../../config/supabase");
+const getSupabase = require("../../../config/supabase");
 
 /**
  * Stock take adjustment report
@@ -18,6 +18,3 @@ exports.getStockTakeAdjustments = async ({ startDate, endDate }) => {
 
   return query;
 };
-
-
-
