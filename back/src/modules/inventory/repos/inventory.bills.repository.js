@@ -1,4 +1,4 @@
-const getSupabase = require("../../config/supabase");
+const getSupabase = require("../../../config/supabase");
 
 /* -------------Get all items for a bill (used during void) ----------- */
 exports.getBillItems = async (billId) => {
@@ -9,8 +9,8 @@ exports.getBillItems = async (billId) => {
       `
       quantity,
       product_id,
-      round:rounds!inner(bill_id)
+      rounds!inner(bill_id)
     `,
     )
-    .eq("round.bill_id", billId);
+    .eq("rounds.bill_id", billId);
 };

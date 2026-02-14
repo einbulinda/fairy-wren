@@ -49,6 +49,8 @@ async function isBillAlreadyPosted(billId) {
     .eq("bill_id", billId)
     .limit(1)
     .single();
+
+  return data !== null && !error;
 }
 
 /**

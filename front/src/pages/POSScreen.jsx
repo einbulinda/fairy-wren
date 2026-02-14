@@ -3,7 +3,6 @@ import { useAuth } from "../hooks/useAuth";
 import { useBills } from "../hooks/useBills";
 import { useProducts } from "../hooks/useProducts";
 import { useCategories } from "../hooks/useCategories";
-import { BillsService } from "@/services/bills.service";
 import { PaymentService } from "@/services/payment.service";
 import {
   ShoppingCart,
@@ -41,6 +40,7 @@ const POSScreen = () => {
     bills,
     setBills,
     createBill,
+    voidBill,
     addRound: addRoundService,
     reload: reloadBills,
     loading: billsLoading,
@@ -129,7 +129,7 @@ const POSScreen = () => {
       }
       return warnings;
     }, {});
-  }, [currentRoundItems, activeBill, products]);
+  }, [currentRoundItems, activeBill, products, getTotalQuantityInBill]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -191,13 +191,16 @@ const POSScreen = () => {
       setCurrentRoundItems([]);
       setShowNewBillModal(false);
       toast.success(`Bill created for ${newBill.customer_name}`);
+
+      // Refresh open bills list to ensure it's current
+      await reloadBills();
     } catch (error) {
       toast.error("Failed to create bill");
       console.error(error);
     } finally {
       setIsCreatingBill(false);
     }
-  }, [newBillCustomerName, createBill]);
+  }, [newBillCustomerName, createBill, reloadBills]);
 
   // Select an OPEN bill from modal
   const handleSelectOpenBill = (bill) => {
@@ -257,7 +260,7 @@ const POSScreen = () => {
         ]);
       }
     },
-    [activeBill, currentRoundItems],
+    [activeBill, currentRoundItems, getTotalQuantityInBill],
   );
 
   const handleUpdateQuantity = useCallback(
@@ -293,7 +296,7 @@ const POSScreen = () => {
           .filter((item) => item.quantity > 0),
       );
     },
-    [products],
+    [products, getTotalQuantityInBill],
   );
 
   const handleRemoveItem = useCallback((itemId) => {
@@ -369,6 +372,9 @@ const POSScreen = () => {
       );
 
       toast.success("Round added to bill!", { icon: "✅" });
+
+      // Refresh open bills list to ensure it's current
+      await reloadBills();
     } catch (error) {
       console.error("Round addition failed:", error);
 
@@ -389,7 +395,15 @@ const POSScreen = () => {
     } finally {
       setAddingRound(false);
     }
-  }, [activeBill, currentRoundItems, products, addRoundService, setBills]);
+  }, [
+    activeBill,
+    currentRoundItems,
+    products,
+    addRoundService,
+    setBills,
+    reloadBills,
+    getTotalQuantityInBill,
+  ]);
 
   const handleCloseView = () => {
     if (currentRoundItems.length > 0) {
@@ -412,7 +426,7 @@ const POSScreen = () => {
     if (!confirmed) return;
 
     try {
-      await BillsService.void(activeBill.id);
+      await voidBill(activeBill.id);
       toast.success(`Bill for ${activeBill.customer_name} has been voided`);
 
       // Refresh bills list
@@ -424,7 +438,7 @@ const POSScreen = () => {
       toast.error("Failed to void bill");
       console.error(error);
     }
-  }, [activeBill, reloadBills]);
+  }, [activeBill, reloadBills, voidBill]);
 
   const handleOpenPaymentModal = useCallback(() => {
     if (currentRoundItems.length > 0) {

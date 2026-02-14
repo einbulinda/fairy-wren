@@ -1,5 +1,6 @@
 const productsRepo = require("../repos/inventory.products.repository");
 const adjustmentsRepo = require("../repos/inventory.adjustments.repository");
+const billsRepo = require("../repos/inventory.bills.repository");
 const ledgerService = require("../../ledger/ledger.service");
 
 /**
@@ -35,11 +36,20 @@ exports.consumeStockForSale = async ({ billId, items, userId }) => {
  * Restore stock and ledger when bill is voided
  */
 exports.restoreStockForBill = async ({ billId, userId }) => {
-  const { data: items } = await repo.getBillItems(billId);
+  // 1. Get all items for this bill
+  const { data: items, error } = await billsRepo.getBillItems(billId);
 
+  if (error || !items) {
+    throw new Error(
+      `FAILED_TO_RESTORE_STOCK: Could not retrieve bill items: ${error?.message || "Unknown error"}`,
+    );
+  }
+
+  // 2. Reverse the ledger ONCE for the entire bill
+  await ledgerService.reverseBillLedger(billId, "Bill voided");
+
+  // 3. Restore stock for each item
   for (const item of items) {
-    await ledgerService.reverseBillLedger(billId, "Bill voided");
-
-    await repo.incrementStock(item.product_id, item.quantity);
+    await adjustmentsRepo.incrementStock(item.product_id, item.quantity);
   }
 };

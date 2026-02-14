@@ -67,18 +67,9 @@ exports.updateStatus = async (id, payload, context) => {
 };
 
 exports.voidBill = async (id, context) => {
-  // dto = VoidBillDTO(payload);
   /**
-   * 1. Restore inventory + ledger (Inventory module)
-   */
-  await inventoryService.restoreStockForBill({
-    id,
-    userId: context.userId,
-    // reason: dto.reason,
-  });
-
-  /**
-   * 2. Update bill status
+   * Mark bill as void
+   * (No inventory restoration needed - open bills don't consume inventory)
    */
   const { error } = await repo.updateBillStatus(id, "void", context.userId);
 
@@ -90,7 +81,6 @@ exports.voidBill = async (id, context) => {
     action: "BILL_VOIDED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
-    metadata: { reason: dto.reason },
   });
 
   return { id, status: "void" };
