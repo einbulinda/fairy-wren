@@ -73,6 +73,7 @@ exports.recordStockTakeItem = async (req, res, next) => {
 
     respond(res, 201, data);
   } catch (err) {
+    console.log("Error recording stock take item:", err);
     next(err);
   }
 };

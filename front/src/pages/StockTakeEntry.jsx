@@ -228,15 +228,13 @@ export default function StockTakeEntry() {
 
     setLoading(true);
     try {
-      const { stockTakeId, error } = await createStockTakeSession({
+      const response = await createStockTakeSession({
         stockTakeName: sessionName,
         stockTakeType: sessionType,
         location: location,
       });
 
-      if (error) throw error;
-
-      setCurrentSessionId(stockTakeId);
+      setCurrentSessionId(response.stockTakeId);
       setSessionStarted(true);
       toast.success("Stock take session started");
     } catch (error) {
@@ -267,9 +265,9 @@ export default function StockTakeEntry() {
     }
 
     setLoading(true);
+
     try {
-      const { data, error } = await recordStockTakeItem({
-        stockTakeId: currentSessionId,
+      const response = await recordStockTakeItem(currentSessionId, {
         productId: product.id,
         physicalQty: parseInt(physicalQty),
         reason: reason || null,
@@ -277,20 +275,18 @@ export default function StockTakeEntry() {
         batchNumber: null,
       });
 
-      if (error) throw error;
-
       // Add to recorded items
       setRecordedItems([
         ...recordedItems,
         {
-          ...data,
+          ...response,
           product: product,
           recordedAt: new Date(),
         },
       ]);
 
       // Show appropriate message based on approval requirement
-      if (data.requires_approval) {
+      if (response.requires_approval) {
         toast.success("Item recorded (requires manager approval)", {
           icon: "⚠️",
           duration: 4000,
@@ -338,22 +334,17 @@ export default function StockTakeEntry() {
 
     setCompleting(true);
     try {
-      const { data, error } = await completeStockTake(
-        currentSessionId,
-        user.id,
-      );
-
-      if (error) throw error;
+      const response = await completeStockTake(currentSessionId);
 
       // Show result message
-      if (data.requires_approval) {
+      if (response.requires_approval) {
         toast.success(
-          `Stock take completed!\n${data.flagged_items} items flagged for manager review.`,
+          `Stock take completed!\n${response.flagged_items} items flagged for manager review.`,
           { duration: 5000 },
         );
       } else {
         toast.success(
-          `Stock take completed and approved!\nInventory updated for ${data.item_count} items.`,
+          `Stock take completed and approved!\nInventory updated for ${response.item_count} items.`,
           { duration: 5000 },
         );
       }
@@ -453,7 +444,7 @@ export default function StockTakeEntry() {
               <select
                 value={sessionType}
                 onChange={(e) => setSessionType(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+                className="w-full bg-gray-700 border border-purple-500 rounded-lg px-4 py-3 text-white focus:outline-none  focus:border-pink-500"
               >
                 {stockTakeTypes.map((type) => (
                   <option key={type.value} value={type.value}>
@@ -472,7 +463,7 @@ export default function StockTakeEntry() {
               <select
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+                className="w-full bg-gray-700 border border-purple-500 rounded-lg px-4 py-3 text-white focus:outline-none  focus:border-pink-500"
               >
                 {locations.map((loc) => (
                   <option key={loc} value={loc}>
@@ -736,7 +727,7 @@ export default function StockTakeEntry() {
                                       [product.id]: e.target.value,
                                     })
                                   }
-                                  className={`w-full bg-white/5 border ${requiresReason ? "border-red-500/50" : "border-white/10"} rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50`}
+                                  className={`w-full bg-gray-700 border ${requiresReason ? "border-red-500/50" : "border-white/10"} rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50`}
                                 >
                                   {reasonCodes.map((rc) => (
                                     <option key={rc.value} value={rc.value}>

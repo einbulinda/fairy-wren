@@ -22,15 +22,21 @@ export const useStockTake = () => {
 
   const createStockTakeSession = async (payload) => {
     setLoading(true);
-    const data = await inventoryService.createStockTakeSession(payload);
-    setStockTake(data);
-    setLoading(false);
-    return data;
+    try {
+      const data = await inventoryService.createStockTakeSession(payload);
+      setStockTake(data);
+      setLoading(false);
+      return data;
+    } catch (error) {
+      console.error("Error in createStockTakeSession:", error);
+      setLoading(false);
+      throw error;
+    }
   };
 
-  const recordStockTakeItem = async (payload) => {
+  const recordStockTakeItem = async (sessionId, payload) => {
     setLoading(true);
-    const data = await inventoryService.recordStockTakeItem(payload);
+    const data = await inventoryService.recordStockTakeItem(sessionId, payload);
     setLoading(false);
     return data;
   };

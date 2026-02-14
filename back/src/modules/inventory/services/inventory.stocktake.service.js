@@ -1,6 +1,6 @@
 const stockTakeRepo = require("../repos/inventory.stocktake.repository");
 const readRepo = require("../repos/inventory.read.repository");
-const adjustmentRepo = require("../repos/inventory.adjustments.repository");
+const adjustmentsRepo = require("../repos/inventory.adjustments.repository");
 const auditRepo = require("../../audit/audit.repository");
 
 exports.createSession = async (payload, context) => {
@@ -39,6 +39,7 @@ exports.createSession = async (payload, context) => {
 };
 
 exports.recordItem = async (payload, context) => {
+  console.log("PAYLOAD", payload);
   const { stockTakeId, productId, physicalQty, reason, notes } = payload;
 
   if (!stockTakeId || !productId) {

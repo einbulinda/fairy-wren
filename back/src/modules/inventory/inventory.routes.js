@@ -19,7 +19,7 @@ router.post("/receipts", controller.createInventoryReceipt);
    STOCK TAKE (RPC-BASED)
    ====================================================== */
 
-router.post("/stock-take-sessions", controller.createInventoryReceipt);
+router.post("/stock-take-sessions", controller.createStockTakeSession);
 router.get(
   "/stock-take-sessions/incomplete",
   controller.getIncompleteStockTakes,
@@ -27,15 +27,15 @@ router.get(
 router.post("/stock-take-sessions/:id/items", controller.recordStockTakeItem);
 router.get("/stock-take-sessions/:id/items", controller.getStockTakeItems);
 router.post(
-  "/inventory/stock-take-sessions/:id/complete",
+  "/stock-take-sessions/:id/complete",
   controller.completeStockTakeSession,
 );
 router.post(
-  "/inventory/stock-take-sessions/:id/approve",
+  "/stock-take-sessions/:id/approve",
   controller.approveStockTake,
 );
 router.post(
-  "/inventory/stock-take-sessions/:id/reject",
+  "/stock-take-sessions/:id/reject",
   controller.rejectStockTake,
 );
 
