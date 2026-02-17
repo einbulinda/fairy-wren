@@ -1,52 +1,261 @@
-const supabase = require("../../config/supabase");
+const reportsRepository = require("./reports.repository");
 
 /**
- * Generic helper to call RPC safely
+ * Service class for reports business logic
  */
-const callRpc = async (rpcName, params) => {
-  const { data, error } = await supabase.rpc(rpcName, params);
-  if (error) throw error;
-  return data;
-};
+class ReportsService {
+  /**
+   * Validate date range
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @throws {Error} If dates are invalid
+   */
+  validateDateRange(startDate, endDate) {
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
 
-exports.getTotalRevenue = async (startDate, endDate) => {
-  return callRpc("rpc_total_revenue", {
-    p_start_date: startDate,
-    p_end_date: endDate,
-  });
-};
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-exports.getDailyRevenue = async (startDate, endDate) => {
-  return callRpc("rpc_daily_revenue", {
-    p_start_date: startDate,
-    p_end_date: endDate,
-  });
-};
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new Error("Invalid date format");
+    }
 
-exports.getPaymentTypeSummary = async (startDate, endDate) => {
-  return callRpc("rpc_payment_type_summary", {
-    p_start_date: startDate,
-    p_end_date: endDate,
-  });
-};
+    if (start > end) {
+      throw new Error("Start date cannot be after end date");
+    }
 
-exports.getAverageBillValue = async (startDate, endDate) => {
-  return callRpc("rpc_avg_bill_value", {
-    p_start_date: startDate,
-    p_end_date: endDate,
-  });
-};
+    // Prevent excessively large date ranges (e.g., more than 1 year)
+    const daysDiff = (end - start) / (1000 * 60 * 60 * 24);
+    if (daysDiff > 365) {
+      throw new Error("Date range cannot exceed 1 year");
+    }
+  }
 
-exports.getOutstandingBills = async (startDate, endDate) => {
-  return callRpc("rpc_outstanding_bills", {
-    p_start_date: startDate,
-    p_end_date: endDate,
-  });
-};
+  /**
+   * Get total revenue for a date range
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<number>} Total revenue
+   */
+  async getTotalRevenue(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const revenue = await reportsRepository.getTotalRevenue(startDate, endDate);
+    return revenue || 0;
+  }
 
-exports.getCategorySales = async (startDate, endDate) => {
-  return callRpc("rpc_category_sales", {
-    p_start_date: startDate,
-    p_end_date: endDate,
-  });
-};
+  /**
+   * Get daily revenue breakdown for a date range
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Array>} Daily revenue data
+   */
+  async getDailyRevenue(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getDailyRevenue(startDate, endDate);
+    return data || [];
+  }
+
+  /**
+   * Get payment type summary for a date range
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Array>} Payment type summary
+   */
+  async getPaymentTypeSummary(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getPaymentTypeSummary(
+      startDate,
+      endDate
+    );
+    return data || [];
+  }
+
+  /**
+   * Get average bill value for a date range
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<number>} Average bill value
+   */
+  async getAverageBillValue(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const avg = await reportsRepository.getAverageBillValue(
+      startDate,
+      endDate
+    );
+    return avg || 0;
+  }
+
+  /**
+   * Get outstanding bills for a date range
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Array>} Outstanding bills data
+   */
+  async getOutstandingBills(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getOutstandingBills(
+      startDate,
+      endDate
+    );
+    return data || [];
+  }
+
+  /**
+   * Get category sales for a date range
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Array>} Category sales data
+   */
+  async getCategorySales(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getCategorySales(startDate, endDate);
+    return data || [];
+  }
+
+  /**
+   * Get all dashboard metrics in a single call
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Object>} All dashboard metrics
+   */
+  async getDashboardMetrics(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+
+    // Fetch all metrics in parallel for better performance
+    const [
+      totalRevenue,
+      dailyRevenue,
+      paymentTypes,
+      averageBillValue,
+      outstandingBills,
+      categorySales,
+    ] = await Promise.all([
+      this.getTotalRevenue(startDate, endDate),
+      this.getDailyRevenue(startDate, endDate),
+      this.getPaymentTypeSummary(startDate, endDate),
+      this.getAverageBillValue(startDate, endDate),
+      this.getOutstandingBills(startDate, endDate),
+      this.getCategorySales(startDate, endDate),
+    ]);
+
+    return {
+      totalRevenue,
+      dailyRevenue,
+      paymentTypes,
+      averageBillValue,
+      outstandingBills,
+      categorySales,
+    };
+  }
+
+  /**
+   * Get weekly performance comparison
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Array>} Weekly performance data
+   */
+  async getWeeklyPerformance(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getWeeklyPerformance(
+      startDate,
+      endDate
+    );
+    return data || [];
+  }
+
+  /**
+   * Get monthly performance comparison
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Array>} Monthly performance data
+   */
+  async getMonthlyPerformance(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getMonthlyPerformance(
+      startDate,
+      endDate
+    );
+    return data || [];
+  }
+
+  /**
+   * Get weekend vs weekday performance comparison
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Array>} Weekend/weekday performance data
+   */
+  async getWeekendWeekdayPerformance(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getWeekendWeekdayPerformance(
+      startDate,
+      endDate
+    );
+    return data || [];
+  }
+
+  /**
+   * Get day of week performance
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Array>} Day of week performance data
+   */
+  async getDayOfWeekPerformance(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getDayOfWeekPerformance(
+      startDate,
+      endDate
+    );
+    return data || [];
+  }
+
+  /**
+   * Get all performance comparisons in a single call
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Object>} All performance comparison data
+   */
+  async getPerformanceComparisons(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+
+    const [
+      weeklyPerformance,
+      monthlyPerformance,
+      weekendWeekdayPerformance,
+      dayOfWeekPerformance,
+      dailyCategoryBreakdown,
+    ] = await Promise.all([
+      this.getWeeklyPerformance(startDate, endDate),
+      this.getMonthlyPerformance(startDate, endDate),
+      this.getWeekendWeekdayPerformance(startDate, endDate),
+      this.getDayOfWeekPerformance(startDate, endDate),
+      this.getDailyCategoryBreakdown(startDate, endDate),
+    ]);
+
+    return {
+      weeklyPerformance,
+      monthlyPerformance,
+      weekendWeekdayPerformance,
+      dayOfWeekPerformance,
+      dailyCategoryBreakdown,
+    };
+  }
+
+  /**
+   * Get daily sales breakdown by category
+   * @param {Date|string} startDate - Start date
+   * @param {Date|string} endDate - End date
+   * @returns {Promise<Array>} Daily category breakdown data
+   */
+  async getDailyCategoryBreakdown(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getDailyCategoryBreakdown(
+      startDate,
+      endDate
+    );
+    return data || [];
+  }
+}
+
+module.exports = new ReportsService();

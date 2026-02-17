@@ -7,10 +7,10 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
-import { useUsers } from "../../hooks/useUsers";
+import { useUsers } from "../hooks/useUsers";
 import toast from "react-hot-toast";
-import EditUserModal from "./EditUserModal";
-import LoadingSpinner from "../shared/LoadingSpinner";
+import EditUserModal from "../components/owner/EditUserModal";
+import LoadingSpinner from "../components/shared/LoadingSpinner";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -32,7 +32,7 @@ const UserManagement = () => {
     return users.filter(
       (user) =>
         user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.role.toLowerCase().includes(searchQuery.toLowerCase())
+        user.role.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [searchQuery, users]);
 
@@ -41,7 +41,7 @@ const UserManagement = () => {
   const paginatedUsers = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredUsers.slice(startIndex, endIndex);
+    return filteredUsers?.slice(startIndex, endIndex);
   }, [filteredUsers, currentPage]);
 
   const handleSearchChange = (e) => {
@@ -72,7 +72,7 @@ const UserManagement = () => {
     const action = currentStatus ? "deactivate" : "activate";
 
     const confirmed = window.confirm(
-      `Are you sure you want to ${action} this user?`
+      `Are you sure you want to ${action} this user?`,
     );
 
     if (!confirmed) return;
@@ -245,7 +245,7 @@ const UserManagement = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getRoleBadgeColor(
-                        user.role
+                        user.role,
                       )}`}
                     >
                       {user.role}
@@ -346,7 +346,7 @@ const UserManagement = () => {
                 <span className="text-xs text-gray-400">Role:</span>
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${getRoleBadgeColor(
-                    user.role
+                    user.role,
                   )}`}
                 >
                   {user.role}
@@ -369,7 +369,7 @@ const UserManagement = () => {
                 <Edit2 size={14} className="mr-1" />
                 Edit
               </button>
-              {user.role !== "owner" && (
+              {user.role !== "owner" && user.role !== "system developer" && (
                 <button
                   onClick={() => handleDeleteUser(user.id, user.active)}
                   className={`px-3 py-2 rounded flex items-center justify-center text-sm transition-all active:scale-95 ${

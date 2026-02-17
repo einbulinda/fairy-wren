@@ -10,7 +10,6 @@ import {
 import toast from "react-hot-toast";
 
 const OutstandingBillsTable = ({ data }) => {
-  console.log("Outstanding Bills Data:", data);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState("days_outstanding");
   const [sortDirection, setSortDirection] = useState("desc");

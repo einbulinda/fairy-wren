@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { calculateBillTotals } from "../../utils/calculations";
 import toast from "react-hot-toast";
-import { PaymentService } from "@/services/payment.service";
 
 /**
  * ConfirmPaymentsView Component
@@ -159,7 +158,7 @@ const ConfirmPaymentsView = ({
   const handleConfirmPayment = async (bill) => {
     try {
       await onProcessPayment(bill);
-      toast.success("Payment confirmed");
+      // toast.success("Payment confirmed");
     } catch (err) {
       toast.error(err.message || "Confirmation failed");
     } finally {

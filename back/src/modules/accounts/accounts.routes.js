@@ -1,10 +1,21 @@
 const express = require("express");
-const router = express.Router();
-const accountsController = require("./accounts.controller");
+const controller = require("./accounts.controller");
 
-router.get("/", accountsController.getAccounts);
-router.post("/", accountsController.createAccount);
-router.patch("/:accountId", accountsController.updateAccount);
-router.patch("/:accountId/status", accountsController.toggleStatus);
+const router = express.Router();
+
+// Collection
+router.get("/", controller.listAccounts);
+router.post("/", controller.createAccount);
+
+// Resource
+router.get("/:accountId", controller.getAccount);
+router.put("/:accountId", controller.updateAccount);
+
+// Explicit sub-resources
+router.patch("/:accountId/status", controller.updateAccountStatus);
+router.get("/:accountId/children", controller.getChildAccounts);
+
+// Delete
+router.delete("/:accountId", controller.deleteAccount);
 
 module.exports = router;

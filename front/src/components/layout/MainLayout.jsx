@@ -18,18 +18,17 @@ import {
   Landmark,
   Truck,
 } from "lucide-react";
-import { BillsService } from "@/services/bills.service";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
 
 // View components
 import POSScreen from "@/pages/POSScreen";
-// import Dashboard from "../owner/dashboard/Dashboard";
+import Dashboard from "../../pages/Dashboard";
 import ExpenseManagement from "../owner/ExpenseManagement";
-import UserManagement from "../owner/UserManagement";
+import UserManagement from "../../pages/UserManagement";
 import ProductManagement from "../owner/ProductManagement";
 import CategoriesManagement from "../owner/CategoriesManagement";
-import AccountsManagement from "../owner/AccountsManagement";
+import ChartOfAccounts from "../../pages/ChartOfAccounts";
 import SupplierManagement from "../owner/SupplierManagement";
 import InventoryManagement from "../../pages/InventoryManagement";
 import StockTakeEntry from "../../pages/StockTakeEntry";
@@ -75,7 +74,7 @@ const MainLayout = () => {
       case USER_ROLES.OWNER:
       case USER_ROLES.ADMIN:
         return [
-          // { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+          { id: "dashboard", label: "Dashboard", icon: BarChart3 },
           { id: "products", label: "Products", icon: Grid },
           { id: "expenses", label: "Expenses", icon: DollarSign },
           { id: "categories", label: "Categories", icon: FolderTree },
@@ -169,8 +168,8 @@ const MainLayout = () => {
         return <POSScreen onBillUpdate={fetchCounts} />;
       case "inventory":
         return <InventoryManagement />;
-      // case "dashboard":
-      //   return <Dashboard />;
+      case "dashboard":
+        return <Dashboard />;
       case "expenses":
         return <ExpenseManagement />;
       case "users":
@@ -180,7 +179,7 @@ const MainLayout = () => {
       case "categories":
         return <CategoriesManagement />;
       case "accounts":
-        return <AccountsManagement />;
+        return <ChartOfAccounts />;
       case "suppliers":
         return <SupplierManagement />;
       case "stock-take":

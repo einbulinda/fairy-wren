@@ -95,13 +95,15 @@ export const useUsers = () => {
   /**
    * Deactivate a user
    */
-  const deactivateUser = async (userId, status) => {
+  const deactivateUser = async (userId, active) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      await deleteUserApi(userId, { status });
-      setUsers((prev) => prev.filter((user) => user.id !== userId));
+      await deleteUserApi(userId, { active });
+      setUsers((prev) =>
+        prev.map((user) => (user.id === userId ? { ...user, active } : user))
+      );
     } catch (err) {
       setError(err.message || "Failed to deactivate user");
       throw err;

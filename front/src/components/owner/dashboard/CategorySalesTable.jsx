@@ -12,8 +12,6 @@ const CategorySalesTable = ({ data }) => {
   const [sortDirection, setSortDirection] = useState("desc");
   const itemsPerPage = 7;
 
-  console.log("Category Sales Data:", data);
-
   // Sort data
   const sortedData = [...(data || [])].sort((a, b) => {
     let aValue, bValue;

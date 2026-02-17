@@ -1,74 +1,73 @@
-const supabase = require("../../config/supabase");
+const service = require("./accounts.service");
+const { respond, buildContext } = require("../../utils/common");
 
-// Get Accounts
-exports.getAccounts = async (req, res) => {
+exports.listAccounts = async (req, res, next) => {
   try {
-    const { data, error } = await supabase
-      .from("chart_of_accounts")
-      .select("*")
-      .order("type", { ascending: false });
-
-    if (error) throw error;
-
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Create an Account
-exports.createAccount = async (req, res) => {
-  try {
-    const { code, name, type } = req.body;
-
-    const { error } = await supabase
-      .from("chart_of_accounts")
-      .insert({ code, name, type })
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.status(201).json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Update an Account
-exports.updateAccount = async (req, res) => {
-  try {
-    const { code, name, type } = req.body;
-    const { accountId } = req.params;
-
-    const { data, error } = await supabase
-      .from("chart_of_accounts")
-      .update({ code, name, type })
-      .eq("id", accountId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    res.status(200).json(data);
+    const data = await service.list(req.query);
+    respond(res, 200, data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-exports.toggleStatus = async (req, res) => {
+exports.getAccount = async (req, res, next) => {
   try {
-    const { active } = req.body;
-    const { accountId } = req.params;
-    const { data, error } = await supabase
-      .from("chart_of_accounts")
-      .update({ active })
-      .eq("id", accountId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.status(200).json(data);
+    const data = await service.getById(req.params.accountId);
+    respond(res, 200, data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
+  }
+};
+
+exports.createAccount = async (req, res, next) => {
+  try {
+    const data = await service.create(req.body, buildContext(req));
+    respond(res, 201, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateAccount = async (req, res, next) => {
+  try {
+    const data = await service.update(
+      req.params.accountId,
+      req.body,
+      buildContext(req)
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateAccountStatus = async (req, res, next) => {
+  try {
+    const data = await service.updateStatus(
+      req.params.accountId,
+      req.body.active,
+      buildContext(req)
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteAccount = async (req, res, next) => {
+  try {
+    await service.delete(req.params.accountId, buildContext(req));
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getChildAccounts = async (req, res, next) => {
+  try {
+    const data = await service.getChildren(req.params.accountId);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
   }
 };

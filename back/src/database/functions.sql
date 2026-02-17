@@ -1,0 +1,1358 @@
+CREATE OR REPLACE FUNCTION public.enforce_balanced_journal() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN IF (
+        SELECT COALESCE(SUM(debit), 0) != COALESCE(SUM(credit), 0)
+        FROM journal_lines
+        WHERE journal_entry_id = NEW.journal_entry_id
+    ) THEN RAISE EXCEPTION 'Journal entry % is not balanced',
+    NEW.journal_entry_id;
+END IF;
+RETURN NEW;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.post_customer_invoice(
+        p_invoice_id uuid,
+        p_ar_account uuid,
+        p_revenue_account uuid
+    ) RETURNS void LANGUAGE plpgsql AS $function$
+DECLARE v_total NUMERIC;
+v_journal_id UUID;
+BEGIN
+SELECT total INTO v_total
+FROM customer_invoices
+WHERE id = p_invoice_id;
+INSERT INTO journal_entries (entry_date, source_type, source_id)
+VALUES (CURRENT_DATE, 'customer_invoice', p_invoice_id)
+RETURNING id INTO v_journal_id;
+INSERT INTO journal_lines (journal_entry_id, account_id, debit)
+VALUES (v_journal_id, p_ar_account, v_total);
+INSERT INTO journal_lines (journal_entry_id, account_id, credit)
+VALUES (v_journal_id, p_revenue_account, v_total);
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.post_supplier_bill(
+        p_bill_id uuid,
+        p_expense_account uuid,
+        p_ap_account uuid
+    ) RETURNS void LANGUAGE plpgsql AS $function$
+DECLARE v_total NUMERIC;
+v_journal_id UUID;
+BEGIN
+SELECT total INTO v_total
+FROM supplier_bills
+WHERE id = p_bill_id;
+INSERT INTO journal_entries (entry_date, source_type, source_id)
+VALUES (CURRENT_DATE, 'supplier_bill', p_bill_id)
+RETURNING id INTO v_journal_id;
+INSERT INTO journal_lines (journal_entry_id, account_id, debit)
+VALUES (v_journal_id, p_expense_account, v_total);
+INSERT INTO journal_lines (journal_entry_id, account_id, credit)
+VALUES (v_journal_id, p_ap_account, v_total);
+END;
+$function$;
+/*
+ ============================================================================
+ PAYMENTS PROCESSING FUNCTION
+ ----------------------------------------------------------------------------
+ This function handles the entire payment workflow, including:
+ - Validating payment amounts against bill totals
+ - Enforcing role-based rules (bartender vs non-bartender)
+ - Managing payment states (pending, confirmed)
+ - Posting accounting journal entries upon confirmation
+ - Deducting inventory for completed bills
+ ==============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.process_payment(
+        p_bill_id uuid,
+        p_amount numeric,
+        p_payment_type text,
+        p_user_id uuid,
+        p_user_role text
+    ) RETURNS json LANGUAGE plpgsql AS $function$
+DECLARE v_bill bills %ROWTYPE;
+v_payment payments %ROWTYPE;
+v_totals RECORD;
+v_line_item RECORD;
+-- NEW: for inventory deduction
+BEGIN
+/* =====================================================
+ Lock bill
+ ===================================================== */
+SELECT * INTO v_bill
+FROM bills
+WHERE id = p_bill_id FOR
+UPDATE;
+IF NOT FOUND THEN RAISE EXCEPTION 'Bill not found';
+END IF;
+/* =====================================================
+ Fetch authoritative totals
+ ===================================================== */
+SELECT * INTO v_totals
+FROM bill_totals
+WHERE bill_id = p_bill_id;
+IF NOT FOUND THEN RAISE EXCEPTION 'Bill totals not found';
+END IF;
+/* =====================================================
+ Enforce payment amount = outstanding balance
+ ===================================================== */
+IF p_amount <> v_totals.balance_due THEN RAISE EXCEPTION 'Only full payment is allowed. Expected %, received %',
+v_totals.balance_due,
+p_amount;
+END IF;
+/* =====================================================
+ Lock existing payment (if any)
+ ===================================================== */
+SELECT * INTO v_payment
+FROM payments
+WHERE bill_id = p_bill_id
+    AND status IN ('pending', 'confirmed') FOR
+UPDATE;
+/* =====================================================
+ CASE 1: NON-BARTENDER â†’ INITIATE PAYMENT (PENDING)
+ ===================================================== */
+IF p_user_role <> 'bartender' THEN IF v_bill.status <> 'open'
+OR v_payment.id IS NOT NULL THEN RAISE EXCEPTION 'Payment already initiated or bill not open';
+END IF;
+INSERT INTO payments (
+        bill_id,
+        amount,
+        payment_type,
+        status,
+        is_paid,
+        created_by
+    )
+VALUES (
+        p_bill_id,
+        p_amount,
+        p_payment_type,
+        'pending',
+        false,
+        p_user_id
+    );
+UPDATE bills
+SET status = 'awaiting_confirmation'
+WHERE id = p_bill_id;
+RETURN json_build_object(
+    'status',
+    'pending',
+    'message',
+    'Payment awaiting confirmation'
+);
+END IF;
+/* =====================================================
+ CASE 2: BARTENDER CONFIRMS EXISTING PAYMENT
+ ===================================================== */
+IF p_user_role = 'bartender'
+AND v_payment.id IS NOT NULL
+AND v_payment.status = 'pending'
+AND v_bill.status = 'awaiting_confirmation' THEN
+UPDATE payments
+SET status = 'confirmed',
+    is_paid = true,
+    updated_by = p_user_id,
+    updated_at = now()
+WHERE id = v_payment.id;
+-- Accounting event
+PERFORM post_payment_journal(v_payment.id);
+UPDATE bills
+SET status = 'completed'
+WHERE id = p_bill_id;
+-- [ENHANCEMENT] Deduct inventory for completed bill
+FOR v_line_item IN
+SELECT ri.product_id,
+    ri.quantity
+FROM round_items ri
+    JOIN rounds r ON r.id = ri.round_id
+WHERE r.bill_id = p_bill_id LOOP
+INSERT INTO inventory_movements (
+        product_id,
+        movement_type,
+        quantity,
+        reference_type,
+        reference_id,
+        movement_date,
+        created_at
+    )
+VALUES (
+        v_line_item.product_id,
+        'sale',
+        - v_line_item.quantity,
+        'bill',
+        p_bill_id,
+        CURRENT_DATE,
+        NOW()
+    );
+END LOOP;
+RETURN json_build_object(
+    'status',
+    'confirmed',
+    'message',
+    'Payment confirmed and bill completed'
+);
+END IF;
+/* =====================================================
+ CASE 3: BARTENDER DIRECT PAYMENT
+ ===================================================== */
+IF p_user_role = 'bartender'
+AND v_payment.id IS NULL
+AND v_bill.status = 'open' THEN
+INSERT INTO payments (
+        bill_id,
+        amount,
+        payment_type,
+        status,
+        is_paid,
+        created_by,
+        updated_by
+    )
+VALUES (
+        p_bill_id,
+        p_amount,
+        p_payment_type,
+        'confirmed',
+        true,
+        p_user_id,
+        p_user_id
+    )
+RETURNING * INTO v_payment;
+-- Accounting event
+PERFORM post_payment_journal(v_payment.id);
+UPDATE bills
+SET status = 'completed'
+WHERE id = p_bill_id;
+-- [ENHANCEMENT] Deduct inventory for completed bill
+FOR v_line_item IN
+SELECT ri.product_id,
+    ri.quantity
+FROM round_items ri
+    JOIN rounds r ON r.id = ri.round_id
+WHERE r.bill_id = p_bill_id LOOP
+INSERT INTO inventory_movements (
+        product_id,
+        movement_type,
+        quantity,
+        reference_type,
+        reference_id,
+        movement_date,
+        created_at
+    )
+VALUES (
+        v_line_item.product_id,
+        'sale',
+        - v_line_item.quantity,
+        'bill',
+        p_bill_id,
+        CURRENT_DATE,
+        NOW()
+    );
+END LOOP;
+RETURN json_build_object(
+    'status',
+    'confirmed',
+    'message',
+    'Direct payment completed'
+);
+END IF;
+RAISE EXCEPTION 'Invalid payment state or role';
+END;
+$function$;
+/*
+ ============================================================================
+ POST PAYMENTS JOURNAL FUNCTION
+ ----------------------------------------------------------------------------
+ This function creates the necessary journal entries when a payment is confirmed.
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.post_payment_journal(p_payment_id uuid) RETURNS void LANGUAGE plpgsql AS $function$
+DECLARE v_payment payments %ROWTYPE;
+v_totals RECORD;
+v_cash_account uuid;
+v_sales_account uuid;
+v_journal_id uuid;
+BEGIN
+/* Idempotency guard */
+IF EXISTS (
+    SELECT 1
+    FROM journal_entries
+    WHERE source_type = 'payment'
+        AND source_id = p_payment_id
+) THEN RETURN;
+END IF;
+SELECT * INTO v_payment
+FROM payments
+WHERE id = p_payment_id;
+SELECT * INTO v_totals
+FROM bill_totals
+WHERE bill_id = v_payment.bill_id;
+IF v_totals.total <= 0 THEN RAISE EXCEPTION 'Cannot journal zero-value payment';
+END IF;
+/* Resolve accounts */
+SELECT id INTO v_cash_account
+FROM chart_of_accounts
+WHERE code = CASE
+        WHEN v_payment.payment_type = 'cash' THEN '1010'
+        ELSE '1020'
+    END;
+SELECT id INTO v_sales_account
+FROM chart_of_accounts
+WHERE code = '4000';
+/* Create journal entry */
+INSERT INTO journal_entries (
+        entry_date,
+        source_type,
+        source_id,
+        description
+    )
+VALUES (
+        CURRENT_DATE,
+        'payment',
+        p_payment_id,
+        'POS payment'
+    )
+RETURNING id INTO v_journal_id;
+/* Dr Cash / Bank */
+INSERT INTO journal_lines (
+        journal_entry_id,
+        account_id,
+        debit
+    )
+VALUES (
+        v_journal_id,
+        v_cash_account,
+        v_totals.total
+    );
+/* Cr Sales */
+INSERT INTO journal_lines (
+        journal_entry_id,
+        account_id,
+        credit
+    )
+VALUES (
+        v_journal_id,
+        v_sales_account,
+        v_totals.total
+    );
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.approve_stock_take(
+        p_stock_take_id uuid,
+        p_reviewed_by_id uuid,
+        p_approval_notes text DEFAULT NULL::text
+    ) RETURNS jsonb LANGUAGE plpgsql AS $function$
+DECLARE v_reviewer_name VARCHAR(200);
+v_result JSONB;
+BEGIN -- Get reviewer name
+SELECT name INTO v_reviewer_name
+FROM profiles
+WHERE id = p_reviewed_by_id;
+-- Update stock take
+UPDATE stock_takes
+SET approval_status = 'approved',
+    reviewed_by_id = p_reviewed_by_id,
+    reviewed_at = NOW(),
+    approval_notes = p_approval_notes
+WHERE id = p_stock_take_id;
+-- Apply adjustments to inventory
+PERFORM apply_stock_take_adjustments(p_stock_take_id);
+-- Log audit entry
+INSERT INTO stock_take_audit_log (
+        stock_take_id,
+        action_type,
+        performed_by_id,
+        performed_by_name,
+        new_values
+    )
+VALUES (
+        p_stock_take_id,
+        'approved',
+        p_reviewed_by_id,
+        v_reviewer_name,
+        jsonb_build_object('notes', p_approval_notes)
+    );
+v_result := jsonb_build_object('success', true, 'status', 'approved');
+RETURN v_result;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.calculate_variance_percentage() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN IF NEW.system_qty > 0 THEN NEW.variance_percentage := (
+        (NEW.physical_qty - NEW.system_qty)::DECIMAL / NEW.system_qty
+    ) * 100;
+ELSE NEW.variance_percentage := NULL;
+END IF;
+NEW.total_value_adjustment := (NEW.physical_qty - NEW.system_qty) * COALESCE(NEW.cost_per_unit, 0);
+RETURN NEW;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.apply_stock_take_adjustments(p_stock_take_id uuid) RETURNS void LANGUAGE plpgsql AS $function$
+DECLARE v_item RECORD;
+BEGIN -- Loop through all items in the stock take
+FOR v_item IN
+SELECT product_id,
+    variance,
+    reason,
+    notes
+FROM stock_take_items
+WHERE stock_take_id = p_stock_take_id LOOP -- Log inventory movement (inventory_movements is the only source of truth)
+INSERT INTO inventory_movements (
+        product_id,
+        movement_type,
+        quantity,
+        reference_type,
+        reference_id,
+        reason,
+        notes,
+        movement_date,
+        created_at
+    )
+VALUES (
+        v_item.product_id,
+        CASE
+            WHEN v_item.variance > 0 THEN 'adjustment_in'
+            ELSE 'adjustment_out'
+        END,
+        ABS(v_item.variance),
+        'stock_take',
+        p_stock_take_id,
+        v_item.reason,
+        v_item.notes,
+        CURRENT_DATE,
+        NOW()
+    );
+END LOOP;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.complete_stock_take_session(p_stock_take_id uuid, p_completed_by_id uuid) RETURNS jsonb LANGUAGE plpgsql AS $function$
+DECLARE v_item_count INTEGER;
+v_total_value_impact DECIMAL(10, 2);
+v_flagged_items INTEGER;
+v_requires_approval BOOLEAN;
+v_user_name VARCHAR(200);
+v_result JSONB;
+BEGIN -- Get completion stats
+SELECT COUNT(*),
+    COALESCE(SUM(total_value_adjustment), 0),
+    COUNT(*) FILTER (
+        WHERE ABS(variance) > 10
+            OR ABS(variance_percentage) > 20
+    ) INTO v_item_count,
+    v_total_value_impact,
+    v_flagged_items
+FROM stock_take_items
+WHERE stock_take_id = p_stock_take_id;
+-- Check if requires approval
+v_requires_approval := v_flagged_items > 0
+OR ABS(v_total_value_impact) > 5000;
+-- Get user name
+SELECT name INTO v_user_name
+FROM profiles
+WHERE id = p_completed_by_id;
+-- Update stock take
+UPDATE stock_takes
+SET completed_at = NOW(),
+    approval_status = CASE
+        WHEN v_requires_approval THEN 'under_review'
+        ELSE 'approved'
+    END
+WHERE id = p_stock_take_id;
+-- Apply adjustments to inventory if auto-approved
+IF NOT v_requires_approval THEN PERFORM apply_stock_take_adjustments(p_stock_take_id);
+END IF;
+-- Log audit entry
+INSERT INTO stock_take_audit_log (
+        stock_take_id,
+        action_type,
+        performed_by_id,
+        performed_by_name,
+        new_values
+    )
+VALUES (
+        p_stock_take_id,
+        'completed',
+        p_completed_by_id,
+        v_user_name,
+        jsonb_build_object(
+            'item_count',
+            v_item_count,
+            'total_value_impact',
+            v_total_value_impact,
+            'flagged_items',
+            v_flagged_items,
+            'requires_approval',
+            v_requires_approval
+        )
+    );
+-- Build result
+v_result := jsonb_build_object(
+    'success',
+    true,
+    'item_count',
+    v_item_count,
+    'total_value_impact',
+    v_total_value_impact,
+    'flagged_items',
+    v_flagged_items,
+    'requires_approval',
+    v_requires_approval,
+    'status',
+    CASE
+        WHEN v_requires_approval THEN 'under_review'
+        ELSE 'approved'
+    END
+);
+RETURN v_result;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.confirm_bill_and_payments(
+        p_bill_id uuid,
+        p_user_id uuid,
+        p_payment_mode character varying DEFAULT NULL::character varying
+    ) RETURNS void LANGUAGE plpgsql AS $function$
+declare v_bill_total numeric;
+v_payment_total numeric;
+begin -- Validate payment mode if provided
+if p_payment_mode is not null
+and p_payment_mode not in ('cash', 'mpesa') then raise exception 'Invalid payment mode: %',
+p_payment_mode;
+end if;
+-- Lock bill row
+select total into v_bill_total
+from bills
+where id = p_bill_id for
+update;
+if not found then raise exception 'Bill not found';
+end if;
+-- Prevent double confirmation
+if exists (
+    select 1
+    from bills
+    where id = p_bill_id
+        and status = 'completed'
+) then raise exception 'Bill already completed';
+end if;
+-- Calculate total payments (paid or unpaid)
+select coalesce(sum(amount), 0) into v_payment_total
+from payments
+where bill_id = p_bill_id;
+if v_payment_total = 0 then raise exception 'No payments recorded for bill';
+end if;
+-- Enforce full settlement
+--if v_payment_total <> v_bill_total then raise exception 'Payment total (%) does not match bill total (%)',
+--v_payment_total,
+--v_bill_total;
+--end if;
+-- Mark bill as completed
+update bills
+set status = 'completed',
+    updated_at = now(),
+    updated_by = p_user_id
+where id = p_bill_id;
+-- Finalize payments
+update payments
+set is_paid = true,
+    payment_type = coalesce(payment_type, p_payment_mode),
+    updated_at = now(),
+    updated_by = p_user_id
+where bill_id = p_bill_id;
+end;
+$function$;
+CREATE OR REPLACE FUNCTION public.create_stock_take_session(
+        p_performed_by_id uuid,
+        p_stock_take_name character varying DEFAULT NULL::character varying,
+        p_stock_take_type character varying DEFAULT 'full'::character varying,
+        p_location character varying DEFAULT NULL::character varying
+    ) RETURNS uuid LANGUAGE plpgsql AS $function$
+DECLARE v_stock_take_id UUID;
+v_user_name VARCHAR(200);
+v_user_role VARCHAR(50);
+BEGIN -- Get user details
+SELECT name,
+    role INTO v_user_name,
+    v_user_role
+FROM profiles
+WHERE id = p_performed_by_id;
+-- Create stock take session
+INSERT INTO stock_takes (
+        performed_by_id,
+        performed_by_role,
+        stock_take_name,
+        stock_take_type,
+        location,
+        approval_status,
+        created_at
+    )
+VALUES (
+        p_performed_by_id,
+        v_user_role,
+        p_stock_take_name,
+        p_stock_take_type,
+        p_location,
+        'pending',
+        NOW()
+    )
+RETURNING id INTO v_stock_take_id;
+-- Log audit entry
+INSERT INTO stock_take_audit_log (
+        stock_take_id,
+        action_type,
+        performed_by_id,
+        performed_by_name,
+        new_values
+    )
+VALUES (
+        v_stock_take_id,
+        'created',
+        p_performed_by_id,
+        v_user_name,
+        jsonb_build_object(
+            'stock_take_name',
+            p_stock_take_name,
+            'stock_take_type',
+            p_stock_take_type,
+            'location',
+            p_location
+        )
+    );
+RETURN v_stock_take_id;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.increment_stock(product_id uuid, quantity integer) RETURNS TABLE(
+        id uuid,
+        name text,
+        stock integer,
+        updated_at timestamp with time zone
+    ) LANGUAGE plpgsql AS $function$ BEGIN -- Validate input
+    IF quantity IS NULL
+    OR quantity <= 0 THEN RAISE EXCEPTION 'Quantity must be greater than zero';
+END IF;
+-- Update stock atomically
+UPDATE products p
+SET stock = p.stock + quantity,
+    updated_at = NOW()
+WHERE p.id = product_id
+RETURNING p.id,
+    p.name,
+    p.stock,
+    p.updated_at INTO id,
+    name,
+    stock,
+    updated_at;
+-- Ensure product exists
+IF NOT FOUND THEN RAISE EXCEPTION 'Product with id % not found',
+product_id;
+END IF;
+RETURN NEXT;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.increment_stock(p_product_id uuid, p_quantity numeric) RETURNS void LANGUAGE plpgsql AS $function$ begin
+update products
+set current_stock = current_stock + p_quantity
+where id = p_product_id;
+if not found then raise exception 'Product not found: %',
+p_product_id;
+end if;
+end;
+$function$;
+CREATE OR REPLACE FUNCTION public.prevent_negative_stock() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN IF NEW.current_stock < 0 THEN RAISE EXCEPTION 'Stock cannot be negative';
+END IF;
+RETURN NEW;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.recalc_inventory_receipt_total() RETURNS trigger LANGUAGE plpgsql AS $function$
+declare rid uuid;
+begin rid := coalesce(new.receipt_id, old.receipt_id);
+update public.inventory_receipts r
+set total_amount = (
+        select coalesce(sum(i.line_total), 0)
+        from public.inventory_receipt_items i
+        where i.receipt_id = rid
+    )
+where r.id = rid;
+return null;
+end;
+$function$;
+CREATE OR REPLACE FUNCTION public.record_stock_take_item(
+        p_stock_take_id uuid,
+        p_product_id uuid,
+        p_physical_qty integer,
+        p_reason character varying DEFAULT NULL::character varying,
+        p_notes text DEFAULT NULL::text
+    ) RETURNS jsonb LANGUAGE plpgsql AS $function$
+DECLARE v_system_qty INTEGER;
+v_cost_per_unit DECIMAL(10, 2);
+v_adjustment INTEGER;
+v_product_name VARCHAR(200);
+v_previous_adj_date TIMESTAMP WITH TIME ZONE;
+v_adj_frequency INTEGER;
+v_result JSONB;
+BEGIN -- =========================================
+-- Get current system quantity and cost
+-- =========================================
+SELECT current_stock,
+    cost_price,
+    name INTO v_system_qty,
+    v_cost_per_unit,
+    v_product_name
+FROM products
+WHERE id = p_product_id;
+-- If product not found â†’ Fail fast
+IF NOT FOUND THEN RAISE EXCEPTION 'Product % not found in products table',
+p_product_id;
+END IF;
+-- Null protection (if DB fields are nullable)
+v_system_qty := COALESCE(v_system_qty, 0);
+v_cost_per_unit := COALESCE(v_cost_per_unit, 0);
+-- =========================================
+-- Calculate adjustment
+-- =========================================
+v_adjustment := p_physical_qty - v_system_qty;
+-- =========================================
+-- Check for previous adjustments
+-- =========================================
+SELECT MAX(sti.created_at),
+    COUNT(*) INTO v_previous_adj_date,
+    v_adj_frequency
+FROM stock_take_items sti
+    JOIN stock_takes st ON sti.stock_take_id = st.id
+WHERE sti.product_id = p_product_id
+    AND st.completed_at IS NOT NULL
+    AND sti.created_at < NOW();
+-- =========================================
+-- Insert stock take item
+-- =========================================
+INSERT INTO stock_take_items (
+        stock_take_id,
+        product_id,
+        system_qty,
+        physical_qty,
+        variance,
+        cost_per_unit,
+        reason,
+        notes,
+        previous_adjustment_date,
+        adjustment_frequency,
+        created_at
+    )
+VALUES (
+        p_stock_take_id,
+        p_product_id,
+        v_system_qty,
+        p_physical_qty,
+        v_adjustment,
+        v_cost_per_unit,
+        p_reason,
+        p_notes,
+        v_previous_adj_date,
+        COALESCE(v_adj_frequency, 0),
+        NOW()
+    );
+-- =========================================
+-- Build result JSON
+-- =========================================
+v_result := jsonb_build_object(
+    'product_name',
+    v_product_name,
+    'system_qty',
+    v_system_qty,
+    'physical_qty',
+    p_physical_qty,
+    'adjustment',
+    v_adjustment,
+    'cost_per_unit',
+    v_cost_per_unit,
+    'total_value_adjustment',
+    v_adjustment * v_cost_per_unit,
+    'requires_approval',
+    ABS(v_adjustment) > 10
+);
+RETURN v_result;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.record_stock_take_items_bulk(p_items jsonb) RETURNS jsonb LANGUAGE plpgsql AS $function$
+DECLARE v_item JSONB;
+v_result JSONB;
+v_results JSONB := '[]'::jsonb;
+BEGIN -- Safety check
+IF p_items IS NULL
+OR jsonb_array_length(p_items) = 0 THEN RAISE EXCEPTION 'Items list cannot be empty';
+END IF;
+-- Loop through each item
+FOR v_item IN
+SELECT *
+FROM jsonb_array_elements(p_items) LOOP -- Call your main RPC
+    v_result := record_stock_take_item(
+        (v_item->>'stock_take_id')::uuid,
+        (v_item->>'product_id')::uuid,
+        (v_item->>'physical_qty')::int,
+        v_item->>'reason',
+        v_item->>'notes'
+    );
+-- Append result to results array
+v_results := v_results || jsonb_build_array(v_result);
+END LOOP;
+RETURN v_results;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.reject_stock_take(
+        p_stock_take_id uuid,
+        p_reviewed_by_id uuid,
+        p_rejection_reason text
+    ) RETURNS jsonb LANGUAGE plpgsql AS $function$
+DECLARE v_reviewer_name VARCHAR(200);
+v_result JSONB;
+BEGIN -- Get reviewer name
+SELECT name INTO v_reviewer_name
+FROM profiles
+WHERE id = p_reviewed_by_id;
+-- Update stock take
+UPDATE stock_takes
+SET approval_status = 'rejected',
+    reviewed_by_id = p_reviewed_by_id,
+    reviewed_at = NOW(),
+    approval_notes = p_rejection_reason
+WHERE id = p_stock_take_id;
+-- Log audit entry
+INSERT INTO stock_take_audit_log (
+        stock_take_id,
+        action_type,
+        performed_by_id,
+        performed_by_name,
+        new_values
+    )
+VALUES (
+        p_stock_take_id,
+        'rejected',
+        p_reviewed_by_id,
+        v_reviewer_name,
+        jsonb_build_object('reason', p_rejection_reason)
+    );
+v_result := jsonb_build_object('success', true, 'status', 'rejected');
+RETURN v_result;
+END;
+$function$;
+/*
+ ============================================================================
+ REPORTING FUNCTIONS
+ ----------------------------------------------------------------------------
+ These functions provide aggregated data for various reports and dashboards. 
+ They are designed to be efficient and leverage pre-aggregated views where possible.
+ Updated: 16/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_avg_bill_value(p_start_date date, p_end_date date) RETURNS numeric LANGUAGE sql STABLE AS $function$
+select avg(bt.total)
+from v_bill_totals bt
+    join bills b on b.id = bt.bill_id
+    join payments p on p.bill_id = b.id
+where date(p.created_at) between p_start_date and p_end_date
+    and b.status = 'completed'
+    and p.is_paid = true;
+$function$;
+/*
+ ============================================================================
+ CATEGORY SALES REPORT
+ This function calculates total quantity sold and total sales amount for each product category within a specified date range. It joins multiple tables to ensure accurate aggregation based on completed bills and paid payments.
+ Updated: 16 / 02 / 2026 - einbulinda
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_category_sales(p_start_date date, p_end_date date) RETURNS TABLE(
+        category_id uuid,
+        category_name character varying,
+        total_quantity integer,
+        total_sales numeric
+    ) LANGUAGE sql STABLE AS $function$
+select c.id,
+    c.name,
+    sum(ri.quantity) as total_quantity,
+    sum(ri.price * ri.quantity) as total_sales
+from round_items ri
+    join rounds r on r.id = ri.round_id
+    join bills b on b.id = r.bill_id
+    join payments pm on pm.bill_id = b.id
+    join products p on p.id = ri.product_id
+    join categories c on c.id = p.category_id
+where b.status = 'completed'
+    and pm.is_paid = true
+    and date(pm.created_at) between p_start_date and p_end_date
+group by c.id,
+    c.name
+order by total_sales desc;
+$function$;
+CREATE OR REPLACE FUNCTION public.rpc_daily_revenue(p_start_date date, p_end_date date) RETURNS TABLE(business_date date, total_revenue numeric) LANGUAGE sql STABLE AS $function$
+select date(p.created_at) as business_date,
+    sum(p.amount) as total_revenue
+from payments p
+where p.is_paid = true
+    and date(p.created_at) between p_start_date and p_end_date
+group by date(p.created_at)
+order by business_date;
+$function$;
+CREATE OR REPLACE FUNCTION public.rpc_outstanding_bills(p_start_date date, p_end_date date) RETURNS TABLE(
+        bill_id uuid,
+        bill_total numeric,
+        paid_amount numeric,
+        outstanding_amount numeric,
+        customer_name text,
+        served_by text,
+        created_at timestamp with time zone
+    ) LANGUAGE sql STABLE AS $function$
+select bf.bill_id,
+    bf.bill_total,
+    bf.paid_amount,
+    bf.outstanding_amount,
+    b.customer_name,
+    p.name as served_by,
+    b.created_at
+from v_bill_financials bf
+    join bills b on b.id = bf.bill_id
+    left join profiles p on p.id = b.created_by
+where date(b.created_at) between p_start_date and p_end_date
+    and bf.outstanding_amount > 0
+order by outstanding_amount desc;
+$function$;
+CREATE OR REPLACE FUNCTION public.rpc_payment_type_summary(p_start_date date, p_end_date date) RETURNS TABLE(
+        payment_type character varying,
+        total_amount numeric,
+        count bigint
+    ) LANGUAGE sql STABLE AS $function$
+select payment_type,
+    sum(amount) as total_amount,
+    count(*) as count
+from payments
+where is_paid = true
+    and date(created_at) between p_start_date and p_end_date
+group by payment_type
+order by payment_type;
+$function$;
+CREATE OR REPLACE FUNCTION public.rpc_total_revenue(p_start_date date, p_end_date date) RETURNS numeric LANGUAGE sql STABLE AS $function$
+select coalesce(sum(amount), 0)
+from payments
+where is_paid = true
+    and date(created_at) between p_start_date and p_end_date;
+$function$;
+CREATE OR REPLACE FUNCTION public.set_inventory_receipt_item_total() RETURNS trigger LANGUAGE plpgsql AS $function$ begin new.line_total := coalesce(new.quantity, 0) * coalesce(new.unit_cost, 0);
+return new;
+end;
+$function$;
+CREATE OR REPLACE FUNCTION public.update_updated_at_column() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN NEW.updated_at = now();
+RETURN NEW;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.validate_account_hierarchy() RETURNS trigger LANGUAGE plpgsql AS $function$ begin if new.parent_id is not null then if not exists (
+        select 1
+        from chart_of_accounts p
+        where p.id = new.parent_id
+            and p.account_class = new.account_class
+    ) then raise exception 'Parent account must be of the same account_class';
+end if;
+end if;
+return new;
+end;
+$function$;
+CREATE OR REPLACE FUNCTION public.validate_expense_account() RETURNS trigger LANGUAGE plpgsql AS $function$ begin if not exists (
+        select 1
+        from chart_of_accounts
+        where id = new.account_id
+            and account_class = 'expense'
+            and active = true
+    ) then raise exception 'Expenses must use an active expense account';
+end if;
+return new;
+end;
+$function$;
+CREATE OR REPLACE FUNCTION public.validate_journal_balance() RETURNS trigger LANGUAGE plpgsql AS $function$
+declare total_debit numeric;
+total_credit numeric;
+begin
+select sum(debit),
+    sum(credit) into total_debit,
+    total_credit
+from journal_lines
+where journal_entry_id = new.journal_entry_id;
+if total_debit <> total_credit then raise exception 'Journal entry is not balanced';
+end if;
+return new;
+end;
+$function$;
+CREATE OR REPLACE FUNCTION public.validate_revenue_account() RETURNS trigger LANGUAGE plpgsql AS $function$ begin if not exists (
+        select 1
+        from chart_of_accounts
+        where id = new.revenue_account_id
+            and account_class = 'income'
+            and active = true
+    ) then raise exception 'Sales must post to an active revenue account';
+end if;
+return new;
+end;
+$function$;
+CREATE OR REPLACE FUNCTION public.post_inventory_purchase() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN
+INSERT INTO inventory_movements (
+        product_id,
+        movement_date,
+        quantity,
+        unit_cost,
+        movement_type,
+        reference_type,
+        reference_id,
+        notes
+    )
+VALUES (
+        NEW.product_id,
+        CURRENT_DATE,
+        NEW.quantity,
+        NEW.unit_cost,
+        'purchase',
+        'inventory_receipt',
+        NEW.receipt_id,
+        'Inventory receipt â€“ automatic posting'
+    );
+RETURN NEW;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.post_inventory_purchase_journal() RETURNS trigger LANGUAGE plpgsql AS $function$
+DECLARE v_inventory_account UUID;
+v_ap_account UUID;
+v_journal_id UUID;
+BEGIN
+SELECT inventory_account_id INTO v_inventory_account
+FROM inventory_items
+WHERE id = NEW.product_id;
+SELECT id INTO v_ap_account
+FROM chart_of_accounts
+WHERE code = 'AP';
+-- your AP control account
+INSERT INTO journal_entries (
+        entry_date,
+        source_type,
+        source_id,
+        description
+    )
+VALUES (
+        CURRENT_DATE,
+        'inventory_receipt',
+        NEW.receipt_id,
+        'Inventory purchase'
+    )
+RETURNING id INTO v_journal_id;
+INSERT INTO journal_lines (journal_entry_id, account_id, debit)
+VALUES (
+        v_journal_id,
+        v_inventory_account,
+        NEW.line_total
+    );
+INSERT INTO journal_lines (journal_entry_id, account_id, credit)
+VALUES (v_journal_id, v_ap_account, NEW.line_total);
+RETURN NEW;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.post_bill_inventory_and_cogs() RETURNS trigger LANGUAGE plpgsql AS $function$
+DECLARE r RECORD;
+BEGIN -- Only act on transition to completed
+IF OLD.status <> 'completed'
+AND NEW.status = 'completed' THEN FOR r IN
+SELECT ri.*
+FROM rounds ro
+    JOIN round_items ri ON ri.round_id = ro.id
+WHERE ro.bill_id = NEW.id
+    AND ri.inventory_posted = false LOOP -- This calls your existing sale/COGS logic
+    PERFORM post_sale_cogs_for_item(
+        r.product_id,
+        r.quantity,
+        r.round_id
+    );
+UPDATE round_items
+SET inventory_posted = true
+WHERE id = r.id;
+END LOOP;
+END IF;
+RETURN NEW;
+END;
+$function$;
+CREATE OR REPLACE FUNCTION public.post_sale_cogs_for_item(
+        p_product_id uuid,
+        p_quantity numeric,
+        p_reference_id uuid
+    ) RETURNS void LANGUAGE plpgsql AS $function$
+DECLARE v_avg_cost NUMERIC := 0;
+--Default to zero upfront
+v_total_cost NUMERIC;
+v_inventory_account UUID;
+v_cogs_account UUID;
+v_journal_id UUID;
+BEGIN -- Get AVG cost (default to 0 if not found)
+SELECT COALESCE(avg_unit_cost, 0) INTO v_avg_cost
+FROM inventory_avg_cost
+WHERE product_id = p_product_id;
+v_total_cost := p_quantity * v_avg_cost;
+-- Inventory movement (always record movement even with zero cost)
+INSERT INTO inventory_movements (
+        product_id,
+        movement_date,
+        quantity,
+        unit_cost,
+        movement_type,
+        reference_type,
+        reference_id,
+        notes
+    )
+VALUES (
+        p_product_id,
+        CURRENT_DATE,
+        - p_quantity,
+        v_avg_cost,
+        'sale',
+        'sale_backfill',
+        p_reference_id,
+        CASE
+            WHEN v_avg_cost = 0 THEN 'Backfilled sale (ZERO COST)'
+            ELSE 'Backfilled sale'
+        END
+    );
+-- Get GL accounts
+SELECT inventory_account_id,
+    cogs_account_id INTO v_inventory_account,
+    v_cogs_account
+FROM inventory_items
+WHERE product_id = p_product_id;
+-- Skip GL posting if accounts missing OR zero-value transaction
+IF v_inventory_account IS NULL
+OR v_cogs_account IS NULL
+OR v_total_cost = 0 THEN RETURN;
+-- Silent exit - no error, no journal entry
+END IF;
+-- Post journal entry only for meaningful costs
+INSERT INTO journal_entries (
+        entry_date,
+        source_type,
+        source_id,
+        description
+    )
+VALUES (
+        CURRENT_DATE,
+        'sale_backfill',
+        p_reference_id,
+        'Backfilled COGS'
+    )
+RETURNING id INTO v_journal_id;
+-- Dr COGS
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+VALUES (v_journal_id, v_cogs_account, v_total_cost, 0);
+-- Cr Inventory
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+VALUES (
+        v_journal_id,
+        v_inventory_account,
+        0,
+        v_total_cost
+    );
+END;
+$function$;/*
+ ============================================================================
+ PERFORMANCE COMPARISON FUNCTIONS
+ ----------------------------------------------------------------------------
+ These functions provide performance analytics for weekly, monthly, and
+ weekend vs weekday comparisons
+ Created: 16/02/2026 - einbulinda
+ ============================================================================
+ */
+
+-- Weekly Performance Comparison
+CREATE OR REPLACE FUNCTION public.rpc_weekly_performance(p_start_date date, p_end_date date)
+RETURNS TABLE(
+    week_start date,
+    week_end date,
+    week_number integer,
+    total_revenue numeric,
+    total_bills integer,
+    avg_bill_value numeric,
+    total_transactions integer
+) LANGUAGE sql STABLE AS $function$
+WITH weekly_data AS (
+    SELECT 
+        DATE_TRUNC('week', p.created_at)::date AS week_start,
+        (DATE_TRUNC('week', p.created_at) + INTERVAL '6 days')::date AS week_end,
+        EXTRACT(WEEK FROM p.created_at)::integer AS week_number,
+        SUM(p.amount) AS total_revenue,
+        COUNT(DISTINCT p.bill_id) AS total_bills,
+        AVG(bt.total) AS avg_bill_value,
+        COUNT(*) AS total_transactions
+    FROM payments p
+    JOIN bills b ON b.id = p.bill_id
+    JOIN v_bill_totals bt ON bt.bill_id = b.id
+    WHERE p.is_paid = true
+        AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
+        AND b.status = 'completed'
+    GROUP BY DATE_TRUNC('week', p.created_at), EXTRACT(WEEK FROM p.created_at)
+)
+SELECT 
+    week_start,
+    week_end,
+    week_number,
+    COALESCE(total_revenue, 0) AS total_revenue,
+    COALESCE(total_bills, 0) AS total_bills,
+    COALESCE(avg_bill_value, 0) AS avg_bill_value,
+    COALESCE(total_transactions, 0) AS total_transactions
+FROM weekly_data
+ORDER BY week_start;
+$function$;
+
+-- Monthly Performance Comparison
+CREATE OR REPLACE FUNCTION public.rpc_monthly_performance(p_start_date date, p_end_date date)
+RETURNS TABLE(
+    month_start date,
+    month_end date,
+    month_name text,
+    year integer,
+    total_revenue numeric,
+    total_bills integer,
+    avg_bill_value numeric,
+    total_transactions integer,
+    unique_customers integer
+) LANGUAGE sql STABLE AS $function$
+WITH monthly_data AS (
+    SELECT 
+        DATE_TRUNC('month', p.created_at)::date AS month_start,
+        (DATE_TRUNC('month', p.created_at) + INTERVAL '1 month' - INTERVAL '1 day')::date AS month_end,
+        TO_CHAR(p.created_at, 'Month') AS month_name,
+        EXTRACT(YEAR FROM p.created_at)::integer AS year,
+        SUM(p.amount) AS total_revenue,
+        COUNT(DISTINCT p.bill_id) AS total_bills,
+        AVG(bt.total) AS avg_bill_value,
+        COUNT(*) AS total_transactions,
+        COUNT(DISTINCT LOWER(TRIM(b.customer_name))) FILTER (WHERE b.customer_name IS NOT NULL AND b.customer_name != '') AS unique_customers
+    FROM payments p
+    JOIN bills b ON b.id = p.bill_id
+    JOIN v_bill_totals bt ON bt.bill_id = b.id
+    WHERE p.is_paid = true
+        AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
+        AND b.status = 'completed'
+    GROUP BY DATE_TRUNC('month', p.created_at), TO_CHAR(p.created_at, 'Month'), EXTRACT(YEAR FROM p.created_at)
+)
+SELECT 
+    month_start,
+    month_end,
+    TRIM(month_name) AS month_name,
+    year,
+    COALESCE(total_revenue, 0) AS total_revenue,
+    COALESCE(total_bills, 0) AS total_bills,
+    COALESCE(avg_bill_value, 0) AS avg_bill_value,
+    COALESCE(total_transactions, 0) AS total_transactions,
+    COALESCE(unique_customers, 0) AS unique_customers
+FROM monthly_data
+ORDER BY month_start;
+$function$;
+
+-- Weekend vs Weekday Performance
+CREATE OR REPLACE FUNCTION public.rpc_weekend_weekday_performance(p_start_date date, p_end_date date)
+RETURNS TABLE(
+    period_type text,
+    total_revenue numeric,
+    total_bills integer,
+    avg_bill_value numeric,
+    total_transactions integer,
+    revenue_percentage numeric
+) LANGUAGE sql STABLE AS $function$
+WITH day_classification AS (
+    SELECT 
+        p.amount,
+        p.bill_id,
+        bt.total,
+        CASE 
+            WHEN EXTRACT(DOW FROM p.created_at) IN (0, 6) THEN 'Weekend'
+            ELSE 'Weekday'
+        END AS period_type
+    FROM payments p
+    JOIN bills b ON b.id = p.bill_id
+    JOIN v_bill_totals bt ON bt.bill_id = b.id
+    WHERE p.is_paid = true
+        AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
+        AND b.status = 'completed'
+),
+period_totals AS (
+    SELECT 
+        period_type,
+        SUM(amount) AS total_revenue,
+        COUNT(DISTINCT bill_id) AS total_bills,
+        AVG(total) AS avg_bill_value,
+        COUNT(*) AS total_transactions
+    FROM day_classification
+    GROUP BY period_type
+),
+grand_total AS (
+    SELECT SUM(total_revenue) AS total FROM period_totals
+)
+SELECT 
+    pt.period_type,
+    COALESCE(pt.total_revenue, 0) AS total_revenue,
+    COALESCE(pt.total_bills, 0) AS total_bills,
+    COALESCE(pt.avg_bill_value, 0) AS avg_bill_value,
+    COALESCE(pt.total_transactions, 0) AS total_transactions,
+    CASE 
+        WHEN gt.total > 0 THEN ROUND((pt.total_revenue / gt.total * 100), 2)
+        ELSE 0
+    END AS revenue_percentage
+FROM period_totals pt
+CROSS JOIN grand_total gt
+ORDER BY pt.period_type DESC; -- Weekend first, then Weekday
+$function$;
+
+-- Day of Week Performance
+CREATE OR REPLACE FUNCTION public.rpc_day_of_week_performance(p_start_date date, p_end_date date)
+RETURNS TABLE(
+    day_of_week integer,
+    day_name text,
+    total_revenue numeric,
+    total_bills integer,
+    avg_bill_value numeric,
+    total_transactions integer
+) LANGUAGE sql STABLE AS $function$
+WITH dow_data AS (
+    SELECT 
+        EXTRACT(DOW FROM p.created_at)::integer AS day_of_week,
+        TO_CHAR(p.created_at, 'Day') AS day_name,
+        SUM(p.amount) AS total_revenue,
+        COUNT(DISTINCT p.bill_id) AS total_bills,
+        AVG(bt.total) AS avg_bill_value,
+        COUNT(*) AS total_transactions
+    FROM payments p
+    JOIN bills b ON b.id = p.bill_id
+    JOIN v_bill_totals bt ON bt.bill_id = b.id
+    WHERE p.is_paid = true
+        AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
+        AND b.status = 'completed'
+    GROUP BY EXTRACT(DOW FROM p.created_at), TO_CHAR(p.created_at, 'Day')
+)
+SELECT 
+    day_of_week,
+    TRIM(day_name) AS day_name,
+    COALESCE(total_revenue, 0) AS total_revenue,
+    COALESCE(total_bills, 0) AS total_bills,
+    COALESCE(avg_bill_value, 0) AS avg_bill_value,
+    COALESCE(total_transactions, 0) AS total_transactions
+FROM dow_data
+ORDER BY day_of_week;
+$function$;
+
+-- Daily Sales Breakdown by Category (for stacked bar chart)
+CREATE OR REPLACE FUNCTION public.rpc_daily_category_breakdown(p_start_date date, p_end_date date)
+RETURNS TABLE(
+    sale_date date,
+    category_id uuid,
+    category_name character varying,
+    category_sales numeric,
+    category_quantity integer
+) LANGUAGE sql STABLE AS $function$
+SELECT 
+    DATE(pm.created_at) AS sale_date,
+    c.id AS category_id,
+    c.name AS category_name,
+    SUM(ri.price * ri.quantity) AS category_sales,
+    SUM(ri.quantity)::integer AS category_quantity
+FROM payments pm
+JOIN bills b ON b.id = pm.bill_id
+JOIN rounds r ON r.bill_id = b.id
+JOIN round_items ri ON ri.round_id = r.id
+JOIN products p ON p.id = ri.product_id
+JOIN categories c ON c.id = p.category_id
+WHERE pm.is_paid = true
+    AND DATE(pm.created_at) BETWEEN p_start_date AND p_end_date
+    AND b.status = 'completed'
+GROUP BY DATE(pm.created_at), c.id, c.name
+ORDER BY sale_date, category_name;
+$function$;

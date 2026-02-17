@@ -62,7 +62,7 @@ const Dashboard = () => {
   if (user?.role !== "owner" && user?.role !== "system developer") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="bg-gradient-to-br from-red-900/30 to-red-900/10 backdrop-blur-md border border-red-500/20 rounded-xl p-6 shadow-lg">
+        <div className="bg-linear-to-br from-red-900/30 to-red-900/10 backdrop-blur-md border border-red-500/20 rounded-xl p-6 shadow-lg">
           <p className="text-red-400 font-semibold text-lg">Access denied.</p>
           <p className="text-gray-400 text-sm mt-2">
             Owner access required to view this dashboard.
@@ -83,7 +83,7 @@ const Dashboard = () => {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-linear-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Dashboard
           </h1>
           <p className="text-gray-400 text-sm mt-1">
