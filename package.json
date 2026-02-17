@@ -4,8 +4,8 @@
   "description": "",
   "main": "tailwind.config.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix back\" \"npm run dev --prefix front\"",
-    "start": "concurrently \"npm run start --prefix back\" \"npm run start --prefix front\"",
+    "dev": "concurrently \"npm run dev --prefix api\" \"npm run dev --prefix pos\"",
+    "start": "concurrently \"npm run start --prefix api\" \"npm run start --prefix pos\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
