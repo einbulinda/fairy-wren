@@ -3,7 +3,6 @@ import KPICard from "../components/owner/dashboard/KPICard";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useReports } from "@/hooks/useReports";
-import { usePerformanceComparisons } from "@/hooks/usePerformanceComparisons";
 import LoadingSpinner from "../components/shared/LoadingSpinner";
 import SalesTrendChart from "../components/owner/dashboard/SalesTrendChart";
 import PaymentTypeBreakdown from "../components/owner/dashboard/PaymentTypeBreakdown";
@@ -59,15 +58,6 @@ const Dashboard = () => {
     error,
   } = useReports(dateRange);
 
-  const {
-    weeklyPerformance,
-    monthlyPerformance,
-    weekendWeekdayPerformance,
-    dayOfWeekPerformance,
-    dailyCategoryBreakdown,
-    isLoading: isLoadingPerformance,
-    error: performanceError,
-  } = usePerformanceComparisons(dateRange);
 
   // Generate month and year options
   const months = [
@@ -115,15 +105,10 @@ const Dashboard = () => {
     );
   }
 
-  if (isLoading || isLoadingPerformance)
-    return <LoadingSpinner message="Loading Reports..." />;
+  if (isLoading) return <LoadingSpinner message="Loading Reports..." />;
 
   if (error) {
     toast.error(error);
-  }
-
-  if (performanceError) {
-    toast.error(performanceError);
   }
 
   return (
@@ -296,17 +281,7 @@ const Dashboard = () => {
       )}
 
       {/* PERFORMANCE ANALYTICS TAB CONTENT */}
-      {activeTab === "performance" && (
-        <PerformanceAnalytics
-          weeklyPerformance={weeklyPerformance}
-          monthlyPerformance={monthlyPerformance}
-          weekendWeekdayPerformance={weekendWeekdayPerformance}
-          dayOfWeekPerformance={dayOfWeekPerformance}
-          dailyCategoryBreakdown={dailyCategoryBreakdown}
-          selectedMonth={selectedMonth}
-          selectedYear={selectedYear}
-        />
-      )}
+      {activeTab === "performance" && <PerformanceAnalytics />}
     </div>
   );
 };
