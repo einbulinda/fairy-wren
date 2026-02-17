@@ -18,7 +18,10 @@ app.use(
     origin: [
       "https://pos.fairywren.co.ke",
       "https://www.pos.fairywren.co.ke",
+      "https://erp.fairywren.co.ke",
+      "https://www.erp.fairywren.co.ke",
       "http://localhost:5173",
+      "http://localhost:5174",
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,

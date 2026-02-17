@@ -4,9 +4,11 @@
   "description": "",
   "main": "tailwind.config.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix api\" \"npm run dev --prefix pos\"",
-    "start": "concurrently \"npm run start --prefix api\" \"npm run start --prefix pos\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "concurrently \"npm run dev --prefix api\" \"npm run dev --prefix pos\" \"npm run dev --prefix erp\"",
+    "dev:api": "npm run dev --prefix api",
+    "dev:pos": "concurrently \"npm run dev --prefix api\" \"npm run dev --prefix pos\"",
+    "dev:erp": "concurrently \"npm run dev --prefix api\" \"npm run dev --prefix erp\"",
+    "start": "concurrently \"npm run start --prefix api\" \"npm run start --prefix pos\" \"npm run start --prefix erp\""
   },
   "repository": {
     "type": "git",
