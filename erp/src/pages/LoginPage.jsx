@@ -115,12 +115,8 @@ const LoginPage = () => {
               </summary>
               <div className="mt-3 space-y-1.5 bg-surface-700/30 rounded-lg p-3">
                 <p className="flex justify-between">
-                  <span className="text-surface-400">Manager:</span>
-                  <span className="font-mono text-primary-400">9999</span>
-                </p>
-                <p className="flex justify-between">
                   <span className="text-surface-400">Owner:</span>
-                  <span className="font-mono text-primary-400">0000</span>
+                  <span className="font-mono text-primary-400">0100</span>
                 </p>
               </div>
             </details>

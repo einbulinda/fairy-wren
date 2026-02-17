@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
     } = await loginWithPin(pin);
 
     if (!ERP_ALLOWED_ROLES.includes(loggedInUser.role)) {
-      throw { error: "Access denied. ERP is restricted to management roles." };
+      throw { error: "Access denied. ERP is restricted to owner accounts." };
     }
 
     TokenService.save({

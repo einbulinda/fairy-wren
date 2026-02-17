@@ -7,9 +7,8 @@ export const USER_ROLES = {
 };
 
 export const ERP_ALLOWED_ROLES = [
-  
   USER_ROLES.OWNER,
-  
+  USER_ROLES.ADMIN,
 ];
 
 export const APPROVAL_STATUS = {
