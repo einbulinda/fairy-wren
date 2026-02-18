@@ -14,7 +14,7 @@ const routeTitles = {
   "/cheques": "Cheques",
   "/expenses": "Expenses",
   "/payroll": "Payroll",
-  "/reports": "Financial Reports",
+  "/reports": "Performance Analytics",
   "/users": "User Management",
   "/approvals": "Approvals",
 };

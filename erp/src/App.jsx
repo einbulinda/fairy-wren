@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import LoginPage from "@/pages/LoginPage";
 import AppShell from "@/components/layout/AppShell";
 import DashboardPage from "@/pages/DashboardPage";
+import PerformanceAnalyticsPage from "@/pages/PerformanceAnalyticsPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 
 const queryClient = new QueryClient({
@@ -37,7 +38,7 @@ const AppRoutes = () => {
         <Route path="cheques" element={<PlaceholderPage />} />
         <Route path="expenses" element={<PlaceholderPage />} />
         <Route path="payroll" element={<PlaceholderPage />} />
-        <Route path="reports" element={<PlaceholderPage />} />
+        <Route path="reports" element={<PerformanceAnalyticsPage />} />
         <Route path="users" element={<PlaceholderPage />} />
         <Route path="approvals" element={<PlaceholderPage />} />
       </Route>

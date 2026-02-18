@@ -160,6 +160,20 @@ class ReportsRepository {
       p_end_date: endDate,
     });
   }
+
+  async getTopSellingProducts(startDate, endDate) {
+    return callRpc("rpc_top_selling_products", {
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
+  }
+
+  async getBillStatusSummary(startDate, endDate) {
+    return callRpc("rpc_bill_status_summary", {
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
+  }
 }
 
 module.exports = new ReportsRepository();

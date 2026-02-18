@@ -120,8 +120,33 @@ class ReportsService {
    * @param {Date|string} endDate - End date
    * @returns {Promise<Object>} All dashboard metrics
    */
+  async getTopSellingProducts(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getTopSellingProducts(
+      startDate,
+      endDate
+    );
+    return data || [];
+  }
+
+  async getBillStatusSummary(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const data = await reportsRepository.getBillStatusSummary(
+      startDate,
+      endDate
+    );
+    return data || [];
+  }
+
   async getDashboardMetrics(startDate, endDate) {
     this.validateDateRange(startDate, endDate);
+
+    // Compute previous month date range for growth comparison
+    const start = new Date(startDate);
+    const prevMonthStart = new Date(start.getFullYear(), start.getMonth() - 1, 1);
+    const prevMonthEnd = new Date(start.getFullYear(), start.getMonth(), 0);
+    const fmt = (d) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     // Fetch all metrics in parallel for better performance
     const [
@@ -131,6 +156,12 @@ class ReportsService {
       averageBillValue,
       outstandingBills,
       categorySales,
+      topSellingProducts,
+      previousMonthRevenue,
+      weeklyPerformance,
+      billStatusSummary,
+      previousMonthBills,
+      dayOfWeekPerformance,
     ] = await Promise.all([
       this.getTotalRevenue(startDate, endDate),
       this.getDailyRevenue(startDate, endDate),
@@ -138,15 +169,45 @@ class ReportsService {
       this.getAverageBillValue(startDate, endDate),
       this.getOutstandingBills(startDate, endDate),
       this.getCategorySales(startDate, endDate),
+      this.getTopSellingProducts(startDate, endDate),
+      this.getTotalRevenue(fmt(prevMonthStart), fmt(prevMonthEnd)),
+      this.getWeeklyPerformance(startDate, endDate),
+      this.getBillStatusSummary(startDate, endDate),
+      this.getBillStatusSummary(fmt(prevMonthStart), fmt(prevMonthEnd)),
+      this.getDayOfWeekPerformance(startDate, endDate),
     ]);
+
+    const revenueGrowth =
+      previousMonthRevenue > 0
+        ? ((totalRevenue - previousMonthRevenue) / previousMonthRevenue) * 100
+        : totalRevenue > 0
+          ? 100
+          : 0;
+
+    const totalBills = billStatusSummary.reduce((s, r) => s + Number(r.count), 0);
+    const prevTotalBills = previousMonthBills.reduce((s, r) => s + Number(r.count), 0);
+    const billsGrowth =
+      prevTotalBills > 0
+        ? ((totalBills - prevTotalBills) / prevTotalBills) * 100
+        : totalBills > 0
+          ? 100
+          : 0;
 
     return {
       totalRevenue,
+      previousMonthRevenue,
+      revenueGrowth: Math.round(revenueGrowth * 10) / 10,
+      totalBills,
+      billsGrowth: Math.round(billsGrowth * 10) / 10,
       dailyRevenue,
       paymentTypes,
       averageBillValue,
       outstandingBills,
       categorySales,
+      topSellingProducts,
+      weeklyPerformance,
+      billStatusSummary,
+      dayOfWeekPerformance,
     };
   }
 

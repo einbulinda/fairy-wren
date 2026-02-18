@@ -8,6 +8,14 @@ END IF;
 RETURN NEW;
 END;
 $function$;
+/*
+ ============================================================================
+ ACCOUNTING POSTING FUNCTIONS
+ ----------------------------------------------------------------------------
+ These functions handle the creation of journal entries for key financial events such as posting customer invoices, supplier bills, and payments. They ensure that all transactions are properly recorded in the general ledger with the correct accounts and amounts.
+ Updated: 16/02/2026 - einbulinda
+ ============================================================================
+ */
 CREATE OR REPLACE FUNCTION public.post_customer_invoice(
         p_invoice_id uuid,
         p_ar_account uuid,
@@ -22,12 +30,18 @@ WHERE id = p_invoice_id;
 INSERT INTO journal_entries (entry_date, source_type, source_id)
 VALUES (CURRENT_DATE, 'customer_invoice', p_invoice_id)
 RETURNING id INTO v_journal_id;
-INSERT INTO journal_lines (journal_entry_id, account_id, debit)
-VALUES (v_journal_id, p_ar_account, v_total);
-INSERT INTO journal_lines (journal_entry_id, account_id, credit)
-VALUES (v_journal_id, p_revenue_account, v_total);
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+VALUES (v_journal_id, p_ar_account, v_total, 0),
+    (v_journal_id, p_revenue_account, 0, v_total);
 END;
 $function$;
+/*
+ ============================================================================
+ POST SUPPLIER BILL FUNCTION
+ This function creates the necessary journal entries when a supplier bill is posted. It debits the appropriate expense account and credits accounts payable, ensuring that the company's financial records accurately reflect the new liability.
+ Updated: 16/02/2026 - einbulinda
+ ============================================================================
+ */
 CREATE OR REPLACE FUNCTION public.post_supplier_bill(
         p_bill_id uuid,
         p_expense_account uuid,
@@ -42,10 +56,9 @@ WHERE id = p_bill_id;
 INSERT INTO journal_entries (entry_date, source_type, source_id)
 VALUES (CURRENT_DATE, 'supplier_bill', p_bill_id)
 RETURNING id INTO v_journal_id;
-INSERT INTO journal_lines (journal_entry_id, account_id, debit)
-VALUES (v_journal_id, p_expense_account, v_total);
-INSERT INTO journal_lines (journal_entry_id, account_id, credit)
-VALUES (v_journal_id, p_ap_account, v_total);
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+VALUES (v_journal_id, p_expense_account, v_total, 0),
+    (v_journal_id, p_ap_account, 0, v_total);
 END;
 $function$;
 /*
@@ -308,28 +321,10 @@ VALUES (
         'POS payment'
     )
 RETURNING id INTO v_journal_id;
-/* Dr Cash / Bank */
-INSERT INTO journal_lines (
-        journal_entry_id,
-        account_id,
-        debit
-    )
-VALUES (
-        v_journal_id,
-        v_cash_account,
-        v_totals.total
-    );
-/* Cr Sales */
-INSERT INTO journal_lines (
-        journal_entry_id,
-        account_id,
-        credit
-    )
-VALUES (
-        v_journal_id,
-        v_sales_account,
-        v_totals.total
-    );
+/* Dr Cash / Bank, Cr Sales */
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+VALUES (v_journal_id, v_cash_account, v_totals.total, 0),
+    (v_journal_id, v_sales_account, 0, v_totals.total);
 END;
 $function$;
 CREATE OR REPLACE FUNCTION public.approve_stock_take(
@@ -874,9 +869,14 @@ group by c.id,
     c.name
 order by total_sales desc;
 $function$;
-CREATE OR REPLACE FUNCTION public.rpc_daily_revenue(p_start_date date, p_end_date date) RETURNS TABLE(business_date date, total_revenue numeric) LANGUAGE sql STABLE AS $function$
+CREATE OR REPLACE FUNCTION public.rpc_daily_revenue(p_start_date date, p_end_date date) RETURNS TABLE(
+        business_date date,
+        total_revenue numeric,
+        total_orders bigint
+    ) LANGUAGE sql STABLE AS $function$
 select date(p.created_at) as business_date,
-    sum(p.amount) as total_revenue
+    sum(p.amount) as total_revenue,
+    count(distinct p.bill_id) as total_orders
 from payments p
 where p.is_paid = true
     and date(p.created_at) between p_start_date and p_end_date
@@ -1142,7 +1142,8 @@ VALUES (
         v_total_cost
     );
 END;
-$function$;/*
+$function$;
+/*
  ============================================================================
  PERFORMANCE COMPARISON FUNCTIONS
  ----------------------------------------------------------------------------
@@ -1151,37 +1152,41 @@ $function$;/*
  Created: 16/02/2026 - einbulinda
  ============================================================================
  */
-
 -- Weekly Performance Comparison
-CREATE OR REPLACE FUNCTION public.rpc_weekly_performance(p_start_date date, p_end_date date)
-RETURNS TABLE(
-    week_start date,
-    week_end date,
-    week_number integer,
-    total_revenue numeric,
-    total_bills integer,
-    avg_bill_value numeric,
-    total_transactions integer
-) LANGUAGE sql STABLE AS $function$
-WITH weekly_data AS (
-    SELECT 
-        DATE_TRUNC('week', p.created_at)::date AS week_start,
-        (DATE_TRUNC('week', p.created_at) + INTERVAL '6 days')::date AS week_end,
-        EXTRACT(WEEK FROM p.created_at)::integer AS week_number,
-        SUM(p.amount) AS total_revenue,
-        COUNT(DISTINCT p.bill_id) AS total_bills,
-        AVG(bt.total) AS avg_bill_value,
-        COUNT(*) AS total_transactions
-    FROM payments p
-    JOIN bills b ON b.id = p.bill_id
-    JOIN v_bill_totals bt ON bt.bill_id = b.id
-    WHERE p.is_paid = true
-        AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
-        AND b.status = 'completed'
-    GROUP BY DATE_TRUNC('week', p.created_at), EXTRACT(WEEK FROM p.created_at)
-)
-SELECT 
-    week_start,
+CREATE OR REPLACE FUNCTION public.rpc_weekly_performance(p_start_date date, p_end_date date) RETURNS TABLE(
+        week_start date,
+        week_end date,
+        week_number integer,
+        total_revenue numeric,
+        total_bills integer,
+        avg_bill_value numeric,
+        total_transactions integer
+    ) LANGUAGE sql STABLE AS $function$ WITH weekly_data AS (
+        SELECT DATE_TRUNC('week', p.created_at)::date AS week_start,
+            (
+                DATE_TRUNC('week', p.created_at) + INTERVAL '6 days'
+            )::date AS week_end,
+            EXTRACT(
+                WEEK
+                FROM p.created_at
+            )::integer AS week_number,
+            SUM(p.amount) AS total_revenue,
+            COUNT(DISTINCT p.bill_id) AS total_bills,
+            AVG(bt.total) AS avg_bill_value,
+            COUNT(*) AS total_transactions
+        FROM payments p
+            JOIN bills b ON b.id = p.bill_id
+            JOIN v_bill_totals bt ON bt.bill_id = b.id
+        WHERE p.is_paid = true
+            AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
+            AND b.status = 'completed'
+        GROUP BY DATE_TRUNC('week', p.created_at),
+            EXTRACT(
+                WEEK
+                FROM p.created_at
+            )
+    )
+SELECT week_start,
     week_end,
     week_number,
     COALESCE(total_revenue, 0) AS total_revenue,
@@ -1191,41 +1196,49 @@ SELECT
 FROM weekly_data
 ORDER BY week_start;
 $function$;
-
 -- Monthly Performance Comparison
-CREATE OR REPLACE FUNCTION public.rpc_monthly_performance(p_start_date date, p_end_date date)
-RETURNS TABLE(
-    month_start date,
-    month_end date,
-    month_name text,
-    year integer,
-    total_revenue numeric,
-    total_bills integer,
-    avg_bill_value numeric,
-    total_transactions integer,
-    unique_customers integer
-) LANGUAGE sql STABLE AS $function$
-WITH monthly_data AS (
-    SELECT 
-        DATE_TRUNC('month', p.created_at)::date AS month_start,
-        (DATE_TRUNC('month', p.created_at) + INTERVAL '1 month' - INTERVAL '1 day')::date AS month_end,
-        TO_CHAR(p.created_at, 'Month') AS month_name,
-        EXTRACT(YEAR FROM p.created_at)::integer AS year,
-        SUM(p.amount) AS total_revenue,
-        COUNT(DISTINCT p.bill_id) AS total_bills,
-        AVG(bt.total) AS avg_bill_value,
-        COUNT(*) AS total_transactions,
-        COUNT(DISTINCT LOWER(TRIM(b.customer_name))) FILTER (WHERE b.customer_name IS NOT NULL AND b.customer_name != '') AS unique_customers
-    FROM payments p
-    JOIN bills b ON b.id = p.bill_id
-    JOIN v_bill_totals bt ON bt.bill_id = b.id
-    WHERE p.is_paid = true
-        AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
-        AND b.status = 'completed'
-    GROUP BY DATE_TRUNC('month', p.created_at), TO_CHAR(p.created_at, 'Month'), EXTRACT(YEAR FROM p.created_at)
-)
-SELECT 
-    month_start,
+CREATE OR REPLACE FUNCTION public.rpc_monthly_performance(p_start_date date, p_end_date date) RETURNS TABLE(
+        month_start date,
+        month_end date,
+        month_name text,
+        year integer,
+        total_revenue numeric,
+        total_bills integer,
+        avg_bill_value numeric,
+        total_transactions integer,
+        unique_customers integer
+    ) LANGUAGE sql STABLE AS $function$ WITH monthly_data AS (
+        SELECT DATE_TRUNC('month', p.created_at)::date AS month_start,
+            (
+                DATE_TRUNC('month', p.created_at) + INTERVAL '1 month' - INTERVAL '1 day'
+            )::date AS month_end,
+            TO_CHAR(p.created_at, 'Month') AS month_name,
+            EXTRACT(
+                YEAR
+                FROM p.created_at
+            )::integer AS year,
+            SUM(p.amount) AS total_revenue,
+            COUNT(DISTINCT p.bill_id) AS total_bills,
+            AVG(bt.total) AS avg_bill_value,
+            COUNT(*) AS total_transactions,
+            COUNT(DISTINCT LOWER(TRIM(b.customer_name))) FILTER (
+                WHERE b.customer_name IS NOT NULL
+                    AND b.customer_name != ''
+            ) AS unique_customers
+        FROM payments p
+            JOIN bills b ON b.id = p.bill_id
+            JOIN v_bill_totals bt ON bt.bill_id = b.id
+        WHERE p.is_paid = true
+            AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
+            AND b.status = 'completed'
+        GROUP BY DATE_TRUNC('month', p.created_at),
+            TO_CHAR(p.created_at, 'Month'),
+            EXTRACT(
+                YEAR
+                FROM p.created_at
+            )
+    )
+SELECT month_start,
     month_end,
     TRIM(month_name) AS month_name,
     year,
@@ -1237,89 +1250,90 @@ SELECT
 FROM monthly_data
 ORDER BY month_start;
 $function$;
-
 -- Weekend vs Weekday Performance
-CREATE OR REPLACE FUNCTION public.rpc_weekend_weekday_performance(p_start_date date, p_end_date date)
-RETURNS TABLE(
-    period_type text,
-    total_revenue numeric,
-    total_bills integer,
-    avg_bill_value numeric,
-    total_transactions integer,
-    revenue_percentage numeric
-) LANGUAGE sql STABLE AS $function$
-WITH day_classification AS (
-    SELECT 
-        p.amount,
-        p.bill_id,
-        bt.total,
-        CASE 
-            WHEN EXTRACT(DOW FROM p.created_at) IN (0, 6) THEN 'Weekend'
-            ELSE 'Weekday'
-        END AS period_type
-    FROM payments p
-    JOIN bills b ON b.id = p.bill_id
-    JOIN v_bill_totals bt ON bt.bill_id = b.id
-    WHERE p.is_paid = true
-        AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
-        AND b.status = 'completed'
-),
-period_totals AS (
-    SELECT 
-        period_type,
-        SUM(amount) AS total_revenue,
-        COUNT(DISTINCT bill_id) AS total_bills,
-        AVG(total) AS avg_bill_value,
-        COUNT(*) AS total_transactions
-    FROM day_classification
-    GROUP BY period_type
-),
-grand_total AS (
-    SELECT SUM(total_revenue) AS total FROM period_totals
-)
-SELECT 
-    pt.period_type,
+CREATE OR REPLACE FUNCTION public.rpc_weekend_weekday_performance(p_start_date date, p_end_date date) RETURNS TABLE(
+        period_type text,
+        total_revenue numeric,
+        total_bills integer,
+        avg_bill_value numeric,
+        total_transactions integer,
+        revenue_percentage numeric
+    ) LANGUAGE sql STABLE AS $function$ WITH day_classification AS (
+        SELECT p.amount,
+            p.bill_id,
+            bt.total,
+            CASE
+                WHEN EXTRACT(
+                    DOW
+                    FROM p.created_at
+                ) IN (0, 6) THEN 'Weekend'
+                ELSE 'Weekday'
+            END AS period_type
+        FROM payments p
+            JOIN bills b ON b.id = p.bill_id
+            JOIN v_bill_totals bt ON bt.bill_id = b.id
+        WHERE p.is_paid = true
+            AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
+            AND b.status = 'completed'
+    ),
+    period_totals AS (
+        SELECT period_type,
+            SUM(amount) AS total_revenue,
+            COUNT(DISTINCT bill_id) AS total_bills,
+            AVG(total) AS avg_bill_value,
+            COUNT(*) AS total_transactions
+        FROM day_classification
+        GROUP BY period_type
+    ),
+    grand_total AS (
+        SELECT SUM(total_revenue) AS total
+        FROM period_totals
+    )
+SELECT pt.period_type,
     COALESCE(pt.total_revenue, 0) AS total_revenue,
     COALESCE(pt.total_bills, 0) AS total_bills,
     COALESCE(pt.avg_bill_value, 0) AS avg_bill_value,
     COALESCE(pt.total_transactions, 0) AS total_transactions,
-    CASE 
+    CASE
         WHEN gt.total > 0 THEN ROUND((pt.total_revenue / gt.total * 100), 2)
         ELSE 0
     END AS revenue_percentage
 FROM period_totals pt
-CROSS JOIN grand_total gt
-ORDER BY pt.period_type DESC; -- Weekend first, then Weekday
+    CROSS JOIN grand_total gt
+ORDER BY pt.period_type DESC;
+-- Weekend first, then Weekday
 $function$;
-
 -- Day of Week Performance
-CREATE OR REPLACE FUNCTION public.rpc_day_of_week_performance(p_start_date date, p_end_date date)
-RETURNS TABLE(
-    day_of_week integer,
-    day_name text,
-    total_revenue numeric,
-    total_bills integer,
-    avg_bill_value numeric,
-    total_transactions integer
-) LANGUAGE sql STABLE AS $function$
-WITH dow_data AS (
-    SELECT 
-        EXTRACT(DOW FROM p.created_at)::integer AS day_of_week,
-        TO_CHAR(p.created_at, 'Day') AS day_name,
-        SUM(p.amount) AS total_revenue,
-        COUNT(DISTINCT p.bill_id) AS total_bills,
-        AVG(bt.total) AS avg_bill_value,
-        COUNT(*) AS total_transactions
-    FROM payments p
-    JOIN bills b ON b.id = p.bill_id
-    JOIN v_bill_totals bt ON bt.bill_id = b.id
-    WHERE p.is_paid = true
-        AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
-        AND b.status = 'completed'
-    GROUP BY EXTRACT(DOW FROM p.created_at), TO_CHAR(p.created_at, 'Day')
-)
-SELECT 
-    day_of_week,
+CREATE OR REPLACE FUNCTION public.rpc_day_of_week_performance(p_start_date date, p_end_date date) RETURNS TABLE(
+        day_of_week integer,
+        day_name text,
+        total_revenue numeric,
+        total_bills integer,
+        avg_bill_value numeric,
+        total_transactions integer
+    ) LANGUAGE sql STABLE AS $function$ WITH dow_data AS (
+        SELECT EXTRACT(
+                DOW
+                FROM p.created_at
+            )::integer AS day_of_week,
+            TO_CHAR(p.created_at, 'Day') AS day_name,
+            SUM(p.amount) AS total_revenue,
+            COUNT(DISTINCT p.bill_id) AS total_bills,
+            AVG(bt.total) AS avg_bill_value,
+            COUNT(*) AS total_transactions
+        FROM payments p
+            JOIN bills b ON b.id = p.bill_id
+            JOIN v_bill_totals bt ON bt.bill_id = b.id
+        WHERE p.is_paid = true
+            AND DATE(p.created_at) BETWEEN p_start_date AND p_end_date
+            AND b.status = 'completed'
+        GROUP BY EXTRACT(
+                DOW
+                FROM p.created_at
+            ),
+            TO_CHAR(p.created_at, 'Day')
+    )
+SELECT day_of_week,
     TRIM(day_name) AS day_name,
     COALESCE(total_revenue, 0) AS total_revenue,
     COALESCE(total_bills, 0) AS total_bills,
@@ -1328,31 +1342,81 @@ SELECT
 FROM dow_data
 ORDER BY day_of_week;
 $function$;
-
 -- Daily Sales Breakdown by Category (for stacked bar chart)
-CREATE OR REPLACE FUNCTION public.rpc_daily_category_breakdown(p_start_date date, p_end_date date)
-RETURNS TABLE(
-    sale_date date,
-    category_id uuid,
-    category_name character varying,
-    category_sales numeric,
-    category_quantity integer
-) LANGUAGE sql STABLE AS $function$
-SELECT 
-    DATE(pm.created_at) AS sale_date,
+CREATE OR REPLACE FUNCTION public.rpc_daily_category_breakdown(p_start_date date, p_end_date date) RETURNS TABLE(
+        sale_date date,
+        category_id uuid,
+        category_name character varying,
+        category_sales numeric,
+        category_quantity integer
+    ) LANGUAGE sql STABLE AS $function$
+SELECT DATE(pm.created_at) AS sale_date,
     c.id AS category_id,
     c.name AS category_name,
     SUM(ri.price * ri.quantity) AS category_sales,
     SUM(ri.quantity)::integer AS category_quantity
 FROM payments pm
-JOIN bills b ON b.id = pm.bill_id
-JOIN rounds r ON r.bill_id = b.id
-JOIN round_items ri ON ri.round_id = r.id
-JOIN products p ON p.id = ri.product_id
-JOIN categories c ON c.id = p.category_id
+    JOIN bills b ON b.id = pm.bill_id
+    JOIN rounds r ON r.bill_id = b.id
+    JOIN round_items ri ON ri.round_id = r.id
+    JOIN products p ON p.id = ri.product_id
+    JOIN categories c ON c.id = p.category_id
 WHERE pm.is_paid = true
     AND DATE(pm.created_at) BETWEEN p_start_date AND p_end_date
     AND b.status = 'completed'
-GROUP BY DATE(pm.created_at), c.id, c.name
-ORDER BY sale_date, category_name;
+GROUP BY DATE(pm.created_at),
+    c.id,
+    c.name
+ORDER BY sale_date,
+    category_name;
+$function$;
+/*
+ ============================================================================
+ TOP SELLING PRODUCTS REPORT
+ This function identifies the top 10 best-selling products based on total sales amount within a specified date range. It aggregates data across multiple tables to ensure accurate results based on completed and paid transactions.
+ Updated: 16/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_top_selling_products(p_start_date date, p_end_date date) RETURNS TABLE(
+        product_id uuid,
+        product_name character varying,
+        category_name character varying,
+        total_quantity integer,
+        total_sales numeric,
+        total_orders bigint
+    ) LANGUAGE sql STABLE AS $function$
+SELECT p.id AS product_id,
+    p.name AS product_name,
+    c.name AS category_name,
+    SUM(ri.quantity)::integer AS total_quantity,
+    SUM(ri.price * ri.quantity) AS total_sales,
+    COUNT(DISTINCT b.id) AS total_orders
+FROM round_items ri
+    JOIN rounds r ON r.id = ri.round_id
+    JOIN bills b ON b.id = r.bill_id
+    JOIN payments pm ON pm.bill_id = b.id
+    JOIN products p ON p.id = ri.product_id
+    LEFT JOIN categories c ON c.id = p.category_id
+WHERE b.status = 'completed'
+    AND pm.is_paid = true
+    AND DATE(pm.created_at) BETWEEN p_start_date AND p_end_date
+GROUP BY p.id,
+    p.name,
+    c.name
+ORDER BY total_sales DESC
+LIMIT 10;
+$function$;
+/*=======================================================================
+ BILL STATUS SUMMARY
+ This function provides a summary of bill counts by status within a specified date range. It is useful for monitoring the distribution of bills across different statuses (e.g., pending, completed, under_review) and can help identify bottlenecks in the billing process.
+ Updated: 16/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_bill_status_summary(p_start_date date, p_end_date date) RETURNS TABLE(status text, count bigint) LANGUAGE sql STABLE AS $function$
+SELECT b.status::text,
+    COUNT(*) AS count
+FROM bills b
+WHERE DATE(b.created_at) BETWEEN p_start_date AND p_end_date
+GROUP BY b.status
+ORDER BY count DESC;
 $function$;

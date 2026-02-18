@@ -72,5 +72,3 @@ exports.fetchBillsWithPayments = async (req, res, next) => {
     next(err);
   }
 };
-
-

@@ -28,6 +28,7 @@ exports.processPayments = async (payload, context) => {
   });
 
   if (error) {
+    console.log("SERVICE", error);
     throw new Error("FAILED_TO_PROCESS_PAYMENT");
   }
 
