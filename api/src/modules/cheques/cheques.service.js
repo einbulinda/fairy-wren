@@ -30,10 +30,16 @@ exports.create = async (payload, context) => {
   if (chequeError) throw new Error("FAILED_TO_CREATE_CHEQUE");
 
   // Auto-create journal entry: Dr debit_account, Cr bank_account
+  const isTransfer = dto.transaction_type === "transfer";
+  const reference = isTransfer ? `TRF-${dto.cheque_number}` : `CHQ-${dto.cheque_number}`;
+  const description = isTransfer
+    ? `Internal transfer${dto.memo ? ` - ${dto.memo}` : ""}`
+    : `Cheque to ${dto.payee_name}${dto.memo ? ` - ${dto.memo}` : ""}`;
+
   const { data: entry, error: entryError } = await journalRepo.createEntry({
     entry_date: dto.cheque_date,
-    reference: `CHQ-${dto.cheque_number}`,
-    description: `Cheque to ${dto.payee_name}${dto.memo ? ` - ${dto.memo}` : ""}`,
+    reference,
+    description,
     source_type: "cheque",
     source_id: cheque.id,
   });
@@ -89,10 +95,13 @@ exports.void = async (id, context) => {
   if (cheque.journal_entry_id) {
     const { data: original } = await journalRepo.findById(cheque.journal_entry_id);
     if (original) {
+      const isTransfer = cheque.transaction_type === "transfer";
       const { data: reversal, error: revError } = await journalRepo.createEntry({
         entry_date: new Date().toISOString().split("T")[0],
-        reference: `VOID-CHQ-${cheque.cheque_number}`,
-        description: `Void cheque to ${cheque.payee_name}`,
+        reference: isTransfer ? `VOID-TRF-${cheque.cheque_number}` : `VOID-CHQ-${cheque.cheque_number}`,
+        description: isTransfer
+          ? `Void transfer ${cheque.cheque_number}`
+          : `Void cheque to ${cheque.payee_name}`,
         source_type: "cheque",
         source_id: cheque.id,
       });

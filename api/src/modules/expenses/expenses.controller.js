@@ -34,7 +34,7 @@ exports.createExpense = async (req, res) => {
       amount,
     } = req.body;
 
-    if (!expense_date || !account_id || !amount) {
+    if (!expense_date || !amount) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 

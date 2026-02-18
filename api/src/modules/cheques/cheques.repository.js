@@ -1,7 +1,7 @@
 const getSupabase = require("../../config/supabase");
 
 const CHEQUE_SELECT = `
-  id, cheque_number, payee_name, amount, cheque_date, memo, status,
+  id, cheque_number, payee_name, amount, cheque_date, memo, status, transaction_type,
   journal_entry_id, cleared_at, voided_at, created_at,
   bank_account:bank_account_id(code, name),
   debit_account:debit_account_id(code, name)

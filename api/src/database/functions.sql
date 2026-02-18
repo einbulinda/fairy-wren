@@ -945,7 +945,7 @@ end if;
 return new;
 end;
 $function$;
-CREATE OR REPLACE FUNCTION public.validate_expense_account() RETURNS trigger LANGUAGE plpgsql AS $function$ begin if not exists (
+CREATE OR REPLACE FUNCTION public.validate_expense_account() RETURNS trigger LANGUAGE plpgsql AS $function$ begin if new.account_id is not null and not exists (
         select 1
         from chart_of_accounts
         where id = new.account_id
@@ -1470,10 +1470,11 @@ CREATE TABLE IF NOT EXISTS public.cheques (
   amount numeric(15,2) NOT NULL CHECK (amount > 0),
   cheque_date date NOT NULL,
   memo text,
+  transaction_type varchar(20) DEFAULT 'bank_cheque' CHECK (transaction_type IN ('bank_cheque','petty_cash','transfer')),
   status varchar(20) DEFAULT 'issued' CHECK (status IN ('issued','cleared','voided')),
   journal_entry_id uuid REFERENCES journal_entries(id),
   cleared_at timestamptz,
   voided_at timestamptz,
-  created_by uuid REFERENCES users(id),
+  created_by uuid REFERENCES profiles(id),
   created_at timestamptz DEFAULT now()
 );

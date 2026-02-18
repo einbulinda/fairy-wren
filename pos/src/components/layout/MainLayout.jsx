@@ -14,7 +14,6 @@ import {
   Users,
   Grid,
   FolderTree,
-  Landmark,
   Truck,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -26,7 +25,6 @@ import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../../pages/UserManagement";
 import ProductManagement from "../owner/ProductManagement";
 import CategoriesManagement from "../owner/CategoriesManagement";
-import ChartOfAccounts from "../../pages/ChartOfAccounts";
 import SupplierManagement from "../owner/SupplierManagement";
 import InventoryManagement from "../../pages/InventoryManagement";
 import StockTakeEntry from "../../pages/StockTakeEntry";
@@ -79,7 +77,6 @@ const MainLayout = () => {
           { id: "pos", label: "POS", icon: ShoppingCart },
           { id: "inventory", label: "Inventory", icon: Package },
           { id: "stock-take", label: "Stock Take Entry", icon: Package },
-          { id: "accounts", label: "Chart of Accounts", icon: Landmark },
           { id: "suppliers", label: "Suppliers", icon: Truck },
         ];
 
@@ -173,8 +170,6 @@ const MainLayout = () => {
         return <ProductManagement />;
       case "categories":
         return <CategoriesManagement />;
-      case "accounts":
-        return <ChartOfAccounts />;
       case "suppliers":
         return <SupplierManagement />;
       case "stock-take":
