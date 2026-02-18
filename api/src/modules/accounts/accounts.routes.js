@@ -14,6 +14,7 @@ router.put("/:accountId", controller.updateAccount);
 // Explicit sub-resources
 router.patch("/:accountId/status", controller.updateAccountStatus);
 router.get("/:accountId/children", controller.getChildAccounts);
+router.get("/:accountId/ledger", controller.getAccountLedger);
 
 // Delete
 router.delete("/:accountId", controller.deleteAccount);

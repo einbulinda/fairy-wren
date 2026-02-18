@@ -71,3 +71,16 @@ exports.getChildAccounts = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getAccountLedger = async (req, res, next) => {
+  try {
+    const { from, to } = req.query;
+    if (!from || !to) {
+      return res.status(400).json({ message: "from and to date params required" });
+    }
+    const data = await service.getLedger(req.params.accountId, from, to);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};

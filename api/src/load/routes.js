@@ -15,6 +15,8 @@ const accountsRoutes = require("../modules/accounts/accounts.routes");
 const inventoryRoutes = require("../modules/inventory/inventory.routes");
 const paymentRoutes = require("../modules/payments/payments.routes");
 const posRoutes = require("../modules/pos/pos.routes");
+const journalsRoutes = require("../modules/journals/journals.routes");
+const chequesRoutes = require("../modules/cheques/cheques.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
@@ -32,5 +34,7 @@ router.use("/accounts", authMiddleware, accountsRoutes);
 router.use("/inventory", authMiddleware, inventoryRoutes);
 router.use("/payments", authMiddleware, paymentRoutes);
 router.use("/pos", authMiddleware, posRoutes);
+router.use("/journals", authMiddleware, journalsRoutes);
+router.use("/cheques", authMiddleware, chequesRoutes);
 
 module.exports = router;

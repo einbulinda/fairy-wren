@@ -90,3 +90,12 @@ exports.getChildren = async (parentId) => {
     .eq("parent_id", parentId)
     .order("code", { ascending: true });
 };
+
+exports.getAccountLedger = async (accountId, startDate, endDate) => {
+  const supabase = getSupabase();
+  return supabase.rpc("rpc_account_ledger", {
+    p_account_id: accountId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+  });
+};

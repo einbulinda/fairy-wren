@@ -180,3 +180,10 @@ exports.getChildren = async (parentId) => {
   if (error) throw new Error("FAILED_TO_FETCH_CHILD_ACCOUNTS");
   return data || [];
 };
+
+exports.getLedger = async (accountId, startDate, endDate) => {
+  await exports.getById(accountId); // validates account exists
+  const { data, error } = await repo.getAccountLedger(accountId, startDate, endDate);
+  if (error) throw new Error("FAILED_TO_FETCH_LEDGER");
+  return data || [];
+};
