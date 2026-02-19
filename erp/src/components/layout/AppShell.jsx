@@ -25,7 +25,8 @@ const AppShell = () => {
 
   const title =
     routeTitles[location.pathname] ||
-    (location.pathname.startsWith("/suppliers/") ? "Supplier Detail" : "Fairy Wren ERP");
+    (location.pathname.startsWith("/suppliers/") ? "Supplier Detail" :
+     location.pathname.startsWith("/products/")  ? "Product Detail"  : "Fairy Wren ERP");
 
   return (
     <div className="min-h-screen bg-surface-950 text-white flex">

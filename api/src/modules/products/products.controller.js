@@ -63,3 +63,30 @@ exports.archiveProduct = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getProductPurchaseHistory = async (req, res, next) => {
+  try {
+    const data = await service.getPurchaseHistory(req.params.productId);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getProductSalesHistory = async (req, res, next) => {
+  try {
+    const data = await service.getSalesHistory(req.params.productId);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getProductInsights = async (req, res, next) => {
+  try {
+    const data = await service.getProductInsights(req.params.productId);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};

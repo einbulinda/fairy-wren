@@ -71,3 +71,77 @@ exports.archive = async (id, context) => {
     correlation_id: context.correlationId,
   });
 };
+
+exports.getPurchaseHistory = async (productId) => {
+  const { data, error } = await repo.findPurchaseHistory(productId);
+  if (error) throw new Error("FAILED_TO_FETCH_PURCHASE_HISTORY");
+  return data ?? [];
+};
+
+exports.getSalesHistory = async (productId) => {
+  const { data, error } = await repo.findSalesHistory(productId);
+  if (error) throw new Error("FAILED_TO_FETCH_SALES_HISTORY");
+  return data ?? [];
+};
+
+exports.getProductInsights = async (productId) => {
+  const [{ data: product, error: pErr }, purchases, sales] = await Promise.all([
+    repo.findById(productId),
+    exports.getPurchaseHistory(productId),
+    exports.getSalesHistory(productId),
+  ]);
+
+  if (pErr || !product) throw new Error("PRODUCT_NOT_FOUND");
+
+  // Purchase aggregates
+  const totalUnitsPurchased = purchases.reduce((s, p) => s + (p.quantity || 0), 0);
+  const totalCostPurchased = purchases.reduce((s, p) => s + (p.line_total || 0), 0);
+  const avgCostPrice =
+    totalUnitsPurchased > 0
+      ? totalCostPurchased / totalUnitsPurchased
+      : product.cost_price || 0;
+
+  // Sales aggregates
+  const totalUnitsSold = sales.reduce((s, r) => s + (r.quantity || 0), 0);
+  const totalRevenue = sales.reduce(
+    (s, r) => s + (r.quantity || 0) * (r.price || 0),
+    0
+  );
+
+  // Profitability
+  const totalCOGS = totalUnitsSold * avgCostPrice;
+  const grossProfit = totalRevenue - totalCOGS;
+  const profitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
+  // Average daily sales & shelf life estimate
+  const sortedSales = [...sales].sort(
+    (a, b) =>
+      new Date(a.rounds?.created_at || 0) - new Date(b.rounds?.created_at || 0)
+  );
+  const firstSaleDate =
+    sortedSales.length > 0 && sortedSales[0].rounds?.created_at
+      ? new Date(sortedSales[0].rounds.created_at)
+      : null;
+  const daysSinceFirstSale = firstSaleDate
+    ? Math.max(1, Math.ceil((Date.now() - firstSaleDate.getTime()) / 86400000))
+    : 1;
+  const avgDailySales = totalUnitsSold / daysSinceFirstSale;
+  const daysOfStockRemaining =
+    avgDailySales > 0 ? Math.floor(product.current_stock / avgDailySales) : null;
+
+  return {
+    product,
+    metrics: {
+      current_stock: product.current_stock,
+      total_units_purchased: totalUnitsPurchased,
+      total_units_sold: totalUnitsSold,
+      total_revenue: totalRevenue,
+      total_cogs: totalCOGS,
+      gross_profit: grossProfit,
+      profit_margin: Number(profitMargin.toFixed(2)),
+      avg_daily_sales: Number(avgDailySales.toFixed(2)),
+      days_of_stock_remaining: daysOfStockRemaining,
+      avg_cost_price: Number(avgCostPrice.toFixed(2)),
+    },
+  };
+};

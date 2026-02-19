@@ -28,6 +28,9 @@ app.use(
   }),
 );
 
+// Explicitly handle preflight
+app.options("*", cors());
+
 app.use(express.json({ limit: "2mb" }));
 
 // Correlation ID and Request Timers

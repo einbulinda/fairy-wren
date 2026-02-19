@@ -12,8 +12,6 @@ import {
   Package,
   DollarSign,
   Users,
-  Grid,
-  FolderTree,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
@@ -22,10 +20,7 @@ import fwLogo from "/fairy-logo-only.png";
 import POSScreen from "@/pages/POSScreen";
 import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../../pages/UserManagement";
-import ProductManagement from "../owner/ProductManagement";
-import CategoriesManagement from "../owner/CategoriesManagement";
 import InventoryManagement from "../../pages/InventoryManagement";
-import StockTakeEntry from "../../pages/StockTakeEntry";
 import { useBills } from "@/hooks/useBills";
 
 const getStorageKey = (role) => `fw_lastSeen_${role}`;
@@ -68,13 +63,9 @@ const MainLayout = () => {
       case USER_ROLES.OWNER:
       case USER_ROLES.ADMIN:
         return [
-          { id: "products", label: "Products", icon: Grid },
           { id: "expenses", label: "Expenses", icon: DollarSign },
-          { id: "categories", label: "Categories", icon: FolderTree },
           { id: "users", label: "Users", icon: Users },
           { id: "pos", label: "POS", icon: ShoppingCart },
-          { id: "inventory", label: "Inventory", icon: Package },
-          { id: "stock-take", label: "Stock Take Entry", icon: Package },
         ];
 
       default:
@@ -93,8 +84,8 @@ const MainLayout = () => {
       [USER_ROLES.WAITRESS]: "pos",
       [USER_ROLES.BARTENDER]: "pos",
       [USER_ROLES.MANAGER]: "inventory",
-      [USER_ROLES.OWNER]: "products",
-      [USER_ROLES.ADMIN]: "inventory",
+      [USER_ROLES.OWNER]: "expenses",
+      [USER_ROLES.ADMIN]: "expenses",
     };
 
     const allowedViews = navigationTabs.map((t) => t.id);
@@ -163,12 +154,6 @@ const MainLayout = () => {
         return <ExpenseManagement />;
       case "users":
         return <UserManagement />;
-      case "products":
-        return <ProductManagement />;
-      case "categories":
-        return <CategoriesManagement />;
-      case "stock-take":
-        return <StockTakeEntry />;
       default:
         return null;
     }
