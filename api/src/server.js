@@ -4,7 +4,7 @@ const logger = require("pino")();
 
 console.log("Bootstrapping FairyWren API...");
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled Rejection:", reason);
