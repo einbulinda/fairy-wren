@@ -51,3 +51,47 @@ exports.archiveSupplier = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getPurchases = async (req, res, next) => {
+  try {
+    const data = await service.getPurchases(req.params.id);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getPayments = async (req, res, next) => {
+  try {
+    const data = await service.getPayments(req.params.id);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createPayment = async (req, res, next) => {
+  try {
+    const data = await service.createPayment(
+      req.params.id,
+      req.body,
+      buildContext(req),
+    );
+    respond(res, 201, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getStatement = async (req, res, next) => {
+  try {
+    const data = await service.getStatement(
+      req.params.id,
+      req.query.from,
+      req.query.to,
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};

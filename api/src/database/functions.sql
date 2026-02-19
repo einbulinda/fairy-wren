@@ -1478,3 +1478,76 @@ END IF;
 RETURN new;
 END;
 $function$;
+/*=======================================================================
+ RPC_SUPPLIER_STATEMENT
+ Returns a running statement for a supplier by unioning inventory_receipts
+ (goods purchased), expenses (non-inventory supplier charges), and
+ supplier_payments (amounts paid). Includes a cumulative running balance
+ (positive = supplier is owed money, negative = in credit).
+ Created: 19/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_supplier_statement(
+    p_supplier_id uuid,
+    p_start_date date DEFAULT NULL,
+    p_end_date date DEFAULT NULL
+) RETURNS TABLE(
+    txn_date date,
+    txn_type text,
+    reference text,
+    description text,
+    debit numeric,
+    credit numeric,
+    running_balance numeric
+) LANGUAGE sql STABLE AS $function$
+WITH txns AS (
+    -- Inventory receipts (goods purchased from supplier)
+    SELECT
+        ir.purchase_date AS txn_date,
+        'purchase'::text AS txn_type,
+        ir.invoice_number AS reference,
+        COALESCE(ir.notes, 'Inventory purchase') AS description,
+        ir.total_amount AS debit,
+        0::numeric AS credit
+    FROM inventory_receipts ir
+    WHERE ir.supplier_id = p_supplier_id
+        AND (p_start_date IS NULL OR ir.purchase_date >= p_start_date)
+        AND (p_end_date IS NULL OR ir.purchase_date <= p_end_date)
+    UNION ALL
+    -- Expenses linked to this supplier (non-inventory charges)
+    SELECT
+        e.expense_date AS txn_date,
+        'expense'::text AS txn_type,
+        COALESCE(e.invoice_number, 'EXP') AS reference,
+        COALESCE(e.description, 'Supplier expense') AS description,
+        e.amount AS debit,
+        0::numeric AS credit
+    FROM expenses e
+    WHERE e.supplier_id = p_supplier_id
+        AND (p_start_date IS NULL OR e.expense_date >= p_start_date)
+        AND (p_end_date IS NULL OR e.expense_date <= p_end_date)
+    UNION ALL
+    -- Payments made to supplier
+    SELECT
+        sp.payment_date AS txn_date,
+        'payment'::text AS txn_type,
+        COALESCE(sp.reference, 'PMT') AS reference,
+        COALESCE(sp.notes, 'Payment') AS description,
+        0::numeric AS debit,
+        sp.amount AS credit
+    FROM supplier_payments sp
+    WHERE sp.supplier_id = p_supplier_id
+        AND (p_start_date IS NULL OR sp.payment_date >= p_start_date)
+        AND (p_end_date IS NULL OR sp.payment_date <= p_end_date)
+)
+SELECT
+    txn_date,
+    txn_type,
+    reference,
+    description,
+    debit,
+    credit,
+    SUM(debit - credit) OVER (ORDER BY txn_date, txn_type) AS running_balance
+FROM txns
+ORDER BY txn_date, txn_type;
+$function$;

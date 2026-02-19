@@ -460,3 +460,23 @@ CREATE TABLE IF NOT EXISTS public.cheques (
     created_by uuid REFERENCES profiles(id),
     created_at timestamptz DEFAULT now()
 );
+/*=======================================================================
+ SUPPLIER_PAYMENTS TABLE
+ Records payments made to suppliers. Each payment auto-creates a journal
+ entry (Dr Accounts Payable / Cr Bank Account) via the API service.
+ Created: 19/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE TABLE IF NOT EXISTS public.supplier_payments (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    supplier_id uuid NOT NULL REFERENCES public.suppliers(id),
+    payment_date date NOT NULL,
+    amount numeric(15, 2) NOT NULL CHECK (amount > 0),
+    payment_method varchar(20) DEFAULT 'bank' CHECK (payment_method IN ('bank', 'cash', 'mpesa', 'cheque')),
+    reference varchar(100),
+    bank_account_id uuid REFERENCES public.chart_of_accounts(id),
+    notes text,
+    journal_entry_id uuid REFERENCES public.journal_entries(id),
+    created_by uuid REFERENCES public.profiles(id),
+    created_at timestamptz DEFAULT now()
+);

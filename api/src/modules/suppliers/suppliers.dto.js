@@ -18,3 +18,12 @@ exports.UpdateSupplierDTO = (payload) => {
 
   return dto;
 };
+
+exports.CreatePaymentDTO = (payload) => ({
+  payment_date: payload.payment_date,
+  amount: Number(payload.amount),
+  payment_method: payload.payment_method || "bank",
+  reference: payload.reference?.trim() || null,
+  bank_account_id: payload.bank_account_id || null,
+  notes: payload.notes?.trim() || null,
+});

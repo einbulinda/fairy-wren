@@ -23,7 +23,9 @@ const AppShell = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
-  const title = routeTitles[location.pathname] || "Fairy Wren ERP";
+  const title =
+    routeTitles[location.pathname] ||
+    (location.pathname.startsWith("/suppliers/") ? "Supplier Detail" : "Fairy Wren ERP");
 
   return (
     <div className="min-h-screen bg-surface-950 text-white flex">
