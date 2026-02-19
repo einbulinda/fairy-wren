@@ -23,9 +23,10 @@ exports.create = async (payload, context) => {
 
   const { data, error } = await repo.create({
     ...dto,
-    archived: false,
+    active: false,
   });
 
+  console.log(error);
   if (error) throw new Error("FAILED_TO_CREATE_CATEGORY");
 
   await auditRepo.log({
@@ -43,12 +44,16 @@ exports.create = async (payload, context) => {
 exports.update = async (id, payload, context) => {
   const dto = UpdateCategoryDTO(payload);
 
+  console.log("DTO for update:", dto, "Original payload:", payload);
+
   if (Object.keys(dto).length === 0) {
     throw new Error("NO_FIELDS_TO_UPDATE");
   }
 
   const { data, error } = await repo.update(id, dto);
-  if (error || !data) throw new Error("FAILED_TO_UPDATE_CATEGORY");
+  if (error || !data) {
+    throw new Error("FAILED_TO_UPDATE_CATEGORY");
+  }
 
   await auditRepo.log({
     entity: "categories",

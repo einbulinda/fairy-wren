@@ -9,7 +9,6 @@ import {
   ShoppingCart,
   FileText,
   ClipboardCheck,
-  Package,
   DollarSign,
   Users,
 } from "lucide-react";
@@ -20,7 +19,7 @@ import fwLogo from "/fairy-logo-only.png";
 import POSScreen from "@/pages/POSScreen";
 import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../../pages/UserManagement";
-import InventoryManagement from "../../pages/InventoryManagement";
+import StockTakeEntry from "../../pages/StockTakeEntry";
 import { useBills } from "@/hooks/useBills";
 
 const getStorageKey = (role) => `fw_lastSeen_${role}`;
@@ -36,9 +35,7 @@ const MainLayout = () => {
 
   // Check if user has sidebar (Manager and Owner only)
   const hasSidebar = useMemo(() => {
-    return [USER_ROLES.MANAGER, USER_ROLES.OWNER, USER_ROLES.ADMIN].includes(
-      user.role,
-    );
+    return [USER_ROLES.OWNER, USER_ROLES.ADMIN].includes(user.role);
   }, [user.role]);
 
   /**
@@ -54,11 +51,7 @@ const MainLayout = () => {
         return [{ id: "pos", label: "POS", icon: ShoppingCart }];
 
       case USER_ROLES.MANAGER:
-        return [
-          { id: "inventory", label: "Inventory", icon: Package },
-          { id: "approvals", label: "Approvals", icon: ClipboardCheck },
-          { id: "pos", label: "POS", icon: ShoppingCart },
-        ];
+        return [];
 
       case USER_ROLES.OWNER:
       case USER_ROLES.ADMIN:
@@ -83,7 +76,7 @@ const MainLayout = () => {
     const roleDefaults = {
       [USER_ROLES.WAITRESS]: "pos",
       [USER_ROLES.BARTENDER]: "pos",
-      [USER_ROLES.MANAGER]: "inventory",
+      [USER_ROLES.MANAGER]: "stock-take",
       [USER_ROLES.OWNER]: "expenses",
       [USER_ROLES.ADMIN]: "expenses",
     };
@@ -148,8 +141,8 @@ const MainLayout = () => {
     switch (currentView) {
       case "pos":
         return <POSScreen onBillUpdate={fetchCounts} />;
-      case "inventory":
-        return <InventoryManagement />;
+      case "stock-take":
+        return <StockTakeEntry />;
       case "expenses":
         return <ExpenseManagement />;
       case "users":
