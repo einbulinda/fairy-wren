@@ -437,3 +437,26 @@ CREATE TABLE public.suppliers (
     CONSTRAINT suppliers_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
     CONSTRAINT suppliers_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
 );
+/*=======================================================================
+ CHEQUES TABLE
+ Tracks issued bank cheques. Each cheque auto-creates a journal entry
+ (Dr charge account / Cr bank account) via the API cheques service.
+ Created: 18/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE TABLE IF NOT EXISTS public.cheques (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    cheque_number varchar(50) NOT NULL,
+    payee_name varchar(255) NOT NULL,
+    bank_account_id uuid NOT NULL REFERENCES chart_of_accounts(id),
+    debit_account_id uuid NOT NULL REFERENCES chart_of_accounts(id),
+    amount numeric(15, 2) NOT NULL CHECK (amount > 0),
+    cheque_date date NOT NULL,
+    memo text,
+    status varchar(20) DEFAULT 'issued' CHECK (status IN ('issued', 'cleared', 'voided')),
+    journal_entry_id uuid REFERENCES journal_entries(id),
+    cleared_at timestamptz,
+    voided_at timestamptz,
+    created_by uuid REFERENCES profiles(id),
+    created_at timestamptz DEFAULT now()
+);

@@ -9,6 +9,8 @@ CREATE TRIGGER trg_validate_account_hierarchy BEFORE
 INSERT
     OR
 UPDATE ON chart_of_accounts FOR EACH ROW EXECUTE FUNCTION validate_account_hierarchy();
+-- Note: validate_expense_account() allows NULL account_id (POS expenses have no account).
+-- When account_id IS NOT NULL it must reference an active expense-class account.
 CREATE TRIGGER trg_validate_expense_account BEFORE
 INSERT
     OR

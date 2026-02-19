@@ -945,7 +945,8 @@ end if;
 return new;
 end;
 $function$;
-CREATE OR REPLACE FUNCTION public.validate_expense_account() RETURNS trigger LANGUAGE plpgsql AS $function$ begin if new.account_id is not null and not exists (
+CREATE OR REPLACE FUNCTION public.validate_expense_account() RETURNS trigger LANGUAGE plpgsql AS $function$ begin if new.account_id is not null
+    and not exists (
         select 1
         from chart_of_accounts
         where id = new.account_id
@@ -1420,7 +1421,6 @@ WHERE DATE(b.created_at) BETWEEN p_start_date AND p_end_date
 GROUP BY b.status
 ORDER BY count DESC;
 $function$;
-
 /*=======================================================================
  ACCOUNT LEDGER
  Returns journal lines for a given account with a running balance,
@@ -1429,52 +1429,52 @@ $function$;
  ============================================================================
  */
 CREATE OR REPLACE FUNCTION public.rpc_account_ledger(
-  p_account_id uuid,
-  p_start_date date,
-  p_end_date date
-) RETURNS TABLE (
-  entry_date date,
-  reference text,
-  description text,
-  debit numeric,
-  credit numeric,
-  running_balance numeric
-) LANGUAGE sql STABLE AS $function$
-  SELECT
-    je.entry_date,
+        p_account_id uuid,
+        p_start_date date,
+        p_end_date date
+    ) RETURNS TABLE (
+        entry_date date,
+        reference text,
+        description text,
+        debit numeric,
+        credit numeric,
+        running_balance numeric
+    ) LANGUAGE sql STABLE AS $function$
+SELECT je.entry_date,
     je.reference,
     COALESCE(je.description, ''),
     jl.debit,
     jl.credit,
-    SUM(jl.debit - jl.credit) OVER (ORDER BY je.entry_date, je.id) AS running_balance
-  FROM journal_lines jl
-  JOIN journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.account_id = p_account_id
+    SUM(jl.debit - jl.credit) OVER (
+        ORDER BY je.entry_date,
+            je.id
+    ) AS running_balance
+FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl.journal_entry_id
+WHERE jl.account_id = p_account_id
     AND je.entry_date BETWEEN p_start_date AND p_end_date
-  ORDER BY je.entry_date, je.id;
+ORDER BY je.entry_date,
+    je.id;
 $function$;
-
-/*=======================================================================
- CHEQUES TABLE
- Tracks issued bank cheques. Each cheque auto-creates a journal entry
- (Dr charge account / Cr bank account) via the API cheques service.
- Created: 18/02/2026 - einbulinda
+/*
+ ============================================================================
+ TRIGGERS
+ ----------------------------------------------------------------------------
+ These triggers automatically maintain data integrity and enforce business rules
+ across various tables. They handle tasks such as updating timestamps, validating
+ account references, posting inventory movements, and ensuring journal entries are balanced.
+ Updated: 16/02/2026 - einbulinda
  ============================================================================
  */
-CREATE TABLE IF NOT EXISTS public.cheques (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  cheque_number varchar(50) NOT NULL,
-  payee_name varchar(255) NOT NULL,
-  bank_account_id uuid NOT NULL REFERENCES chart_of_accounts(id),
-  debit_account_id uuid NOT NULL REFERENCES chart_of_accounts(id),
-  amount numeric(15,2) NOT NULL CHECK (amount > 0),
-  cheque_date date NOT NULL,
-  memo text,
-  transaction_type varchar(20) DEFAULT 'bank_cheque' CHECK (transaction_type IN ('bank_cheque','petty_cash','transfer')),
-  status varchar(20) DEFAULT 'issued' CHECK (status IN ('issued','cleared','voided')),
-  journal_entry_id uuid REFERENCES journal_entries(id),
-  cleared_at timestamptz,
-  voided_at timestamptz,
-  created_by uuid REFERENCES profiles(id),
-  created_at timestamptz DEFAULT now()
-);
+CREATE OR REPLACE FUNCTION public.validate_expense_account() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN IF new.account_id IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM chart_of_accounts
+        WHERE id = new.account_id
+            AND account_class = 'expense'
+            AND active = true
+    ) THEN RAISE EXCEPTION 'Expenses must use an active expense account';
+END IF;
+RETURN new;
+END;
+$function$;
