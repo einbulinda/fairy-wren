@@ -1,7 +1,7 @@
 // InventoryManagement.jsx (Enhanced with Tabs)
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useStockTake } from "../hooks/inventory/useStockTake";
-import { useSuppliers } from "../hooks/useSuppliers";
+import { fetchSuppliers } from "../services/suppliers.service";
 import { useReceiveInventory } from "../hooks/inventory/useReceiveInventory";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -25,8 +25,12 @@ const InventoryManagement = () => {
   });
   const { stockTake, startStockTake, saveItems, completeStockTake } =
     useStockTake();
-  const { suppliers, addSupplier, reload: reloadSuppliers } = useSuppliers();
+  const [suppliers, setSuppliers] = useState([]);
   const { receiveInventory } = useReceiveInventory();
+
+  useEffect(() => {
+    fetchSuppliers().then(setSuppliers).catch(console.error);
+  }, []);
 
   const [activeTab, setActiveTab] = useState("stock"); // 'stock' | 'receive' | 'reports' | 'approvals'
   const [showStockTake, setShowStockTake] = useState(false);
@@ -58,11 +62,6 @@ const InventoryManagement = () => {
 
   const handleReceiveInventorySuccess = async () => {
     setActiveTab("stock");
-  };
-
-  const handleAddSupplier = async (supplierData) => {
-    const newSupplier = await addSupplier(supplierData);
-    return newSupplier;
   };
 
   // Show stock take view when active
@@ -475,9 +474,7 @@ const InventoryManagement = () => {
         <ReceiveInventoryTab
           products={stock}
           suppliers={suppliers}
-          onAddSupplier={handleAddSupplier}
           onReceiveInventory={receiveInventory}
-          onReloadSuppliers={reloadSuppliers}
           onSuccess={handleReceiveInventorySuccess}
           onCancel={() => setActiveTab("stock")}
         />

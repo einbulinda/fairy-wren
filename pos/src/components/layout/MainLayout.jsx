@@ -14,7 +14,6 @@ import {
   Users,
   Grid,
   FolderTree,
-  Truck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
@@ -25,7 +24,6 @@ import ExpenseManagement from "../owner/ExpenseManagement";
 import UserManagement from "../../pages/UserManagement";
 import ProductManagement from "../owner/ProductManagement";
 import CategoriesManagement from "../owner/CategoriesManagement";
-import SupplierManagement from "../owner/SupplierManagement";
 import InventoryManagement from "../../pages/InventoryManagement";
 import StockTakeEntry from "../../pages/StockTakeEntry";
 import { useBills } from "@/hooks/useBills";
@@ -77,7 +75,6 @@ const MainLayout = () => {
           { id: "pos", label: "POS", icon: ShoppingCart },
           { id: "inventory", label: "Inventory", icon: Package },
           { id: "stock-take", label: "Stock Take Entry", icon: Package },
-          { id: "suppliers", label: "Suppliers", icon: Truck },
         ];
 
       default:
@@ -170,8 +167,6 @@ const MainLayout = () => {
         return <ProductManagement />;
       case "categories":
         return <CategoriesManagement />;
-      case "suppliers":
-        return <SupplierManagement />;
       case "stock-take":
         return <StockTakeEntry />;
       default:

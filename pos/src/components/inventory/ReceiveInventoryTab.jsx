@@ -11,18 +11,14 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import AddSupplierModal from "../suppliers/AddSupplierModal";
 
 const ReceiveInventoryTab = ({
   products,
   suppliers,
-  onAddSupplier,
   onReceiveInventory,
-  onReloadSuppliers,
   onSuccess,
   onCancel,
 }) => {
-  const [showAddSupplier, setShowAddSupplier] = useState(false);
   const [formData, setFormData] = useState({
     supplier_id: "",
     invoice_number: "",
@@ -135,13 +131,6 @@ const ReceiveInventoryTab = ({
     }
   };
 
-  // Handle supplier added
-  const handleSupplierAdded = async (newSupplier) => {
-    await onReloadSuppliers();
-    setFormData({ ...formData, supplier_id: newSupplier.id });
-    setShowAddSupplier(false);
-  };
-
   return (
     <>
       <form
@@ -161,39 +150,29 @@ const ReceiveInventoryTab = ({
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Supplier *
               </label>
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Building2
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400"
-                    size={18}
-                  />
-                  <select
-                    value={formData.supplier_id}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        supplier_id: e.target.value,
-                      })
-                    }
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-gray-900/60 border-2 border-purple-500/30 text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all text-sm sm:text-base"
-                    required
-                  >
-                    <option value="">Select Supplier</option>
-                    {suppliers?.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>
-                        {supplier.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddSupplier(true)}
-                  className="px-3 sm:px-4 py-2.5 bg-purple-600/20 border border-purple-500/30 rounded-lg hover:bg-purple-600/30 text-purple-300 font-medium transition-all flex items-center gap-2"
+              <div className="relative">
+                <Building2
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400"
+                  size={18}
+                />
+                <select
+                  value={formData.supplier_id}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      supplier_id: e.target.value,
+                    })
+                  }
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-gray-900/60 border-2 border-purple-500/30 text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all text-sm sm:text-base"
+                  required
                 >
-                  <Plus size={18} />
-                  <span className="hidden sm:inline">New</span>
-                </button>
+                  <option value="">Select Supplier</option>
+                  {suppliers?.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -613,14 +592,6 @@ const ReceiveInventoryTab = ({
         </button>
       </div>
 
-      {/* Add Supplier Modal */}
-      {showAddSupplier && (
-        <AddSupplierModal
-          onClose={() => setShowAddSupplier(false)}
-          onSuccess={handleSupplierAdded}
-          onAddSupplier={onAddSupplier}
-        />
-      )}
     </>
   );
 };

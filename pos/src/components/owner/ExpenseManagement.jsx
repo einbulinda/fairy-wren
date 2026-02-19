@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { useExpenses } from "../../hooks/useExpenses";
-import { useSuppliers } from "../../hooks/useSuppliers";
 import LoadingSpinner from "../shared/LoadingSpinner";
 import toast from "react-hot-toast";
 import {
@@ -21,11 +20,9 @@ const ITEMS_PER_PAGE = 10;
 
 const ExpenseManagement = () => {
   const { expenses, addExpense, reload, isLoading } = useExpenses();
-  const { suppliers, isLoading: supplierLoading } = useSuppliers();
 
   const [form, setForm] = useState({
     expense_date: "",
-    supplier_id: "",
     amount: "",
     invoice_number: "",
     description: "",
@@ -35,7 +32,6 @@ const ExpenseManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
-  const [filterSupplier, setFilterSupplier] = useState("");
 
   const filteredExpenses = useMemo(() => {
     let result = expenses;
@@ -56,12 +52,8 @@ const ExpenseManagement = () => {
     if (filterDateTo) {
       result = result.filter((expense) => new Date(expense.expense_date) <= new Date(filterDateTo));
     }
-    if (filterSupplier) {
-      result = result.filter((expense) => expense.supplier_id === filterSupplier);
-    }
-
     return result;
-  }, [searchQuery, expenses, filterDateFrom, filterDateTo, filterSupplier]);
+  }, [searchQuery, expenses, filterDateFrom, filterDateTo]);
 
   const totalPages = Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE);
   const paginatedExpenses = useMemo(() => {
@@ -78,11 +70,10 @@ const ExpenseManagement = () => {
     setSearchQuery("");
     setFilterDateFrom("");
     setFilterDateTo("");
-    setFilterSupplier("");
     setCurrentPage(1);
   };
 
-  const hasActiveFilters = searchQuery || filterDateFrom || filterDateTo || filterSupplier;
+  const hasActiveFilters = searchQuery || filterDateFrom || filterDateTo;
 
   const handleSave = async () => {
     if (!form.expense_date || !form.amount) {
@@ -94,7 +85,7 @@ const ExpenseManagement = () => {
       const response = await addExpense({ ...form, amount: parseFloat(form.amount) });
       if (response) toast.success("Expense recorded");
       reload();
-      setForm({ expense_date: "", supplier_id: "", amount: "", invoice_number: "", description: "" });
+      setForm({ expense_date: "", amount: "", invoice_number: "", description: "" });
     } catch {
       toast.error("Failed to save expense");
     }
@@ -102,7 +93,7 @@ const ExpenseManagement = () => {
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
-  if (isLoading || supplierLoading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6">
@@ -155,19 +146,6 @@ const ExpenseManagement = () => {
             <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-900/50 border border-gray-600 rounded-lg text-white text-sm sm:text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all" />
-          </div>
-
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-300">
-              <Building2 size={16} className="text-purple-500" />
-              Supplier
-            </label>
-            <select value={form.supplier_id}
-              onChange={(e) => setForm({ ...form, supplier_id: e.target.value })}
-              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-900/50 border border-gray-600 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all">
-              <option value="">Select Supplier (optional)</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
           </div>
 
           <div className="space-y-2">
@@ -225,7 +203,7 @@ const ExpenseManagement = () => {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-300">
               <Calendar size={14} className="text-purple-500" /> From Date
@@ -242,24 +220,12 @@ const ExpenseManagement = () => {
               onChange={(e) => { setFilterDateTo(e.target.value); setCurrentPage(1); }}
               className="w-full px-3 py-2 bg-gray-900/50 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all" />
           </div>
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-300">
-              <Building2 size={14} className="text-pink-500" /> Supplier
-            </label>
-            <select value={filterSupplier}
-              onChange={(e) => { setFilterSupplier(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2 bg-gray-900/50 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all">
-              <option value="">All Suppliers</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
         </div>
         {hasActiveFilters && (
           <div className="mt-3 pt-3 border-t border-gray-700 text-xs sm:text-sm text-gray-400">
             Showing {filteredExpenses.length} of {expenses.length} expenses
             {filterDateFrom && ` • From ${new Date(filterDateFrom).toLocaleDateString()}`}
             {filterDateTo && ` • To ${new Date(filterDateTo).toLocaleDateString()}`}
-            {filterSupplier && ` • Supplier: ${suppliers.find((s) => s.id === filterSupplier)?.name}`}
           </div>
         )}
       </div>
