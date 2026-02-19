@@ -13,25 +13,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Sync API folder only
-        uses: burnett01/rsync-deployments@v6.0.0
-        with:
-          switches: -avzr --delete \
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Rsync API folder to server
+        run: |
+          rsync -avzr --delete \
             --exclude="node_modules" \
-            --exclude=".env"
-          path: api/
-          remote_path: /var/www/fairywren-api
-          remote_host: ${{ secrets.DO_HOST }}
-          remote_user: ${{ secrets.DO_USER }}
-          remote_key: ${{ secrets.DO_SSH_KEY }}
+            --exclude=".env" \
+            api/ \
+            ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:/var/www/fairywren-api
 
       - name: Install dependencies and reload
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DO_HOST }}
-          username: ${{ secrets.DO_USER }}
-          key: ${{ secrets.DO_SSH_KEY }}
-          script: |
-            cd /var/www/fairywren-api
-            npm ci --production
+        run: |
+          ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "
+            cd /var/www/fairywren-api &&
+            npm ci --production &&
             pm2 reload fairywren-api
+          "
