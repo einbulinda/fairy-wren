@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import { format } from "date-fns";
 import {
   ChevronLeft,
+  ChevronRight,
   Building2,
   Phone,
   Mail,
@@ -13,6 +14,9 @@ import {
   FileText,
   Plus,
   X,
+  ExternalLink,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import {
   useSupplier,
@@ -22,6 +26,8 @@ import {
   useSupplierStatement,
 } from "@/hooks/useSuppliers";
 import toast from "react-hot-toast";
+
+const PAGE_SIZE = 10;
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", {
@@ -41,6 +47,9 @@ const fmtDate = (d) => {
 
 const inputCls =
   "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
+
+const dateInputCls =
+  "px-2 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 w-36";
 
 const TABS = [
   { id: "purchases", label: "Purchases", icon: Package },
@@ -69,6 +78,90 @@ const TXN_TYPE_STYLES = {
   payment: "bg-green-500/15 text-green-400",
 };
 
+const daysOutstanding = (purchaseDate) => {
+  if (!purchaseDate) return null;
+  return Math.floor((Date.now() - new Date(purchaseDate).getTime()) / 86400000);
+};
+
+const PaymentBadge = ({ paidAt, purchaseDate }) => {
+  if (paidAt) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-500/15 text-green-400">
+        <CheckCircle2 size={10} />
+        Paid
+      </span>
+    );
+  }
+  const days = daysOutstanding(purchaseDate);
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/15 text-yellow-400">
+      <Clock size={10} />
+      {days != null ? `${days}d` : "Pending"}
+    </span>
+  );
+};
+
+const DateFilter = ({ from, setFrom, to, setTo, onClear }) => (
+  <div className="flex flex-wrap items-end gap-3 px-4 py-3 border-b border-surface-700 bg-surface-800/20">
+    <div>
+      <label className="block text-xs text-surface-400 mb-1">From</label>
+      <input
+        type="date"
+        value={from}
+        onChange={(e) => setFrom(e.target.value)}
+        className={dateInputCls}
+      />
+    </div>
+    <div>
+      <label className="block text-xs text-surface-400 mb-1">To</label>
+      <input
+        type="date"
+        value={to}
+        onChange={(e) => setTo(e.target.value)}
+        className={dateInputCls}
+      />
+    </div>
+    {(from || to) && (
+      <button
+        onClick={onClear}
+        className="text-xs text-surface-400 hover:text-white transition-colors pb-px"
+      >
+        Clear dates
+      </button>
+    )}
+  </div>
+);
+
+const PaginationBar = ({ page, totalPages, setPage, left }) => {
+  if (totalPages <= 1 && !left) return null;
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
+      <div className="text-sm text-surface-400">{left}</div>
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <span className="px-3 text-xs text-surface-400">
+            {page} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SupplierDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -76,15 +169,29 @@ const SupplierDetailPage = () => {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentForm, setPaymentForm] = useState(EMPTY_PAYMENT);
 
+  // Date filters + pages per tab
+  const [purchasesFrom, setPurchasesFrom] = useState("");
+  const [purchasesTo, setPurchasesTo] = useState("");
+  const [purchasesPage, setPurchasesPage] = useState(1);
+
+  const [paymentsFrom, setPaymentsFrom] = useState("");
+  const [paymentsTo, setPaymentsTo] = useState("");
+  const [paymentsPage, setPaymentsPage] = useState(1);
+
+  const [stmtFrom, setStmtFrom] = useState("");
+  const [stmtTo, setStmtTo] = useState("");
+  const [stmtPage, setStmtPage] = useState(1);
+
   const { data: supplier, isLoading: supplierLoading } = useSupplier(id);
   const { data: purchases = [], isLoading: purchasesLoading } =
     useSupplierPurchases(id);
   const { data: payments = [], isLoading: paymentsLoading } =
     useSupplierPayments(id);
   const { data: statement = [], isLoading: statementLoading } =
-    useSupplierStatement(id);
+    useSupplierStatement(id, stmtFrom || undefined, stmtTo || undefined);
   const createPayment = useCreateSupplierPayment(id);
 
+  // All-time totals for the profile card
   const totalPurchased = useMemo(
     () => purchases.reduce((s, p) => s + Number(p.total_amount ?? 0), 0),
     [purchases],
@@ -94,6 +201,61 @@ const SupplierDetailPage = () => {
     [payments],
   );
   const balance = totalPurchased - totalPaid;
+
+  // Client-side date filtering for purchases & payments
+  const filteredPurchases = useMemo(
+    () =>
+      purchases.filter((p) => {
+        const d = p.purchase_date;
+        if (purchasesFrom && d < purchasesFrom) return false;
+        if (purchasesTo && d > purchasesTo) return false;
+        return true;
+      }),
+    [purchases, purchasesFrom, purchasesTo],
+  );
+
+  const filteredPayments = useMemo(
+    () =>
+      payments.filter((p) => {
+        const d = p.payment_date;
+        if (paymentsFrom && d < paymentsFrom) return false;
+        if (paymentsTo && d > paymentsTo) return false;
+        return true;
+      }),
+    [payments, paymentsFrom, paymentsTo],
+  );
+
+  // Purchases pagination
+  const pTotalPages = Math.max(1, Math.ceil(filteredPurchases.length / PAGE_SIZE));
+  const pSafePage = Math.min(purchasesPage, pTotalPages);
+  const pPageItems = filteredPurchases.slice(
+    (pSafePage - 1) * PAGE_SIZE,
+    pSafePage * PAGE_SIZE,
+  );
+  const pFilteredTotal = filteredPurchases.reduce(
+    (s, p) => s + Number(p.total_amount ?? 0),
+    0,
+  );
+
+  // Payments pagination
+  const pmTotalPages = Math.max(1, Math.ceil(filteredPayments.length / PAGE_SIZE));
+  const pmSafePage = Math.min(paymentsPage, pmTotalPages);
+  const pmPageItems = filteredPayments.slice(
+    (pmSafePage - 1) * PAGE_SIZE,
+    pmSafePage * PAGE_SIZE,
+  );
+  const pmFilteredTotal = filteredPayments.reduce(
+    (s, p) => s + Number(p.amount ?? 0),
+    0,
+  );
+
+  // Statement pagination
+  const stmtTotalPages = Math.max(1, Math.ceil(statement.length / PAGE_SIZE));
+  const stmtSafePage = Math.min(stmtPage, stmtTotalPages);
+  const stmtPageItems = statement.slice(
+    (stmtSafePage - 1) * PAGE_SIZE,
+    stmtSafePage * PAGE_SIZE,
+  );
 
   const handlePaymentSubmit = (e) => {
     e.preventDefault();
@@ -239,21 +401,41 @@ const SupplierDetailPage = () => {
         ))}
       </div>
 
-      {/* Purchases tab */}
+      {/* ── Purchases tab ─────────────────────────────────────────────────── */}
       {tab === "purchases" && (
         <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
           <div className="p-4 border-b border-surface-700 flex items-center justify-between">
             <h2 className="font-semibold text-white">Inventory Purchases</h2>
             <span className="text-xs text-surface-400">
-              {purchases.length} receipt{purchases.length !== 1 ? "s" : ""}
+              {purchasesFrom || purchasesTo
+                ? `${filteredPurchases.length} of ${purchases.length}`
+                : purchases.length}{" "}
+              receipt{purchases.length !== 1 ? "s" : ""}
             </span>
           </div>
+
+          <DateFilter
+            from={purchasesFrom}
+            setFrom={setPurchasesFrom}
+            to={purchasesTo}
+            setTo={setPurchasesTo}
+            onClear={() => {
+              setPurchasesFrom("");
+              setPurchasesTo("");
+              setPurchasesPage(1);
+            }}
+          />
+
           {purchasesLoading ? (
             <div className="py-12 text-center text-surface-400">Loading...</div>
-          ) : purchases.length === 0 ? (
+          ) : filteredPurchases.length === 0 ? (
             <div className="py-12 text-center text-surface-500">
               <Package size={32} className="mx-auto mb-2 text-surface-700" />
-              <p>No inventory receipts from this supplier.</p>
+              <p>
+                {purchases.length === 0
+                  ? "No inventory receipts from this supplier."
+                  : "No receipts match the selected date range."}
+              </p>
             </div>
           ) : (
             <>
@@ -270,8 +452,8 @@ const SupplierDetailPage = () => {
                       <th className="text-left px-4 py-3 text-surface-400 font-medium hidden md:table-cell">
                         Notes
                       </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">
-                        Status
+                      <th className="text-center px-4 py-3 text-surface-400 font-medium">
+                        Payment
                       </th>
                       <th className="text-right px-4 py-3 text-surface-400 font-medium">
                         Amount
@@ -279,7 +461,7 @@ const SupplierDetailPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-700/40">
-                    {purchases.map((p) => (
+                    {pPageItems.map((p) => (
                       <tr
                         key={p.id}
                         className="hover:bg-surface-700/30 transition-colors"
@@ -287,16 +469,28 @@ const SupplierDetailPage = () => {
                         <td className="px-4 py-3 text-surface-300">
                           {fmtDate(p.purchase_date)}
                         </td>
-                        <td className="px-4 py-3 text-white font-mono text-xs">
-                          {p.invoice_number}
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() =>
+                              navigate(`/inventory/receipts/${p.id}`)
+                            }
+                            className="inline-flex items-center gap-1.5 font-mono text-xs text-primary-400 hover:text-primary-300 transition-colors group"
+                          >
+                            {p.invoice_number}
+                            <ExternalLink
+                              size={10}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            />
+                          </button>
                         </td>
                         <td className="px-4 py-3 text-surface-400 hidden md:table-cell">
                           {p.notes || "—"}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/15 text-green-400">
-                            {p.status}
-                          </span>
+                        <td className="px-4 py-3 text-center">
+                          <PaymentBadge
+                            paidAt={p.paid_at}
+                            purchaseDate={p.purchase_date}
+                          />
                         </td>
                         <td className="px-4 py-3 text-right font-medium text-white">
                           {fmt(p.total_amount)}
@@ -306,20 +500,25 @@ const SupplierDetailPage = () => {
                   </tbody>
                 </table>
               </div>
-              <div className="px-4 py-3 border-t border-surface-700 flex justify-end">
-                <span className="text-sm text-surface-400">
-                  Total:{" "}
-                  <span className="text-white font-bold">
-                    {fmt(totalPurchased)}
+              <PaginationBar
+                page={pSafePage}
+                totalPages={pTotalPages}
+                setPage={setPurchasesPage}
+                left={
+                  <span>
+                    {purchasesFrom || purchasesTo ? "Period" : "Total"}:{" "}
+                    <span className="text-white font-bold">
+                      {fmt(pFilteredTotal)}
+                    </span>
                   </span>
-                </span>
-              </div>
+                }
+              />
             </>
           )}
         </div>
       )}
 
-      {/* Payments tab */}
+      {/* ── Payments tab ──────────────────────────────────────────────────── */}
       {tab === "payments" && (
         <div className="space-y-4">
           <div className="flex justify-end">
@@ -450,20 +649,40 @@ const SupplierDetailPage = () => {
             <div className="p-4 border-b border-surface-700 flex items-center justify-between">
               <h2 className="font-semibold text-white">Payment History</h2>
               <span className="text-xs text-surface-400">
-                {payments.length} payment{payments.length !== 1 ? "s" : ""}
+                {paymentsFrom || paymentsTo
+                  ? `${filteredPayments.length} of ${payments.length}`
+                  : payments.length}{" "}
+                payment{payments.length !== 1 ? "s" : ""}
               </span>
             </div>
+
+            <DateFilter
+              from={paymentsFrom}
+              setFrom={setPaymentsFrom}
+              to={paymentsTo}
+              setTo={setPaymentsTo}
+              onClear={() => {
+                setPaymentsFrom("");
+                setPaymentsTo("");
+                setPaymentsPage(1);
+              }}
+            />
+
             {paymentsLoading ? (
               <div className="py-12 text-center text-surface-400">
                 Loading...
               </div>
-            ) : payments.length === 0 ? (
+            ) : filteredPayments.length === 0 ? (
               <div className="py-12 text-center text-surface-500">
                 <CreditCard
                   size={32}
                   className="mx-auto mb-2 text-surface-700"
                 />
-                <p>No payments recorded yet.</p>
+                <p>
+                  {payments.length === 0
+                    ? "No payments recorded yet."
+                    : "No payments match the selected date range."}
+                </p>
               </div>
             ) : (
               <>
@@ -489,7 +708,7 @@ const SupplierDetailPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-surface-700/40">
-                      {payments.map((p) => (
+                      {pmPageItems.map((p) => (
                         <tr
                           key={p.id}
                           className="hover:bg-surface-700/30 transition-colors"
@@ -514,21 +733,26 @@ const SupplierDetailPage = () => {
                     </tbody>
                   </table>
                 </div>
-                <div className="px-4 py-3 border-t border-surface-700 flex justify-end">
-                  <span className="text-sm text-surface-400">
-                    Total Paid:{" "}
-                    <span className="text-green-400 font-bold">
-                      {fmt(totalPaid)}
+                <PaginationBar
+                  page={pmSafePage}
+                  totalPages={pmTotalPages}
+                  setPage={setPaymentsPage}
+                  left={
+                    <span>
+                      {paymentsFrom || paymentsTo ? "Period" : "Total"} Paid:{" "}
+                      <span className="text-green-400 font-bold">
+                        {fmt(pmFilteredTotal)}
+                      </span>
                     </span>
-                  </span>
-                </div>
+                  }
+                />
               </>
             )}
           </div>
         </div>
       )}
 
-      {/* Statement tab */}
+      {/* ── Statement tab ─────────────────────────────────────────────────── */}
       {tab === "statement" && (
         <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
           <div className="p-4 border-b border-surface-700 flex items-center justify-between">
@@ -537,6 +761,19 @@ const SupplierDetailPage = () => {
               {statement.length} transaction{statement.length !== 1 ? "s" : ""}
             </span>
           </div>
+
+          <DateFilter
+            from={stmtFrom}
+            setFrom={setStmtFrom}
+            to={stmtTo}
+            setTo={setStmtTo}
+            onClear={() => {
+              setStmtFrom("");
+              setStmtTo("");
+              setStmtPage(1);
+            }}
+          />
+
           {statementLoading ? (
             <div className="py-12 text-center text-surface-400">
               Loading statement...
@@ -544,7 +781,11 @@ const SupplierDetailPage = () => {
           ) : statement.length === 0 ? (
             <div className="py-12 text-center text-surface-500">
               <FileText size={32} className="mx-auto mb-2 text-surface-700" />
-              <p>No transactions for this supplier yet.</p>
+              <p>
+                {stmtFrom || stmtTo
+                  ? "No transactions in the selected date range."
+                  : "No transactions for this supplier yet."}
+              </p>
             </div>
           ) : (
             <>
@@ -576,7 +817,7 @@ const SupplierDetailPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-700/40">
-                    {statement.map((row, i) => (
+                    {stmtPageItems.map((row, i) => (
                       <tr
                         key={i}
                         className="hover:bg-surface-700/30 transition-colors"
@@ -631,7 +872,7 @@ const SupplierDetailPage = () => {
                         colSpan={4}
                         className="px-4 py-3 text-right text-xs text-surface-400 uppercase tracking-wide"
                       >
-                        Closing Balance
+                        {stmtFrom || stmtTo ? "Period" : "Closing"} Balance
                       </td>
                       <td className="px-4 py-3 text-right text-white">
                         {fmt(
@@ -665,6 +906,18 @@ const SupplierDetailPage = () => {
                   </tfoot>
                 </table>
               </div>
+              <PaginationBar
+                page={stmtSafePage}
+                totalPages={stmtTotalPages}
+                setPage={setStmtPage}
+                left={
+                  <span className="text-xs text-surface-400">
+                    {(stmtSafePage - 1) * PAGE_SIZE + 1}–
+                    {Math.min(stmtSafePage * PAGE_SIZE, statement.length)} of{" "}
+                    {statement.length} transactions
+                  </span>
+                }
+              />
             </>
           )}
         </div>

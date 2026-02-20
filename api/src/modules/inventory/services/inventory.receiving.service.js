@@ -3,6 +3,28 @@ const restockService = require("../repos/inventory.adjustments.repository");
 const ledgerRepo = require("../repos/inventory.ledger.repository");
 const auditRepo = require("../../audit/audit.repository");
 
+exports.getReceiptDetail = async (id) => {
+  const { data, error } = await receiptsRepo.getReceiptById(id);
+  if (error) throw error;
+  return data;
+};
+
+exports.markReceiptPaid = async (id, context) => {
+  const { data, error } = await receiptsRepo.markReceiptPaid(id);
+  if (error) throw error;
+
+  await auditRepo.log({
+    entity: "inventory_receipts",
+    entity_id: id,
+    action: "INVENTORY_RECEIPT_PAID",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
+    metadata: { paid_at: data.paid_at },
+  });
+
+  return data;
+};
+
 exports.receiveInventory = async (payload, context) => {
   const {
     supplier_id,

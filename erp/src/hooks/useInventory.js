@@ -13,6 +13,8 @@ import {
   fetchStockTakeReports,
   fetchStockTakeDetail,
   fetchStockTakeAdjustments,
+  fetchReceiptDetail,
+  markReceiptPaid,
 } from "@/services/inventory.service";
 
 export const useStockItems = (params = {}) => {
@@ -147,5 +149,29 @@ export const useStockTakeAdjustments = (params = {}) => {
     queryKey: ["stock-take-adjustments", params],
     queryFn: () => fetchStockTakeAdjustments(params),
     staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useReceiptDetail = (id) => {
+  return useQuery({
+    queryKey: ["receipt-detail", id],
+    queryFn: () => fetchReceiptDetail(id),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useMarkReceiptPaid = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: markReceiptPaid,
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ["receipt-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["product-purchases"] });
+      toast.success("Receipt marked as paid");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to mark as paid");
+    },
   });
 };

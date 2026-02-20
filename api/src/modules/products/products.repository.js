@@ -74,6 +74,7 @@ exports.findPurchaseHistory = async (productId) => {
         invoice_number,
         purchase_date,
         status,
+        paid_at,
         supplier_id
       )
     `,

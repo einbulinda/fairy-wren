@@ -18,6 +18,7 @@ import InventoryPage from "@/pages/InventoryPage";
 import ProductsPage from "@/pages/ProductsPage";
 import ProductDetailPage from "@/pages/ProductDetailPage";
 import PayrollPage from "@/pages/PayrollPage";
+import ReceiptDetailPage from "@/pages/ReceiptDetailPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 
 const queryClient = new QueryClient({
@@ -41,6 +42,7 @@ const AppRoutes = () => {
       <Route element={<AppShell />}>
         <Route index element={<DashboardPage />} />
         <Route path="inventory/*" element={<InventoryPage />} />
+        <Route path="inventory/receipts/:id" element={<ReceiptDetailPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="products/:id" element={<ProductDetailPage />} />
         <Route path="suppliers" element={<SupplierListPage />} />

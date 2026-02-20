@@ -14,6 +14,8 @@ router.get("/items", controller.getInventoryItems);
    ====================================================== */
 
 router.post("/receipts", controller.createInventoryReceipt);
+router.get("/receipts/:id", controller.getReceiptDetail);
+router.post("/receipts/:id/pay", controller.markReceiptPaid);
 
 /* ======================================================
    STOCK TAKE (RPC-BASED)

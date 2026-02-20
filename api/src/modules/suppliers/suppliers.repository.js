@@ -37,7 +37,7 @@ exports.findPurchases = async (supplierId) => {
   const supabase = getSupabase();
   return supabase
     .from("inventory_receipts")
-    .select("id, invoice_number, purchase_date, total_amount, status, notes")
+    .select("id, invoice_number, purchase_date, total_amount, status, paid_at, notes")
     .eq("supplier_id", supplierId)
     .order("purchase_date", { ascending: false });
 };

@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   ArrowLeft,
@@ -9,8 +10,13 @@ import {
   TrendingDown,
   CheckCircle,
   AlertTriangle,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useStockTakeDetail } from "@/hooks/useInventory";
+import { PAGE_SIZE } from "./inventoryUtils";
 
 const StatusBadge = ({ status }) => {
   const map = {
@@ -43,6 +49,25 @@ const StatCard = ({ icon: Icon, label, value, sub, color = "primary" }) => (
   </div>
 );
 
+const SortIcon = ({ col, sortCol, sortDir }) => {
+  if (sortCol !== col)
+    return <ChevronUp size={12} className="opacity-30 ml-1 inline" />;
+  return sortDir === "asc" ? (
+    <ChevronUp size={12} className="ml-1 inline" />
+  ) : (
+    <ChevronDown size={12} className="ml-1 inline" />
+  );
+};
+
+const COLS = [
+  { key: "name", label: "Product", align: "left" },
+  { key: "system_qty", label: "System Qty", align: "right" },
+  { key: "physical_qty", label: "Physical Qty", align: "right" },
+  { key: "variance", label: "Variance", align: "right" },
+  { key: "variance_pct", label: "Variance %", align: "right" },
+  { key: "value_impact", label: "Value Impact", align: "right" },
+];
+
 const ReportDetailView = ({ id }) => {
   const navigate = useNavigate();
   const { state } = useLocation();
@@ -50,7 +75,92 @@ const ReportDetailView = ({ id }) => {
     state?.from === "approvals"
       ? { path: "/inventory/approvals", label: "Back to Approvals" }
       : { path: "/inventory/reports", label: "Back to Reports" };
+
   const { data: report, isLoading, isError } = useStockTakeDetail(id);
+
+  const [sortCol, setSortCol] = useState("variance_abs");
+  const [sortDir, setSortDir] = useState("desc");
+  const [itemPage, setItemPage] = useState(1);
+
+  const items = report?.stock_take_items || [];
+
+  // Insights
+  const total = items.length;
+  const matched = items.filter((i) => (i.variance ?? 0) === 0).length;
+  const shortages = items.filter((i) => (i.variance ?? 0) < 0);
+  const surpluses = items.filter((i) => (i.variance ?? 0) > 0);
+  const accuracy = total > 0 ? Math.round((matched / total) * 100) : 100;
+
+  const totalValueImpact = items.reduce(
+    (s, i) => s + (Number(i.total_value_adjustment) || 0),
+    0,
+  );
+  const totalUnitsShort = shortages.reduce(
+    (s, i) => s + Math.abs(i.variance ?? 0),
+    0,
+  );
+  const totalUnitsOver = surpluses.reduce(
+    (s, i) => s + (i.variance ?? 0),
+    0,
+  );
+
+  const handleSort = (col) => {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortCol(col);
+      setSortDir(col === "name" ? "asc" : "desc");
+    }
+    setItemPage(1);
+  };
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      let av, bv;
+      switch (sortCol) {
+        case "name":
+          av = a.products?.name || "";
+          bv = b.products?.name || "";
+          break;
+        case "system_qty":
+          av = a.system_qty ?? 0;
+          bv = b.system_qty ?? 0;
+          break;
+        case "physical_qty":
+          av = a.physical_qty ?? 0;
+          bv = b.physical_qty ?? 0;
+          break;
+        case "variance":
+          av = a.variance ?? 0;
+          bv = b.variance ?? 0;
+          break;
+        case "variance_pct":
+          av = Number(a.variance_percentage ?? 0);
+          bv = Number(b.variance_percentage ?? 0);
+          break;
+        case "value_impact":
+          av = Number(a.total_value_adjustment ?? 0);
+          bv = Number(b.total_value_adjustment ?? 0);
+          break;
+        default: // variance_abs
+          av = Math.abs(a.variance ?? 0);
+          bv = Math.abs(b.variance ?? 0);
+          break;
+      }
+      if (typeof av === "string")
+        return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+  }, [items, sortCol, sortDir]);
+
+  const totalItemPages = Math.max(1, Math.ceil(sortedItems.length / PAGE_SIZE));
+  const safeItemPage = Math.min(itemPage, totalItemPages);
+  const pageItems = sortedItems.slice(
+    (safeItemPage - 1) * PAGE_SIZE,
+    safeItemPage * PAGE_SIZE,
+  );
+
+  const fmt = (n) =>
+    `KSh ${Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
   if (isLoading) {
     return (
@@ -74,36 +184,6 @@ const ReportDetailView = ({ id }) => {
     );
   }
 
-  const items = report.stock_take_items || [];
-
-  // Insights
-  const total = items.length;
-  const matched = items.filter((i) => (i.variance ?? 0) === 0).length;
-  const shortages = items.filter((i) => (i.variance ?? 0) < 0);
-  const surpluses = items.filter((i) => (i.variance ?? 0) > 0);
-  const accuracy = total > 0 ? Math.round((matched / total) * 100) : 100;
-
-  const totalValueImpact = items.reduce(
-    (s, i) => s + (Number(i.total_value_adjustment) || 0),
-    0,
-  );
-  const totalUnitsShort = shortages.reduce(
-    (s, i) => s + Math.abs(i.variance ?? 0),
-    0,
-  );
-  const totalUnitsOver = surpluses.reduce(
-    (s, i) => s + (i.variance ?? 0),
-    0,
-  );
-
-  // Sort: biggest variance (abs) first
-  const sortedItems = [...items].sort(
-    (a, b) => Math.abs(b.variance ?? 0) - Math.abs(a.variance ?? 0),
-  );
-
-  const fmt = (n) =>
-    `KSh ${Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-
   return (
     <div className="space-y-6">
       {/* Back button */}
@@ -111,7 +191,7 @@ const ReportDetailView = ({ id }) => {
         onClick={() => navigate(backTo.path)}
         className="flex items-center gap-2 text-sm text-surface-400 hover:text-white transition-colors"
       >
-        <ArrowLeft size={16} /> Back to Reports
+        <ArrowLeft size={16} /> {backTo.label}
       </button>
 
       {/* Header */}
@@ -210,7 +290,7 @@ const ReportDetailView = ({ id }) => {
         <div className="px-5 py-4 border-b border-surface-700">
           <h3 className="font-semibold text-white text-sm">Item Breakdown</h3>
           <p className="text-xs text-surface-500 mt-0.5">
-            Sorted by variance magnitude (largest first)
+            {total} items · click a column header to sort
           </p>
         </div>
 
@@ -223,17 +303,21 @@ const ReportDetailView = ({ id }) => {
             <table className="w-full text-sm">
               <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
                 <tr>
-                  <th className="px-4 py-3 text-left">Product</th>
-                  <th className="px-4 py-3 text-right">System Qty</th>
-                  <th className="px-4 py-3 text-right">Physical Qty</th>
-                  <th className="px-4 py-3 text-right">Variance</th>
-                  <th className="px-4 py-3 text-right">Variance %</th>
-                  <th className="px-4 py-3 text-right">Value Impact</th>
+                  {COLS.map(({ key, label, align }) => (
+                    <th
+                      key={key}
+                      onClick={() => handleSort(key)}
+                      className={`px-4 py-3 text-${align} cursor-pointer select-none hover:text-white transition-colors`}
+                    >
+                      {label}
+                      <SortIcon col={key} sortCol={sortCol} sortDir={sortDir} />
+                    </th>
+                  ))}
                   <th className="px-4 py-3 text-left">Reason</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-700">
-                {sortedItems.map((item) => {
+                {pageItems.map((item) => {
                   const v = item.variance ?? 0;
                   const vPct = Number(item.variance_percentage ?? 0);
                   const valImpact = Number(item.total_value_adjustment ?? 0);
@@ -299,6 +383,38 @@ const ReportDetailView = ({ id }) => {
                 })}
               </tbody>
             </table>
+
+            {/* Pagination */}
+            {totalItemPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
+                <p className="text-xs text-surface-400">
+                  Showing {(safeItemPage - 1) * PAGE_SIZE + 1}–
+                  {Math.min(safeItemPage * PAGE_SIZE, sortedItems.length)} of{" "}
+                  {sortedItems.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setItemPage((p) => Math.max(1, p - 1))}
+                    disabled={safeItemPage === 1}
+                    className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <span className="px-3 text-xs text-surface-400">
+                    {safeItemPage} / {totalItemPages}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setItemPage((p) => Math.min(totalItemPages, p + 1))
+                    }
+                    disabled={safeItemPage === totalItemPages}
+                    className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

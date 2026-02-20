@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -13,6 +13,12 @@ import {
   AlertTriangle,
   Calendar,
   Icon,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
 import {
   useProductInsights,
@@ -200,11 +206,128 @@ const OverviewTab = ({ product, metrics }) => {
   );
 };
 
+const HISTORY_PAGE_SIZE = 10;
+
+const daysOutstanding = (purchaseDate) => {
+  if (!purchaseDate) return null;
+  return Math.floor((Date.now() - new Date(purchaseDate).getTime()) / 86400000);
+};
+
+const PaymentBadge = ({ paidAt, purchaseDate }) => {
+  if (paidAt) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
+        <CheckCircle2 size={10} />
+        Paid
+      </span>
+    );
+  }
+  const days = daysOutstanding(purchaseDate);
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400">
+      <Clock size={10} />
+      {days != null ? `${days}d` : "Pending"}
+    </span>
+  );
+};
+
+const HistorySortIcon = ({ col, sortCol, sortDir }) => {
+  if (sortCol !== col)
+    return <ChevronUp size={11} className="opacity-30 ml-1 inline" />;
+  return sortDir === "asc" ? (
+    <ChevronUp size={11} className="ml-1 inline" />
+  ) : (
+    <ChevronDown size={11} className="ml-1 inline" />
+  );
+};
+
+const HistoryPagination = ({ page, totalPages, setPage }) =>
+  totalPages > 1 ? (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
+      <p className="text-xs text-surface-400">
+        Page {page} of {totalPages}
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <span className="px-3 text-xs text-surface-400">
+          {page} / {totalPages}
+        </span>
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  ) : null;
+
 // ─── Purchase History Tab ─────────────────────────────────────────────────────
 
 const PurchasesTab = ({ productId }) => {
+  const navigate = useNavigate();
   const { data: purchases = [], isLoading } =
     useProductPurchaseHistory(productId);
+  const [sortCol, setSortCol] = useState("date");
+  const [sortDir, setSortDir] = useState("desc");
+  const [page, setPage] = useState(1);
+
+  const handleSort = (col) => {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir(col === "date" ? "desc" : "asc"); }
+    setPage(1);
+  };
+
+  const sorted = useMemo(() => {
+    return [...purchases].sort((a, b) => {
+      let av, bv;
+      switch (sortCol) {
+        case "date":
+          av = a.inventory_receipts?.purchase_date || "";
+          bv = b.inventory_receipts?.purchase_date || "";
+          break;
+        case "invoice":
+          av = a.inventory_receipts?.invoice_number || "";
+          bv = b.inventory_receipts?.invoice_number || "";
+          break;
+        case "supplier":
+          av = a.inventory_receipts?.suppliers?.name || "";
+          bv = b.inventory_receipts?.suppliers?.name || "";
+          break;
+        case "qty":
+          av = a.quantity || 0;
+          bv = b.quantity || 0;
+          break;
+        case "unit_cost":
+          av = a.unit_cost || 0;
+          bv = b.unit_cost || 0;
+          break;
+        case "total":
+          av = a.line_total || 0;
+          bv = b.line_total || 0;
+          break;
+        default:
+          return 0;
+      }
+      if (typeof av === "string")
+        return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+  }, [purchases, sortCol, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / HISTORY_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = sorted.slice(
+    (safePage - 1) * HISTORY_PAGE_SIZE,
+    safePage * HISTORY_PAGE_SIZE,
+  );
 
   if (isLoading)
     return <p className="text-surface-400 text-sm py-4">Loading…</p>;
@@ -215,23 +338,37 @@ const PurchasesTab = ({ productId }) => {
       </p>
     );
 
+  const PCOLS = [
+    { key: "date", label: "Date", align: "left" },
+    { key: "invoice", label: "Invoice", align: "left", hidden: true },
+    { key: "supplier", label: "Supplier", align: "left" },
+    { key: "qty", label: "Qty", align: "right" },
+    { key: "unit_cost", label: "Unit Cost", align: "right" },
+    { key: "total", label: "Total", align: "right" },
+    { key: "_status", label: "Status", align: "center", noSort: true },
+  ];
+
   return (
     <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
           <tr>
-            <th className="px-4 py-3 text-left">Date</th>
-            <th className="px-4 py-3 text-left hidden sm:table-cell">
-              Invoice
-            </th>
-            <th className="px-4 py-3 text-left">Supplier</th>
-            <th className="px-4 py-3 text-right">Qty</th>
-            <th className="px-4 py-3 text-right">Unit Cost</th>
-            <th className="px-4 py-3 text-right">Total</th>
+            {PCOLS.map(({ key, label, align, hidden, noSort }) => (
+              <th
+                key={key}
+                onClick={() => !noSort && handleSort(key)}
+                className={`px-4 py-3 text-${align} ${noSort ? "" : "cursor-pointer select-none hover:text-white"} transition-colors${hidden ? " hidden sm:table-cell" : ""}`}
+              >
+                {label}
+                {!noSort && (
+                  <HistorySortIcon col={key} sortCol={sortCol} sortDir={sortDir} />
+                )}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-surface-700">
-          {purchases.map((item) => (
+          {pageItems.map((item) => (
             <tr
               key={item.id}
               className="hover:bg-surface-700/50 transition-colors"
@@ -239,8 +376,27 @@ const PurchasesTab = ({ productId }) => {
               <td className="px-4 py-3 text-surface-300 whitespace-nowrap">
                 {fmtDate(item.inventory_receipts?.purchase_date)}
               </td>
-              <td className="px-4 py-3 text-surface-400 hidden sm:table-cell">
-                {item.inventory_receipts?.invoice_number || "—"}
+              <td className="px-4 py-3 hidden sm:table-cell">
+                {item.inventory_receipts?.id ? (
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/inventory/receipts/${item.inventory_receipts.id}`,
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 font-mono text-xs text-primary-400 hover:text-primary-300 transition-colors group"
+                  >
+                    {item.inventory_receipts.invoice_number || "—"}
+                    <ExternalLink
+                      size={10}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
+                  </button>
+                ) : (
+                  <span className="text-surface-400 font-mono text-xs">
+                    {item.inventory_receipts?.invoice_number || "—"}
+                  </span>
+                )}
               </td>
               <td className="px-4 py-3 text-white">
                 {item.inventory_receipts?.suppliers?.name || "—"}
@@ -254,13 +410,19 @@ const PurchasesTab = ({ productId }) => {
               <td className="px-4 py-3 text-right font-mono font-semibold text-primary-400">
                 KSh {fmtD(item.line_total)}
               </td>
+              <td className="px-4 py-3 text-center">
+                <PaymentBadge
+                  paidAt={item.inventory_receipts?.paid_at}
+                  purchaseDate={item.inventory_receipts?.purchase_date}
+                />
+              </td>
             </tr>
           ))}
         </tbody>
         <tfoot className="bg-surface-900 font-semibold">
           <tr>
             <td colSpan={3} className="px-4 py-2 text-surface-400 text-xs">
-              Total
+              Total ({purchases.length} records)
             </td>
             <td className="px-4 py-2 text-right font-mono text-white text-xs">
               {purchases.reduce((s, p) => s + (p.quantity || 0), 0)}
@@ -269,9 +431,11 @@ const PurchasesTab = ({ productId }) => {
             <td className="px-4 py-2 text-right font-mono text-primary-400 text-xs">
               KSh {fmtD(purchases.reduce((s, p) => s + (p.line_total || 0), 0))}
             </td>
+            <td />
           </tr>
         </tfoot>
       </table>
+      <HistoryPagination page={safePage} totalPages={totalPages} setPage={setPage} />
     </div>
   );
 };
@@ -280,6 +444,55 @@ const PurchasesTab = ({ productId }) => {
 
 const SalesTab = ({ productId }) => {
   const { data: sales = [], isLoading } = useProductSalesHistory(productId);
+  const [sortCol, setSortCol] = useState("date");
+  const [sortDir, setSortDir] = useState("desc");
+  const [page, setPage] = useState(1);
+
+  const handleSort = (col) => {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir(col === "date" ? "desc" : "asc"); }
+    setPage(1);
+  };
+
+  const sorted = useMemo(() => {
+    return [...sales].sort((a, b) => {
+      let av, bv;
+      switch (sortCol) {
+        case "date":
+          av = a.sale_date || "";
+          bv = b.sale_date || "";
+          break;
+        case "bill":
+          av = String(a.bill_id || "");
+          bv = String(b.bill_id || "");
+          break;
+        case "qty":
+          av = a.quantity || 0;
+          bv = b.quantity || 0;
+          break;
+        case "price":
+          av = a.price || 0;
+          bv = b.price || 0;
+          break;
+        case "revenue":
+          av = (a.quantity || 0) * (a.price || 0);
+          bv = (b.quantity || 0) * (b.price || 0);
+          break;
+        default:
+          return 0;
+      }
+      if (typeof av === "string")
+        return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+  }, [sales, sortCol, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / HISTORY_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = sorted.slice(
+    (safePage - 1) * HISTORY_PAGE_SIZE,
+    safePage * HISTORY_PAGE_SIZE,
+  );
 
   if (isLoading)
     return <p className="text-surface-400 text-sm py-4">Loading…</p>;
@@ -288,20 +501,33 @@ const SalesTab = ({ productId }) => {
       <p className="text-surface-400 text-sm py-4">No sales records found.</p>
     );
 
+  const SCOLS = [
+    { key: "date", label: "Date", align: "left" },
+    { key: "bill", label: "Bill", align: "left", hidden: true },
+    { key: "qty", label: "Qty", align: "right" },
+    { key: "price", label: "Unit Price", align: "right" },
+    { key: "revenue", label: "Revenue", align: "right" },
+  ];
+
   return (
     <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
           <tr>
-            <th className="px-4 py-3 text-left">Date</th>
-            <th className="px-4 py-3 text-left hidden sm:table-cell">Bill</th>
-            <th className="px-4 py-3 text-right">Qty</th>
-            <th className="px-4 py-3 text-right">Unit Price</th>
-            <th className="px-4 py-3 text-right">Revenue</th>
+            {SCOLS.map(({ key, label, align, hidden }) => (
+              <th
+                key={key}
+                onClick={() => handleSort(key)}
+                className={`px-4 py-3 text-${align} cursor-pointer select-none hover:text-white transition-colors${hidden ? " hidden sm:table-cell" : ""}`}
+              >
+                {label}
+                <HistorySortIcon col={key} sortCol={sortCol} sortDir={sortDir} />
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-surface-700">
-          {sales.map((item) => {
+          {pageItems.map((item) => {
             const revenue = (item.quantity || 0) * (item.price || 0);
             return (
               <tr
@@ -330,7 +556,7 @@ const SalesTab = ({ productId }) => {
         <tfoot className="bg-surface-900 font-semibold">
           <tr>
             <td colSpan={2} className="px-4 py-2 text-surface-400 text-xs">
-              Total
+              Total ({sales.length} records)
             </td>
             <td className="px-4 py-2 text-right font-mono text-white text-xs">
               {sales.reduce((s, r) => s + (r.quantity || 0), 0)}
@@ -348,6 +574,7 @@ const SalesTab = ({ productId }) => {
           </tr>
         </tfoot>
       </table>
+      <HistoryPagination page={safePage} totalPages={totalPages} setPage={setPage} />
     </div>
   );
 };

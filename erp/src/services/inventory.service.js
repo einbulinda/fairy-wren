@@ -59,6 +59,17 @@ export const rejectStockTake = async (sessionId, payload = {}) => {
   return data.data;
 };
 
+// Receipts
+export const fetchReceiptDetail = async (id) => {
+  const { data } = await api.get(`/inventory/receipts/${id}`);
+  return data.data ?? data;
+};
+
+export const markReceiptPaid = async (id) => {
+  const { data } = await api.post(`/inventory/receipts/${id}/pay`, {});
+  return data.data ?? data;
+};
+
 // Reports
 export const fetchStockTakeReports = async (params = {}) => {
   const { data } = await api.get("/inventory/reports/stock-take", { params });

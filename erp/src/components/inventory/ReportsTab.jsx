@@ -84,7 +84,7 @@ const ReportsTab = () => {
 
   return (
     <div className="space-y-4">
-      {/* Date Range Filter */}
+      {/* Filters row */}
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="block text-xs text-surface-400 mb-1">From</label>
@@ -104,22 +104,21 @@ const ReportsTab = () => {
             className={inputCls + " w-40"}
           />
         </div>
-        {(startDate || endDate) && (
-          <button
-            onClick={() => {
-              setStartDate("");
-              setEndDate("");
-            }}
-            className="text-xs text-surface-400 hover:text-white transition-colors pb-2"
-          >
-            Clear
-          </button>
-        )}
-      </div>
 
-      {/* Status Filter Buttons */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map(({ key, label }) => {
+        {/* Divider */}
+        <div className="hidden sm:block h-8 w-px bg-surface-700 self-center" />
+
+        {/* Status filters */}
+        <div className="flex flex-wrap gap-2 items-center">
+          {(startDate || endDate) && (
+            <button
+              onClick={() => { setStartDate(""); setEndDate(""); }}
+              className="text-xs text-surface-400 hover:text-white transition-colors"
+            >
+              Clear dates
+            </button>
+          )}
+          {STATUS_FILTERS.map(({ key, label }) => {
           const isActive = statusFilter === key;
           const count = counts[key];
           const colorMap = {
@@ -152,7 +151,8 @@ const ReportsTab = () => {
               </span>
             </button>
           );
-        })}
+          })}
+        </div>
       </div>
 
       {/* Table */}

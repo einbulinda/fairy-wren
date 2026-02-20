@@ -34,6 +34,27 @@ exports.createInventoryReceipt = async (req, res, next) => {
   }
 };
 
+exports.getReceiptDetail = async (req, res, next) => {
+  try {
+    const data = await receivingService.getReceiptDetail(req.params.id);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.markReceiptPaid = async (req, res, next) => {
+  try {
+    const data = await receivingService.markReceiptPaid(
+      req.params.id,
+      buildContext(req),
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 /* ======================================================
    STOCK TAKE (RPC-BASED)
    ====================================================== */
