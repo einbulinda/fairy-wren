@@ -29,3 +29,8 @@ export const markRunPaid = async (id) => {
   const { data } = await api.post(`/payroll/runs/${id}/pay`);
   return data.data ?? data;
 };
+
+export const markLinePaid = async ({ runId, lineId }) => {
+  const { data } = await api.post(`/payroll/runs/${runId}/lines/${lineId}/pay`);
+  return data.data ?? data;
+};

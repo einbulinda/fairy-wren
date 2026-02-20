@@ -6,6 +6,7 @@ import {
   processPayrollRun,
   fetchPayrollRunDetail,
   markRunPaid,
+  markLinePaid,
 } from "@/services/payroll.service";
 import toast from "react-hot-toast";
 
@@ -70,6 +71,20 @@ export const useMarkRunPaid = () => {
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to mark run as paid");
+    },
+  });
+};
+
+export const useMarkLinePaid = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: markLinePaid,
+    onSuccess: (_, { runId }) => {
+      queryClient.invalidateQueries({ queryKey: ["payroll-run", runId] });
+      toast.success("Payment recorded");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to record payment");
     },
   });
 };

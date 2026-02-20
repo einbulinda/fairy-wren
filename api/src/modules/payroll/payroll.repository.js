@@ -8,7 +8,9 @@ exports.listEmployeesWithStructures = async () => {
       id, name, role,
       employee_salary_structures(
         id, basic_pay, housing_allowance, transport_allowance, other_allowances,
-        paye, nssf, shif, housing_levy, other_deductions, payment_method, bank_name, account_number
+        paye, nssf, shif, housing_levy, other_deductions,
+        payment_method, bank_name, account_number, mpesa_number,
+        full_name, id_number, date_of_employment
       )
     `)
     .order("name");
@@ -50,7 +52,7 @@ exports.getRunWithLines = async (id) => {
       payroll_run_lines(
         id, basic_pay, housing_allowance, transport_allowance, other_allowances,
         gross_pay, paye, nssf, shif, housing_levy, other_deductions, total_deductions, net_pay,
-        payment_method, is_paid, paid_at,
+        payment_method, full_name, id_number, mpesa_number, is_paid, paid_at,
         profiles(id, name, role)
       )
     `)
@@ -64,6 +66,16 @@ exports.markRunPaid = async (id) => {
     .from("payroll_runs")
     .update({ status: "paid", paid_at: new Date().toISOString() })
     .eq("id", id)
+    .select()
+    .single();
+};
+
+exports.markLinePaid = async (lineId) => {
+  const supabase = getSupabase();
+  return supabase
+    .from("payroll_run_lines")
+    .update({ is_paid: true, paid_at: new Date().toISOString() })
+    .eq("id", lineId)
     .select()
     .single();
 };

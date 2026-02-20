@@ -58,3 +58,12 @@ exports.markRunPaid = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.markLinePaid = async (req, res, next) => {
+  try {
+    const data = await service.markLinePaid(req.params.lineId);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};

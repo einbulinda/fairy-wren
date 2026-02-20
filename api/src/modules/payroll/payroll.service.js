@@ -38,7 +38,7 @@ exports.processPayrollRun = async (payload, context) => {
   });
 
   if (error) {
-    console.log("Error processing payroll run:", error);
+    
     if (error.message?.includes("NO_EMPLOYEES_WITH_SALARY_STRUCTURES"))
       throw new Error("NO_EMPLOYEES_WITH_SALARY_STRUCTURES");
     throw new Error("FAILED_TO_PROCESS_PAYROLL_RUN");
@@ -68,5 +68,12 @@ exports.markRunPaid = async (id, context) => {
 
   const { data, error } = await repo.markRunPaid(id);
   if (error || !data) throw new Error("FAILED_TO_MARK_RUN_PAID");
+  return data;
+};
+
+exports.markLinePaid = async (lineId) => {
+  if (!lineId) throw new Error("INVALID_LINE_ID");
+  const { data, error } = await repo.markLinePaid(lineId);
+  if (error || !data) throw new Error("FAILED_TO_MARK_LINE_PAID");
   return data;
 };

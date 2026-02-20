@@ -12,6 +12,10 @@ exports.UpsertSalaryStructureDTO = (p) => {
   if (p.payment_method !== undefined) dto.payment_method = p.payment_method;
   if (p.bank_name !== undefined) dto.bank_name = p.bank_name || null;
   if (p.account_number !== undefined) dto.account_number = p.account_number || null;
+  if (p.mpesa_number !== undefined) dto.mpesa_number = p.mpesa_number || null;
+  if (p.full_name !== undefined) dto.full_name = p.full_name || null;
+  if (p.id_number !== undefined) dto.id_number = p.id_number || null;
+  if (p.date_of_employment !== undefined) dto.date_of_employment = p.date_of_employment || null;
   return dto;
 };
 

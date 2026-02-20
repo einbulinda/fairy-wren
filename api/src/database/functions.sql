@@ -1625,7 +1625,10 @@ BEGIN
             s.shif,
             s.housing_levy,
             s.other_deductions,
-            s.payment_method
+            s.payment_method,
+            s.full_name,
+            s.id_number,
+            s.mpesa_number
         FROM profiles p
         JOIN employee_salary_structures s ON s.profile_id = p.id
     LOOP
@@ -1675,7 +1678,10 @@ BEGIN
             s.shif,
             s.housing_levy,
             s.other_deductions,
-            s.payment_method
+            s.payment_method,
+            s.full_name,
+            s.id_number,
+            s.mpesa_number
         FROM profiles p
         JOIN employee_salary_structures s ON s.profile_id = p.id
     LOOP
@@ -1696,7 +1702,8 @@ BEGIN
             run_id, profile_id,
             basic_pay, housing_allowance, transport_allowance, other_allowances,
             gross_pay, paye, nssf, shif, housing_levy, other_deductions,
-            total_deductions, net_pay, payment_method
+            total_deductions, net_pay, payment_method,
+            full_name, id_number, mpesa_number
         ) VALUES (
             v_run_id,
             v_emp.profile_id,
@@ -1712,7 +1719,10 @@ BEGIN
             coalesce(v_emp.other_deductions, 0),
             v_deductions,
             v_net,
-            coalesce(v_emp.payment_method, 'cash')
+            coalesce(v_emp.payment_method, 'cash'),
+            v_emp.full_name,
+            v_emp.id_number,
+            v_emp.mpesa_number
         );
     END LOOP;
 

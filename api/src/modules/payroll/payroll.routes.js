@@ -10,5 +10,6 @@ router.get("/runs", controller.listRuns);
 router.post("/runs", controller.processRun);
 router.get("/runs/:runId", controller.getRunDetail);
 router.post("/runs/:runId/pay", controller.markRunPaid);
+router.post("/runs/:runId/lines/:lineId/pay", controller.markLinePaid);
 
 module.exports = router;

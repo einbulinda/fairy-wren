@@ -527,6 +527,10 @@ CREATE TABLE IF NOT EXISTS public.employee_salary_structures (
     ),
     bank_name varchar(100),
     account_number varchar(50),
+    mpesa_number varchar(20),
+    full_name varchar(200),
+    id_number varchar(50),
+    date_of_employment date,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
 );
@@ -555,6 +559,9 @@ CREATE TABLE IF NOT EXISTS public.payroll_run_lines (
     total_deductions numeric(15, 2) NOT NULL,
     net_pay numeric(15, 2) NOT NULL,
     payment_method varchar(20) DEFAULT 'cash',
+    full_name varchar(200),
+    id_number varchar(50),
+    mpesa_number varchar(20),
     is_paid boolean DEFAULT false,
     paid_at timestamptz,
     created_at timestamptz DEFAULT now()
