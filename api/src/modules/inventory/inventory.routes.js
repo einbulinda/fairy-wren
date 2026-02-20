@@ -38,6 +38,7 @@ router.post("/stock-take-sessions/:id/reject", controller.rejectStockTake);
    ====================================================== */
 router.get("/stock-take-adjustments", controller.getStockTakeAdjustments);
 router.get("/reports/stock-take", controller.getStockTakeReports);
+router.get("/reports/stock-take/:id", controller.getStockTakeDetail);
 
 /* ======================================================
    INVENTORY LEDGER

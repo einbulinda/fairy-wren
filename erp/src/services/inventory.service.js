@@ -43,16 +43,18 @@ export const completeStockTakeSession = async (sessionId) => {
   return data.data;
 };
 
-export const approveStockTake = async (sessionId) => {
+export const approveStockTake = async (sessionId, payload = {}) => {
   const { data } = await api.post(
-    `/inventory/stock-take-sessions/${sessionId}/approve`
+    `/inventory/stock-take-sessions/${sessionId}/approve`,
+    payload,
   );
   return data.data;
 };
 
-export const rejectStockTake = async (sessionId) => {
+export const rejectStockTake = async (sessionId, payload = {}) => {
   const { data } = await api.post(
-    `/inventory/stock-take-sessions/${sessionId}/reject`
+    `/inventory/stock-take-sessions/${sessionId}/reject`,
+    payload,
   );
   return data.data;
 };
@@ -60,6 +62,11 @@ export const rejectStockTake = async (sessionId) => {
 // Reports
 export const fetchStockTakeReports = async (params = {}) => {
   const { data } = await api.get("/inventory/reports/stock-take", { params });
+  return data.data ?? data;
+};
+
+export const fetchStockTakeDetail = async (id) => {
+  const { data } = await api.get(`/inventory/reports/stock-take/${id}`);
   return data.data ?? data;
 };
 

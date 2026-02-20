@@ -88,7 +88,7 @@ exports.completeSession = async (stockTakeId, context) => {
   return data;
 };
 
-exports.approve = async (stockTakeId, { notes }, context) => {
+exports.approve = async (stockTakeId, { notes } = {}, context) => {
   if (!stockTakeId) {
     throw new Error("STOCK_TAKE_ID_REQUIRED");
   }
@@ -117,18 +117,19 @@ exports.approve = async (stockTakeId, { notes }, context) => {
   return data;
 };
 
-exports.reject = async (stockTakeId, { reason }, context) => {
-  if (!stockTakeId || !reason) {
-    throw new Error("REJECTION_REASON_REQUIRED");
+exports.reject = async (stockTakeId, { reason } = {}, context) => {
+  if (!stockTakeId) {
+    throw new Error("STOCK_TAKE_ID_REQUIRED");
   }
 
   const { data, error } = await stockTakeRepo.reject(
     stockTakeId,
     context.userId,
-    reason,
+    reason || "",
   );
 
   if (error) {
+    console.log("Error rejecting stock take:", error);
     throw new Error("FAILED_TO_REJECT_STOCK_TAKE");
   }
 
@@ -168,6 +169,17 @@ exports.getSessionItems = async (sessionId) => {
   }));
 };
 
+exports.getStockTakeDetail = async (id) => {
+  const { data, error } = await stockTakeReadRepo.getStockTakeById(id);
+
+  if (error) {
+    console.log("Error fetching stock take detail:", error);
+    throw new Error("FAILED_TO_FETCH_STOCK_TAKE_DETAIL");
+  }
+
+  return data;
+};
+
 exports.getAdjustmentsReport = async (filters) => {
   const { data, error } =
     await stockTakeReadRepo.getStockTakeAdjustments(filters);
@@ -177,11 +189,5 @@ exports.getAdjustmentsReport = async (filters) => {
     throw new Error("FAILED_TO_FETCH_STOCK_TAKE_ADJUSTMENTS");
   }
 
-  // Preserve v1 sort + date normalization
-  return data
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .map((record) => ({
-      ...record,
-      createdAt: new Date(record.createdAt),
-    }));
+  return data || [];
 };

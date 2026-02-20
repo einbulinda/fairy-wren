@@ -159,6 +159,18 @@ exports.getStockTakeAdjustments = async (req, res, next) => {
 };
 
 /**
+ * GET /inventory/reports/stock-take/:id
+ */
+exports.getStockTakeDetail = async (req, res, next) => {
+  try {
+    const data = await stockTakeService.getStockTakeDetail(req.params.id);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /inventory/reports/stock-take
  * Alias for getStockTakeAdjustments with cleaner endpoint path
  */

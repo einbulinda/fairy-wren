@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"cd 'e:\\\\projects\\\\fairy-wren'; git show 85d9dbc:erp/PLAN.md 2>&1\":*)",
+      "Bash(powershell -Command:*)"
+    ]
+  }
+}

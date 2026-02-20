@@ -11,6 +11,7 @@ import {
   approveStockTake,
   rejectStockTake,
   fetchStockTakeReports,
+  fetchStockTakeDetail,
   fetchStockTakeAdjustments,
 } from "@/services/inventory.service";
 
@@ -128,6 +129,15 @@ export const useStockTakeReports = (params = {}) => {
   return useQuery({
     queryKey: ["stock-take-reports", params],
     queryFn: () => fetchStockTakeReports(params),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useStockTakeDetail = (id) => {
+  return useQuery({
+    queryKey: ["stock-take-detail", id],
+    queryFn: () => fetchStockTakeDetail(id),
+    enabled: !!id,
     staleTime: 5 * 60 * 1000,
   });
 };

@@ -1,4 +1,4 @@
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
 import {
   BarChart3,
   Package,
@@ -14,6 +14,7 @@ import {
   ChevronDown,
   X,
   LineChart,
+  BarChart2,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -28,7 +29,17 @@ const navSections = [
   {
     label: "Operations",
     items: [
-      { to: "/inventory", icon: Package, label: "Inventory" },
+      {
+        to: "/inventory",
+        icon: Package,
+        label: "Inventory",
+        children: [
+          { to: "/inventory", end: true, icon: Package, label: "Stock Levels" },
+          { to: "/inventory/receive", icon: Truck, label: "Receive Inventory" },
+          { to: "/inventory/reports", icon: BarChart2, label: "Reports" },
+          { to: "/inventory/approvals", icon: ClipboardCheck, label: "Approvals" },
+        ],
+      },
       { to: "/products", icon: Grid, label: "Products" },
       { to: "/suppliers", icon: Truck, label: "Suppliers" },
     ],
@@ -64,6 +75,56 @@ const navSections = [
   },
 ];
 
+// Nav item with expandable children (e.g. Inventory sub-pages)
+const NavParent = ({ item, onClose }) => {
+  const { pathname } = useLocation();
+  const isActive = pathname === item.to || pathname.startsWith(item.to + "/");
+  const [open, setOpen] = useState(isActive);
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-3 w-full px-3 py-2 rounded-md text-[13px] transition-colors ${
+          isActive
+            ? "bg-primary-600/20 text-primary-400 font-medium"
+            : "text-surface-300 hover:bg-surface-800 hover:text-white"
+        }`}
+      >
+        <item.icon size={17} strokeWidth={1.8} />
+        <span className="flex-1 text-left">{item.label}</span>
+        <ChevronDown
+          size={14}
+          className={`transition-transform ${open ? "" : "-rotate-90"}`}
+        />
+      </button>
+
+      {open && (
+        <div className="ml-4 mt-0.5 border-l border-surface-700 pl-3 space-y-0.5">
+          {item.children.map((child) => (
+            <NavLink
+              key={child.to}
+              to={child.to}
+              end={child.end}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors ${
+                  isActive
+                    ? "text-primary-400 font-medium"
+                    : "text-surface-400 hover:text-white hover:bg-surface-800"
+                }`
+              }
+            >
+              <child.icon size={14} strokeWidth={1.8} />
+              <span>{child.label}</span>
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Sidebar = ({ open, onClose }) => {
   const [collapsed, setCollapsed] = useState({});
 
@@ -85,13 +146,13 @@ const Sidebar = ({ open, onClose }) => {
         className={`
           fixed top-0 left-0 h-screen bg-surface-900 border-r border-surface-700
           transition-transform duration-300 ease-in-out z-40
-          flex flex-col w-[260px]
+          flex flex-col w-65
           ${open ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0 lg:relative
         `}
       >
         {/* Logo */}
-        <div className="h-[64px] px-5 flex items-center justify-between border-b border-surface-700">
+        <div className="h-16 px-5 flex items-center justify-between border-b border-surface-700">
           <div className="flex items-center gap-2.5">
             <img src={fwLogo} alt="Fairy Wren" className="h-9 w-auto" />
             <div>
@@ -126,30 +187,37 @@ const Sidebar = ({ open, onClose }) => {
 
               {!collapsed[section.label] && (
                 <div className="space-y-0.5">
-                  {section.items.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.to === "/"}
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors ${
-                          isActive
-                            ? "bg-primary-600/20 text-primary-400 font-medium"
-                            : "text-surface-300 hover:bg-surface-800 hover:text-white"
-                        }`
-                      }
-                    >
-                      <item.icon size={17} strokeWidth={1.8} />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  ))}
+                  {section.items.map((item) =>
+                    item.children ? (
+                      <NavParent
+                        key={item.to}
+                        item={item}
+                        onClose={onClose}
+                      />
+                    ) : (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end={item.to === "/"}
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors ${
+                            isActive
+                              ? "bg-primary-600/20 text-primary-400 font-medium"
+                              : "text-surface-300 hover:bg-surface-800 hover:text-white"
+                          }`
+                        }
+                      >
+                        <item.icon size={17} strokeWidth={1.8} />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    )
+                  )}
                 </div>
               )}
             </div>
           ))}
         </nav>
-
       </aside>
     </>
   );
