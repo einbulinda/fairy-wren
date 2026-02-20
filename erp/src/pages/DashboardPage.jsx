@@ -6,7 +6,7 @@ import WelcomeCard from "@/components/dashboard/WelcomeCard";
 import WeeklyInsightsCard from "@/components/dashboard/WeeklyInsightsCard";
 import CategoryDoughnutCard from "@/components/dashboard/CategoryDoughnutCard";
 import SalesTrendChart from "@/components/dashboard/SalesTrendChart";
-import PaymentTypeBreakdown from "@/components/dashboard/PaymentTypeBreakdown";
+import WeeklyPerformanceChart from "@/components/dashboard/WeeklyPerformanceChart";
 import CategorySalesTable from "@/components/dashboard/CategorySalesTable";
 import OutstandingBillsTable from "@/components/dashboard/OutstandingBillsTable";
 import TopSellingProducts from "@/components/dashboard/TopSellingProducts";
@@ -242,19 +242,16 @@ const DashboardPage = () => {
         />
       </div>
 
-      {/* Two Column: Payments + Category */}
+      {/* Two Column: Weekly Performance + Category */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4 sm:p-6">
-          <div className="flex flex-col gap-1 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
-                <DollarSign className="w-5 h-5 text-emerald-400" />
-              </div>
-              <h2 className="text-lg font-semibold text-white">Payment Methods</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-violet-500/20 border border-violet-500/30">
+              <BarChart3 className="w-5 h-5 text-violet-400" />
             </div>
-            <p className="text-xs text-surface-400 ml-11">{MONTHS[selectedMonth]} {selectedYear}</p>
+            <h2 className="text-lg font-semibold text-white">Weekly Performance</h2>
           </div>
-          <PaymentTypeBreakdown data={metrics.paymentTypes || []} />
+          <WeeklyPerformanceChart data={metrics.weeklyPerformance || []} />
         </div>
 
         <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4 sm:p-6">
