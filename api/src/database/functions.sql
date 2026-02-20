@@ -644,11 +644,6 @@ p_product_id;
 end if;
 end;
 $function$;
-CREATE OR REPLACE FUNCTION public.prevent_negative_stock() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN IF NEW.current_stock < 0 THEN RAISE EXCEPTION 'Stock cannot be negative';
-END IF;
-RETURN NEW;
-END;
-$function$;
 CREATE OR REPLACE FUNCTION public.recalc_inventory_receipt_total() RETURNS trigger LANGUAGE plpgsql AS $function$
 declare rid uuid;
 begin rid := coalesce(new.receipt_id, old.receipt_id);
@@ -1488,66 +1483,254 @@ $function$;
  ============================================================================
  */
 CREATE OR REPLACE FUNCTION public.rpc_supplier_statement(
-    p_supplier_id uuid,
-    p_start_date date DEFAULT NULL,
-    p_end_date date DEFAULT NULL
-) RETURNS TABLE(
-    txn_date date,
-    txn_type text,
-    reference text,
-    description text,
-    debit numeric,
-    credit numeric,
-    running_balance numeric
-) LANGUAGE sql STABLE AS $function$
-WITH txns AS (
-    -- Inventory receipts (goods purchased from supplier)
-    SELECT
-        ir.purchase_date AS txn_date,
-        'purchase'::text AS txn_type,
-        ir.invoice_number AS reference,
-        COALESCE(ir.notes, 'Inventory purchase') AS description,
-        ir.total_amount AS debit,
-        0::numeric AS credit
-    FROM inventory_receipts ir
-    WHERE ir.supplier_id = p_supplier_id
-        AND (p_start_date IS NULL OR ir.purchase_date >= p_start_date)
-        AND (p_end_date IS NULL OR ir.purchase_date <= p_end_date)
-    UNION ALL
-    -- Expenses linked to this supplier (non-inventory charges)
-    SELECT
-        e.expense_date AS txn_date,
-        'expense'::text AS txn_type,
-        COALESCE(e.invoice_number, 'EXP') AS reference,
-        COALESCE(e.description, 'Supplier expense') AS description,
-        e.amount AS debit,
-        0::numeric AS credit
-    FROM expenses e
-    WHERE e.supplier_id = p_supplier_id
-        AND (p_start_date IS NULL OR e.expense_date >= p_start_date)
-        AND (p_end_date IS NULL OR e.expense_date <= p_end_date)
-    UNION ALL
-    -- Payments made to supplier
-    SELECT
-        sp.payment_date AS txn_date,
-        'payment'::text AS txn_type,
-        COALESCE(sp.reference, 'PMT') AS reference,
-        COALESCE(sp.notes, 'Payment') AS description,
-        0::numeric AS debit,
-        sp.amount AS credit
-    FROM supplier_payments sp
-    WHERE sp.supplier_id = p_supplier_id
-        AND (p_start_date IS NULL OR sp.payment_date >= p_start_date)
-        AND (p_end_date IS NULL OR sp.payment_date <= p_end_date)
-)
-SELECT
-    txn_date,
+        p_supplier_id uuid,
+        p_start_date date DEFAULT NULL,
+        p_end_date date DEFAULT NULL
+    ) RETURNS TABLE(
+        txn_date date,
+        txn_type text,
+        reference text,
+        description text,
+        debit numeric,
+        credit numeric,
+        running_balance numeric
+    ) LANGUAGE sql STABLE AS $function$ WITH txns AS (
+        -- Inventory receipts (goods purchased from supplier)
+        SELECT ir.purchase_date AS txn_date,
+            'purchase'::text AS txn_type,
+            ir.invoice_number AS reference,
+            COALESCE(ir.notes, 'Inventory purchase') AS description,
+            ir.total_amount AS debit,
+            0::numeric AS credit
+        FROM inventory_receipts ir
+        WHERE ir.supplier_id = p_supplier_id
+            AND (
+                p_start_date IS NULL
+                OR ir.purchase_date >= p_start_date
+            )
+            AND (
+                p_end_date IS NULL
+                OR ir.purchase_date <= p_end_date
+            )
+        UNION ALL
+        -- Expenses linked to this supplier (non-inventory charges)
+        SELECT e.expense_date AS txn_date,
+            'expense'::text AS txn_type,
+            COALESCE(e.invoice_number, 'EXP') AS reference,
+            COALESCE(e.description, 'Supplier expense') AS description,
+            e.amount AS debit,
+            0::numeric AS credit
+        FROM expenses e
+        WHERE e.supplier_id = p_supplier_id
+            AND (
+                p_start_date IS NULL
+                OR e.expense_date >= p_start_date
+            )
+            AND (
+                p_end_date IS NULL
+                OR e.expense_date <= p_end_date
+            )
+        UNION ALL
+        -- Payments made to supplier
+        SELECT sp.payment_date AS txn_date,
+            'payment'::text AS txn_type,
+            COALESCE(sp.reference, 'PMT') AS reference,
+            COALESCE(sp.notes, 'Payment') AS description,
+            0::numeric AS debit,
+            sp.amount AS credit
+        FROM supplier_payments sp
+        WHERE sp.supplier_id = p_supplier_id
+            AND (
+                p_start_date IS NULL
+                OR sp.payment_date >= p_start_date
+            )
+            AND (
+                p_end_date IS NULL
+                OR sp.payment_date <= p_end_date
+            )
+    )
+SELECT txn_date,
     txn_type,
     reference,
     description,
     debit,
     credit,
-    SUM(debit - credit) OVER (ORDER BY txn_date, txn_type) AS running_balance
+    SUM(debit - credit) OVER (
+        ORDER BY txn_date,
+            txn_type
+    ) AS running_balance
 FROM txns
-ORDER BY txn_date, txn_type;
+ORDER BY txn_date,
+    txn_type;
+$function$;
+/*
+ ============================================================================
+ PAYROLL PROCESSING FUNCTION
+ ----------------------------------------------------------------------------
+ Processes a monthly payroll run as a single atomic transaction. All five
+ steps — computing employee pay, inserting the payroll run, creating run
+ lines, posting the GL journal entry, and linking the journal back to the
+ run — execute inside one implicit PL/pgSQL transaction. Any failure at
+ any step rolls back the entire operation, preventing orphaned records.
+
+ GL posting:
+   Dr  salary_account_id   (Salary Expense)   = total gross pay
+   Cr  payable_account_id  (Salaries Payable)  = total gross pay
+
+ Raises: NO_EMPLOYEES_WITH_SALARY_STRUCTURES when no profiles have a
+ linked salary structure.
+
+ Returns: JSON row of the created payroll_run record.
+
+ Created: 20/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_process_payroll_run(
+    p_period             date,
+    p_salary_account_id  uuid,
+    p_payable_account_id uuid,
+    p_notes              text,
+    p_created_by         uuid
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+DECLARE
+    v_run_id            uuid;
+    v_journal_entry_id  uuid;
+    v_total_gross       numeric := 0;
+    v_total_deductions  numeric := 0;
+    v_total_net         numeric := 0;
+    v_employee_count    integer := 0;
+    v_month_name        text;
+    v_emp               record;
+    v_gross             numeric;
+    v_deductions        numeric;
+    v_net               numeric;
+BEGIN
+    -- Human-readable month label for journal descriptions
+    v_month_name := to_char(p_period, 'Month YYYY');
+
+    -- Pass 1: compute totals only (no inserts yet — run_id doesn't exist yet)
+    FOR v_emp IN
+        SELECT
+            p.id AS profile_id,
+            s.basic_pay,
+            s.housing_allowance,
+            s.transport_allowance,
+            s.other_allowances,
+            s.paye,
+            s.nssf,
+            s.shif,
+            s.housing_levy,
+            s.other_deductions,
+            s.payment_method
+        FROM profiles p
+        JOIN employee_salary_structures s ON s.profile_id = p.id
+    LOOP
+        v_gross := coalesce(v_emp.basic_pay, 0)
+                 + coalesce(v_emp.housing_allowance, 0)
+                 + coalesce(v_emp.transport_allowance, 0)
+                 + coalesce(v_emp.other_allowances, 0);
+
+        v_deductions := coalesce(v_emp.paye, 0)
+                      + coalesce(v_emp.nssf, 0)
+                      + coalesce(v_emp.shif, 0)
+                      + coalesce(v_emp.housing_levy, 0)
+                      + coalesce(v_emp.other_deductions, 0);
+
+        v_total_gross      := v_total_gross + v_gross;
+        v_total_deductions := v_total_deductions + v_deductions;
+        v_total_net        := v_total_net + (v_gross - v_deductions);
+        v_employee_count   := v_employee_count + 1;
+    END LOOP;
+
+    IF v_employee_count = 0 THEN
+        RAISE EXCEPTION 'NO_EMPLOYEES_WITH_SALARY_STRUCTURES';
+    END IF;
+
+    -- Create the payroll run header now that totals are known
+    INSERT INTO payroll_runs (
+        period, salary_account_id, payable_account_id,
+        notes, status, total_gross, total_deductions, total_net,
+        employee_count, created_by, processed_at
+    ) VALUES (
+        p_period, p_salary_account_id, p_payable_account_id,
+        p_notes, 'processed', v_total_gross, v_total_deductions, v_total_net,
+        v_employee_count, p_created_by, now()
+    )
+    RETURNING id INTO v_run_id;
+
+    -- Pass 2: insert run lines now that v_run_id satisfies the FK constraint
+    FOR v_emp IN
+        SELECT
+            p.id AS profile_id,
+            s.basic_pay,
+            s.housing_allowance,
+            s.transport_allowance,
+            s.other_allowances,
+            s.paye,
+            s.nssf,
+            s.shif,
+            s.housing_levy,
+            s.other_deductions,
+            s.payment_method
+        FROM profiles p
+        JOIN employee_salary_structures s ON s.profile_id = p.id
+    LOOP
+        v_gross := coalesce(v_emp.basic_pay, 0)
+                 + coalesce(v_emp.housing_allowance, 0)
+                 + coalesce(v_emp.transport_allowance, 0)
+                 + coalesce(v_emp.other_allowances, 0);
+
+        v_deductions := coalesce(v_emp.paye, 0)
+                      + coalesce(v_emp.nssf, 0)
+                      + coalesce(v_emp.shif, 0)
+                      + coalesce(v_emp.housing_levy, 0)
+                      + coalesce(v_emp.other_deductions, 0);
+
+        v_net := v_gross - v_deductions;
+
+        INSERT INTO payroll_run_lines (
+            run_id, profile_id,
+            basic_pay, housing_allowance, transport_allowance, other_allowances,
+            gross_pay, paye, nssf, shif, housing_levy, other_deductions,
+            total_deductions, net_pay, payment_method
+        ) VALUES (
+            v_run_id,
+            v_emp.profile_id,
+            v_emp.basic_pay,
+            coalesce(v_emp.housing_allowance, 0),
+            coalesce(v_emp.transport_allowance, 0),
+            coalesce(v_emp.other_allowances, 0),
+            v_gross,
+            coalesce(v_emp.paye, 0),
+            coalesce(v_emp.nssf, 0),
+            coalesce(v_emp.shif, 0),
+            coalesce(v_emp.housing_levy, 0),
+            coalesce(v_emp.other_deductions, 0),
+            v_deductions,
+            v_net,
+            coalesce(v_emp.payment_method, 'cash')
+        );
+    END LOOP;
+
+    -- Post GL journal entry: Dr Salary Expense / Cr Salaries Payable
+    INSERT INTO journal_entries (entry_date, description, source_type, source_id)
+    VALUES (p_period, 'Payroll – ' || v_month_name, 'payroll', v_run_id)
+    RETURNING id INTO v_journal_entry_id;
+
+    INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit, description)
+    VALUES
+        (v_journal_entry_id, p_salary_account_id,  v_total_gross, 0,             'Salary expense – ' || v_month_name),
+        (v_journal_entry_id, p_payable_account_id, 0,             v_total_gross, 'Salaries payable – ' || v_month_name);
+
+    -- Link the journal entry back to the payroll run
+    UPDATE payroll_runs
+        SET journal_entry_id = v_journal_entry_id
+    WHERE id = v_run_id;
+
+    RETURN (SELECT row_to_json(r) FROM payroll_runs r WHERE r.id = v_run_id);
+END;
 $function$;

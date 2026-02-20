@@ -267,14 +267,34 @@ CREATE TABLE public.payroll_items (
 CREATE TABLE public.payroll_runs (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     period date NOT NULL,
-    CONSTRAINT payroll_runs_pkey PRIMARY KEY (id)
+    status character varying(20) DEFAULT 'draft' CHECK (
+        status::text = ANY (
+            ARRAY ['draft'::text, 'processed'::text, 'paid'::text]
+        )
+    ),
+    total_gross numeric(15, 2) DEFAULT 0,
+    total_deductions numeric(15, 2) DEFAULT 0,
+    total_net numeric(15, 2) DEFAULT 0,
+    employee_count integer DEFAULT 0,
+    journal_entry_id uuid,
+    salary_account_id uuid,
+    payable_account_id uuid,
+    notes text,
+    created_by uuid,
+    processed_at timestamp with time zone,
+    paid_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT payroll_runs_pkey PRIMARY KEY (id),
+    CONSTRAINT payroll_runs_journal_entry_id_fkey FOREIGN KEY (journal_entry_id) REFERENCES public.journal_entries(id),
+    CONSTRAINT payroll_runs_salary_account_id_fkey FOREIGN KEY (salary_account_id) REFERENCES public.chart_of_accounts(id),
+    CONSTRAINT payroll_runs_payable_account_id_fkey FOREIGN KEY (payable_account_id) REFERENCES public.chart_of_accounts(id),
+    CONSTRAINT payroll_runs_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.products (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     name character varying NOT NULL,
     price numeric NOT NULL CHECK (price >= 0::numeric),
     category_id uuid NOT NULL,
-    current_stock integer NOT NULL DEFAULT 0 CHECK (current_stock >= 0),
     active boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
@@ -472,11 +492,70 @@ CREATE TABLE IF NOT EXISTS public.supplier_payments (
     supplier_id uuid NOT NULL REFERENCES public.suppliers(id),
     payment_date date NOT NULL,
     amount numeric(15, 2) NOT NULL CHECK (amount > 0),
-    payment_method varchar(20) DEFAULT 'bank' CHECK (payment_method IN ('bank', 'cash', 'mpesa', 'cheque')),
+    payment_method varchar(20) DEFAULT 'bank' CHECK (
+        payment_method IN ('bank', 'cash', 'mpesa', 'cheque')
+    ),
     reference varchar(100),
     bank_account_id uuid REFERENCES public.chart_of_accounts(id),
     notes text,
     journal_entry_id uuid REFERENCES public.journal_entries(id),
     created_by uuid REFERENCES public.profiles(id),
+    created_at timestamptz DEFAULT now()
+);
+/*=======================================================================
+ EMPLOYEE_SALARY_STRUCTURES TABLE
+ Stores each employee's salary breakdown (earnings + deductions + payment
+ method). Linked to the profiles table via a unique profile_id. Upserted
+ on save — one row per employee.
+ Created: 19/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE TABLE IF NOT EXISTS public.employee_salary_structures (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    profile_id uuid NOT NULL UNIQUE REFERENCES public.profiles(id),
+    basic_pay numeric(15, 2) NOT NULL DEFAULT 0,
+    housing_allowance numeric(15, 2) DEFAULT 0,
+    transport_allowance numeric(15, 2) DEFAULT 0,
+    other_allowances numeric(15, 2) DEFAULT 0,
+    paye numeric(15, 2) DEFAULT 0,
+    nssf numeric(15, 2) DEFAULT 0,
+    shif numeric(15, 2) DEFAULT 0,
+    housing_levy numeric(15, 2) DEFAULT 0,
+    other_deductions numeric(15, 2) DEFAULT 0,
+    payment_method varchar(20) DEFAULT 'cash' CHECK (
+        payment_method IN ('cash', 'bank', 'mpesa')
+    ),
+    bank_name varchar(100),
+    account_number varchar(50),
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+/*=======================================================================
+ PAYROLL_RUN_LINES TABLE
+ One row per employee per payroll run. Captures a snapshot of the
+ employee's earnings and deductions at the time of processing. Cascades
+ on delete with the parent payroll_run.
+ Created: 19/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE TABLE IF NOT EXISTS public.payroll_run_lines (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    run_id uuid NOT NULL REFERENCES public.payroll_runs(id) ON DELETE CASCADE,
+    profile_id uuid NOT NULL REFERENCES public.profiles(id),
+    basic_pay numeric(15, 2) NOT NULL,
+    housing_allowance numeric(15, 2) DEFAULT 0,
+    transport_allowance numeric(15, 2) DEFAULT 0,
+    other_allowances numeric(15, 2) DEFAULT 0,
+    gross_pay numeric(15, 2) NOT NULL,
+    paye numeric(15, 2) DEFAULT 0,
+    nssf numeric(15, 2) DEFAULT 0,
+    shif numeric(15, 2) DEFAULT 0,
+    housing_levy numeric(15, 2) DEFAULT 0,
+    other_deductions numeric(15, 2) DEFAULT 0,
+    total_deductions numeric(15, 2) NOT NULL,
+    net_pay numeric(15, 2) NOT NULL,
+    payment_method varchar(20) DEFAULT 'cash',
+    is_paid boolean DEFAULT false,
+    paid_at timestamptz,
     created_at timestamptz DEFAULT now()
 );

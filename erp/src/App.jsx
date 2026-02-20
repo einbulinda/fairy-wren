@@ -17,6 +17,7 @@ import SupplierDetailPage from "@/pages/SupplierDetailPage";
 import InventoryPage from "@/pages/InventoryPage";
 import ProductsPage from "@/pages/ProductsPage";
 import ProductDetailPage from "@/pages/ProductDetailPage";
+import PayrollPage from "@/pages/PayrollPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 
 const queryClient = new QueryClient({
@@ -49,7 +50,7 @@ const AppRoutes = () => {
         <Route path="journals" element={<JournalEntryPage />} />
         <Route path="cheques" element={<ChequeWritingPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
-        <Route path="payroll" element={<PlaceholderPage />} />
+        <Route path="payroll" element={<PayrollPage />} />
         <Route path="reports" element={<PerformanceAnalyticsPage />} />
         <Route path="users" element={<PlaceholderPage />} />
         <Route path="approvals" element={<PlaceholderPage />} />

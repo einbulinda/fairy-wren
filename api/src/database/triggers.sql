@@ -37,8 +37,6 @@ INSERT
 UPDATE ON journal_lines DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION validate_journal_balance();
 CREATE TRIGGER update_payments_updated_at BEFORE
 UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER trg_prevent_negative_stock BEFORE
-UPDATE ON products FOR EACH ROW EXECUTE FUNCTION prevent_negative_stock();
 CREATE TRIGGER update_products_updated_at BEFORE
 UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_profiles_updated_at BEFORE

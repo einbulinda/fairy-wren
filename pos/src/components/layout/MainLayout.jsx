@@ -10,7 +10,6 @@ import {
   FileText,
   ClipboardCheck,
   DollarSign,
-  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
@@ -18,7 +17,6 @@ import fwLogo from "/fairy-logo-only.png";
 // View components
 import POSScreen from "@/pages/POSScreen";
 import ExpenseManagement from "../owner/ExpenseManagement";
-import UserManagement from "../../pages/UserManagement";
 import StockTakeEntry from "../../pages/StockTakeEntry";
 import { useBills } from "@/hooks/useBills";
 
@@ -57,7 +55,6 @@ const MainLayout = () => {
       case USER_ROLES.ADMIN:
         return [
           { id: "expenses", label: "Expenses", icon: DollarSign },
-          { id: "users", label: "Users", icon: Users },
           { id: "pos", label: "POS", icon: ShoppingCart },
         ];
 
@@ -145,8 +142,6 @@ const MainLayout = () => {
         return <StockTakeEntry />;
       case "expenses":
         return <ExpenseManagement />;
-      case "users":
-        return <UserManagement />;
       default:
         return null;
     }

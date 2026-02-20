@@ -13,6 +13,7 @@ exports.getInventoryItems = async (req, res, next) => {
     const data = await stockService.getInventoryItems();
     respond(res, 200, data);
   } catch (err) {
+    console.log("Error fetching inventory items:", err);
     next(err);
   }
 };
