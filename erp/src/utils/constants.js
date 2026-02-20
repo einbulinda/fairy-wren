@@ -3,12 +3,10 @@ export const USER_ROLES = {
   BARTENDER: "bartender",
   MANAGER: "manager",
   OWNER: "owner",
-  ADMIN: "system developer",
 };
 
 export const ERP_ALLOWED_ROLES = [
   USER_ROLES.OWNER,
-  USER_ROLES.ADMIN,
 ];
 
 export const APPROVAL_STATUS = {

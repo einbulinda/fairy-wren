@@ -112,8 +112,6 @@ const UserManagement = () => {
         return "🍺";
       case "waitress":
         return "💁‍♀️";
-      case "system developer":
-        return "💻";
       default:
         return "👤";
     }
@@ -275,8 +273,7 @@ const UserManagement = () => {
                         <Edit2 size={14} className="mr-1" />
                         Edit
                       </button>
-                      {user.role !== "owner" &&
-                        user.role !== "system developer" && (
+                      {user.role !== "owner" && (
                           <button
                             onClick={() =>
                               handleDeleteUser(user.id, user.active)
@@ -369,7 +366,7 @@ const UserManagement = () => {
                 <Edit2 size={14} className="mr-1" />
                 Edit
               </button>
-              {user.role !== "owner" && user.role !== "system developer" && (
+              {user.role !== "owner" && (
                 <button
                   onClick={() => handleDeleteUser(user.id, user.active)}
                   className={`px-3 py-2 rounded flex items-center justify-center text-sm transition-all active:scale-95 ${

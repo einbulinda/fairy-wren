@@ -313,7 +313,7 @@ CREATE TABLE public.profiles (
     name character varying NOT NULL,
     role character varying NOT NULL CHECK (
         role::text = ANY (
-            ARRAY ['waitress'::text, 'bartender'::text, 'manager'::text, 'owner'::text, 'system developer'::text]
+            ARRAY ['waitress'::text, 'bartender'::text, 'manager'::text, 'owner'::text]
         )
     ),
     active boolean DEFAULT true,

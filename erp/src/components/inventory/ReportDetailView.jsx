@@ -82,7 +82,10 @@ const ReportDetailView = ({ id }) => {
   const [sortDir, setSortDir] = useState("desc");
   const [itemPage, setItemPage] = useState(1);
 
-  const items = report?.stock_take_items || [];
+  const items = useMemo(
+    () => report?.stock_take_items || [],
+    [report],
+  );
 
   // Insights
   const total = items.length;

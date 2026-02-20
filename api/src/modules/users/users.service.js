@@ -73,6 +73,21 @@ exports.update = async (id, payload, context) => {
   const dto = UpdateUserDTO(payload);
   if (Object.keys(dto).length === 0) throw new Error("NO_FIELDS_TO_UPDATE");
 
+  // If a new PIN is supplied, hash it and recompute the fingerprint
+  if (dto.pin) {
+    const fingerprint = crypto
+      .createHmac("sha256", process.env.PIN_PEPPER)
+      .update(dto.pin)
+      .digest("hex");
+
+    const { data: existing } = await repo.userExists(fingerprint);
+    if (existing && existing.id !== id) throw new Error("PIN_ALREADY_IN_USE");
+
+    dto.pin_hash = await bcrypt.hash(dto.pin, 10);
+    dto.pin_fingerprint = fingerprint;
+    delete dto.pin; // never persist raw PIN
+  }
+
   const { data, error } = await repo.update(id, dto);
   if (error || !data) throw new Error("FAILED_TO_UPDATE_USER");
 
@@ -82,14 +97,19 @@ exports.update = async (id, payload, context) => {
     action: "USER_UPDATED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
-    metadata: dto,
+    metadata: { name: data.name, role: data.role },
   });
 
   return data;
 };
 
-exports.updateStatus = async (id, active, context) =>
-  exports.update(id, { active }, context);
+exports.updateStatus = async (id, active, context) => {
+  if (active === false || active === "false") {
+    const user = await exports.getById(id);
+    if (user.role === "owner") throw new Error("CANNOT_DEACTIVATE_OWNER");
+  }
+  return exports.update(id, { active }, context);
+};
 
 exports.updateRole = async (id, payload, context) =>
   exports.update(id, payload, context);

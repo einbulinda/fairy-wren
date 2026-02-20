@@ -1,19 +1,14 @@
-exports.CreateUserDTO = (payload) => ({
-  name: String(payload.name).trim(),
-  pin: String(payload.pin),
-  role: String(payload.role),
-  mobile_no: String(payload.mobile_no),
-  active: payload.active !== undefined ? Boolean(payload.active) : true,
+exports.CreateUserDTO = (p) => ({
+  name: String(p.name).trim(),
+  pin: String(p.pin),
+  role: String(p.role),
 });
 
-exports.UpdateUserDTO = (payload) => {
+exports.UpdateUserDTO = (p) => {
   const dto = {};
-  if (payload.name !== undefined) dto.name = String(payload.name).trim();
-  if (payload.pin !== undefined) dto.pin = String(payload.pin_hash);
-  if (payload.role !== undefined) dto.role = String(payload.role);
-  if (payload.mobile_no !== undefined)
-    dto.mobile_no = String(payload.mobile_no);
-  if (payload.active !== undefined) dto.active = Boolean(payload.active);
-
+  if (p.name !== undefined) dto.name = String(p.name).trim();
+  if (p.pin !== undefined) dto.pin = String(p.pin); // raw PIN — service will hash
+  if (p.role !== undefined) dto.role = String(p.role);
+  if (p.active !== undefined) dto.active = Boolean(p.active);
   return dto;
 };
