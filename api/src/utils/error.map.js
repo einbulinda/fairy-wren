@@ -176,6 +176,10 @@ const ERROR_MAP = {
     status: 400,
     message: "At least one receipt item is required",
   },
+  FAILED_TO_RECEIVE_INVENTORY: {
+    status: 500,
+    message: "Failed to receive inventory",
+  },
 
   FAILED_TO_CREATE_RECEIPT: {
     status: 500,

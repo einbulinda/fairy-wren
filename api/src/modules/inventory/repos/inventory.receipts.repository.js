@@ -1,15 +1,29 @@
 const getSupabase = require("../../../config/supabase");
 
-/* ---------- RECEIPT HEADER ---------- */
-exports.createReceipt = async (payload) => {
+/*----------- RECEIVE INVENTORY ----------*/
+exports.receiveInventory = async (payload, userId) => {
   const supabase = getSupabase();
-  return supabase.from("inventory_receipts").insert(payload).select().single();
-};
+  const {
+    supplier_id,
+    invoice_number,
+    purchase_date,
+    total_amount,
+    line_items,
+  } = payload;
+  const { data, error } = await supabase.rpc("receive_inventory", {
+    p_supplier_id: supplier_id,
+    p_invoice_number: invoice_number,
+    p_purchase_date: purchase_date,
+    p_total_amount: total_amount,
+    p_line_items: line_items,
+    p_created_by: userId,
+  });
 
-/* ---------- RECEIPT ITEMS ---------- */
-exports.createReceiptItems = async (items) => {
-  const supabase = getSupabase();
-  return supabase.from("inventory_receipt_items").insert(items);
+  if (error) {
+    console.error("Error receiving inventory:", error);
+    throw new Error("FAILED_TO_RECEIVE_INVENTORY");
+  }
+  return data;
 };
 
 /* ---------- RECEIPT DETAIL (READ) ---------- */

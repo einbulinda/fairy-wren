@@ -327,6 +327,19 @@ VALUES (v_journal_id, v_cash_account, v_totals.total, 0),
     (v_journal_id, v_sales_account, 0, v_totals.total);
 END;
 $function$;
+/*
+ ============================================================================
+ STOCK TAKE FUNCTIONS
+ ----------------------------------------------------------------------------
+ These functions manage the entire lifecycle of a stock take session, including:
+ - Creation of stock take sessions
+ - Recording of individual item counts and variances
+ - Automatic calculation of variance percentages and value impacts
+ - Approval workflow with audit logging
+ - Application of inventory adjustments upon approval
+ Updated: 16/02/2026 - einbulinda
+ ============================================================================
+ */
 CREATE OR REPLACE FUNCTION public.approve_stock_take(
         p_stock_take_id uuid,
         p_reviewed_by_id uuid,
@@ -606,43 +619,6 @@ VALUES (
     );
 RETURN v_stock_take_id;
 END;
-$function$;
-CREATE OR REPLACE FUNCTION public.increment_stock(product_id uuid, quantity integer) RETURNS TABLE(
-        id uuid,
-        name text,
-        stock integer,
-        updated_at timestamp with time zone
-    ) LANGUAGE plpgsql AS $function$ BEGIN -- Validate input
-    IF quantity IS NULL
-    OR quantity <= 0 THEN RAISE EXCEPTION 'Quantity must be greater than zero';
-END IF;
--- Update stock atomically
-UPDATE products p
-SET stock = p.stock + quantity,
-    updated_at = NOW()
-WHERE p.id = product_id
-RETURNING p.id,
-    p.name,
-    p.stock,
-    p.updated_at INTO id,
-    name,
-    stock,
-    updated_at;
--- Ensure product exists
-IF NOT FOUND THEN RAISE EXCEPTION 'Product with id % not found',
-product_id;
-END IF;
-RETURN NEXT;
-END;
-$function$;
-CREATE OR REPLACE FUNCTION public.increment_stock(p_product_id uuid, p_quantity numeric) RETURNS void LANGUAGE plpgsql AS $function$ begin
-update products
-set current_stock = current_stock + p_quantity
-where id = p_product_id;
-if not found then raise exception 'Product not found: %',
-p_product_id;
-end if;
-end;
 $function$;
 CREATE OR REPLACE FUNCTION public.recalc_inventory_receipt_total() RETURNS trigger LANGUAGE plpgsql AS $function$
 declare rid uuid;
@@ -1572,175 +1548,296 @@ $function$;
  lines, posting the GL journal entry, and linking the journal back to the
  run — execute inside one implicit PL/pgSQL transaction. Any failure at
  any step rolls back the entire operation, preventing orphaned records.
-
+ 
  GL posting:
-   Dr  salary_account_id   (Salary Expense)   = total gross pay
-   Cr  payable_account_id  (Salaries Payable)  = total gross pay
-
+ Dr  salary_account_id   (Salary Expense)   = total gross pay
+ Cr  payable_account_id  (Salaries Payable)  = total gross pay
+ 
  Raises: NO_EMPLOYEES_WITH_SALARY_STRUCTURES when no profiles have a
  linked salary structure.
-
+ 
  Returns: JSON row of the created payroll_run record.
-
+ 
  Created: 20/02/2026 - einbulinda
  ============================================================================
  */
 CREATE OR REPLACE FUNCTION public.rpc_process_payroll_run(
-    p_period             date,
-    p_salary_account_id  uuid,
-    p_payable_account_id uuid,
-    p_notes              text,
-    p_created_by         uuid
-)
-RETURNS json
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $function$
-DECLARE
-    v_run_id            uuid;
-    v_journal_entry_id  uuid;
-    v_total_gross       numeric := 0;
-    v_total_deductions  numeric := 0;
-    v_total_net         numeric := 0;
-    v_employee_count    integer := 0;
-    v_month_name        text;
-    v_emp               record;
-    v_gross             numeric;
-    v_deductions        numeric;
-    v_net               numeric;
-BEGIN
-    -- Human-readable month label for journal descriptions
-    v_month_name := to_char(p_period, 'Month YYYY');
-
-    -- Pass 1: compute totals only (no inserts yet — run_id doesn't exist yet)
-    FOR v_emp IN
-        SELECT
-            p.id AS profile_id,
-            s.basic_pay,
-            s.housing_allowance,
-            s.transport_allowance,
-            s.other_allowances,
-            s.paye,
-            s.nssf,
-            s.shif,
-            s.housing_levy,
-            s.other_deductions,
-            s.payment_method,
-            s.full_name,
-            s.id_number,
-            s.mpesa_number
-        FROM profiles p
-        JOIN employee_salary_structures s ON s.profile_id = p.id
-    LOOP
-        v_gross := coalesce(v_emp.basic_pay, 0)
-                 + coalesce(v_emp.housing_allowance, 0)
-                 + coalesce(v_emp.transport_allowance, 0)
-                 + coalesce(v_emp.other_allowances, 0);
-
-        v_deductions := coalesce(v_emp.paye, 0)
-                      + coalesce(v_emp.nssf, 0)
-                      + coalesce(v_emp.shif, 0)
-                      + coalesce(v_emp.housing_levy, 0)
-                      + coalesce(v_emp.other_deductions, 0);
-
-        v_total_gross      := v_total_gross + v_gross;
-        v_total_deductions := v_total_deductions + v_deductions;
-        v_total_net        := v_total_net + (v_gross - v_deductions);
-        v_employee_count   := v_employee_count + 1;
-    END LOOP;
-
-    IF v_employee_count = 0 THEN
-        RAISE EXCEPTION 'NO_EMPLOYEES_WITH_SALARY_STRUCTURES';
-    END IF;
-
-    -- Create the payroll run header now that totals are known
-    INSERT INTO payroll_runs (
-        period, salary_account_id, payable_account_id,
-        notes, status, total_gross, total_deductions, total_net,
-        employee_count, created_by, processed_at
-    ) VALUES (
-        p_period, p_salary_account_id, p_payable_account_id,
-        p_notes, 'processed', v_total_gross, v_total_deductions, v_total_net,
-        v_employee_count, p_created_by, now()
+        p_period date,
+        p_salary_account_id uuid,
+        p_payable_account_id uuid,
+        p_notes text,
+        p_created_by uuid
+    ) RETURNS json LANGUAGE plpgsql SECURITY DEFINER AS $function$
+DECLARE v_run_id uuid;
+v_journal_entry_id uuid;
+v_total_gross numeric := 0;
+v_total_deductions numeric := 0;
+v_total_net numeric := 0;
+v_employee_count integer := 0;
+v_month_name text;
+v_emp record;
+v_gross numeric;
+v_deductions numeric;
+v_net numeric;
+BEGIN -- Human-readable month label for journal descriptions
+v_month_name := to_char(p_period, 'Month YYYY');
+-- Pass 1: compute totals only (no inserts yet — run_id doesn't exist yet)
+FOR v_emp IN
+SELECT p.id AS profile_id,
+    s.basic_pay,
+    s.housing_allowance,
+    s.transport_allowance,
+    s.other_allowances,
+    s.paye,
+    s.nssf,
+    s.shif,
+    s.housing_levy,
+    s.other_deductions,
+    s.payment_method,
+    s.full_name,
+    s.id_number,
+    s.mpesa_number
+FROM profiles p
+    JOIN employee_salary_structures s ON s.profile_id = p.id LOOP v_gross := coalesce(v_emp.basic_pay, 0) + coalesce(v_emp.housing_allowance, 0) + coalesce(v_emp.transport_allowance, 0) + coalesce(v_emp.other_allowances, 0);
+v_deductions := coalesce(v_emp.paye, 0) + coalesce(v_emp.nssf, 0) + coalesce(v_emp.shif, 0) + coalesce(v_emp.housing_levy, 0) + coalesce(v_emp.other_deductions, 0);
+v_total_gross := v_total_gross + v_gross;
+v_total_deductions := v_total_deductions + v_deductions;
+v_total_net := v_total_net + (v_gross - v_deductions);
+v_employee_count := v_employee_count + 1;
+END LOOP;
+IF v_employee_count = 0 THEN RAISE EXCEPTION 'NO_EMPLOYEES_WITH_SALARY_STRUCTURES';
+END IF;
+-- Create the payroll run header now that totals are known
+INSERT INTO payroll_runs (
+        period,
+        salary_account_id,
+        payable_account_id,
+        notes,
+        status,
+        total_gross,
+        total_deductions,
+        total_net,
+        employee_count,
+        created_by,
+        processed_at
     )
-    RETURNING id INTO v_run_id;
-
-    -- Pass 2: insert run lines now that v_run_id satisfies the FK constraint
-    FOR v_emp IN
-        SELECT
-            p.id AS profile_id,
-            s.basic_pay,
-            s.housing_allowance,
-            s.transport_allowance,
-            s.other_allowances,
-            s.paye,
-            s.nssf,
-            s.shif,
-            s.housing_levy,
-            s.other_deductions,
-            s.payment_method,
-            s.full_name,
-            s.id_number,
-            s.mpesa_number
-        FROM profiles p
-        JOIN employee_salary_structures s ON s.profile_id = p.id
-    LOOP
-        v_gross := coalesce(v_emp.basic_pay, 0)
-                 + coalesce(v_emp.housing_allowance, 0)
-                 + coalesce(v_emp.transport_allowance, 0)
-                 + coalesce(v_emp.other_allowances, 0);
-
-        v_deductions := coalesce(v_emp.paye, 0)
-                      + coalesce(v_emp.nssf, 0)
-                      + coalesce(v_emp.shif, 0)
-                      + coalesce(v_emp.housing_levy, 0)
-                      + coalesce(v_emp.other_deductions, 0);
-
-        v_net := v_gross - v_deductions;
-
-        INSERT INTO payroll_run_lines (
-            run_id, profile_id,
-            basic_pay, housing_allowance, transport_allowance, other_allowances,
-            gross_pay, paye, nssf, shif, housing_levy, other_deductions,
-            total_deductions, net_pay, payment_method,
-            full_name, id_number, mpesa_number
-        ) VALUES (
-            v_run_id,
-            v_emp.profile_id,
-            v_emp.basic_pay,
-            coalesce(v_emp.housing_allowance, 0),
-            coalesce(v_emp.transport_allowance, 0),
-            coalesce(v_emp.other_allowances, 0),
-            v_gross,
-            coalesce(v_emp.paye, 0),
-            coalesce(v_emp.nssf, 0),
-            coalesce(v_emp.shif, 0),
-            coalesce(v_emp.housing_levy, 0),
-            coalesce(v_emp.other_deductions, 0),
-            v_deductions,
-            v_net,
-            coalesce(v_emp.payment_method, 'cash'),
-            v_emp.full_name,
-            v_emp.id_number,
-            v_emp.mpesa_number
-        );
-    END LOOP;
-
-    -- Post GL journal entry: Dr Salary Expense / Cr Salaries Payable
-    INSERT INTO journal_entries (entry_date, description, source_type, source_id)
-    VALUES (p_period, 'Payroll – ' || v_month_name, 'payroll', v_run_id)
-    RETURNING id INTO v_journal_entry_id;
-
-    INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit, description)
-    VALUES
-        (v_journal_entry_id, p_salary_account_id,  v_total_gross, 0,             'Salary expense – ' || v_month_name),
-        (v_journal_entry_id, p_payable_account_id, 0,             v_total_gross, 'Salaries payable – ' || v_month_name);
-
-    -- Link the journal entry back to the payroll run
-    UPDATE payroll_runs
-        SET journal_entry_id = v_journal_entry_id
-    WHERE id = v_run_id;
-
-    RETURN (SELECT row_to_json(r) FROM payroll_runs r WHERE r.id = v_run_id);
+VALUES (
+        p_period,
+        p_salary_account_id,
+        p_payable_account_id,
+        p_notes,
+        'processed',
+        v_total_gross,
+        v_total_deductions,
+        v_total_net,
+        v_employee_count,
+        p_created_by,
+        now()
+    )
+RETURNING id INTO v_run_id;
+-- Pass 2: insert run lines now that v_run_id satisfies the FK constraint
+FOR v_emp IN
+SELECT p.id AS profile_id,
+    s.basic_pay,
+    s.housing_allowance,
+    s.transport_allowance,
+    s.other_allowances,
+    s.paye,
+    s.nssf,
+    s.shif,
+    s.housing_levy,
+    s.other_deductions,
+    s.payment_method,
+    s.full_name,
+    s.id_number,
+    s.mpesa_number
+FROM profiles p
+    JOIN employee_salary_structures s ON s.profile_id = p.id LOOP v_gross := coalesce(v_emp.basic_pay, 0) + coalesce(v_emp.housing_allowance, 0) + coalesce(v_emp.transport_allowance, 0) + coalesce(v_emp.other_allowances, 0);
+v_deductions := coalesce(v_emp.paye, 0) + coalesce(v_emp.nssf, 0) + coalesce(v_emp.shif, 0) + coalesce(v_emp.housing_levy, 0) + coalesce(v_emp.other_deductions, 0);
+v_net := v_gross - v_deductions;
+INSERT INTO payroll_run_lines (
+        run_id,
+        profile_id,
+        basic_pay,
+        housing_allowance,
+        transport_allowance,
+        other_allowances,
+        gross_pay,
+        paye,
+        nssf,
+        shif,
+        housing_levy,
+        other_deductions,
+        total_deductions,
+        net_pay,
+        payment_method,
+        full_name,
+        id_number,
+        mpesa_number
+    )
+VALUES (
+        v_run_id,
+        v_emp.profile_id,
+        v_emp.basic_pay,
+        coalesce(v_emp.housing_allowance, 0),
+        coalesce(v_emp.transport_allowance, 0),
+        coalesce(v_emp.other_allowances, 0),
+        v_gross,
+        coalesce(v_emp.paye, 0),
+        coalesce(v_emp.nssf, 0),
+        coalesce(v_emp.shif, 0),
+        coalesce(v_emp.housing_levy, 0),
+        coalesce(v_emp.other_deductions, 0),
+        v_deductions,
+        v_net,
+        coalesce(v_emp.payment_method, 'cash'),
+        v_emp.full_name,
+        v_emp.id_number,
+        v_emp.mpesa_number
+    );
+END LOOP;
+-- Post GL journal entry: Dr Salary Expense / Cr Salaries Payable
+INSERT INTO journal_entries (entry_date, description, source_type, source_id)
+VALUES (
+        p_period,
+        'Payroll – ' || v_month_name,
+        'payroll',
+        v_run_id
+    )
+RETURNING id INTO v_journal_entry_id;
+INSERT INTO journal_lines (
+        journal_entry_id,
+        account_id,
+        debit,
+        credit,
+        description
+    )
+VALUES (
+        v_journal_entry_id,
+        p_salary_account_id,
+        v_total_gross,
+        0,
+        'Salary expense – ' || v_month_name
+    ),
+    (
+        v_journal_entry_id,
+        p_payable_account_id,
+        0,
+        v_total_gross,
+        'Salaries payable – ' || v_month_name
+    );
+-- Link the journal entry back to the payroll run
+UPDATE payroll_runs
+SET journal_entry_id = v_journal_entry_id
+WHERE id = v_run_id;
+RETURN (
+    SELECT row_to_json(r)
+    FROM payroll_runs r
+    WHERE r.id = v_run_id
+);
 END;
 $function$;
+/*
+ ============================================================================
+ RECEIVE INVENTORY FUNCTION
+ ----------------------------------------------------------------------------
+ This function processes the receipt of inventory from a supplier. It performs
+ the following steps within a single transaction:
+ 1. Validates input parameters.
+ 2. Creates a new inventory receipt record.
+ 3. Loops through each line item in the provided JSON array, inserting receipt items and corresponding inventory movements.
+ 4. Returns the ID of the created receipt for reference.
+ 
+ Raises exceptions for missing required fields or invalid data, ensuring that no partial data is saved if any step fails.
+ Created: 21/02/2026 - einbulinda
+ ============================================================================
+ */
+create or replace function public.receive_inventory(
+        p_supplier_id uuid,
+        p_invoice_number text,
+        p_purchase_date date,
+        p_total_amount numeric,
+        p_created_by uuid,
+        p_line_items jsonb
+    ) returns uuid language plpgsql as $$
+declare v_receipt_id uuid;
+v_item jsonb;
+v_product_id uuid;
+v_quantity numeric;
+v_unit_cost numeric;
+v_line_total numeric;
+begin -- ========= VALIDATIONS =========
+if p_supplier_id is null then raise exception 'SUPPLIER_REQUIRED';
+end if;
+if p_invoice_number is null then raise exception 'INVOICE_NUMBER_REQUIRED';
+end if;
+if p_purchase_date is null then raise exception 'PURCHASE_DATE_REQUIRED';
+end if;
+if jsonb_array_length(p_line_items) = 0 then raise exception 'RECEIPT_ITEMS_REQUIRED';
+end if;
+-- ========= 1. CREATE RECEIPT =========
+insert into inventory_receipts (
+        supplier_id,
+        invoice_number,
+        purchase_date,
+        total_amount,
+        created_by
+    )
+values (
+        p_supplier_id,
+        p_invoice_number,
+        p_purchase_date,
+        p_total_amount,
+        p_created_by
+    )
+returning id into v_receipt_id;
+-- ========= 2. LOOP LINE ITEMS =========
+for v_item in
+select *
+from jsonb_array_elements(p_line_items) loop v_product_id := (v_item->>'product_id')::uuid;
+v_quantity := (v_item->>'quantity')::numeric;
+v_unit_cost := (v_item->>'unit_cost')::numeric;
+v_line_total := (v_item->>'line_total')::numeric;
+-- Insert receipt item
+insert into inventory_receipt_items (
+        receipt_id,
+        product_id,
+        quantity,
+        unit_cost,
+        line_total
+    )
+values (
+        v_receipt_id,
+        v_product_id,
+        v_quantity,
+        v_unit_cost,
+        v_line_total
+    );
+-- Insert inventory movement (purchase)
+insert into inventory_movements (
+        product_id,
+        movement_date,
+        quantity,
+        movement_type,
+        reference_type,
+        reference_id,
+        notes,
+        unit_cost
+    )
+values (
+        v_product_id,
+        p_purchase_date,
+        v_quantity,
+        'purchase',
+        'receipt',
+        v_receipt_id,
+        'Receipt ' || p_invoice_number,
+        v_unit_cost
+    );
+end loop;
+return v_receipt_id;
+exception
+when others then raise;
+-- forces rollback
+end;
+$$;
