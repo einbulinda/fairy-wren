@@ -61,6 +61,8 @@ export default function StockTakeEntry() {
   const [recordedItems, setRecordedItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [resumeSearch, setResumeSearch] = useState("");
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
   // Reason codes
   const reasonCodes = [
@@ -102,14 +104,14 @@ export default function StockTakeEntry() {
   const fetchIncompleteSessions = async () => {
     if (!user?.id) return;
 
+    setLoadingSessions(true);
     try {
       const data = await getIncompleteStockTakes();
-
-      if (data && data.length > 0) {
-        setIncompleteSessions(data);
-      }
+      setIncompleteSessions(data || []);
     } catch (error) {
       console.error("Error fetching incomplete sessions:", error);
+    } finally {
+      setLoadingSessions(false);
     }
   };
 
@@ -506,15 +508,22 @@ export default function StockTakeEntry() {
             </button>
 
             {/* Resume Session Button */}
-            {incompleteSessions.length > 0 && (
-              <button
-                onClick={() => setShowResumeModal(true)}
-                className="w-full py-3 bg-white/5 border border-white/10 text-white rounded-lg font-medium hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-              >
-                <RefreshCw className="w-5 h-5" />
-                Resume Incomplete Session ({incompleteSessions.length})
-              </button>
-            )}
+            <button
+              onClick={() => {
+                fetchIncompleteSessions();
+                setResumeSearch("");
+                setShowResumeModal(true);
+              }}
+              className="w-full py-3 bg-white/5 border border-yellow-500/30 text-white rounded-lg font-medium hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="w-5 h-5 text-yellow-400" />
+              Resume Pending Session
+              {incompleteSessions.length > 0 && (
+                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-300 rounded-full text-xs font-bold">
+                  {incompleteSessions.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       ) : (
@@ -923,65 +932,124 @@ export default function StockTakeEntry() {
                 Select a session to continue from where you left off
               </p>
 
-              <div className="space-y-3">
-                {incompleteSessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className="bg-white/5 rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
-                    onClick={() => handleResumeSession(session)}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-white mb-2">
-                          {session.stock_take_name ||
-                            `Stock Take - ${new Date(session.created_at).toLocaleDateString()}`}
-                        </h4>
+              {/* Search */}
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={resumeSearch}
+                  onChange={(e) => setResumeSearch(e.target.value)}
+                  placeholder="Search by session name or location..."
+                  className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500/50 text-sm"
+                />
+              </div>
 
-                        <div className="grid grid-cols-2 gap-2 text-sm mb-2">
-                          <div className="flex items-center gap-1 text-gray-400">
-                            <Calendar className="w-3 h-3" />
-                            {session.stock_take_type?.replace("_", " ")}
-                          </div>
-                          <div className="flex items-center gap-1 text-gray-400">
-                            <MapPin className="w-3 h-3" />
-                            {session.location || "Unknown"}
-                          </div>
-                          <div className="flex items-center gap-1 text-gray-400">
-                            <User className="w-3 h-3" />
-                            {session.performed_by || "Unknown"}
-                          </div>
-                          <div className="flex items-center gap-1 text-gray-400">
-                            <Clock className="w-3 h-3" />
-                            {new Date(session.created_at).toLocaleString()}
-                          </div>
-                        </div>
+              {loadingSessions ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  <span className="ml-2 text-gray-400 text-sm">
+                    Loading sessions...
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {incompleteSessions
+                    .filter((session) => {
+                      if (!resumeSearch.trim()) return true;
+                      const query = resumeSearch.toLowerCase();
+                      return (
+                        session.stock_take_name
+                          ?.toLowerCase()
+                          .includes(query) ||
+                        session.location?.toLowerCase().includes(query) ||
+                        session.performed_by?.toLowerCase().includes(query)
+                      );
+                    })
+                    .map((session) => (
+                      <div
+                        key={session.id}
+                        className="bg-white/5 rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                        onClick={() => handleResumeSession(session)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-white mb-2">
+                              {session.stock_take_name ||
+                                `Stock Take - ${new Date(session.created_at).toLocaleDateString()}`}
+                            </h4>
 
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-300 rounded text-xs border border-yellow-500/30">
-                            In Progress
-                          </span>
-                          {session.item_count > 0 && (
-                            <span className="text-xs text-gray-400">
-                              {session.item_count} items recorded
-                            </span>
-                          )}
+                            <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                              <div className="flex items-center gap-1 text-gray-400">
+                                <Calendar className="w-3 h-3" />
+                                {session.stock_take_type?.replace("_", " ")}
+                              </div>
+                              <div className="flex items-center gap-1 text-gray-400">
+                                <MapPin className="w-3 h-3" />
+                                {session.location || "Unknown"}
+                              </div>
+                              <div className="flex items-center gap-1 text-gray-400">
+                                <User className="w-3 h-3" />
+                                {session.performed_by || "Unknown"}
+                              </div>
+                              <div className="flex items-center gap-1 text-gray-400">
+                                <Clock className="w-3 h-3" />
+                                {new Date(session.created_at).toLocaleString()}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-300 rounded text-xs border border-yellow-500/30">
+                                In Progress
+                              </span>
+                              {session.item_count > 0 && (
+                                <span className="text-xs text-gray-400">
+                                  {session.item_count} items recorded
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleResumeSession(session);
+                            }}
+                            className="px-4 py-2 bg-linear-to-r from-pink-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-pink-600 hover:to-purple-700 transition-all flex items-center gap-2"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Resume
+                          </button>
                         </div>
                       </div>
+                    ))}
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleResumeSession(session);
-                        }}
-                        className="px-4 py-2 bg-linear-to-r from-pink-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-pink-600 hover:to-purple-700 transition-all flex items-center gap-2"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        Resume
-                      </button>
+                  {incompleteSessions.length === 0 && (
+                    <div className="text-center py-12">
+                      <Package className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                      <p className="text-gray-400 text-sm">
+                        No pending sessions found
+                      </p>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  )}
+
+                  {incompleteSessions.length > 0 &&
+                    resumeSearch.trim() &&
+                    incompleteSessions.filter((s) => {
+                      const q = resumeSearch.toLowerCase();
+                      return (
+                        s.stock_take_name?.toLowerCase().includes(q) ||
+                        s.location?.toLowerCase().includes(q) ||
+                        s.performed_by?.toLowerCase().includes(q)
+                      );
+                    }).length === 0 && (
+                      <div className="text-center py-8">
+                        <p className="text-gray-400 text-sm">
+                          No sessions matching &quot;{resumeSearch}&quot;
+                        </p>
+                      </div>
+                    )}
+                </div>
+              )}
             </div>
           </div>
         </div>

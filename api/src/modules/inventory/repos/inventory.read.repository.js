@@ -6,9 +6,11 @@ exports.getIncompleteStockTakes = async (userId) => {
 
   return supabase
     .from("stock_takes")
-    .select("*")
-    .eq("status", "started")
-    .eq("performed_by_id", userId);
+    .select("*, stock_take_items(count), profiles!performed_by_id(name)")
+    .eq("approval_status", "pending")
+    .is("completed_at", null)
+    .eq("performed_by_id", userId)
+    .order("created_at", { ascending: false });
 };
 
 /* ---------- SESSION ITEMS ---------- */

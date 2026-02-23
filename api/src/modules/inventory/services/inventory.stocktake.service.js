@@ -40,7 +40,7 @@ exports.createSession = async (payload, context) => {
 };
 
 exports.recordItem = async (payload) => {
-  console.log("PAYLOAD", payload);
+  
   const { stockTakeId, productId, physicalQty, reason, notes } = payload;
 
   if (!stockTakeId || !productId) {
@@ -100,7 +100,7 @@ exports.approve = async (stockTakeId, { notes } = {}, context) => {
   );
 
   if (error) {
-    console.log("Error approving stock take:", error);
+    
     throw new Error("FAILED_TO_APPROVE_STOCK_TAKE");
   }
 
@@ -129,7 +129,7 @@ exports.reject = async (stockTakeId, { reason } = {}, context) => {
   );
 
   if (error) {
-    console.log("Error rejecting stock take:", error);
+    
     throw new Error("FAILED_TO_REJECT_STOCK_TAKE");
   }
 
@@ -152,7 +152,11 @@ exports.getIncompleteSessions = async (userId) => {
     throw new Error("FAILED_TO_FETCH_STOCK_TAKES");
   }
 
-  return data;
+  return (data || []).map(({ stock_take_items, profiles, ...session }) => ({
+    ...session,
+    item_count: stock_take_items?.[0]?.count ?? 0,
+    performed_by: profiles?.name ?? null,
+  }));
 };
 
 exports.getSessionItems = async (sessionId) => {
@@ -173,7 +177,6 @@ exports.getStockTakeDetail = async (id) => {
   const { data, error } = await stockTakeReadRepo.getStockTakeById(id);
 
   if (error) {
-    console.log("Error fetching stock take detail:", error);
     throw new Error("FAILED_TO_FETCH_STOCK_TAKE_DETAIL");
   }
 
@@ -185,7 +188,6 @@ exports.getAdjustmentsReport = async (filters) => {
     await stockTakeReadRepo.getStockTakeAdjustments(filters);
 
   if (error) {
-    console.log("Error fetching stock take adjustments:", error);
     throw new Error("FAILED_TO_FETCH_STOCK_TAKE_ADJUSTMENTS");
   }
 
