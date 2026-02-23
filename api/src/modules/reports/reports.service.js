@@ -317,6 +317,21 @@ class ReportsService {
     );
     return data || [];
   }
+
+  validateDate(date) {
+    if (!date) throw new Error("Date is required");
+    const d = new Date(date);
+    if (isNaN(d.getTime())) throw new Error("Invalid date format");
+  }
+
+  async getBalanceSheet(asOfDate) {
+    this.validateDate(asOfDate);
+    const [accounts, netIncome] = await Promise.all([
+      reportsRepository.getBalanceSheet(asOfDate),
+      reportsRepository.getNetIncome(asOfDate),
+    ]);
+    return { accounts: accounts || [], netIncome: netIncome || 0 };
+  }
 }
 
 module.exports = new ReportsService();

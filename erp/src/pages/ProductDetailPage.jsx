@@ -12,7 +12,6 @@ import {
   Clock,
   AlertTriangle,
   Calendar,
-  Icon,
   ChevronUp,
   ChevronDown,
   ChevronLeft,
@@ -29,6 +28,44 @@ import {
 const TAB_OVERVIEW = "overview";
 const TAB_PURCHASES = "purchases";
 const TAB_SALES = "sales";
+
+const inputCls =
+  "px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
+
+const getMonthRange = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const lastDay = new Date(y, date.getMonth() + 1, 0).getDate();
+  return {
+    from: `${y}-${m}-01`,
+    to: `${y}-${m}-${String(lastDay).padStart(2, "0")}`,
+  };
+};
+
+const DateRangeFilter = ({ from, to, onChange }) => (
+  <div className="flex flex-wrap items-center gap-2">
+    <Calendar size={14} className="text-surface-400" />
+    <input
+      type="date"
+      value={from}
+      onChange={(e) => onChange({ from: e.target.value, to })}
+      className={inputCls}
+    />
+    <span className="text-surface-500 text-sm">to</span>
+    <input
+      type="date"
+      value={to}
+      onChange={(e) => onChange({ from, to: e.target.value })}
+      className={inputCls}
+    />
+    <button
+      onClick={() => onChange(getMonthRange())}
+      className="px-3 py-1.5 text-xs rounded-lg bg-surface-700 hover:bg-surface-600 text-surface-300 transition-colors"
+    >
+      This Month
+    </button>
+  </div>
+);
 
 const fmt = (n) =>
   Number(n || 0).toLocaleString("en-KE", {
@@ -271,17 +308,20 @@ const HistoryPagination = ({ page, totalPages, setPage }) =>
 
 // ─── Purchase History Tab ─────────────────────────────────────────────────────
 
-const PurchasesTab = ({ productId }) => {
+const PurchasesTab = ({ productId, dateRange }) => {
   const navigate = useNavigate();
   const { data: purchases = [], isLoading } =
-    useProductPurchaseHistory(productId);
+    useProductPurchaseHistory(productId, dateRange);
   const [sortCol, setSortCol] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
   const [page, setPage] = useState(1);
 
   const handleSort = (col) => {
     if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortCol(col); setSortDir(col === "date" ? "desc" : "asc"); }
+    else {
+      setSortCol(col);
+      setSortDir(col === "date" ? "desc" : "asc");
+    }
     setPage(1);
   };
 
@@ -361,7 +401,11 @@ const PurchasesTab = ({ productId }) => {
               >
                 {label}
                 {!noSort && (
-                  <HistorySortIcon col={key} sortCol={sortCol} sortDir={sortDir} />
+                  <HistorySortIcon
+                    col={key}
+                    sortCol={sortCol}
+                    sortDir={sortDir}
+                  />
                 )}
               </th>
             ))}
@@ -435,22 +479,29 @@ const PurchasesTab = ({ productId }) => {
           </tr>
         </tfoot>
       </table>
-      <HistoryPagination page={safePage} totalPages={totalPages} setPage={setPage} />
+      <HistoryPagination
+        page={safePage}
+        totalPages={totalPages}
+        setPage={setPage}
+      />
     </div>
   );
 };
 
 // ─── Sales History Tab ────────────────────────────────────────────────────────
 
-const SalesTab = ({ productId }) => {
-  const { data: sales = [], isLoading } = useProductSalesHistory(productId);
+const SalesTab = ({ productId, dateRange }) => {
+  const { data: sales = [], isLoading } = useProductSalesHistory(productId, dateRange);
   const [sortCol, setSortCol] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
   const [page, setPage] = useState(1);
 
   const handleSort = (col) => {
     if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortCol(col); setSortDir(col === "date" ? "desc" : "asc"); }
+    else {
+      setSortCol(col);
+      setSortDir(col === "date" ? "desc" : "asc");
+    }
     setPage(1);
   };
 
@@ -521,7 +572,11 @@ const SalesTab = ({ productId }) => {
                 className={`px-4 py-3 text-${align} cursor-pointer select-none hover:text-white transition-colors${hidden ? " hidden sm:table-cell" : ""}`}
               >
                 {label}
-                <HistorySortIcon col={key} sortCol={sortCol} sortDir={sortDir} />
+                <HistorySortIcon
+                  col={key}
+                  sortCol={sortCol}
+                  sortDir={sortDir}
+                />
               </th>
             ))}
           </tr>
@@ -574,7 +629,11 @@ const SalesTab = ({ productId }) => {
           </tr>
         </tfoot>
       </table>
-      <HistoryPagination page={safePage} totalPages={totalPages} setPage={setPage} />
+      <HistoryPagination
+        page={safePage}
+        totalPages={totalPages}
+        setPage={setPage}
+      />
     </div>
   );
 };
@@ -591,8 +650,9 @@ const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(TAB_OVERVIEW);
+  const [dateRange, setDateRange] = useState(getMonthRange);
 
-  const { data: insights, isLoading } = useProductInsights(id);
+  const { data: insights, isLoading } = useProductInsights(id, dateRange);
   const product = insights?.product;
   const metrics = insights?.metrics;
 
@@ -656,31 +716,42 @@ const ProductDetailPage = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-surface-700">
-        {TABS.map(({ id: tid, label, icon: Icon }) => (
-          <button
-            key={tid}
-            onClick={() => setActiveTab(tid)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all relative ${
-              activeTab === tid
-                ? "text-primary-400"
-                : "text-surface-400 hover:text-surface-200"
-            }`}
-          >
-            <Icon size={15} />
-            <span className="hidden sm:inline">{label}</span>
-            {activeTab === tid && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />
-            )}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-surface-700">
+        <div className="flex gap-1">
+          {TABS.map(({ id: tid, label, icon: Icon }) => (
+            <button
+              key={tid}
+              onClick={() => setActiveTab(tid)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all relative ${
+                activeTab === tid
+                  ? "text-primary-400"
+                  : "text-surface-400 hover:text-surface-200"
+              }`}
+            >
+              <Icon size={15} />
+              <span className="hidden sm:inline">{label}</span>
+              {activeTab === tid && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />
+              )}
+            </button>
+          ))}
+        </div>
+        <DateRangeFilter
+          from={dateRange.from}
+          to={dateRange.to}
+          onChange={setDateRange}
+        />
       </div>
 
       {activeTab === TAB_OVERVIEW && (
         <OverviewTab product={product} metrics={metrics} />
       )}
-      {activeTab === TAB_PURCHASES && <PurchasesTab productId={id} />}
-      {activeTab === TAB_SALES && <SalesTab productId={id} />}
+      {activeTab === TAB_PURCHASES && (
+        <PurchasesTab productId={id} dateRange={dateRange} />
+      )}
+      {activeTab === TAB_SALES && (
+        <SalesTab productId={id} dateRange={dateRange} />
+      )}
     </div>
   );
 };

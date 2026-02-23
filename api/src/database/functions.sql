@@ -1853,3 +1853,95 @@ when others then raise;
 -- forces rollback
 end;
 $$;
+/*
+ ============================================================================
+ UPDATE PRODUCT QUANTITY TRIGGER FUNCTION
+ ----------------------------------------------------------------------------
+ This trigger function automatically updates the current stock quantity of a product whenever an inventory movement is inserted, updated, or deleted. It calculates the on-hand quantity by summing all related inventory movements for the affected product and ensures that the current stock level is always accurate and non-negative.
+ Updated: 23/02/2026 - einbulinda
+ ============================================================================
+ */
+/*
+ ============================================================================
+ BALANCE SHEET RPC
+ ----------------------------------------------------------------------------
+ Returns account balances as of a given date for balance sheet rendering.
+ Groups by account class (asset, liability, equity). Sign is flipped for
+ credit-normal accounts so balances display as positive.
+ Also returns a synthetic 'Retained Earnings' row computed from income,
+ expense, and cost_of_sales accounts.
+ Created: 23/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_balance_sheet(p_as_of_date date)
+RETURNS TABLE (
+    account_id uuid,
+    account_code varchar,
+    account_name varchar,
+    account_class varchar,
+    parent_id uuid,
+    normal_balance varchar,
+    balance numeric
+) LANGUAGE sql STABLE AS $function$
+-- Balance sheet accounts (asset, liability, equity)
+SELECT
+    coa.id AS account_id,
+    coa.code AS account_code,
+    coa.name AS account_name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    CASE
+        WHEN coa.normal_balance = 'credit'
+        THEN COALESCE(SUM(jl.credit - jl.debit), 0)
+        ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
+    END AS balance
+FROM chart_of_accounts coa
+LEFT JOIN journal_lines jl ON jl.account_id = coa.id
+LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
+    AND je.entry_date <= p_as_of_date
+WHERE coa.account_class IN ('asset', 'liability', 'equity')
+  AND coa.active = true
+GROUP BY coa.id, coa.code, coa.name, coa.account_class, coa.parent_id, coa.normal_balance
+HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
+    OR coa.parent_id IS NULL
+ORDER BY coa.code;
+$function$;
+
+-- Returns net income (revenue - expenses - COGS) up to a given date
+CREATE OR REPLACE FUNCTION public.rpc_net_income(p_as_of_date date)
+RETURNS numeric LANGUAGE sql STABLE AS $function$
+SELECT COALESCE(SUM(
+    CASE
+        WHEN coa.account_class = 'income'
+        THEN jl.credit - jl.debit
+        WHEN coa.account_class IN ('expense', 'cost_of_sales')
+        THEN jl.debit - jl.credit
+        ELSE 0
+    END
+), 0) AS net_income
+FROM journal_lines jl
+JOIN journal_entries je ON je.id = jl.journal_entry_id
+JOIN chart_of_accounts coa ON coa.id = jl.account_id
+WHERE je.entry_date <= p_as_of_date
+  AND coa.account_class IN ('income', 'expense', 'cost_of_sales')
+  AND coa.active = true;
+$function$;
+
+CREATE OR REPLACE FUNCTION update_product_quantity() RETURNS TRIGGER AS $$ BEGIN -- Update the product's on-hand quantity
+UPDATE products
+SET current_stock = GREATEST(
+        COALESCE(
+            (
+                SELECT SUM(quantity)
+                FROM inventory_movements
+                WHERE product_id = COALESCE(NEW.product_id, OLD.product_id)
+            ),
+            0
+        ),
+        0
+    )
+WHERE id = COALESCE(NEW.product_id, OLD.product_id);
+RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;

@@ -72,8 +72,8 @@ exports.archive = async (id, context) => {
   });
 };
 
-exports.getPurchaseHistory = async (productId) => {
-  const { data, error } = await repo.findPurchaseHistory(productId);
+exports.getPurchaseHistory = async (productId, dateRange) => {
+  const { data, error } = await repo.findPurchaseHistory(productId, dateRange);
   if (error) {
     console.log(
       "Error fetching purchase history for product",
@@ -85,8 +85,8 @@ exports.getPurchaseHistory = async (productId) => {
   return data ?? [];
 };
 
-exports.getSalesHistory = async (productId) => {
-  const { data, error } = await repo.findSalesHistory(productId);
+exports.getSalesHistory = async (productId, dateRange) => {
+  const { data, error } = await repo.findSalesHistory(productId, dateRange);
   if (error) {
     console.log("Error fetching sales history for product", productId, error);
     throw new Error("FAILED_TO_FETCH_SALES_HISTORY");
@@ -94,11 +94,11 @@ exports.getSalesHistory = async (productId) => {
   return data ?? [];
 };
 
-exports.getProductInsights = async (productId) => {
+exports.getProductInsights = async (productId, dateRange) => {
   const [{ data: product, error: pErr }, purchases, sales] = await Promise.all([
     repo.findById(productId),
-    exports.getPurchaseHistory(productId),
-    exports.getSalesHistory(productId),
+    exports.getPurchaseHistory(productId, dateRange),
+    exports.getSalesHistory(productId, dateRange),
   ]);
 
   if (pErr || !product) throw new Error("PRODUCT_NOT_FOUND");

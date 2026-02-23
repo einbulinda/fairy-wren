@@ -66,7 +66,11 @@ exports.archiveProduct = async (req, res, next) => {
 
 exports.getProductPurchaseHistory = async (req, res, next) => {
   try {
-    const data = await service.getPurchaseHistory(req.params.productId);
+    const { from, to } = req.query;
+    const data = await service.getPurchaseHistory(req.params.productId, {
+      from,
+      to,
+    });
     respond(res, 200, data);
   } catch (err) {
     next(err);
@@ -75,7 +79,11 @@ exports.getProductPurchaseHistory = async (req, res, next) => {
 
 exports.getProductSalesHistory = async (req, res, next) => {
   try {
-    const data = await service.getSalesHistory(req.params.productId);
+    const { from, to } = req.query;
+    const data = await service.getSalesHistory(req.params.productId, {
+      from,
+      to,
+    });
     respond(res, 200, data);
   } catch (err) {
     next(err);
@@ -84,7 +92,11 @@ exports.getProductSalesHistory = async (req, res, next) => {
 
 exports.getProductInsights = async (req, res, next) => {
   try {
-    const data = await service.getProductInsights(req.params.productId);
+    const { from, to } = req.query;
+    const data = await service.getProductInsights(req.params.productId, {
+      from,
+      to,
+    });
     respond(res, 200, data);
   } catch (err) {
     next(err);

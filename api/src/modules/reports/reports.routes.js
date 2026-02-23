@@ -51,4 +51,9 @@ router.get("/category-sales", (req, res, next) =>
   reportsController.getCategorySales(req, res, next)
 );
 
+// Financial statement endpoints
+router.get("/balance-sheet", (req, res, next) =>
+  reportsController.getBalanceSheet(req, res, next)
+);
+
 module.exports = router;

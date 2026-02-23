@@ -13,26 +13,15 @@ exports.findAll = async (filters = {}) => {
 exports.findById = async (id) => {
   const supabase = getSupabase();
 
-  const [{ data: product, error: pErr }, { data: stockRow }] =
-    await Promise.all([
-      supabase
-        .from("products")
-        .select("*, categories(id, name)")
-        .eq("id", id)
-        .single(),
-      supabase
-        .from("inventory_on_hand")
-        .select("quantity_on_hand")
-        .eq("product_id", id)
-        .maybeSingle(),
-    ]);
+  const { data: product, error } = await supabase
+    .from("products")
+    .select("*, categories(id, name)")
+    .eq("id", id)
+    .single();
 
-  if (pErr) return { data: null, error: pErr };
+  if (error) return { data: null, error };
 
-  return {
-    data: { ...product, current_stock: stockRow?.quantity_on_hand ?? 0 },
-    error: null,
-  };
+  return { data: product, error: null };
 };
 
 exports.create = async (payload) => {
@@ -55,12 +44,11 @@ exports.archive = async (id) => {
   return supabase.from("products").update({ active: false }).eq("id", id);
 };
 
-exports.findPurchaseHistory = async (productId) => {
+exports.findPurchaseHistory = async (productId, { from, to } = {}) => {
   const supabase = getSupabase();
 
-  // Fetch receipt items with their receipts (supplier_id has no FK constraint so
-  // suppliers must be resolved in a second query)
-  const { data: items, error: itemsErr } = await supabase
+  const joinHint = from || to ? "!receipt_id!inner" : "!receipt_id";
+  let query = supabase
     .from("inventory_receipt_items")
     .select(
       `
@@ -69,7 +57,7 @@ exports.findPurchaseHistory = async (productId) => {
       unit_cost,
       line_total,
       created_at,
-      inventory_receipts!receipt_id (
+      inventory_receipts${joinHint} (
         id,
         invoice_number,
         purchase_date,
@@ -79,8 +67,14 @@ exports.findPurchaseHistory = async (productId) => {
       )
     `,
     )
-    .eq("product_id", productId)
-    .order("created_at", { ascending: false });
+    .eq("product_id", productId);
+
+  if (from) query = query.gte("inventory_receipts.purchase_date", from);
+  if (to) query = query.lte("inventory_receipts.purchase_date", to);
+
+  const { data: items, error: itemsErr } = await query.order("created_at", {
+    ascending: false,
+  });
 
   if (itemsErr) return { data: null, error: itemsErr };
   if (!items?.length) return { data: [], error: null };
@@ -117,17 +111,18 @@ exports.findPurchaseHistory = async (productId) => {
   return { data, error: null };
 };
 
-exports.findSalesHistory = async (productId) => {
+exports.findSalesHistory = async (productId, { from, to } = {}) => {
   const supabase = getSupabase();
 
-  const { data, error } = await supabase
+  const joinHint = from || to ? "!round_id!inner" : "!round_id";
+  let query = supabase
     .from("round_items")
     .select(
       `
       id,
       quantity,
       price,
-      rounds!round_id (
+      rounds${joinHint} (
         id,
         round_number,
         created_at,
@@ -135,8 +130,15 @@ exports.findSalesHistory = async (productId) => {
       )
     `,
     )
-    .eq("product_id", productId)
-    .order("created_at", { foreignTable: "rounds", ascending: false });
+    .eq("product_id", productId);
+
+  if (from) query = query.gte("rounds.created_at", from);
+  if (to) query = query.lte("rounds.created_at", to + "T23:59:59");
+
+  const { data, error } = await query.order("created_at", {
+    foreignTable: "rounds",
+    ascending: false,
+  });
 
   if (error) return { data: null, error };
 

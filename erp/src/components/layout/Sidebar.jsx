@@ -15,6 +15,7 @@ import {
   X,
   LineChart,
   BarChart2,
+  FileText,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -63,7 +64,15 @@ const navSections = [
   {
     label: "Reports",
     items: [
-      { to: "/reports", icon: LineChart, label: "Financial Reports" },
+      {
+        to: "/reports",
+        icon: LineChart,
+        label: "Financial Reports",
+        children: [
+          { to: "/reports", end: true, icon: LineChart, label: "Overview" },
+          { to: "/reports/balance-sheet", icon: FileText, label: "Balance Sheet" },
+        ],
+      },
     ],
   },
   {

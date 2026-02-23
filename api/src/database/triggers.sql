@@ -63,3 +63,14 @@ CREATE TRIGGER protect_buckets_delete BEFORE DELETE ON storage.buckets FOR EACH 
 CREATE TRIGGER protect_objects_delete BEFORE DELETE ON storage.objects FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete();
 CREATE TRIGGER update_objects_updated_at BEFORE
 UPDATE ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.update_updated_at_column();
+/*===========================================================================
+ INVENTORY MOVEMENTS TRIGGERS
+ - The trg_update_inventory trigger ensures that any changes to the inventory_movements table (inserts, updates, deletes) will automatically call the update_product_quantity() function. This function is responsible for recalculating the current stock levels of products based on the movements recorded in the inventory_movements table. By using this trigger, we maintain accurate and up-to-date inventory quantities without needing to manually invoke the update function after every change.
+ - Updated: 23/02/2026 @1900hrs - einbulinda
+ ===========================================================================*/
+CREATE TRIGGER trg_update_inventory
+AFTER
+INSERT
+    OR
+UPDATE
+    OR DELETE ON inventory_movements FOR EACH ROW EXECUTE FUNCTION update_product_quantity();

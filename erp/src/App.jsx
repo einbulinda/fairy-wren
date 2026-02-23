@@ -6,7 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import LoginPage from "@/pages/LoginPage";
 import AppShell from "@/components/layout/AppShell";
 import DashboardPage from "@/pages/DashboardPage";
-import PerformanceAnalyticsPage from "@/pages/PerformanceAnalyticsPage";
+import FinancialReportsPage from "@/pages/FinancialReportsPage";
+import BalanceSheetPage from "@/pages/BalanceSheetPage";
 import ChartOfAccountsPage from "@/pages/ChartOfAccountsPage";
 import LedgerPage from "@/pages/LedgerPage";
 import JournalEntryPage from "@/pages/JournalEntryPage";
@@ -54,7 +55,8 @@ const AppRoutes = () => {
         <Route path="cheques" element={<ChequeWritingPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="payroll" element={<PayrollPage />} />
-        <Route path="reports" element={<PerformanceAnalyticsPage />} />
+        <Route path="reports" element={<FinancialReportsPage />} />
+        <Route path="reports/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="approvals" element={<PlaceholderPage />} />
       </Route>

@@ -25,17 +25,17 @@ export const updateProductStatus = async ({ id, status }) => {
   return data.data;
 };
 
-export const fetchProductPurchaseHistory = async (id) => {
-  const { data } = await api.get(`/products/${id}/purchases`);
+export const fetchProductPurchaseHistory = async (id, params = {}) => {
+  const { data } = await api.get(`/products/${id}/purchases`, { params });
   return data.data ?? data;
 };
 
-export const fetchProductSalesHistory = async (id) => {
-  const { data } = await api.get(`/products/${id}/sales`);
+export const fetchProductSalesHistory = async (id, params = {}) => {
+  const { data } = await api.get(`/products/${id}/sales`, { params });
   return data.data ?? data;
 };
 
-export const fetchProductInsights = async (id) => {
-  const { data } = await api.get(`/products/${id}/insights`);
+export const fetchProductInsights = async (id, params = {}) => {
+  const { data } = await api.get(`/products/${id}/insights`, { params });
   return data.data ?? data;
 };

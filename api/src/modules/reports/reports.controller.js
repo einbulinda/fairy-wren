@@ -336,6 +336,25 @@ class ReportsController {
       this.handleError(err, res, next);
     }
   }
+
+  async getBalanceSheet(req, res, next) {
+    try {
+      const { asOfDate } = req.query;
+      if (!asOfDate) {
+        const err = new Error("asOfDate query parameter is required");
+        err.status = 400;
+        throw err;
+      }
+      const data = await reportsService.getBalanceSheet(asOfDate);
+      res.status(200).json({
+        data,
+        success: true,
+        meta: { asOfDate },
+      });
+    } catch (err) {
+      this.handleError(err, res, next);
+    }
+  }
 }
 
 module.exports = new ReportsController();

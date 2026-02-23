@@ -174,6 +174,14 @@ class ReportsRepository {
       p_end_date: endDate,
     });
   }
+
+  async getBalanceSheet(asOfDate) {
+    return callRpc("rpc_balance_sheet", { p_as_of_date: asOfDate });
+  }
+
+  async getNetIncome(asOfDate) {
+    return callRpc("rpc_net_income", { p_as_of_date: asOfDate });
+  }
 }
 
 module.exports = new ReportsRepository();

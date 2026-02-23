@@ -70,28 +70,28 @@ export const useUpdateProductStatus = () => {
   });
 };
 
-export const useProductPurchaseHistory = (id) => {
+export const useProductPurchaseHistory = (id, dateRange = {}) => {
   return useQuery({
-    queryKey: ["product-purchases", id],
-    queryFn: () => fetchProductPurchaseHistory(id),
+    queryKey: ["product-purchases", id, dateRange],
+    queryFn: () => fetchProductPurchaseHistory(id, dateRange),
     enabled: !!id,
     staleTime: 2 * 60 * 1000,
   });
 };
 
-export const useProductSalesHistory = (id) => {
+export const useProductSalesHistory = (id, dateRange = {}) => {
   return useQuery({
-    queryKey: ["product-sales", id],
-    queryFn: () => fetchProductSalesHistory(id),
+    queryKey: ["product-sales", id, dateRange],
+    queryFn: () => fetchProductSalesHistory(id, dateRange),
     enabled: !!id,
     staleTime: 2 * 60 * 1000,
   });
 };
 
-export const useProductInsights = (id) => {
+export const useProductInsights = (id, dateRange = {}) => {
   return useQuery({
-    queryKey: ["product-insights", id],
-    queryFn: () => fetchProductInsights(id),
+    queryKey: ["product-insights", id, dateRange],
+    queryFn: () => fetchProductInsights(id, dateRange),
     enabled: !!id,
     staleTime: 2 * 60 * 1000,
   });

@@ -13,3 +13,10 @@ export const fetchPerformanceComparisons = async (startDate, endDate) => {
   });
   return data.data;
 };
+
+export const fetchBalanceSheet = async (asOfDate) => {
+  const { data } = await api.get("/reports/balance-sheet", {
+    params: { asOfDate },
+  });
+  return data.data;
+};
