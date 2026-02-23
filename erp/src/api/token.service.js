@@ -30,6 +30,10 @@ export const TokenService = {
     return Date.now() > expiry;
   },
 
+  resetExpiry(timeout) {
+    localStorage.setItem(EXPIRY_KEY, (Date.now() + timeout).toString());
+  },
+
   clear() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(EXPIRY_KEY);

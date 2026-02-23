@@ -1,4 +1,5 @@
 import { TokenService } from "./token.service";
+import { INACTIVITY_TIMEOUT } from "./constants";
 
 const PUBLIC_ENDPOINTS = ["/auth/login"];
 
@@ -19,6 +20,7 @@ export function attachAuthInterceptor(api) {
         return Promise.reject(new Error("Session expired"));
       }
 
+      TokenService.resetExpiry(INACTIVITY_TIMEOUT);
       config.headers.Authorization = `Bearer ${token}`;
       return config;
     },

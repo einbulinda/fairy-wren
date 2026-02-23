@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AuthContext from "@/context/AuthContext";
 import { loginWithPin } from "@/services/auth.service";
 import { TokenService } from "@/api/token.service";
-
-const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
+import { INACTIVITY_TIMEOUT } from "@/api/constants";
+import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
 
     TokenService.save({
       token,
-      expiry: Date.now() + SESSION_DURATION,
+      expiry: Date.now() + INACTIVITY_TIMEOUT,
       user,
     });
 
@@ -43,11 +43,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout Handler
-  const logout = () => {
+  const logout = useCallback(() => {
     TokenService.clear();
     setUser(null);
     window.location.replace("/");
-  };
+  }, []);
+
+  useInactivityTimeout(logout);
 
   return (
     <AuthContext.Provider

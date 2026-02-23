@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AuthContext from "@/context/AuthContext";
 import { loginWithPin } from "@/services/auth.service";
 import { TokenService } from "@/api/token.service";
+import { INACTIVITY_TIMEOUT } from "@/api/constants";
+import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
 import { ERP_ALLOWED_ROLES } from "@/utils/constants";
-
-const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours for ERP
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }) => {
 
     TokenService.save({
       token,
-      expiry: Date.now() + SESSION_DURATION,
+      expiry: Date.now() + INACTIVITY_TIMEOUT,
       user: loggedInUser,
     });
 
@@ -45,10 +45,12 @@ export const AuthProvider = ({ children }) => {
     return loggedInUser;
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     TokenService.clear();
     setUser(null);
-  };
+  }, []);
+
+  useInactivityTimeout(logout);
 
   return (
     <AuthContext.Provider
