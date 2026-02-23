@@ -2,7 +2,7 @@ const getSupabase = require("../../config/supabase");
 
 exports.findAll = async (filters = {}) => {
   const supabase = getSupabase();
-  let query = supabase.from("products_with_stock").select("*");
+  let query = supabase.from("products").select("*");
 
   if (filters.active !== undefined) {
     query = query.eq("active", filters.active);

@@ -296,6 +296,7 @@ CREATE TABLE public.products (
     price numeric NOT NULL CHECK (price >= 0::numeric),
     category_id uuid NOT NULL,
     active boolean DEFAULT true,
+    quantity NUMERIC DEFAULT 0,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     unit character varying CHECK (

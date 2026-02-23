@@ -388,6 +388,14 @@ NEW.total_value_adjustment := (NEW.physical_qty - NEW.system_qty) * COALESCE(NEW
 RETURN NEW;
 END;
 $function$;
+/*
+ ============================================================================
+ APPLY STOCK TAKE ADJUSTMENTS FUNCTION
+ This function applies the necessary inventory movements based on the recorded variances in a stock take session. 
+ It creates inventory movement records for each item that has a variance, which can then be used to update stock levels and trigger any necessary accounting entries.
+ Updated: 23/02/2026 @1830hrs - einbulinda
+ ============================================================================
+ */
 CREATE OR REPLACE FUNCTION public.apply_stock_take_adjustments(p_stock_take_id uuid) RETURNS void LANGUAGE plpgsql AS $function$
 DECLARE v_item RECORD;
 BEGIN -- Loop through all items in the stock take
@@ -415,7 +423,7 @@ VALUES (
             WHEN v_item.variance > 0 THEN 'adjustment_in'
             ELSE 'adjustment_out'
         END,
-        ABS(v_item.variance),
+        v_item.variance,
         'stock_take',
         p_stock_take_id,
         v_item.reason,
@@ -1814,26 +1822,30 @@ values (
         v_line_total
     );
 -- Insert inventory movement (purchase)
-insert into inventory_movements (
-        product_id,
-        movement_date,
-        quantity,
-        movement_type,
-        reference_type,
-        reference_id,
-        notes,
-        unit_cost
-    )
-values (
-        v_product_id,
-        p_purchase_date,
-        v_quantity,
-        'purchase',
-        'receipt',
-        v_receipt_id,
-        'Receipt ' || p_invoice_number,
-        v_unit_cost
-    );
+/* 
+ 22.02.2026 @1353 : A trigger on the inventory_receipt_items exists for handling this.
+ 
+ insert into inventory_movements (
+ product_id,
+ movement_date,
+ quantity,
+ movement_type,
+ reference_type,
+ reference_id,
+ notes,
+ unit_cost
+ )
+ values (
+ v_product_id,
+ p_purchase_date,
+ v_quantity,
+ 'purchase',
+ 'receipt',
+ v_receipt_id,
+ 'Receipt ' || p_invoice_number,
+ v_unit_cost
+ );
+ */
 end loop;
 return v_receipt_id;
 exception

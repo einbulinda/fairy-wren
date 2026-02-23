@@ -26,7 +26,6 @@ exports.markReceiptPaid = async (id, context) => {
 };
 
 exports.receiveInventory = async (payload, context) => {
-  console.log("Received payload for inventory receipt:", payload);
   if (!payload.supplier_id) throw new Error("SUPPLIER_REQUIRED");
   if (!payload.invoice_number) throw new Error("INVOICE_NUMBER_REQUIRED");
   if (!payload.purchase_date) throw new Error("PURCHASE_DATE_REQUIRED");
@@ -40,7 +39,6 @@ exports.receiveInventory = async (payload, context) => {
   );
 
   if (error) {
-    console.error("Error creating receipt:", error);
     throw new Error("FAILED_TO_CREATE_RECEIPT");
   }
 

@@ -39,7 +39,7 @@ exports.createSession = async (payload, context) => {
   return { stockTakeId: data };
 };
 
-exports.recordItem = async (payload, context) => {
+exports.recordItem = async (payload) => {
   console.log("PAYLOAD", payload);
   const { stockTakeId, productId, physicalQty, reason, notes } = payload;
 

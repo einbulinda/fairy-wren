@@ -20,7 +20,6 @@ exports.receiveInventory = async (payload, userId) => {
   });
 
   if (error) {
-    console.error("Error receiving inventory:", error);
     throw new Error("FAILED_TO_RECEIVE_INVENTORY");
   }
   return data;
