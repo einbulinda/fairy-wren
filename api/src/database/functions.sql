@@ -1873,61 +1873,64 @@ $$;
  Created: 23/02/2026 - einbulinda
  ============================================================================
  */
-CREATE OR REPLACE FUNCTION public.rpc_balance_sheet(p_as_of_date date)
-RETURNS TABLE (
-    account_id uuid,
-    account_code varchar,
-    account_name varchar,
-    account_class varchar,
-    parent_id uuid,
-    normal_balance varchar,
-    balance numeric
-) LANGUAGE sql STABLE AS $function$
--- Balance sheet accounts (asset, liability, equity)
-SELECT
-    coa.id AS account_id,
+CREATE OR REPLACE FUNCTION public.rpc_balance_sheet(p_as_of_date date) RETURNS TABLE (
+        account_id uuid,
+        account_code varchar,
+        account_name varchar,
+        account_class varchar,
+        parent_id uuid,
+        normal_balance varchar,
+        is_control_account boolean,
+        balance numeric
+    ) LANGUAGE sql STABLE AS $function$ -- Balance sheet accounts (asset, liability, equity)
+SELECT coa.id AS account_id,
     coa.code AS account_code,
     coa.name AS account_name,
     coa.account_class,
     coa.parent_id,
     coa.normal_balance,
+    coa.is_control_account,
     CASE
-        WHEN coa.normal_balance = 'credit'
-        THEN COALESCE(SUM(jl.credit - jl.debit), 0)
+        WHEN coa.normal_balance = 'credit' THEN COALESCE(SUM(jl.credit - jl.debit), 0)
         ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
     END AS balance
 FROM chart_of_accounts coa
-LEFT JOIN journal_lines jl ON jl.account_id = coa.id
-LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
+    LEFT JOIN journal_lines jl ON jl.account_id = coa.id
+    LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
     AND je.entry_date <= p_as_of_date
 WHERE coa.account_class IN ('asset', 'liability', 'equity')
-  AND coa.active = true
-GROUP BY coa.id, coa.code, coa.name, coa.account_class, coa.parent_id, coa.normal_balance
+    AND coa.active = true
+GROUP BY coa.id,
+    coa.code,
+    coa.name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account
 HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
     OR coa.parent_id IS NULL
+    OR coa.is_control_account = true
 ORDER BY coa.code;
 $function$;
-
 -- Returns net income (revenue - expenses - COGS) up to a given date
-CREATE OR REPLACE FUNCTION public.rpc_net_income(p_as_of_date date)
-RETURNS numeric LANGUAGE sql STABLE AS $function$
-SELECT COALESCE(SUM(
-    CASE
-        WHEN coa.account_class = 'income'
-        THEN jl.credit - jl.debit
-        WHEN coa.account_class IN ('expense', 'cost_of_sales')
-        THEN jl.debit - jl.credit
-        ELSE 0
-    END
-), 0) AS net_income
+CREATE OR REPLACE FUNCTION public.rpc_net_income(p_as_of_date date) RETURNS numeric LANGUAGE sql STABLE AS $function$
+SELECT COALESCE(
+        SUM(
+            CASE
+                WHEN coa.account_class = 'income' THEN jl.credit - jl.debit
+                WHEN coa.account_class IN ('expense', 'cost_of_sales') THEN jl.debit - jl.credit
+                ELSE 0
+            END
+        ),
+        0
+    ) AS net_income
 FROM journal_lines jl
-JOIN journal_entries je ON je.id = jl.journal_entry_id
-JOIN chart_of_accounts coa ON coa.id = jl.account_id
+    JOIN journal_entries je ON je.id = jl.journal_entry_id
+    JOIN chart_of_accounts coa ON coa.id = jl.account_id
 WHERE je.entry_date <= p_as_of_date
-  AND coa.account_class IN ('income', 'expense', 'cost_of_sales')
-  AND coa.active = true;
+    AND coa.account_class IN ('income', 'expense', 'cost_of_sales')
+    AND coa.active = true;
 $function$;
-
 CREATE OR REPLACE FUNCTION update_product_quantity() RETURNS TRIGGER AS $$ BEGIN -- Update the product's on-hand quantity
 UPDATE products
 SET current_stock = GREATEST(
@@ -1945,3 +1948,89 @@ WHERE id = COALESCE(NEW.product_id, OLD.product_id);
 RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
+/*
+ ============================================================================
+ UNIFIED EXPENSES VIEW
+ Returns all expense activity from two sources:
+ 1. Direct expenses (from the expenses table)
+ 2. Journal lines hitting expense-class accounts (from cheques, manual journals, etc.)
+ Excludes journal lines with source_type='expense' to avoid double-counting.
+ Created: 24/02/2026 - claude
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_unified_expenses(
+        p_start_date date DEFAULT NULL,
+        p_end_date date DEFAULT NULL
+    ) RETURNS TABLE(
+        id uuid,
+        txn_date date,
+        account_name varchar,
+        account_code varchar,
+        account_id uuid,
+        parent_id uuid,
+        supplier_name varchar,
+        credit_account_name varchar,
+        description text,
+        invoice_number varchar,
+        amount numeric,
+        source text,
+        journal_entry_id uuid
+    ) LANGUAGE plpgsql AS $function$ BEGIN RETURN QUERY -- Direct expenses
+SELECT e.id,
+    e.expense_date AS txn_date,
+    coa.name::varchar AS account_name,
+    coa.code::varchar AS account_code,
+    e.account_id,
+    coa.parent_id,
+    s.name::varchar AS supplier_name,
+    cr.name::varchar AS credit_account_name,
+    e.description,
+    e.invoice_number::varchar,
+    e.amount,
+    'expense'::text AS source,
+    e.journal_entry_id
+FROM expenses e
+    JOIN chart_of_accounts coa ON e.account_id = coa.id
+    LEFT JOIN suppliers s ON e.supplier_id = s.id
+    LEFT JOIN chart_of_accounts cr ON e.credit_account_id = cr.id
+WHERE (
+        p_start_date IS NULL
+        OR e.expense_date >= p_start_date
+    )
+    AND (
+        p_end_date IS NULL
+        OR e.expense_date <= p_end_date
+    )
+UNION ALL
+-- Journal lines hitting expense accounts (excluding expense-sourced journals)
+SELECT jl.id,
+    je.entry_date AS txn_date,
+    coa.name::varchar AS account_name,
+    coa.code::varchar AS account_code,
+    jl.account_id,
+    coa.parent_id,
+    NULL::varchar AS supplier_name,
+    NULL::varchar AS credit_account_name,
+    COALESCE(jl.description, je.description) AS description,
+    je.reference::varchar AS invoice_number,
+    jl.debit AS amount,
+    je.source_type::text AS source,
+    je.id AS journal_entry_id
+FROM journal_lines jl
+    JOIN chart_of_accounts coa ON jl.account_id = coa.id
+    JOIN journal_entries je ON jl.journal_entry_id = je.id
+WHERE coa.account_class = 'expense'
+    AND jl.debit > 0
+    AND je.source_type != 'expense'
+    AND je.reversed_entry_id IS NULL
+    AND (
+        p_start_date IS NULL
+        OR je.entry_date >= p_start_date
+    )
+    AND (
+        p_end_date IS NULL
+        OR je.entry_date <= p_end_date
+    )
+ORDER BY txn_date DESC;
+END;
+$function$;
