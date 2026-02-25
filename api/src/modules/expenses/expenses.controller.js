@@ -1,58 +1,20 @@
-const supabase = require("../../config/supabase");
+const service = require("./expenses.service");
+const { respond, buildContext } = require("../../utils/common");
 
-exports.getExpense = async (req, res) => {
+exports.listExpenses = async (req, res, next) => {
   try {
-    const { data, error } = await supabase
-      .from("expenses")
-      .select(
-        `
-        *,
-        suppliers(name),
-        chart_of_accounts(name, code)
-      `
-      )
-      .order("expense_date", { ascending: false });
-
-    console.log("Error", error);
-
-    if (error) throw error;
-
-    res.status(200).json(data);
+    const data = await service.list(req.query);
+    respond(res, 200, data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-exports.createExpense = async (req, res) => {
+exports.createExpense = async (req, res, next) => {
   try {
-    const {
-      expense_date,
-      supplier_id,
-      account_id,
-      description,
-      invoice_number,
-      amount,
-    } = req.body;
-
-    if (!expense_date || !amount) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const { error } = await supabase.from("expenses").insert([
-      {
-        expense_date,
-        supplier_id,
-        account_id,
-        description,
-        invoice_number,
-        amount,
-        created_by: req.user.id,
-      },
-    ]);
-
-    if (error) throw error;
-    res.status(201).json({ success: true });
+    const data = await service.create(req.body, buildContext(req));
+    respond(res, 201, data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };

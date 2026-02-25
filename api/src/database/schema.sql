@@ -130,8 +130,12 @@ CREATE TABLE public.expenses (
     invoice_number character varying,
     amount numeric NOT NULL CHECK (amount > 0::numeric),
     created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT expenses_pkey PRIMARY KEY (id),
-    CONSTRAINT expenses_account_fk FOREIGN KEY (account_id) REFERENCES public.chart_of_accounts(id)
+    credit_account_id uuid,
+    journal_entry_id uuid,
+    created_by uuid REFERENCES profiles(id) CONSTRAINT expenses_pkey PRIMARY KEY (id),
+    CONSTRAINT expenses_account_fk FOREIGN KEY (account_id) REFERENCES public.chart_of_accounts(id),
+    CONSTRAINT expenses_credit_account_fk FOREIGN KEY (credit_account_id) REFERENCES public.chart_of_accounts(id),
+    CONSTRAINT expenses_journal_fk FOREIGN KEY (journal_entry_id) REFERENCES public.journal_entries(id)
 );
 CREATE TABLE public.inventory (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
