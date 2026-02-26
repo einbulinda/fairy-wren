@@ -123,10 +123,6 @@ const LoginScreen = () => {
                   <span className="text-gray-400">Manager:</span>
                   <span className="font-mono text-yellow-400">9999</span>
                 </p>
-                <p className="flex justify-between">
-                  <span className="text-gray-400">Owner:</span>
-                  <span className="font-mono text-yellow-400">0000</span>
-                </p>
               </div>
             </details>
           </div>

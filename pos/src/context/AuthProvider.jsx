@@ -4,6 +4,9 @@ import { loginWithPin } from "@/services/auth.service";
 import { TokenService } from "@/api/token.service";
 import { INACTIVITY_TIMEOUT } from "@/api/constants";
 import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
+import { USER_ROLES } from "@/utils/constants";
+
+const ALLOWED_POS_ROLES = [USER_ROLES.WAITRESS, USER_ROLES.BARTENDER, USER_ROLES.MANAGER];
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -15,7 +18,7 @@ export const AuthProvider = ({ children }) => {
     const storedUser = TokenService.getUser();
     const token = TokenService.getToken();
 
-    if (storedUser && token && !TokenService.isExpired()) {
+    if (storedUser && token && !TokenService.isExpired() && ALLOWED_POS_ROLES.includes(storedUser.role)) {
       setUser(storedUser);
     } else {
       // Only clear if token exists AND is expired
@@ -31,6 +34,10 @@ export const AuthProvider = ({ children }) => {
     const {
       data: { user, token },
     } = await loginWithPin(pin);
+
+    if (!ALLOWED_POS_ROLES.includes(user.role)) {
+      throw new Error("Access denied. Only waitress, bartender, and manager roles can access the POS.");
+    }
 
     TokenService.save({
       token,
