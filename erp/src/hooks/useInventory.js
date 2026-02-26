@@ -75,7 +75,9 @@ export const useRecordStockTakeItem = (sessionId) => {
   return useMutation({
     mutationFn: (payload) => recordStockTakeItem(sessionId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["stock-take-items", sessionId] });
+      queryClient.invalidateQueries({
+        queryKey: ["stock-take-items", sessionId],
+      });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to record item");
@@ -93,7 +95,9 @@ export const useCompleteStockTake = () => {
       toast.success("Stock take completed");
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to complete stock take");
+      toast.error(
+        err.response?.data?.message || "Failed to complete stock take",
+      );
     },
   });
 };
@@ -108,7 +112,9 @@ export const useApproveStockTake = () => {
       toast.success("Stock take approved");
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to approve stock take");
+      toast.error(
+        err.response?.data?.message || "Failed to approve stock take",
+      );
     },
   });
 };

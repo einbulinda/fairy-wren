@@ -34,7 +34,6 @@ const ReceiveTab = ({ onSuccess }) => {
   }, []);
 
   useEffect(() => {
-    console.log(stockItems);
     setProducts(stockItems);
   }, [stockItems]);
 

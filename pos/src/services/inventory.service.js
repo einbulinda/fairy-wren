@@ -1,7 +1,7 @@
 import api from "@/api";
 
 export const inventoryService = {
-  getStock: () => api.get("/inventory/stock").then((res) => res.data),
+  getStock: () => api.get("/inventory/items").then((res) => res.data),
 
   restock: (payload) =>
     api.post("/inventory/restock", payload).then((res) => res.data),
