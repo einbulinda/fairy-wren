@@ -168,32 +168,7 @@ PERFORM post_payment_journal(v_payment.id);
 UPDATE bills
 SET status = 'completed'
 WHERE id = p_bill_id;
--- [ENHANCEMENT] Deduct inventory for completed bill
-FOR v_line_item IN
-SELECT ri.product_id,
-    ri.quantity
-FROM round_items ri
-    JOIN rounds r ON r.id = ri.round_id
-WHERE r.bill_id = p_bill_id LOOP
-INSERT INTO inventory_movements (
-        product_id,
-        movement_type,
-        quantity,
-        reference_type,
-        reference_id,
-        movement_date,
-        created_at
-    )
-VALUES (
-        v_line_item.product_id,
-        'sale',
-        - v_line_item.quantity,
-        'bill',
-        p_bill_id,
-        CURRENT_DATE,
-        NOW()
-    );
-END LOOP;
+-- Inventory already deducted at round submission via post_round_sale()
 RETURN json_build_object(
     'status',
     'confirmed',
@@ -231,32 +206,7 @@ PERFORM post_payment_journal(v_payment.id);
 UPDATE bills
 SET status = 'completed'
 WHERE id = p_bill_id;
--- [ENHANCEMENT] Deduct inventory for completed bill
-FOR v_line_item IN
-SELECT ri.product_id,
-    ri.quantity
-FROM round_items ri
-    JOIN rounds r ON r.id = ri.round_id
-WHERE r.bill_id = p_bill_id LOOP
-INSERT INTO inventory_movements (
-        product_id,
-        movement_type,
-        quantity,
-        reference_type,
-        reference_id,
-        movement_date,
-        created_at
-    )
-VALUES (
-        v_line_item.product_id,
-        'sale',
-        - v_line_item.quantity,
-        'bill',
-        p_bill_id,
-        CURRENT_DATE,
-        NOW()
-    );
-END LOOP;
+-- Inventory already deducted at round submission via post_round_sale()
 RETURN json_build_object(
     'status',
     'confirmed',
@@ -265,6 +215,232 @@ RETURN json_build_object(
 );
 END IF;
 RAISE EXCEPTION 'Invalid payment state or role';
+END;
+$function$;
+/*
+ ============================================================================
+ POST ROUND SALE FUNCTION
+ ----------------------------------------------------------------------------
+ Called when a round is submitted (items served to customer).
+ Per IFRS 15.31-34, revenue is recognized at point of control transfer.
+ Per IAS 2.34, COGS is matched to the same period.
+
+ Actions:
+   1. For each round_item: insert inventory_movement (sale, -qty)
+   2. For each round_item: post COGS journal (Dr COGS, Cr Inventory)
+   3. For the round total: post revenue journal (Dr A/R Open Bills, Cr Sales)
+   4. Set round_items.inventory_posted = true
+
+ products.current_stock is recalculated automatically by the existing
+ trg_update_inventory trigger on inventory_movements.
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.post_round_sale(p_round_id uuid)
+RETURNS void LANGUAGE plpgsql AS $function$
+DECLARE
+    v_item RECORD;
+    v_avg_cost NUMERIC;
+    v_total_cost NUMERIC;
+    v_inventory_account UUID;
+    v_cogs_account UUID;
+    v_cogs_journal_id UUID;
+    v_revenue_journal_id UUID;
+    v_ar_account UUID;
+    v_sales_account UUID;
+    v_round_total NUMERIC := 0;
+    v_bill_id UUID;
+BEGIN
+    /* Idempotency guard */
+    IF EXISTS (
+        SELECT 1 FROM journal_entries
+        WHERE source_type = 'round_sale' AND source_id = p_round_id
+    ) THEN RETURN;
+    END IF;
+
+    /* Get the bill_id for this round */
+    SELECT bill_id INTO v_bill_id
+    FROM rounds WHERE id = p_round_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Round not found: %', p_round_id;
+    END IF;
+
+    /* -------------------------------------------------------
+       LOOP: Inventory deduction + COGS per item
+       ------------------------------------------------------- */
+    FOR v_item IN
+        SELECT ri.id, ri.product_id, ri.quantity, ri.price
+        FROM round_items ri
+        WHERE ri.round_id = p_round_id
+          AND ri.inventory_posted = false
+    LOOP
+        /* Accumulate round total for revenue entry */
+        v_round_total := v_round_total + (v_item.quantity * v_item.price);
+
+        /* Get weighted average cost */
+        SELECT COALESCE(avg_unit_cost, 0) INTO v_avg_cost
+        FROM inventory_avg_cost
+        WHERE product_id = v_item.product_id;
+
+        IF v_avg_cost IS NULL THEN
+            v_avg_cost := 0;
+        END IF;
+
+        v_total_cost := v_item.quantity * v_avg_cost;
+
+        /* 1. Insert inventory movement (negative qty = sale) */
+        INSERT INTO inventory_movements (
+            product_id, movement_date, quantity, unit_cost,
+            movement_type, reference_type, reference_id, notes
+        ) VALUES (
+            v_item.product_id, CURRENT_DATE, -v_item.quantity, v_avg_cost,
+            'sale', 'round', p_round_id,
+            'Sale via round submission'
+        );
+
+        /* 2. Post COGS journal (only if accounts configured and cost > 0) */
+        SELECT inventory_account_id, cogs_account_id
+        INTO v_inventory_account, v_cogs_account
+        FROM inventory_items
+        WHERE product_id = v_item.product_id;
+
+        IF v_inventory_account IS NOT NULL
+           AND v_cogs_account IS NOT NULL
+           AND v_total_cost > 0 THEN
+
+            INSERT INTO journal_entries (
+                entry_date, source_type, source_id, description
+            ) VALUES (
+                CURRENT_DATE, 'round_cogs', p_round_id,
+                'COGS on sale'
+            ) RETURNING id INTO v_cogs_journal_id;
+
+            INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+            VALUES
+                (v_cogs_journal_id, v_cogs_account, v_total_cost, 0),
+                (v_cogs_journal_id, v_inventory_account, 0, v_total_cost);
+        END IF;
+
+        /* 3. Mark item as posted */
+        UPDATE round_items SET inventory_posted = true WHERE id = v_item.id;
+    END LOOP;
+
+    /* -------------------------------------------------------
+       Revenue recognition: Dr A/R Open Bills, Cr Sales
+       ------------------------------------------------------- */
+    IF v_round_total > 0 THEN
+        SELECT id INTO v_ar_account
+        FROM chart_of_accounts WHERE code = '1201';
+
+        SELECT id INTO v_sales_account
+        FROM chart_of_accounts WHERE code = '4000';
+
+        IF v_ar_account IS NULL THEN
+            RAISE EXCEPTION 'A/R Open Bills account (1201) not found in chart_of_accounts';
+        END IF;
+
+        IF v_sales_account IS NULL THEN
+            RAISE EXCEPTION 'Sales Revenue account (4000) not found in chart_of_accounts';
+        END IF;
+
+        INSERT INTO journal_entries (
+            entry_date, source_type, source_id, description
+        ) VALUES (
+            CURRENT_DATE, 'round_sale', p_round_id,
+            'Revenue on round served'
+        ) RETURNING id INTO v_revenue_journal_id;
+
+        INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+        VALUES
+            (v_revenue_journal_id, v_ar_account, v_round_total, 0),
+            (v_revenue_journal_id, v_sales_account, 0, v_round_total);
+    END IF;
+END;
+$function$;
+/*
+ ============================================================================
+ REVERSE BILL SALE FUNCTION
+ ----------------------------------------------------------------------------
+ Called when a bill is voided. Reverses all inventory movements and journal
+ entries that were posted at round submission.
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.reverse_bill_sale(p_bill_id uuid)
+RETURNS void LANGUAGE plpgsql AS $function$
+DECLARE
+    v_round RECORD;
+    v_item RECORD;
+    v_entry RECORD;
+    v_reversal_id UUID;
+    v_avg_cost NUMERIC;
+BEGIN
+    /* Loop through each round in the bill */
+    FOR v_round IN
+        SELECT id FROM rounds WHERE bill_id = p_bill_id
+    LOOP
+        /* 1. Reverse inventory movements for this round */
+        FOR v_item IN
+            SELECT ri.id, ri.product_id, ri.quantity
+            FROM round_items ri
+            WHERE ri.round_id = v_round.id
+              AND ri.inventory_posted = true
+        LOOP
+            /* Get the cost that was used in the original movement */
+            SELECT COALESCE(unit_cost, 0) INTO v_avg_cost
+            FROM inventory_movements
+            WHERE reference_type = 'round'
+              AND reference_id = v_round.id
+              AND product_id = v_item.product_id
+              AND quantity < 0
+            LIMIT 1;
+
+            IF v_avg_cost IS NULL THEN
+                v_avg_cost := 0;
+            END IF;
+
+            /* Insert reversal movement (positive qty = stock restored) */
+            INSERT INTO inventory_movements (
+                product_id, movement_date, quantity, unit_cost,
+                movement_type, reference_type, reference_id, notes
+            ) VALUES (
+                v_item.product_id, CURRENT_DATE, v_item.quantity, v_avg_cost,
+                'adjustment_in', 'void', v_round.id,
+                'Reversal - bill voided'
+            );
+
+            /* Mark as unposted */
+            UPDATE round_items SET inventory_posted = false WHERE id = v_item.id;
+        END LOOP;
+
+        /* 2. Reverse all journal entries for this round */
+        FOR v_entry IN
+            SELECT je.id, je.source_type, je.source_id, je.description
+            FROM journal_entries je
+            WHERE je.source_id = v_round.id
+              AND je.source_type IN ('round_sale', 'round_cogs')
+              AND je.reversed_entry_id IS NULL
+        LOOP
+            /* Create reversal journal entry */
+            INSERT INTO journal_entries (
+                entry_date, source_type, source_id,
+                description, reversed_entry_id
+            ) VALUES (
+                CURRENT_DATE, v_entry.source_type, v_entry.source_id,
+                v_entry.description || ' (VOID REVERSAL)', v_entry.id
+            ) RETURNING id INTO v_reversal_id;
+
+            /* Reverse all lines (swap debit/credit) */
+            INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+            SELECT v_reversal_id, jl.account_id, jl.credit, jl.debit
+            FROM journal_lines jl
+            WHERE jl.journal_entry_id = v_entry.id;
+
+            /* Mark original as reversed */
+            UPDATE journal_entries
+            SET reversed_entry_id = v_reversal_id
+            WHERE id = v_entry.id;
+        END LOOP;
+    END LOOP;
 END;
 $function$;
 /*
@@ -278,7 +454,7 @@ CREATE OR REPLACE FUNCTION public.post_payment_journal(p_payment_id uuid) RETURN
 DECLARE v_payment payments %ROWTYPE;
 v_totals RECORD;
 v_cash_account uuid;
-v_sales_account uuid;
+v_ar_account uuid;
 v_journal_id uuid;
 BEGIN
 /* Idempotency guard */
@@ -304,9 +480,11 @@ WHERE code = CASE
         WHEN v_payment.payment_type = 'cash' THEN '1010'
         ELSE '1020'
     END;
-SELECT id INTO v_sales_account
+/* Revenue already recognized at round submission (Dr A/R, Cr Sales).
+   Payment settles the receivable: Dr Cash/Bank, Cr A/R Open Bills. */
+SELECT id INTO v_ar_account
 FROM chart_of_accounts
-WHERE code = '4000';
+WHERE code = '1201';
 /* Create journal entry */
 INSERT INTO journal_entries (
         entry_date,
@@ -318,13 +496,13 @@ VALUES (
         CURRENT_DATE,
         'payment',
         p_payment_id,
-        'POS payment'
+        'POS payment - settle A/R'
     )
 RETURNING id INTO v_journal_id;
-/* Dr Cash / Bank, Cr Sales */
+/* Dr Cash / Bank, Cr A/R Open Bills */
 INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
 VALUES (v_journal_id, v_cash_account, v_totals.total, 0),
-    (v_journal_id, v_sales_account, 0, v_totals.total);
+    (v_journal_id, v_ar_account, 0, v_totals.total);
 END;
 $function$;
 /*

@@ -14,6 +14,7 @@ import {
   Plus,
   Grid as GridIcon,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import LoadingSpinner from "../components/shared/LoadingSpinner";
 import { calculateBillTotals } from "../utils/calculations";
@@ -31,7 +32,7 @@ const POSScreen = () => {
   const {
     products,
     loading: productsLoading,
-    //refetch: refetchProducts,
+    refetch: refetchProducts,
   } = useProducts({ active: true });
   const { categories, loading: categoriesLoading } = useCategories({
     active: true,
@@ -78,6 +79,20 @@ const POSScreen = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([reloadBills(), refetchProducts()]);
+      toast.success("Refreshed");
+    } catch {
+      toast.error("Failed to refresh");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reloadBills, refetchProducts]);
 
   // Role checks
   const isBartender = user?.role === "bartender";
@@ -135,8 +150,13 @@ const POSScreen = () => {
   const filteredProducts = useMemo(() => {
     let filtered = products;
 
+    // Hide out-of-stock items (skip for non-tracked inventory)
+    filtered = filtered.filter(
+      (p) => !p.track_inventory || p.current_stock > 0,
+    );
+
     if (selectedCategory !== "all") {
-      filtered = products.filter((p) => p.category_id === selectedCategory);
+      filtered = filtered.filter((p) => p.category_id === selectedCategory);
     }
 
     if (debouncedSearchTerm) {
@@ -613,6 +633,14 @@ const POSScreen = () => {
                   <Receipt size={18} />
                   <span>Open Bills ({openBills.length})</span>
                 </button>
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  title="Refresh bills & products"
+                >
+                  <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+                </button>
               </div>
             </>
           )}
@@ -646,6 +674,13 @@ const POSScreen = () => {
             >
               <Receipt size={20} />
               <span>Open ({openBills.length})</span>
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="px-3 py-2.5 bg-gray-700 active:bg-gray-600 rounded-lg transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={20} className={refreshing ? "animate-spin" : ""} />
             </button>
           </div>
         </div>

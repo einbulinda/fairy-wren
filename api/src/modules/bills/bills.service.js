@@ -17,6 +17,7 @@ exports.createBill = async (payload, context) => {
     created_by: context.userId,
   });
 
+  console.log("createBill result:", { data, error });
   if (error) throw new Error("FAILED_TO_CREATE_BILL");
 
   await auditRepo.log({
@@ -38,6 +39,7 @@ exports.getBill = async (id) => {
 
 exports.listBills = async (filters) => {
   const { data, error } = await repo.listBills(filters);
+  console.log("listBills result:", { data, error });
   if (error) throw new Error("FAILED_TO_FETCH_BILLS");
   return data;
 };
@@ -68,9 +70,12 @@ exports.updateStatus = async (id, payload, context) => {
 
 exports.voidBill = async (id, context) => {
   /**
-   * Mark bill as void
-   * (No inventory restoration needed - open bills don't consume inventory)
+   * Reverse inventory movements and journal entries posted at round submission,
+   * then mark bill as void.
    */
+  const { error: reversalError } = await repo.reverseBillSale(id);
+  if (reversalError) throw new Error("FAILED_TO_REVERSE_BILL_SALE");
+
   const { error } = await repo.updateBillStatus(id, "void", context.userId);
 
   if (error) throw new Error("FAILED_TO_VOID_BILL");
@@ -132,15 +137,12 @@ exports.addRound = async (billId, payload, context) => {
 
   if (itemsError) throw new Error("FAILED_TO_ADD_ROUND_ITEMS");
 
-  /** Stock is only updated on COmpleting the Bill Via DB Triggers */
-  // /**
-  //  * 5. Deduct inventory + post ledger (Inventory module)
-  //  */
-  // await inventoryService.consumeStockForSale({
-  //   billId,
-  //   items: dto.items,
-  //   userId: context.userId,
-  // });
+  /**
+   * 5. Post inventory deduction + revenue recognition at point of service
+   *    (IFRS 15.31 — revenue when control transfers; IAS 2.34 — COGS matched)
+   */
+  const { error: saleError } = await repo.postRoundSale(round.id);
+  if (saleError) throw new Error("FAILED_TO_POST_ROUND_SALE");
 
   await auditRepo.log({
     entity: "rounds",

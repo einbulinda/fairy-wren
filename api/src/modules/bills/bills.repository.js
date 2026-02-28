@@ -67,7 +67,7 @@ exports.listBills = async (filters = {}) => {
       created_at,
       updated_at,
       created_by_user:profiles!bills_created_by_fkey(id, name),
-      updated_by_user:profiles!fk_bills_updated_by(id, name),
+      updated_by_user:profiles!bills_updated_by_fkey(id, name),
       rounds (
         id,
         round_number,
@@ -105,6 +105,17 @@ exports.createRound = async (payload) => {
 exports.insertRoundItems = async (items) => {
   const supabase = getSupabase();
   return supabase.from("round_items").insert(items);
+};
+
+/* ---------- Sale Posting RPCs ---------- */
+exports.postRoundSale = async (roundId) => {
+  const supabase = getSupabase();
+  return supabase.rpc("post_round_sale", { p_round_id: roundId });
+};
+
+exports.reverseBillSale = async (billId) => {
+  const supabase = getSupabase();
+  return supabase.rpc("reverse_bill_sale", { p_bill_id: billId });
 };
 
 exports.getNextRoundNumber = async (billId) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ProductsService } from "@/services/products.service";
 import { useAppStore } from "@/store/app.store";
 
@@ -12,6 +12,18 @@ export const useProducts = (params = {}) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchProducts = useCallback(() => {
+    setLoading(true);
+    ProductsService.list(params)
+      .then(({ data }) => {
+        setProducts(data);
+        if (!hasFilters) {
+          setProductCatalog(data);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [JSON.stringify(params)]);
+
   useEffect(() => {
     // Case 1: No filters + cache exists
     if (!hasFilters && catalogLoaded) {
@@ -21,19 +33,10 @@ export const useProducts = (params = {}) => {
     }
 
     // Case 2: Fetch from server
-    ProductsService.list(params)
-      .then(({ data }) => {
-        setProducts(data);
-
-        // Cache only unfiltered catalog
-        if (!hasFilters) {
-          setProductCatalog(data);
-        }
-      })
-      .finally(() => setLoading(false));
+    fetchProducts();
   }, [JSON.stringify(params)]);
 
-  return { products, loading };
+  return { products, loading, refetch: fetchProducts };
 
   // // Load all products
   // const loadProducts = useCallback(async () => {

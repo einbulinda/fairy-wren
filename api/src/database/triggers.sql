@@ -1,6 +1,6 @@
-CREATE TRIGGER trg_bill_completed_inventory
-AFTER
-UPDATE ON bills FOR EACH ROW EXECUTE FUNCTION post_bill_inventory_and_cogs();
+-- trg_bill_completed_inventory removed: inventory and COGS are now posted
+-- at round submission via post_round_sale(), not at bill completion.
+-- DROP TRIGGER IF EXISTS trg_bill_completed_inventory ON bills;
 CREATE TRIGGER update_bills_updated_at BEFORE
 UPDATE ON bills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_categories_updated_at BEFORE
