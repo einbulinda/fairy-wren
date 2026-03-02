@@ -41,7 +41,7 @@ CREATE TABLE public.bills (
     updated_by uuid,
     CONSTRAINT bills_pkey PRIMARY KEY (id),
     CONSTRAINT bills_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
-    CONSTRAINT fk_bills_updated_by FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
+    CONSTRAINT bills_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.capital_contributions (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),

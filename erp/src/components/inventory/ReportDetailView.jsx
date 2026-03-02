@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   ArrowLeft,
@@ -14,7 +14,9 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useStockTakeDetail } from "@/hooks/useInventory";
 import { PAGE_SIZE } from "./inventoryUtils";
 
@@ -106,6 +108,61 @@ const ReportDetailView = ({ id }) => {
     (s, i) => s + (i.variance ?? 0),
     0,
   );
+
+  const handleExportExcel = useCallback(() => {
+    const reportDate = new Date(report.created_at).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    const rows = items.map((item) => ({
+      Product: item.products?.name || "—",
+      "System Qty": item.system_qty ?? 0,
+      "Physical Qty": item.physical_qty ?? 0,
+      Variance: item.variance ?? 0,
+      "Variance %": Number(item.variance_percentage ?? 0),
+      "Value Impact (KSh)": Number(item.total_value_adjustment ?? 0),
+      Reason: item.reason?.replace(/_/g, " ") || "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 30 }, // Product
+      { wch: 12 }, // System Qty
+      { wch: 12 }, // Physical Qty
+      { wch: 10 }, // Variance
+      { wch: 12 }, // Variance %
+      { wch: 18 }, // Value Impact
+      { wch: 20 }, // Reason
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Stock Take Items");
+
+    // Add a summary sheet
+    const summaryRows = [
+      { Field: "Report Name", Value: report.stock_take_name || "Stock Take" },
+      { Field: "Date", Value: reportDate },
+      { Field: "Performed By", Value: report.profiles?.name || "—" },
+      { Field: "Location", Value: report.location || "—" },
+      { Field: "Type", Value: report.stock_take_type || "full" },
+      { Field: "Status", Value: report.approval_status || "pending" },
+      { Field: "Items Counted", Value: total },
+      { Field: "Stock Accuracy", Value: `${accuracy}%` },
+      { Field: "Shortages", Value: `${shortages.length} items (${totalUnitsShort} units)` },
+      { Field: "Surpluses", Value: `${surpluses.length} items (${totalUnitsOver} units)` },
+      { Field: "Total Value Impact", Value: totalValueImpact },
+    ];
+    const summaryWs = XLSX.utils.json_to_sheet(summaryRows);
+    summaryWs["!cols"] = [{ wch: 20 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
+
+    const fileName = `stock-take-${(report.stock_take_name || "report").replace(/\s+/g, "-").toLowerCase()}-${new Date(report.created_at).toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  }, [report, items, total, accuracy, shortages, surpluses, totalUnitsShort, totalUnitsOver, totalValueImpact]);
 
   const handleSort = (col) => {
     if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -236,7 +293,17 @@ const ReportDetailView = ({ id }) => {
               </p>
             )}
           </div>
-          <StatusBadge status={report.approval_status} />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportExcel}
+              disabled={items.length === 0}
+              className="flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">Export Excel</span>
+            </button>
+            <StatusBadge status={report.approval_status} />
+          </div>
         </div>
       </div>
 

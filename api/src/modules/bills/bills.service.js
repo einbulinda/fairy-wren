@@ -17,7 +17,6 @@ exports.createBill = async (payload, context) => {
     created_by: context.userId,
   });
 
-  console.log("createBill result:", { data, error });
   if (error) throw new Error("FAILED_TO_CREATE_BILL");
 
   await auditRepo.log({
@@ -39,7 +38,7 @@ exports.getBill = async (id) => {
 
 exports.listBills = async (filters) => {
   const { data, error } = await repo.listBills(filters);
-  console.log("listBills result:", { data, error });
+  console.log("Bills list result:", { data, error });
   if (error) throw new Error("FAILED_TO_FETCH_BILLS");
   return data;
 };
