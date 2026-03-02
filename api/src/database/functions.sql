@@ -2039,76 +2039,6 @@ $$;
  Updated: 23/02/2026 - einbulinda
  ============================================================================
  */
-/*
- ============================================================================
- BALANCE SHEET RPC
- ----------------------------------------------------------------------------
- Returns account balances as of a given date for balance sheet rendering.
- Groups by account class (asset, liability, equity). Sign is flipped for
- credit-normal accounts so balances display as positive.
- Also returns a synthetic 'Retained Earnings' row computed from income,
- expense, and cost_of_sales accounts.
- Created: 23/02/2026 - einbulinda
- ============================================================================
- */
-CREATE OR REPLACE FUNCTION public.rpc_balance_sheet(p_as_of_date date) RETURNS TABLE (
-        account_id uuid,
-        account_code varchar,
-        account_name varchar,
-        account_class varchar,
-        parent_id uuid,
-        normal_balance varchar,
-        is_control_account boolean,
-        balance numeric
-    ) LANGUAGE sql STABLE AS $function$ -- Balance sheet accounts (asset, liability, equity)
-SELECT coa.id AS account_id,
-    coa.code AS account_code,
-    coa.name AS account_name,
-    coa.account_class,
-    coa.parent_id,
-    coa.normal_balance,
-    coa.is_control_account,
-    CASE
-        WHEN coa.normal_balance = 'credit' THEN COALESCE(SUM(jl.credit - jl.debit), 0)
-        ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
-    END AS balance
-FROM chart_of_accounts coa
-    LEFT JOIN journal_lines jl ON jl.account_id = coa.id
-    LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
-    AND je.entry_date <= p_as_of_date
-WHERE coa.account_class IN ('asset', 'liability', 'equity')
-    AND coa.active = true
-GROUP BY coa.id,
-    coa.code,
-    coa.name,
-    coa.account_class,
-    coa.parent_id,
-    coa.normal_balance,
-    coa.is_control_account
-HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
-    OR coa.parent_id IS NULL
-    OR coa.is_control_account = true
-ORDER BY coa.code;
-$function$;
--- Returns net income (revenue - expenses - COGS) up to a given date
-CREATE OR REPLACE FUNCTION public.rpc_net_income(p_as_of_date date) RETURNS numeric LANGUAGE sql STABLE AS $function$
-SELECT COALESCE(
-        SUM(
-            CASE
-                WHEN coa.account_class = 'income' THEN jl.credit - jl.debit
-                WHEN coa.account_class IN ('expense', 'cost_of_sales') THEN jl.debit - jl.credit
-                ELSE 0
-            END
-        ),
-        0
-    ) AS net_income
-FROM journal_lines jl
-    JOIN journal_entries je ON je.id = jl.journal_entry_id
-    JOIN chart_of_accounts coa ON coa.id = jl.account_id
-WHERE je.entry_date <= p_as_of_date
-    AND coa.account_class IN ('income', 'expense', 'cost_of_sales')
-    AND coa.active = true;
-$function$;
 CREATE OR REPLACE FUNCTION update_product_quantity() RETURNS TRIGGER AS $$ BEGIN -- Update the product's on-hand quantity
 UPDATE products
 SET current_stock = GREATEST(
@@ -2211,4 +2141,264 @@ WHERE coa.account_class = 'expense'
     )
 ORDER BY txn_date DESC;
 END;
+$function$;
+
+/*
+ ============================================================================
+ BALANCE SHEET RPC
+ ----------------------------------------------------------------------------
+ Returns account balances as of a given date for balance sheet rendering.
+ Groups by account class (asset, liability, equity). Sign is flipped for
+ credit-normal accounts so balances display as positive.
+ Also returns a synthetic 'Retained Earnings' row computed from income,
+ expense, and cost_of_sales accounts.
+ Created: 23/02/2026 - einbulinda
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_balance_sheet(p_as_of_date date) RETURNS TABLE (
+        account_id uuid,
+        account_code varchar,
+        account_name varchar,
+        account_class varchar,
+        parent_id uuid,
+        normal_balance varchar,
+        is_control_account boolean,
+        balance numeric
+    ) LANGUAGE sql STABLE AS $function$ -- Balance sheet accounts (asset, liability, equity)
+SELECT coa.id AS account_id,
+    coa.code AS account_code,
+    coa.name AS account_name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account,
+    CASE
+        WHEN coa.normal_balance = 'credit' THEN COALESCE(SUM(jl.credit - jl.debit), 0)
+        ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
+    END AS balance
+FROM chart_of_accounts coa
+    LEFT JOIN journal_lines jl ON jl.account_id = coa.id
+    LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
+    AND je.entry_date <= p_as_of_date
+WHERE coa.account_class IN (
+        'asset',
+        'current_asset',
+        'non_current_asset',
+        'liability',
+        'current_liability',
+        'non_current_liability',
+        'equity'
+    )
+    AND coa.active = true
+GROUP BY coa.id,
+    coa.code,
+    coa.name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account
+HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
+    OR coa.parent_id IS NULL
+    OR coa.is_control_account = true
+ORDER BY coa.code;
+$function$;
+-- Returns net income (revenue - expenses - COGS) up to a given date
+CREATE OR REPLACE FUNCTION public.rpc_net_income(p_as_of_date date) RETURNS numeric LANGUAGE sql STABLE AS $function$
+SELECT COALESCE(
+        SUM(
+            CASE
+                WHEN coa.account_class = 'income' THEN jl.credit - jl.debit
+                WHEN coa.account_class IN (
+                    'expense',
+                    'cost_of_sales',
+                    'finance_cost',
+                    'admin_cost',
+                    'operating_cost'
+                ) THEN jl.debit - jl.credit
+                ELSE 0
+            END
+        ),
+        0
+    ) AS net_income
+FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl.journal_entry_id
+    JOIN chart_of_accounts coa ON coa.id = jl.account_id
+WHERE je.entry_date <= p_as_of_date
+    AND coa.account_class IN (
+        'income',
+        'expense',
+        'cost_of_sales',
+        'finance_cost',
+        'admin_cost',
+        'operating_cost'
+    )
+    AND coa.active = true;
+$function$;
+
+
+-- Returns trial balance for a date range: debit and credit totals per account
+CREATE OR REPLACE FUNCTION public.rpc_trial_balance(
+    p_start_date date,
+    p_end_date date
+) RETURNS TABLE (
+    account_id uuid,
+    account_code varchar,
+    account_name varchar,
+    account_class varchar,
+    parent_id uuid,
+    normal_balance varchar,
+    is_control_account boolean,
+    total_debit numeric,
+    total_credit numeric,
+    balance numeric
+) LANGUAGE sql STABLE AS $function$
+SELECT coa.id AS account_id,
+    coa.code AS account_code,
+    coa.name AS account_name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account,
+    COALESCE(SUM(jl.debit), 0) AS total_debit,
+    COALESCE(SUM(jl.credit), 0) AS total_credit,
+    CASE
+        WHEN coa.normal_balance = 'credit' THEN COALESCE(SUM(jl.credit - jl.debit), 0)
+        ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
+    END AS balance
+FROM chart_of_accounts coa
+    LEFT JOIN journal_lines jl ON jl.account_id = coa.id
+    LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
+        AND je.entry_date >= p_start_date
+        AND je.entry_date <= p_end_date
+WHERE coa.active = true
+GROUP BY coa.id,
+    coa.code,
+    coa.name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account
+HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
+ORDER BY coa.code;
+$function$;
+
+/*
+ ============================================================================
+ INCOME STATEMENT RPC
+ ----------------------------------------------------------------------------
+ Returns income statement line items for a date range (income, cost_of_sales, expense)
+ Created: 02/03/2026 - einbulinda
+ ============================================================================
+ */
+-- Returns income statement line items for a date range (income, cost_of_sales, expense)
+CREATE OR REPLACE FUNCTION public.rpc_income_statement(p_start_date date, p_end_date date) RETURNS TABLE (
+        account_id uuid,
+        account_code varchar,
+        account_name varchar,
+        account_class varchar,
+        parent_id uuid,
+        normal_balance varchar,
+        is_control_account boolean,
+        balance numeric
+    ) LANGUAGE sql STABLE AS $function$
+SELECT coa.id AS account_id,
+    coa.code AS account_code,
+    coa.name AS account_name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account,
+    CASE
+        WHEN coa.normal_balance = 'credit' THEN COALESCE(SUM(jl.credit - jl.debit), 0)
+        ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
+    END AS balance
+FROM chart_of_accounts coa
+    LEFT JOIN journal_lines jl ON jl.account_id = coa.id
+    LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
+    AND je.entry_date >= p_start_date
+    AND je.entry_date <= p_end_date
+WHERE coa.account_class IN (
+        'income',
+        'cost_of_sales',
+        'expense',
+        'finance_cost',
+        'admin_cost',
+        'operating_cost'
+    )
+    AND coa.active = true
+GROUP BY coa.id,
+    coa.code,
+    coa.name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account
+HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
+    OR coa.parent_id IS NULL
+    OR coa.is_control_account = true
+ORDER BY coa.code;
+$function$;
+
+/*
+ ============================================================================
+ CASH FLOW STATEMENT RPC
+ ----------------------------------------------------------------------------
+ Returns balance sheet accounts with opening balance, closing balance,
+ and net change for a date range. Used by the indirect method cash flow
+ statement (IAS 7) — the frontend computes Operating/Investing/Financing
+ sections using net income + account balance changes.
+ Created: 02/03/2026 - einbulinda
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_cash_flow_data(
+    p_start_date date,
+    p_end_date date
+) RETURNS TABLE (
+    account_id uuid,
+    account_code varchar,
+    account_name varchar,
+    account_class varchar,
+    parent_id uuid,
+    normal_balance varchar,
+    is_control_account boolean,
+    opening_balance numeric,
+    closing_balance numeric,
+    net_change numeric
+) LANGUAGE sql STABLE AS $function$
+SELECT
+    coa.id AS account_id,
+    coa.code AS account_code,
+    coa.name AS account_name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account,
+    CASE
+        WHEN coa.normal_balance = 'credit'
+            THEN COALESCE(SUM(CASE WHEN je.entry_date < p_start_date THEN jl.credit - jl.debit ELSE 0 END), 0)
+        ELSE COALESCE(SUM(CASE WHEN je.entry_date < p_start_date THEN jl.debit - jl.credit ELSE 0 END), 0)
+    END AS opening_balance,
+    CASE
+        WHEN coa.normal_balance = 'credit'
+            THEN COALESCE(SUM(CASE WHEN je.entry_date <= p_end_date THEN jl.credit - jl.debit ELSE 0 END), 0)
+        ELSE COALESCE(SUM(CASE WHEN je.entry_date <= p_end_date THEN jl.debit - jl.credit ELSE 0 END), 0)
+    END AS closing_balance,
+    CASE
+        WHEN coa.normal_balance = 'credit'
+            THEN COALESCE(SUM(CASE WHEN je.entry_date >= p_start_date AND je.entry_date <= p_end_date THEN jl.credit - jl.debit ELSE 0 END), 0)
+        ELSE COALESCE(SUM(CASE WHEN je.entry_date >= p_start_date AND je.entry_date <= p_end_date THEN jl.debit - jl.credit ELSE 0 END), 0)
+    END AS net_change
+FROM chart_of_accounts coa
+    LEFT JOIN journal_lines jl ON jl.account_id = coa.id
+    LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
+WHERE coa.account_class IN (
+        'asset', 'current_asset', 'non_current_asset',
+        'liability', 'current_liability', 'non_current_liability',
+        'equity'
+    )
+    AND coa.active = true
+GROUP BY coa.id, coa.code, coa.name, coa.account_class,
+    coa.parent_id, coa.normal_balance, coa.is_control_account
+HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
+ORDER BY coa.code;
 $function$;

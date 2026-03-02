@@ -40,7 +40,6 @@ exports.createSession = async (payload, context) => {
 };
 
 exports.recordItem = async (payload) => {
-  
   const { stockTakeId, productId, physicalQty, reason, notes } = payload;
 
   if (!stockTakeId || !productId) {
@@ -100,7 +99,6 @@ exports.approve = async (stockTakeId, { notes } = {}, context) => {
   );
 
   if (error) {
-    
     throw new Error("FAILED_TO_APPROVE_STOCK_TAKE");
   }
 
@@ -129,7 +127,6 @@ exports.reject = async (stockTakeId, { reason } = {}, context) => {
   );
 
   if (error) {
-    
     throw new Error("FAILED_TO_REJECT_STOCK_TAKE");
   }
 

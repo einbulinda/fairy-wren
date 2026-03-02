@@ -182,6 +182,27 @@ class ReportsRepository {
   async getNetIncome(asOfDate) {
     return callRpc("rpc_net_income", { p_as_of_date: asOfDate });
   }
+
+  async getIncomeStatement(startDate, endDate) {
+    return callRpc("rpc_income_statement", {
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
+  }
+
+  async getTrialBalance(startDate, endDate) {
+    return callRpc("rpc_trial_balance", {
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
+  }
+
+  async getCashFlowData(startDate, endDate) {
+    return callRpc("rpc_cash_flow_data", {
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
+  }
 }
 
 module.exports = new ReportsRepository();

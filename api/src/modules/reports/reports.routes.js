@@ -55,5 +55,14 @@ router.get("/category-sales", (req, res, next) =>
 router.get("/balance-sheet", (req, res, next) =>
   reportsController.getBalanceSheet(req, res, next)
 );
+router.get("/income-statement", (req, res, next) =>
+  reportsController.getIncomeStatement(req, res, next)
+);
+router.get("/trial-balance", (req, res, next) =>
+  reportsController.getTrialBalance(req, res, next)
+);
+router.get("/cash-flow", (req, res, next) =>
+  reportsController.getCashFlowStatement(req, res, next)
+);
 
 module.exports = router;

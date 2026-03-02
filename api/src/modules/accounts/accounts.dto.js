@@ -5,6 +5,13 @@ const ACCOUNT_CLASSES = [
   "income",
   "expense",
   "cost_of_sales",
+  "non_current_asset",
+  "current_asset",
+  "non_current_liability",
+  "current_liability",
+  "finance_cost",
+  "admin_cost",
+  "operating_cost",
 ];
 
 const NORMAL_BALANCES = ["debit", "credit"];
@@ -71,7 +78,8 @@ exports.UpdateAccountDTO = (payload) => {
   }
 
   if (payload.parent_id !== undefined) {
-    dto.parent_id = payload.parent_id === null ? null : String(payload.parent_id).trim();
+    dto.parent_id =
+      payload.parent_id === null ? null : String(payload.parent_id).trim();
   }
 
   if (payload.normal_balance !== undefined) {

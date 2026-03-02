@@ -337,6 +337,48 @@ class ReportsController {
     }
   }
 
+  async getIncomeStatement(req, res, next) {
+    try {
+      const { startDate, endDate } = this.extractDateRange(req);
+      const data = await reportsService.getIncomeStatement(startDate, endDate);
+      res.status(200).json({
+        data,
+        success: true,
+        meta: { startDate, endDate },
+      });
+    } catch (err) {
+      this.handleError(err, res, next);
+    }
+  }
+
+  async getTrialBalance(req, res, next) {
+    try {
+      const { startDate, endDate } = this.extractDateRange(req);
+      const data = await reportsService.getTrialBalance(startDate, endDate);
+      res.status(200).json({
+        data,
+        success: true,
+        meta: { startDate, endDate },
+      });
+    } catch (err) {
+      this.handleError(err, res, next);
+    }
+  }
+
+  async getCashFlowStatement(req, res, next) {
+    try {
+      const { startDate, endDate } = this.extractDateRange(req);
+      const data = await reportsService.getCashFlowStatement(startDate, endDate);
+      res.status(200).json({
+        data,
+        success: true,
+        meta: { startDate, endDate },
+      });
+    } catch (err) {
+      this.handleError(err, res, next);
+    }
+  }
+
   async getBalanceSheet(req, res, next) {
     try {
       const { asOfDate } = req.query;

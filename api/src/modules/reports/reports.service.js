@@ -324,6 +324,24 @@ class ReportsService {
     if (isNaN(d.getTime())) throw new Error("Invalid date format");
   }
 
+  async getIncomeStatement(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const accounts = await reportsRepository.getIncomeStatement(
+      startDate,
+      endDate
+    );
+    return { accounts: accounts || [] };
+  }
+
+  async getTrialBalance(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const accounts = await reportsRepository.getTrialBalance(
+      startDate,
+      endDate
+    );
+    return { accounts: accounts || [] };
+  }
+
   async getBalanceSheet(asOfDate) {
     this.validateDate(asOfDate);
     const [accounts, netIncome] = await Promise.all([
@@ -331,6 +349,22 @@ class ReportsService {
       reportsRepository.getNetIncome(asOfDate),
     ]);
     return { accounts: accounts || [], netIncome: netIncome || 0 };
+  }
+
+  async getCashFlowStatement(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+    const [accounts, incomeAccounts] = await Promise.all([
+      reportsRepository.getCashFlowData(startDate, endDate),
+      reportsRepository.getIncomeStatement(startDate, endDate),
+    ]);
+
+    // Compute net income from income statement accounts
+    const netIncome = (incomeAccounts || []).reduce((sum, a) => {
+      if (a.account_class === "income") return sum + Number(a.balance);
+      return sum - Number(a.balance);
+    }, 0);
+
+    return { accounts: accounts || [], netIncome };
   }
 }
 
