@@ -13,13 +13,6 @@ import "jspdf-autotable";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    minimumFractionDigits: 2,
-  }).format(n ?? 0);
-
-const fmtPlain = (n) =>
-  new Intl.NumberFormat("en-KE", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n ?? 0);
@@ -54,37 +47,11 @@ const buildTree = (accounts) => {
   };
   roots.forEach(rollUp);
 
-  // Control accounts show as leaf nodes — hide their descendants after rollup
-  const hideControlChildren = (node) => {
-    if (node.is_control_account) {
-      node.children = [];
-    } else {
-      node.children.forEach(hideControlChildren);
-    }
-  };
-  roots.forEach(hideControlChildren);
-
   return roots;
 };
 
-const classifyRoots = (roots) => {
-  const current = [];
-  const nonCurrent = [];
-  const other = [];
-
-  roots.forEach((node) => {
-    const name = (node.account_name || "").toLowerCase();
-    if (name.includes("non-current") || name.includes("non current")) {
-      nonCurrent.push(node);
-    } else if (name.includes("current")) {
-      current.push(node);
-    } else {
-      other.push(node);
-    }
-  });
-
-  return { current, nonCurrent, other };
-};
+const ASSET_CLASSES = ["asset", "current_asset", "non_current_asset"];
+const LIABILITY_CLASSES = ["liability", "current_liability", "non_current_liability"];
 
 const getRenderNodes = (roots) => {
   if (roots.length === 1 && roots[0].children.length > 0) {
@@ -98,7 +65,7 @@ const sumRoots = (roots) => roots.reduce((s, n) => s + Number(n.balance), 0);
 // --- Sub-components ---
 
 const LineItem = ({ node, depth = 0 }) => {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(!node.is_control_account);
   const hasChildren = node.children.length > 0;
   const balance = Number(node.balance);
 
@@ -130,14 +97,28 @@ const LineItem = ({ node, depth = 0 }) => {
             hasChildren ? "text-white font-medium" : "text-surface-300"
           }`}
         >
-          {fmt(balance)}
+          {!expanded || !hasChildren ? fmt(balance) : ""}
         </td>
       </tr>
       {expanded &&
-        hasChildren &&
-        node.children.map((child) => (
-          <LineItem key={child.account_id} node={child} depth={depth + 1} />
-        ))}
+        hasChildren && (
+          <>
+            {node.children.map((child) => (
+              <LineItem key={child.account_id} node={child} depth={depth + 1} />
+            ))}
+            <tr className="border-t border-surface-700/50">
+              <td
+                className="px-4 py-1.5 text-surface-400 text-xs font-semibold"
+                style={{ paddingLeft: `${(depth + 2) * 20}px` }}
+              >
+                Total {node.account_name}
+              </td>
+              <td className="px-4 py-1.5 text-right tabular-nums text-white font-semibold text-xs">
+                {fmt(balance)}
+              </td>
+            </tr>
+          </>
+        )}
     </>
   );
 };
@@ -344,7 +325,7 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
     }
 
     const indent = row.depth != null ? row.depth * 6 : 0;
-    const amount = fmtPlain(row.amount);
+    const amount = fmt(row.amount);
 
     if (row.type === "grandtotal") {
       tableBody.push([
@@ -477,26 +458,29 @@ const BalanceSheetPage = () => {
   const sections = useMemo(() => {
     if (!data?.accounts) return null;
 
-    const assets = data.accounts.filter((a) => a.account_class === "asset");
-    const liabilities = data.accounts.filter((a) => a.account_class === "liability");
+    const currentAssets = data.accounts.filter((a) => a.account_class === "current_asset");
+    const nonCurrentAssets = data.accounts.filter((a) => a.account_class === "non_current_asset");
+    const genericAssets = data.accounts.filter((a) => a.account_class === "asset");
+    const currentLiabilities = data.accounts.filter((a) => a.account_class === "current_liability");
+    const nonCurrentLiabilities = data.accounts.filter((a) => a.account_class === "non_current_liability");
+    const genericLiabilities = data.accounts.filter((a) => a.account_class === "liability");
     const equity = data.accounts.filter((a) => a.account_class === "equity");
 
-    const assetTree = buildTree(assets);
-    const liabilityTree = buildTree(liabilities);
+    const currentAssetTree = buildTree([...currentAssets, ...genericAssets]);
+    const nonCurrentAssetTree = buildTree(nonCurrentAssets);
+    const currentLiabilityTree = buildTree([...currentLiabilities, ...genericLiabilities]);
+    const nonCurrentLiabilityTree = buildTree(nonCurrentLiabilities);
     const equityTree = buildTree(equity);
-
-    const assetClassified = classifyRoots(assetTree);
-    const liabClassified = classifyRoots(liabilityTree);
 
     const netIncome = Number(data.netIncome ?? 0);
 
     const totalEquityAccounts = sumRoots(equityTree);
     const totalEquity = totalEquityAccounts + netIncome;
 
-    const nonCurrentLiabRoots = liabClassified.nonCurrent;
-    const currentLiabRoots = [...liabClassified.current, ...liabClassified.other];
-    const nonCurrentAssetRoots = assetClassified.nonCurrent;
-    const currentAssetRoots = [...assetClassified.current, ...assetClassified.other];
+    const nonCurrentLiabRoots = nonCurrentLiabilityTree;
+    const currentLiabRoots = currentLiabilityTree;
+    const nonCurrentAssetRoots = nonCurrentAssetTree;
+    const currentAssetRoots = currentAssetTree;
 
     const totalNonCurrentLiabilities = sumRoots(nonCurrentLiabRoots);
     const totalCurrentLiabilities = sumRoots(currentLiabRoots);
@@ -606,10 +590,10 @@ const BalanceSheetPage = () => {
                 <thead className="bg-surface-900/50 border-b border-surface-700">
                   <tr>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider">
-                      Account
+                      Financed By:
                     </th>
                     <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider w-48">
-                      Amount
+                      Amount (KES)
                     </th>
                   </tr>
                 </thead>

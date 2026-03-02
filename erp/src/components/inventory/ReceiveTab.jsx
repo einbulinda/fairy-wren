@@ -116,13 +116,6 @@ const ReceiveTab = ({ onSuccess }) => {
             <Truck size={18} className="text-primary-400" />
             Receive Inventory
           </h2>
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-500 rounded-lg text-sm text-white transition-colors"
-          >
-            <Plus size={14} /> Add Product
-          </button>
         </div>
 
         {/* Purchase details */}
@@ -283,12 +276,19 @@ const ReceiveTab = ({ onSuccess }) => {
 
         <div className="flex justify-end gap-3">
           <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-500 rounded-lg text-sm text-white transition-colors"
+          >
+            <Plus size={14} /> Add Product
+          </button>
+          <button
             type="submit"
             disabled={receiveMutation.isPending || lines.length === 0}
             className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
           >
             <Save size={16} />
-            {receiveMutation.isPending ? "Saving…" : "Receive Inventory"}
+            {receiveMutation.isPending ? "Saving…" : "Save Invoice"}
           </button>
         </div>
       </form>

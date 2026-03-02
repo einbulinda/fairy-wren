@@ -614,6 +614,20 @@ const ChartOfAccountsPage = () => {
                               <option value="debit">Debit</option>
                               <option value="credit">Credit</option>
                             </select>
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-surface-300 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={editForm.is_control_account || false}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    is_control_account: e.target.checked,
+                                  })
+                                }
+                                className="rounded border-surface-600 bg-surface-900 text-primary-500 focus:ring-primary-500"
+                              />
+                              Control Acct
+                            </label>
                             <div className="ml-auto flex gap-2">
                               <button
                                 onClick={() => handleUpdate(account.id)}

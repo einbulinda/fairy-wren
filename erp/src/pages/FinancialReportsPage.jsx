@@ -53,30 +53,27 @@ const reports = [
       "Statement of financial position — assets, liabilities, and equity as of a specific date.",
   },
   {
-    to: "#",
+    to: "/reports/income-statement",
     icon: TrendingUp,
-    iconColor: "text-surface-600",
+    iconColor: "text-primary-400",
     title: "Income Statement",
     description: "Revenue, expenses, and net income over a period.",
-    disabled: true,
   },
   {
-    to: "#",
+    to: "/reports/cash-flow",
     icon: DollarSign,
-    iconColor: "text-surface-600",
+    iconColor: "text-primary-400",
     title: "Cash Flow Statement",
     description:
       "Cash inflows and outflows from operations, investing, and financing.",
-    disabled: true,
   },
   {
-    to: "#",
+    to: "/reports/trial-balance",
     icon: BarChart3,
-    iconColor: "text-surface-600",
+    iconColor: "text-primary-400",
     title: "Trial Balance",
     description:
       "Summary of all account balances to verify debits equal credits.",
-    disabled: true,
   },
 ];
 
@@ -86,8 +83,11 @@ const FinancialReportsPage = () => {
   const totals = useMemo(() => {
     if (!data?.accounts) return null;
 
-    const assets = data.accounts.filter((a) => a.account_class === "asset");
-    const liabilities = data.accounts.filter((a) => a.account_class === "liability");
+    const assetClasses = ["asset", "current_asset", "non_current_asset"];
+    const liabilityClasses = ["liability", "current_liability", "non_current_liability"];
+
+    const assets = data.accounts.filter((a) => assetClasses.includes(a.account_class));
+    const liabilities = data.accounts.filter((a) => liabilityClasses.includes(a.account_class));
     const equity = data.accounts.filter((a) => a.account_class === "equity");
 
     const assetTree = buildTree(assets);

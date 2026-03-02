@@ -8,6 +8,9 @@ import AppShell from "@/components/layout/AppShell";
 import DashboardPage from "@/pages/DashboardPage";
 import FinancialReportsPage from "@/pages/FinancialReportsPage";
 import BalanceSheetPage from "@/pages/BalanceSheetPage";
+import IncomeStatementPage from "@/pages/IncomeStatementPage";
+import TrialBalancePage from "@/pages/TrialBalancePage";
+import CashFlowStatementPage from "@/pages/CashFlowStatementPage";
 import ChartOfAccountsPage from "@/pages/ChartOfAccountsPage";
 import LedgerPage from "@/pages/LedgerPage";
 import JournalEntryPage from "@/pages/JournalEntryPage";
@@ -57,6 +60,9 @@ const AppRoutes = () => {
         <Route path="payroll" element={<PayrollPage />} />
         <Route path="reports" element={<FinancialReportsPage />} />
         <Route path="reports/balance-sheet" element={<BalanceSheetPage />} />
+        <Route path="reports/income-statement" element={<IncomeStatementPage />} />
+        <Route path="reports/trial-balance" element={<TrialBalancePage />} />
+        <Route path="reports/cash-flow" element={<CashFlowStatementPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="approvals" element={<PlaceholderPage />} />
       </Route>

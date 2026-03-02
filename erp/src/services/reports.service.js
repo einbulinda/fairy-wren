@@ -20,3 +20,24 @@ export const fetchBalanceSheet = async (asOfDate) => {
   });
   return data.data;
 };
+
+export const fetchIncomeStatement = async (startDate, endDate) => {
+  const { data } = await api.get("/reports/income-statement", {
+    params: { startDate, endDate },
+  });
+  return data.data;
+};
+
+export const fetchTrialBalance = async (startDate, endDate) => {
+  const { data } = await api.get("/reports/trial-balance", {
+    params: { startDate, endDate },
+  });
+  return data.data;
+};
+
+export const fetchCashFlowStatement = async (startDate, endDate) => {
+  const { data } = await api.get("/reports/cash-flow", {
+    params: { startDate, endDate },
+  });
+  return data.data;
+};
