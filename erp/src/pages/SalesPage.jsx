@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useBills } from "@/hooks/useBills";
 import * as XLSX from "xlsx";
+import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", {
@@ -361,7 +362,9 @@ const SalesPage = () => {
             <p>No bills found for this period</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-surface-900/50 border-b border-surface-700">
                 <tr>
@@ -377,7 +380,7 @@ const SalesPage = () => {
                       {sortKey === "status" ? (sortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
                     </span>
                   </th>
-                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider hidden md:table-cell">
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider">
                     Items
                   </th>
                   <th
@@ -445,7 +448,7 @@ const SalesPage = () => {
                             {STATUS_LABEL[bill.status] || bill.status}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-right text-surface-300 hidden md:table-cell">
+                        <td className="px-4 py-2.5 text-right text-surface-300">
                           {computeItemCount(bill)}
                         </td>
                         <td className="px-4 py-2.5 text-right text-white font-medium tabular-nums">
@@ -508,6 +511,65 @@ const SalesPage = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile cards */}
+          <MobileCardList>
+            {pageItems.map((bill) => {
+              const isExpanded = expandedBill === bill.id;
+              const allItems = bill.rounds?.flatMap(
+                (r) =>
+                  r.round_items?.map((item) => ({
+                    ...item,
+                    roundNumber: r.round_number,
+                  })) || [],
+              ) || [];
+
+              return (
+                <MobileCard
+                  key={bill.id}
+                  onClick={() => setExpandedBill(isExpanded ? null : bill.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-white font-medium text-sm">
+                      {bill.customer_name || "Walk-in"}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[bill.status] || "bg-surface-600/30 text-surface-400"}`}
+                    >
+                      {STATUS_LABEL[bill.status] || bill.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-white font-semibold tabular-nums">
+                      KES {fmt(computeBillTotal(bill))}
+                    </span>
+                    <span className="text-surface-400 text-xs">
+                      {computeItemCount(bill)} items
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-surface-400">
+                    <span>{bill.created_by_user?.name || "—"}</span>
+                    <span>{fmtDate(bill.created_at)}</span>
+                  </div>
+                  {isExpanded && allItems.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-surface-700/50 space-y-1.5">
+                      {allItems.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-xs">
+                          <span className="text-surface-300 truncate mr-2">
+                            {item.product?.name || "—"}
+                          </span>
+                          <span className="text-surface-400 tabular-nums shrink-0">
+                            {item.quantity} × {fmt(item.price)} = <span className="text-white font-medium">{fmt(item.quantity * item.price)}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </MobileCard>
+              );
+            })}
+          </MobileCardList>
+          </>
         )}
 
         {/* Pagination */}

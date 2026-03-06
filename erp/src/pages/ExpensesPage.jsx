@@ -9,6 +9,7 @@ import {
   ChevronsDownUp, ChevronsUpDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 }).format(n ?? 0);
@@ -143,7 +144,6 @@ const ChildAccountRow = ({ child, expanded, onToggle }) => (
           <button className="p-0.5 rounded hover:bg-surface-600 text-surface-400">
             {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
           </button>
-          <span className="text-surface-500 font-mono text-xs mr-1">{child.account_code}</span>
           <span className="text-surface-300 text-sm">{child.account_name}</span>
         </div>
       </td>
@@ -170,7 +170,6 @@ const ParentAccountRow = ({ parent, expandedSet, onToggle }) => {
             <button className="p-0.5 rounded hover:bg-surface-600 text-surface-400">
               {parentExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
-            <span className="text-surface-500 font-mono text-xs mr-1">{parent.account_code}</span>
             <span className="text-white font-medium text-sm">{parent.account_name}</span>
           </div>
         </td>
@@ -328,14 +327,14 @@ const ExpensesPage = () => {
             <label className="text-xs text-surface-400 font-medium flex items-center gap-1"><FileText size={12} /> Expense Account *</label>
             <select className={inputCls} value={form.account_id} onChange={(e) => setForm({ ...form, account_id: e.target.value })}>
               <option value="">Select account…</option>
-              {expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.code} – {a.name}</option>)}
+              {expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
           <div className="space-y-1">
             <label className="text-xs text-surface-400 font-medium flex items-center gap-1"><Wallet size={12} /> Paid From *</label>
             <select className={inputCls} value={form.credit_account_id} onChange={(e) => setForm({ ...form, credit_account_id: e.target.value })}>
               <option value="">Select account…</option>
-              {creditAccounts.map((a) => <option key={a.id} value={a.id}>{a.code} – {a.name}</option>)}
+              {creditAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
           <div className="space-y-1">
@@ -421,7 +420,9 @@ const ExpensesPage = () => {
             <p>{hasFilters ? "No expenses match your filters" : "No expenses recorded yet"}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-surface-900/50 border-b border-surface-700">
                 <tr>
@@ -444,6 +445,83 @@ const ExpensesPage = () => {
               </tfoot>
             </table>
           </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden p-3 space-y-3">
+            {tree.map((parent) => {
+              const parentExpanded = expandedSet.has(parent.account_id);
+              const hasChildren = parent.children.length > 0;
+              const hasOwnTxns = parent.transactions?.length > 0;
+              return (
+                <div key={parent.account_id}>
+                  <MobileCard onClick={() => toggleExpand(parent.account_id)}>
+                    <div className="flex items-center gap-2">
+                      {parentExpanded ? <ChevronDown size={14} className="text-surface-400" /> : <ChevronRight size={14} className="text-surface-400" />}
+                      <span className="text-white font-medium text-sm">{parent.account_name}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-surface-400 text-xs">{parent.children.reduce((s, c) => s + c.transactions.length, 0) + (parent.transactions?.length || 0)} records</span>
+                      <span className="text-red-400 font-semibold tabular-nums">{fmt(parent.total)}</span>
+                    </div>
+                  </MobileCard>
+                  {parentExpanded && (
+                    <div className="ml-3 mt-1.5 space-y-1.5">
+                      {hasChildren && parent.children.map((child) => {
+                        const childExpanded = expandedSet.has(child.account_id);
+                        return (
+                          <div key={child.account_id}>
+                            <MobileCard onClick={() => toggleExpand(child.account_id)} className="py-3!">
+                              <div className="flex items-center gap-2">
+                                {childExpanded ? <ChevronDown size={13} className="text-surface-400" /> : <ChevronRight size={13} className="text-surface-400" />}
+                                <span className="text-surface-500 font-mono text-xs">{child.account_code}</span>
+                                <span className="text-surface-300 text-sm">{child.account_name}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-surface-400 text-xs">{child.transactions.length} records</span>
+                                <span className="text-red-400 tabular-nums text-sm">{fmt(child.total)}</span>
+                              </div>
+                            </MobileCard>
+                            {childExpanded && (
+                              <div className="ml-3 mt-1 space-y-1">
+                                {child.transactions.map((t) => (
+                                  <div key={t.id} className="bg-surface-900/40 border border-surface-700/50 rounded-lg px-3 py-2 space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-surface-400 text-xs">{new Date(t.txn_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                                      <span className="text-red-400 tabular-nums text-xs font-medium">{fmt(t.amount)}</span>
+                                    </div>
+                                    {t.supplier_name && <div className="text-surface-300 text-xs">{t.supplier_name}</div>}
+                                    {t.description && <div className="text-surface-400 text-xs truncate">{t.description}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {hasOwnTxns && !hasChildren && parent.transactions.map((t) => (
+                        <div key={t.id} className="bg-surface-900/40 border border-surface-700/50 rounded-lg px-3 py-2 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-surface-400 text-xs">{new Date(t.txn_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                            <span className="text-red-400 tabular-nums text-xs font-medium">{fmt(t.amount)}</span>
+                          </div>
+                          {t.supplier_name && <div className="text-surface-300 text-xs">{t.supplier_name}</div>}
+                          {t.description && <div className="text-surface-400 text-xs truncate">{t.description}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <MobileCard className="bg-surface-900/30! border-surface-600">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-white">Grand Total</span>
+                <span className="font-bold text-red-400 text-base tabular-nums">{fmt(totalAmount)}</span>
+              </div>
+              <div className="text-surface-400 text-xs">{filtered.length} records</div>
+            </MobileCard>
+          </div>
+          </>
         )}
       </div>
     </div>

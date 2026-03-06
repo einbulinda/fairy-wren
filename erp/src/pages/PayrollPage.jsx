@@ -22,6 +22,11 @@ import PayslipModal from "@/components/payroll/PayslipModal";
 import SalaryPanel from "@/components/payroll/SalaryPanel";
 import ProcessRunPanel from "@/components/payroll/ProcessRunPanel";
 import { fmt, fmtPeriod, getStruct } from "@/components/payroll/payrollUtils";
+import {
+  MobileCard,
+  MobileField,
+  MobileCardList,
+} from "@/components/shared/MobileCard";
 
 const PAGE_SIZE = 10;
 
@@ -221,7 +226,8 @@ const EmployeesTab = () => {
 
   return (
     <>
-      <div className="overflow-x-auto">
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-700">
@@ -288,39 +294,89 @@ const EmployeesTab = () => {
             })}
           </tbody>
         </table>
-
-        {employees.length === 0 && (
-          <div className="text-center py-12 text-surface-400">
-            No employees found.
-          </div>
-        )}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-3 border-t border-surface-700">
-            <span className="text-sm text-surface-400">
-              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, employees.length)} of {employees.length}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={safePage === 1}
-                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <span className="px-3 text-xs text-surface-400">
-                {safePage} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage === totalPages}
-                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Mobile cards */}
+      <MobileCardList>
+        {pageItems.map((emp) => {
+          const s = getStruct(emp);
+          return (
+            <MobileCard key={emp.id}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-medium text-sm">
+                    {s?.full_name || emp.name}
+                  </p>
+                  <p className="text-xs text-surface-400 capitalize">
+                    {emp.role}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEditTarget(emp)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-surface-700 hover:bg-surface-600 rounded-lg text-surface-300 hover:text-white transition-colors"
+                >
+                  {s ? <Edit2 size={12} /> : <Plus size={12} />}
+                  {s ? "Edit" : "Add"}
+                </button>
+              </div>
+              {s && (
+                <>
+                  <MobileField label="Basic Pay">
+                    {fmt(s.basic_pay)}
+                  </MobileField>
+                  <MobileField label="Gross Pay">
+                    {fmt(computeGross(s))}
+                  </MobileField>
+                  <MobileField label="Net Pay">
+                    <span className="text-emerald-400 font-medium">
+                      {fmt(computeNet(s))}
+                    </span>
+                  </MobileField>
+                  <MobileField label="Method">
+                    <span className="capitalize">
+                      {s.payment_method ?? "—"}
+                    </span>
+                  </MobileField>
+                </>
+              )}
+            </MobileCard>
+          );
+        })}
+      </MobileCardList>
+
+      {employees.length === 0 && (
+        <div className="text-center py-12 text-surface-400">
+          No employees found.
+        </div>
+      )}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-3 border-t border-surface-700">
+          <span className="text-sm text-surface-400">
+            Showing {(safePage - 1) * PAGE_SIZE + 1}–
+            {Math.min(safePage * PAGE_SIZE, employees.length)} of{" "}
+            {employees.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="px-3 text-xs text-surface-400">
+              {safePage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {editTarget && (
         <SalaryPanel
@@ -374,7 +430,8 @@ const RunsTab = ({ employees }) => {
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-700">
@@ -441,8 +498,7 @@ const RunsTab = ({ employees }) => {
                         disabled={markPaid.isPending}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 rounded-lg transition-colors disabled:opacity-50"
                       >
-                        <CheckCircle size={12} />
-                        Mark Paid
+                        <CheckCircle size={12} /> Mark Paid
                       </button>
                     )}
                   </td>
@@ -458,39 +514,76 @@ const RunsTab = ({ employees }) => {
             ))}
           </tbody>
         </table>
-
-        {runs.length === 0 && (
-          <div className="text-center py-12 text-surface-400">
-            No payroll runs yet. Process the first one above.
-          </div>
-        )}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-3 border-t border-surface-700">
-            <span className="text-sm text-surface-400">
-              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, runs.length)} of {runs.length}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={safePage === 1}
-                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <span className="px-3 text-xs text-surface-400">
-                {safePage} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage === totalPages}
-                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Mobile cards */}
+      <MobileCardList>
+        {pageItems.map((run) => (
+          <MobileCard key={run.id} onClick={() => toggleExpand(run.id)}>
+            <div className="flex items-center justify-between">
+              <span className="text-white font-medium text-sm">
+                {fmtPeriod(run.period)}
+              </span>
+              <StatusBadge status={run.status} />
+            </div>
+            <MobileField label="Employees">{run.employee_count}</MobileField>
+            <MobileField label="Gross">{fmt(run.total_gross)}</MobileField>
+            <MobileField label="Deductions">
+              <span className="text-red-400">-{fmt(run.total_deductions)}</span>
+            </MobileField>
+            <MobileField label="Net Pay">
+              <span className="text-emerald-400 font-medium">
+                {fmt(run.total_net)}
+              </span>
+            </MobileField>
+            {run.status === "processed" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  markPaid.mutate(run.id);
+                }}
+                disabled={markPaid.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 rounded-lg transition-colors disabled:opacity-50 mt-1"
+              >
+                <CheckCircle size={12} /> Mark Paid
+              </button>
+            )}
+          </MobileCard>
+        ))}
+      </MobileCardList>
+
+      {runs.length === 0 && (
+        <div className="text-center py-12 text-surface-400">
+          No payroll runs yet. Process the first one above.
+        </div>
+      )}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-3 border-t border-surface-700">
+          <span className="text-sm text-surface-400">
+            Showing {(safePage - 1) * PAGE_SIZE + 1}–
+            {Math.min(safePage * PAGE_SIZE, runs.length)} of {runs.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="px-3 text-xs text-surface-400">
+              {safePage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {panelOpen && (
         <ProcessRunPanel

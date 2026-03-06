@@ -26,6 +26,7 @@ import {
   useSupplierStatement,
 } from "@/hooks/useSuppliers";
 import toast from "react-hot-toast";
+import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const PAGE_SIZE = 10;
 
@@ -439,7 +440,7 @@ const SupplierDetailPage = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-surface-700 bg-surface-800/30">
@@ -500,6 +501,23 @@ const SupplierDetailPage = () => {
                   </tbody>
                 </table>
               </div>
+
+              <MobileCardList>
+                {pPageItems.map((p) => (
+                  <MobileCard key={p.id} onClick={() => navigate(`/inventory/receipts/${p.id}`)}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-surface-300 text-sm">{fmtDate(p.purchase_date)}</span>
+                      <PaymentBadge paidAt={p.paid_at} purchaseDate={p.purchase_date} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs text-primary-400">{p.invoice_number}</span>
+                      <span className="text-white font-medium text-sm">{fmt(p.total_amount)}</span>
+                    </div>
+                    {p.notes && <div className="text-xs text-surface-400">{p.notes}</div>}
+                  </MobileCard>
+                ))}
+              </MobileCardList>
+
               <PaginationBar
                 page={pSafePage}
                 totalPages={pTotalPages}
@@ -686,7 +704,7 @@ const SupplierDetailPage = () => {
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-surface-700 bg-surface-800/30">
@@ -733,6 +751,23 @@ const SupplierDetailPage = () => {
                     </tbody>
                   </table>
                 </div>
+
+                <MobileCardList>
+                  {pmPageItems.map((p) => (
+                    <MobileCard key={p.id}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-surface-300 text-sm">{fmtDate(p.payment_date)}</span>
+                        <span className="text-green-400 font-medium text-sm">{fmt(p.amount)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-surface-300 capitalize">{p.payment_method}</span>
+                        {p.reference && <span className="font-mono text-surface-400">{p.reference}</span>}
+                      </div>
+                      {p.notes && <div className="text-xs text-surface-400">{p.notes}</div>}
+                    </MobileCard>
+                  ))}
+                </MobileCardList>
+
                 <PaginationBar
                   page={pmSafePage}
                   totalPages={pmTotalPages}
@@ -789,7 +824,7 @@ const SupplierDetailPage = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-surface-700 bg-surface-800/30">
@@ -906,6 +941,39 @@ const SupplierDetailPage = () => {
                   </tfoot>
                 </table>
               </div>
+
+              <MobileCardList>
+                {stmtPageItems.map((row, i) => (
+                  <MobileCard key={i}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-surface-300 text-sm">{fmtDate(row.txn_date)}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${TXN_TYPE_STYLES[row.txn_type] || "bg-surface-700 text-surface-400"}`}>
+                        {row.txn_type}
+                      </span>
+                    </div>
+                    {row.reference && <div className="font-mono text-xs text-surface-400">{row.reference}</div>}
+                    {row.description && <div className="text-xs text-surface-400">{row.description}</div>}
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="space-x-3">
+                        {Number(row.debit) > 0 && <span className="text-red-400">Dr {fmt(row.debit)}</span>}
+                        {Number(row.credit) > 0 && <span className="text-green-400">Cr {fmt(row.credit)}</span>}
+                      </div>
+                      <span className={`font-medium ${Number(row.running_balance) > 0 ? "text-red-400" : Number(row.running_balance) < 0 ? "text-green-400" : "text-surface-300"}`}>
+                        {fmt(Math.abs(row.running_balance))}{Number(row.running_balance) > 0 ? " DR" : Number(row.running_balance) < 0 ? " CR" : ""}
+                      </span>
+                    </div>
+                  </MobileCard>
+                ))}
+                <MobileCard className="bg-surface-900/50!">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-surface-400 uppercase tracking-wide">{stmtFrom || stmtTo ? "Period" : "Closing"} Balance</span>
+                    <span className={`font-semibold ${balance > 0 ? "text-red-400" : balance < 0 ? "text-green-400" : "text-surface-300"}`}>
+                      {fmt(Math.abs(balance))} {balance > 0 ? "DR" : balance < 0 ? "CR" : ""}
+                    </span>
+                  </div>
+                </MobileCard>
+              </MobileCardList>
+
               <PaginationBar
                 page={stmtSafePage}
                 totalPages={stmtTotalPages}

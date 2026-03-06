@@ -111,7 +111,7 @@ const ProcessRunPanel = ({ employees, onClose }) => {
               <option value="">Select account…</option>
               {expenseAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.code} — {a.name}
+                  {a.name}
                 </option>
               ))}
             </select>
@@ -128,7 +128,7 @@ const ProcessRunPanel = ({ employees, onClose }) => {
               <option value="">Select account…</option>
               {liabilityAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.code} — {a.name}
+                  {a.name}
                 </option>
               ))}
             </select>

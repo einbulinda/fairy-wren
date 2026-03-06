@@ -91,7 +91,7 @@ const Header = ({ title, onMenuClick }) => {
             </button>
 
             {notifOpen && (
-              <div className="absolute right-0 mt-1 w-80 bg-surface-800 rounded-xl shadow-lg border border-surface-700 z-50 overflow-hidden">
+              <div className="fixed left-1/2 -translate-x-1/2 top-17.5 w-[calc(100vw-2rem)] max-w-80 md:absolute md:left-auto md:translate-x-0 md:right-0 md:top-auto md:mt-1 md:w-80 bg-surface-800 rounded-xl shadow-lg border border-surface-700 z-50 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-surface-700">
                   <h4 className="text-sm font-semibold text-white">
                     Pending Approvals

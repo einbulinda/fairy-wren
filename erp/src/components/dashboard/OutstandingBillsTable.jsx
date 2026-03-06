@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Clock, Copy } from "lucide-react";
 import toast from "react-hot-toast";
+import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const OutstandingBillsTable = ({ data }) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,7 +59,7 @@ const OutstandingBillsTable = ({ data }) => {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-surface-700">
             <tr>
@@ -93,6 +94,38 @@ const OutstandingBillsTable = ({ data }) => {
           </tbody>
         </table>
       </div>
+
+      <MobileCardList>
+        {paginatedData.map((bill, index) => {
+          const balance = (parseFloat(bill.bill_total) || 0) - (parseFloat(bill.paid_amount) || 0);
+          return (
+            <MobileCard key={index}>
+              <div className="flex items-center justify-between">
+                <span className="text-white font-medium text-sm">{bill.customer_name}</span>
+                <div className="flex items-center gap-1">
+                  <Clock className={`w-3 h-3 ${getDaysColor(bill.days_outstanding)}`} />
+                  <span className={`text-xs font-semibold ${getDaysColor(bill.days_outstanding)}`}>{bill.days_outstanding}d</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-mono text-surface-400">{bill.bill_id.slice(0, 8)}...</span>
+                <button onClick={() => copyBillId(bill.bill_id)} className="p-0.5 rounded hover:bg-surface-700 transition-colors"><Copy size={10} className="text-primary-400" /></button>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-surface-400">{new Date(bill.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                <span className="text-surface-400">{bill.served_by}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="space-x-3">
+                  <span className="text-surface-300">KES {parseFloat(bill.bill_total || 0).toLocaleString()}</span>
+                  <span className="text-emerald-400 text-xs">Paid {parseFloat(bill.paid_amount || 0).toLocaleString()}</span>
+                </div>
+                <span className="text-danger font-semibold">KES {balance.toLocaleString()}</span>
+              </div>
+            </MobileCard>
+          );
+        })}
+      </MobileCardList>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-4 border-t border-surface-700/50">

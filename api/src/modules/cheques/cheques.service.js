@@ -31,7 +31,9 @@ exports.create = async (payload, context) => {
 
   // Auto-create journal entry: Dr debit_account, Cr bank_account
   const isTransfer = dto.transaction_type === "transfer";
-  const reference = isTransfer ? `TRF-${dto.cheque_number}` : `CHQ-${dto.cheque_number}`;
+  const reference = isTransfer
+    ? `TRF-${dto.cheque_number}`
+    : `CHQ-${dto.cheque_number}`;
   const description = isTransfer
     ? `Internal transfer${dto.memo ? ` - ${dto.memo}` : ""}`
     : `Cheque to ${dto.payee_name}${dto.memo ? ` - ${dto.memo}` : ""}`;
@@ -46,8 +48,18 @@ exports.create = async (payload, context) => {
   if (entryError) throw new Error("FAILED_TO_CREATE_CHEQUE_JOURNAL");
 
   const { error: linesError } = await journalRepo.createLines([
-    { journal_entry_id: entry.id, account_id: dto.debit_account_id, debit: dto.amount, credit: 0 },
-    { journal_entry_id: entry.id, account_id: dto.bank_account_id, debit: 0, credit: dto.amount },
+    {
+      journal_entry_id: entry.id,
+      account_id: dto.debit_account_id,
+      debit: dto.amount,
+      credit: 0,
+    },
+    {
+      journal_entry_id: entry.id,
+      account_id: dto.bank_account_id,
+      debit: 0,
+      credit: dto.amount,
+    },
   ]);
   if (linesError) throw new Error("FAILED_TO_CREATE_CHEQUE_JOURNAL_LINES");
 
@@ -60,7 +72,11 @@ exports.create = async (payload, context) => {
     action: "CHEQUE_ISSUED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
-    metadata: { cheque_number: dto.cheque_number, payee: dto.payee_name, amount: dto.amount },
+    metadata: {
+      cheque_number: dto.cheque_number,
+      payee: dto.payee_name,
+      amount: dto.amount,
+    },
   });
 
   return exports.getById(cheque.id);
@@ -68,7 +84,8 @@ exports.create = async (payload, context) => {
 
 exports.clear = async (id, context) => {
   const cheque = await exports.getById(id);
-  if (cheque.status !== "issued") throw new Error("CHEQUE_NOT_IN_ISSUED_STATUS");
+  if (cheque.status !== "issued")
+    throw new Error("CHEQUE_NOT_IN_ISSUED_STATUS");
 
   const { data, error } = await repo.updateStatus(id, "cleared", {
     cleared_at: new Date().toISOString(),
@@ -93,18 +110,24 @@ exports.void = async (id, context) => {
 
   // Create reversal journal entry
   if (cheque.journal_entry_id) {
-    const { data: original } = await journalRepo.findById(cheque.journal_entry_id);
+    const { data: original } = await journalRepo.findById(
+      cheque.journal_entry_id,
+    );
     if (original) {
       const isTransfer = cheque.transaction_type === "transfer";
-      const { data: reversal, error: revError } = await journalRepo.createEntry({
-        entry_date: new Date().toISOString().split("T")[0],
-        reference: isTransfer ? `VOID-TRF-${cheque.cheque_number}` : `VOID-CHQ-${cheque.cheque_number}`,
-        description: isTransfer
-          ? `Void transfer ${cheque.cheque_number}`
-          : `Void cheque to ${cheque.payee_name}`,
-        source_type: "cheque",
-        source_id: cheque.id,
-      });
+      const { data: reversal, error: revError } = await journalRepo.createEntry(
+        {
+          entry_date: new Date().toISOString().split("T")[0],
+          reference: isTransfer
+            ? `VOID-TRF-${cheque.cheque_number}`
+            : `VOID-CHQ-${cheque.cheque_number}`,
+          description: isTransfer
+            ? `Void transfer ${cheque.cheque_number}`
+            : `Void cheque to ${cheque.payee_name}`,
+          source_type: "cheque",
+          source_id: cheque.id,
+        },
+      );
       if (!revError && reversal) {
         const reversalLines = original.journal_lines.map((l) => ({
           journal_entry_id: reversal.id,
@@ -113,7 +136,10 @@ exports.void = async (id, context) => {
           credit: l.debit,
         }));
         await journalRepo.createLines(reversalLines);
-        await journalRepo.updateReversedEntryId(cheque.journal_entry_id, reversal.id);
+        await journalRepo.updateReversedEntryId(
+          cheque.journal_entry_id,
+          reversal.id,
+        );
       }
     }
   }

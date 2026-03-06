@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const CategorySalesTable = ({ data }) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,7 +35,7 @@ const CategorySalesTable = ({ data }) => {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-surface-700">
             <tr>
@@ -56,6 +57,18 @@ const CategorySalesTable = ({ data }) => {
           </tbody>
         </table>
       </div>
+
+      <MobileCardList>
+        {paginatedData.map((item, index) => (
+          <MobileCard key={index}>
+            <div className="flex items-center justify-between">
+              <span className="text-white font-medium">{item.category_name || "Uncategorized"}</span>
+              <span className="text-emerald-400 font-semibold text-sm">KES {parseFloat(item.total_sales || 0).toLocaleString()}</span>
+            </div>
+            <div className="text-xs text-surface-400">Qty Sold: <span className="text-surface-300">{parseInt(item.total_quantity || 0).toLocaleString()}</span></div>
+          </MobileCard>
+        ))}
+      </MobileCardList>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-4 border-t border-surface-700/50">

@@ -18,6 +18,7 @@ import {
   useUpdateSupplier,
 } from "@/hooks/useSuppliers";
 import toast from "react-hot-toast";
+import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const inputCls =
   "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
@@ -201,99 +202,42 @@ const SupplierListPage = () => {
               </div>
             ) : (
               <>
-              <div className="overflow-x-auto">
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-surface-700 bg-surface-800/30">
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">
-                        Supplier
-                      </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden md:table-cell">
-                        Contact
-                      </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden lg:table-cell">
-                        Phone
-                      </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden xl:table-cell">
-                        Email
-                      </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">
-                        Status
-                      </th>
-                      <th className="text-right px-4 py-3 text-surface-400 font-medium">
-                        Actions
-                      </th>
+                      <th className="text-left px-4 py-3 text-surface-400 font-medium">Supplier</th>
+                      <th className="text-left px-4 py-3 text-surface-400 font-medium">Contact</th>
+                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden lg:table-cell">Phone</th>
+                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden xl:table-cell">Email</th>
+                      <th className="text-left px-4 py-3 text-surface-400 font-medium">Status</th>
+                      <th className="text-right px-4 py-3 text-surface-400 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-700/40">
                     {pageItems.map((supplier) => (
-                      <tr
-                        key={supplier.id}
-                        className="hover:bg-surface-700/30 transition-colors group"
-                      >
+                      <tr key={supplier.id} className="hover:bg-surface-700/30 transition-colors group">
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() =>
-                              navigate(`/suppliers/${supplier.id}`)
-                            }
-                            className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium"
-                          >
-                            <Building2
-                              size={15}
-                              className="text-surface-500 shrink-0"
-                            />
+                          <button onClick={() => navigate(`/suppliers/${supplier.id}`)} className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium">
+                            <Building2 size={15} className="text-surface-500 shrink-0" />
                             {supplier.name}
-                            <ChevronRight
-                              size={13}
-                              className="text-surface-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                            />
+                            <ChevronRight size={13} className="text-surface-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </button>
                         </td>
-                        <td className="px-4 py-3 text-surface-400 hidden md:table-cell">
-                          {supplier.contact_person || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-surface-400 hidden lg:table-cell">
-                          {supplier.phone || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-surface-400 hidden xl:table-cell">
-                          {supplier.email || "—"}
-                        </td>
+                        <td className="px-4 py-3 text-surface-400">{supplier.contact_person || "—"}</td>
+                        <td className="px-4 py-3 text-surface-400 hidden lg:table-cell">{supplier.phone || "—"}</td>
+                        <td className="px-4 py-3 text-surface-400 hidden xl:table-cell">{supplier.email || "—"}</td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              supplier.active
-                                ? "bg-green-500/15 text-green-400"
-                                : "bg-surface-700 text-surface-400"
-                            }`}
-                          >
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${supplier.active ? "bg-green-500/15 text-green-400" : "bg-surface-700 text-surface-400"}`}>
                             {supplier.active ? "Active" : "Inactive"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => openEdit(supplier)}
-                              className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors"
-                              title="Edit"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleToggleStatus(supplier)}
-                              className={`p-1.5 hover:bg-surface-700 rounded-lg transition-colors ${
-                                supplier.active
-                                  ? "text-green-400 hover:text-red-400"
-                                  : "text-surface-500 hover:text-green-400"
-                              }`}
-                              title={
-                                supplier.active ? "Deactivate" : "Activate"
-                              }
-                            >
-                              {supplier.active ? (
-                                <ToggleRight size={16} />
-                              ) : (
-                                <ToggleLeft size={16} />
-                              )}
+                            <button onClick={() => openEdit(supplier)} className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors" title="Edit"><Edit2 size={14} /></button>
+                            <button onClick={() => handleToggleStatus(supplier)} className={`p-1.5 hover:bg-surface-700 rounded-lg transition-colors ${supplier.active ? "text-green-400 hover:text-red-400" : "text-surface-500 hover:text-green-400"}`} title={supplier.active ? "Deactivate" : "Activate"}>
+                              {supplier.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                             </button>
                           </div>
                         </td>
@@ -302,6 +246,34 @@ const SupplierListPage = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile cards */}
+              <MobileCardList>
+                {pageItems.map((supplier) => (
+                  <MobileCard key={supplier.id}>
+                    <div className="flex items-center justify-between">
+                      <button onClick={() => navigate(`/suppliers/${supplier.id}`)} className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium text-sm">
+                        <Building2 size={15} className="text-surface-500 shrink-0" />
+                        {supplier.name}
+                      </button>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => openEdit(supplier)} className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors"><Edit2 size={14} /></button>
+                        <button onClick={() => handleToggleStatus(supplier)} className={`p-1.5 hover:bg-surface-700 rounded-lg transition-colors ${supplier.active ? "text-green-400 hover:text-red-400" : "text-surface-500 hover:text-green-400"}`}>
+                          {supplier.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                    <MobileField label="Contact">{supplier.contact_person || "—"}</MobileField>
+                    <MobileField label="Phone">{supplier.phone || "—"}</MobileField>
+                    <MobileField label="Email">{supplier.email || "—"}</MobileField>
+                    <MobileField label="Status">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${supplier.active ? "bg-green-500/15 text-green-400" : "bg-surface-700 text-surface-400"}`}>
+                        {supplier.active ? "Active" : "Inactive"}
+                      </span>
+                    </MobileField>
+                  </MobileCard>
+                ))}
+              </MobileCardList>
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
                   <span className="text-sm text-surface-400">

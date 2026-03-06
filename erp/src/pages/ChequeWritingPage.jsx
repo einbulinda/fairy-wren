@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAccounts } from "@/services/accounts.service";
 import { useCheques, useCreateCheque, useClearCheque, useVoidCheque } from "@/hooks/useCheques";
 import { Plus, CheckCircle, XCircle, Clock, Receipt, ArrowLeftRight, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 }).format(n ?? 0);
@@ -245,7 +246,7 @@ const ChequeWritingPage = () => {
               <select className={inputCls} value={form.bank_account_id}
                 onChange={(e) => setForm({ ...form, bank_account_id: e.target.value, debit_account_id: "" })}>
                 <option value="">Select account…</option>
-                {fromAccounts.map((a) => <option key={a.id} value={a.id}>{a.code} – {a.name}</option>)}
+                {fromAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
 
@@ -256,7 +257,7 @@ const ChequeWritingPage = () => {
                 onChange={(e) => setForm({ ...form, debit_account_id: e.target.value })}>
                 <option value="">Select account…</option>
                 {(isTransfer ? toAccounts : debitAccounts).map((a) =>
-                  <option key={a.id} value={a.id}>{a.code} – {a.name}</option>
+                  <option key={a.id} value={a.id}>{a.name}</option>
                 )}
               </select>
             </div>
@@ -339,7 +340,8 @@ const ChequeWritingPage = () => {
           </div>
         ) : (
           <>
-          <div className="overflow-x-auto">
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-surface-900/50 border-b border-surface-700">
                 <tr>
@@ -404,6 +406,50 @@ const ChequeWritingPage = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile cards */}
+          <MobileCardList>
+            {pageItems.map((c) => {
+              const s = STATUS_STYLES[c.status] || STATUS_STYLES.issued;
+              const Icon = s.icon;
+              return (
+                <MobileCard key={c.id}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-white text-sm">{c.cheque_number}</span>
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>
+                      <Icon size={11} /> {s.label}
+                    </span>
+                  </div>
+                  <p className="text-white font-medium text-sm">{c.payee_name}</p>
+                  <div className="text-xs text-surface-500">
+                    {TX_LABELS[c.transaction_type] ?? "Bank Cheque"}
+                    {c.memo && <span className="text-surface-600 ml-2">{c.memo}</span>}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white font-semibold tabular-nums">{fmt(c.amount)}</span>
+                    <span className="text-surface-400 text-xs">
+                      {new Date(c.cheque_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                  <MobileField label="From">{c.bank_account?.name || "—"}</MobileField>
+                  {(c.status === "issued" || c.status === "cleared") && (
+                    <div className="flex gap-1.5 pt-1">
+                      {c.status === "issued" && (
+                        <button onClick={() => handleClear(c.id, c.cheque_number)}
+                          className="px-2.5 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
+                          <CheckCircle size={12} /> Clear
+                        </button>
+                      )}
+                      <button onClick={() => handleVoid(c.id, c.cheque_number)}
+                        className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
+                        <XCircle size={12} /> Void
+                      </button>
+                    </div>
+                  )}
+                </MobileCard>
+              );
+            })}
+          </MobileCardList>
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
               <span className="text-sm text-surface-400">

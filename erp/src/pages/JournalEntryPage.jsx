@@ -180,7 +180,7 @@ const JournalEntryPage = () => {
                       <select className={`w-full ${inputCls} py-1.5`} value={line.account_id}
                         onChange={(e) => updateLine(i, "account_id", e.target.value)}>
                         <option value="">Select account...</option>
-                        {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} – {a.name}</option>)}
+                        {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                       </select>
                     </td>
                     <td className="py-1.5 px-2">
@@ -310,7 +310,7 @@ const JournalEntryPage = () => {
                           {j.journal_lines.map((l) => (
                             <tr key={l.id}>
                               <td className="py-1.5 text-surface-300">
-                                {l.chart_of_accounts ? `${l.chart_of_accounts.code} – ${l.chart_of_accounts.name}` : l.account_id}
+                                {l.chart_of_accounts?.name || l.account_id}
                               </td>
                               <td className="py-1.5 text-surface-400 pl-4">{l.description || ""}</td>
                               <td className="py-1.5 text-right text-emerald-400">{Number(l.debit) > 0 ? fmt(l.debit) : ""}</td>

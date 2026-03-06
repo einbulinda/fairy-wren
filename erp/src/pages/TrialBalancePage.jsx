@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { MobileCard, MobileField } from "@/components/shared/MobileCard";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", {
@@ -303,44 +304,41 @@ const TrialBalancePage = () => {
         <>
           {/* Trial Balance Table */}
           <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-surface-900/50 border-b border-surface-700">
                   <tr>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider w-24">
-                      Code
-                    </th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider">
-                      Account
-                    </th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider w-40">
-                      Debit (KES)
-                    </th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider w-40">
-                      Credit (KES)
-                    </th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider w-24">Code</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider">Account</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider w-40">Debit (KES)</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider w-40">Credit (KES)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-700/30">
                   {grouped.map((group) => (
                     <ClassSection key={group.cls} group={group} />
                   ))}
-
-                  {/* Totals */}
                   <tr className="border-t-2 border-surface-500 bg-surface-900/50">
                     <td className="px-4 py-3" />
-                    <td className="px-4 py-3 font-bold text-white text-base">
-                      Totals
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-white text-base tabular-nums border-b-2 border-surface-500">
-                      {fmt(totals.totalDebit)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-white text-base tabular-nums border-b-2 border-surface-500">
-                      {fmt(totals.totalCredit)}
-                    </td>
+                    <td className="px-4 py-3 font-bold text-white text-base">Totals</td>
+                    <td className="px-4 py-3 text-right font-bold text-white text-base tabular-nums border-b-2 border-surface-500">{fmt(totals.totalDebit)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-white text-base tabular-nums border-b-2 border-surface-500">{fmt(totals.totalCredit)}</td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden p-3 space-y-3">
+              {grouped.map((group) => (
+                <MobileClassSection key={group.cls} group={group} />
+              ))}
+              <MobileCard className="bg-surface-900/50! border-surface-500">
+                <div className="font-bold text-white text-base">Totals</div>
+                <MobileField label="Debit"><span className="font-bold tabular-nums">{fmt(totals.totalDebit)}</span></MobileField>
+                <MobileField label="Credit"><span className="font-bold tabular-nums">{fmt(totals.totalCredit)}</span></MobileField>
+              </MobileCard>
             </div>
           </div>
 
@@ -444,6 +442,44 @@ const ClassSection = ({ group }) => {
           </tr>
         ))}
     </>
+  );
+};
+
+// --- Mobile Class Section ---
+
+const MobileClassSection = ({ group }) => {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div>
+      <MobileCard onClick={() => setCollapsed((p) => !p)} className="bg-primary-900/30! border-primary-700/30">
+        <div className="flex items-center gap-2">
+          {collapsed ? <ChevronRight size={16} className="text-primary-400" /> : <ChevronDown size={16} className="text-primary-400" />}
+          <span className="font-bold text-white tracking-wide text-sm">{group.label}</span>
+          <span className="text-xs text-surface-400">({group.accounts.length})</span>
+        </div>
+        <div className="flex items-center justify-between text-sm font-semibold text-white tabular-nums">
+          <span>Dr {fmt(group.debit)}</span>
+          <span>Cr {fmt(group.credit)}</span>
+        </div>
+      </MobileCard>
+      {!collapsed && (
+        <div className="space-y-1.5 mt-1.5 ml-3">
+          {group.accounts.map((account) => (
+            <MobileCard key={account.account_id} className="py-3!">
+              <div className="flex items-center gap-2">
+                <span className="text-surface-500 text-xs font-mono">{account.account_code}</span>
+                <span className="text-surface-300 text-sm">{account.account_name}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs tabular-nums text-surface-300">
+                {Number(account.total_debit) > 0 && <span className="text-emerald-400">Dr {fmt(account.total_debit)}</span>}
+                {Number(account.total_credit) > 0 && <span className="text-red-400 ml-auto">Cr {fmt(account.total_credit)}</span>}
+              </div>
+            </MobileCard>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

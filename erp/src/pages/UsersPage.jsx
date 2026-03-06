@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useUsers, useCreateUser, useUpdateUser, useToggleUserStatus } from "@/hooks/useUsers";
+import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const inputCls =
   "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
@@ -210,66 +211,117 @@ const UsersPage = () => {
 
       {/* Table */}
       <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
-            <tr>
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Role</th>
-              <th className="px-4 py-3 text-center">Status</th>
-              <th className="px-4 py-3 text-left hidden sm:table-cell">Member Since</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-surface-700">
-            {isLoading ? (
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-surface-400">
-                  Loading…
-                </td>
+                <th className="px-4 py-3 text-left">Name</th>
+                <th className="px-4 py-3 text-left">Role</th>
+                <th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-left">Member Since</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-surface-400">
-                  No users found.
-                </td>
-              </tr>
-            ) : (
-              pageItems.map((user) => (
-                <tr
-                  key={user.id}
-                  className={`transition-colors hover:bg-surface-700/30 ${!user.active ? "opacity-50" : ""}`}
-                >
-                  <td className="px-4 py-3">
+            </thead>
+            <tbody className="divide-y divide-surface-700">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-surface-400">
+                    Loading…
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-surface-400">
+                    No users found.
+                  </td>
+                </tr>
+              ) : (
+                pageItems.map((user) => (
+                  <tr
+                    key={user.id}
+                    className={`transition-colors hover:bg-surface-700/30 ${!user.active ? "opacity-50" : ""}`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 text-xs font-bold shrink-0">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-white">{user.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <RoleBadge role={user.role} />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {user.active ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-700 text-surface-400">
+                          Inactive
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-surface-400 text-xs">
+                      {fmtDate(user.created_at)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEdit(user)}
+                          className="p-1.5 rounded-lg text-surface-400 hover:text-white hover:bg-surface-700 transition-colors"
+                          title="Edit user"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        {user.role !== "owner" && (
+                          <button
+                            onClick={() =>
+                              toggleMutation.mutate({ id: user.id, active: !user.active })
+                            }
+                            disabled={toggleMutation.isPending}
+                            className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
+                              user.active
+                                ? "text-surface-400 hover:text-red-400 hover:bg-red-500/10"
+                                : "text-surface-400 hover:text-green-400 hover:bg-green-500/10"
+                            }`}
+                            title={user.active ? "Deactivate user" : "Activate user"}
+                          >
+                            {user.active ? <UserX size={14} /> : <UserCheck size={14} />}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-surface-400">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="px-4 py-8 text-center text-surface-400">No users found.</div>
+          ) : (
+            <div className="p-3 space-y-3">
+              {pageItems.map((user) => (
+                <MobileCard key={user.id} className={!user.active ? "opacity-50" : ""}>
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 text-xs font-bold shrink-0">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-medium text-white">{user.name}</span>
+                      <span className="font-medium text-white text-sm">{user.name}</span>
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <RoleBadge role={user.role} />
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {user.active ? (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-700 text-surface-400">
-                        Inactive
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-surface-400 text-xs hidden sm:table-cell">
-                    {fmtDate(user.created_at)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => openEdit(user)}
                         className="p-1.5 rounded-lg text-surface-400 hover:text-white hover:bg-surface-700 transition-colors"
-                        title="Edit user"
                       >
                         <Edit2 size={14} />
                       </button>
@@ -284,18 +336,27 @@ const UsersPage = () => {
                               ? "text-surface-400 hover:text-red-400 hover:bg-red-500/10"
                               : "text-surface-400 hover:text-green-400 hover:bg-green-500/10"
                           }`}
-                          title={user.active ? "Deactivate user" : "Activate user"}
                         >
                           {user.active ? <UserX size={14} /> : <UserCheck size={14} />}
                         </button>
                       )}
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <RoleBadge role={user.role} />
+                    {user.active ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400">Active</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-700 text-surface-400">Inactive</span>
+                    )}
+                  </div>
+                  <MobileField label="Member Since">{fmtDate(user.created_at)}</MobileField>
+                </MobileCard>
+              ))}
+            </div>
+          )}
+        </div>
+
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
             <span className="text-sm text-surface-400">

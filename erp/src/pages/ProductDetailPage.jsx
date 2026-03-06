@@ -24,6 +24,7 @@ import {
   useProductPurchaseHistory,
   useProductSalesHistory,
 } from "@/hooks/useProducts";
+import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
 
 const TAB_OVERVIEW = "overview";
 const TAB_PURCHASES = "purchases";
@@ -390,95 +391,123 @@ const PurchasesTab = ({ productId, dateRange }) => {
 
   return (
     <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
-          <tr>
-            {PCOLS.map(({ key, label, align, hidden, noSort }) => (
-              <th
-                key={key}
-                onClick={() => !noSort && handleSort(key)}
-                className={`px-4 py-3 text-${align} ${noSort ? "" : "cursor-pointer select-none hover:text-white"} transition-colors${hidden ? " hidden sm:table-cell" : ""}`}
-              >
-                {label}
-                {!noSort && (
-                  <HistorySortIcon
-                    col={key}
-                    sortCol={sortCol}
-                    sortDir={sortDir}
-                  />
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-surface-700">
-          {pageItems.map((item) => (
-            <tr
-              key={item.id}
-              className="hover:bg-surface-700/50 transition-colors"
-            >
-              <td className="px-4 py-3 text-surface-300 whitespace-nowrap">
-                {fmtDate(item.inventory_receipts?.purchase_date)}
-              </td>
-              <td className="px-4 py-3 hidden sm:table-cell">
-                {item.inventory_receipts?.id ? (
-                  <button
-                    onClick={() =>
-                      navigate(
-                        `/inventory/receipts/${item.inventory_receipts.id}`,
-                      )
-                    }
-                    className="inline-flex items-center gap-1.5 font-mono text-xs text-primary-400 hover:text-primary-300 transition-colors group"
-                  >
-                    {item.inventory_receipts.invoice_number || "—"}
-                    <ExternalLink
-                      size={10}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+      <div className="hidden md:block">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
+            <tr>
+              {PCOLS.map(({ key, label, align, hidden, noSort }) => (
+                <th
+                  key={key}
+                  onClick={() => !noSort && handleSort(key)}
+                  className={`px-4 py-3 text-${align} ${noSort ? "" : "cursor-pointer select-none hover:text-white"} transition-colors${hidden ? " hidden sm:table-cell" : ""}`}
+                >
+                  {label}
+                  {!noSort && (
+                    <HistorySortIcon
+                      col={key}
+                      sortCol={sortCol}
+                      sortDir={sortDir}
                     />
-                  </button>
-                ) : (
-                  <span className="text-surface-400 font-mono text-xs">
-                    {item.inventory_receipts?.invoice_number || "—"}
-                  </span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-white">
-                {item.inventory_receipts?.suppliers?.name || "—"}
-              </td>
-              <td className="px-4 py-3 text-right font-mono text-white">
-                {item.quantity}
-              </td>
-              <td className="px-4 py-3 text-right font-mono text-surface-300">
-                KSh {fmtD(item.unit_cost)}
-              </td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-primary-400">
-                KSh {fmtD(item.line_total)}
-              </td>
-              <td className="px-4 py-3 text-center">
-                <PaymentBadge
-                  paidAt={item.inventory_receipts?.paid_at}
-                  purchaseDate={item.inventory_receipts?.purchase_date}
-                />
-              </td>
+                  )}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-        <tfoot className="bg-surface-900 font-semibold">
-          <tr>
-            <td colSpan={3} className="px-4 py-2 text-surface-400 text-xs">
-              Total ({purchases.length} records)
-            </td>
-            <td className="px-4 py-2 text-right font-mono text-white text-xs">
-              {purchases.reduce((s, p) => s + (p.quantity || 0), 0)}
-            </td>
-            <td />
-            <td className="px-4 py-2 text-right font-mono text-primary-400 text-xs">
-              KSh {fmtD(purchases.reduce((s, p) => s + (p.line_total || 0), 0))}
-            </td>
-            <td />
-          </tr>
-        </tfoot>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-surface-700">
+            {pageItems.map((item) => (
+              <tr
+                key={item.id}
+                className="hover:bg-surface-700/50 transition-colors"
+              >
+                <td className="px-4 py-3 text-surface-300 whitespace-nowrap">
+                  {fmtDate(item.inventory_receipts?.purchase_date)}
+                </td>
+                <td className="px-4 py-3 hidden sm:table-cell">
+                  {item.inventory_receipts?.id ? (
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/inventory/receipts/${item.inventory_receipts.id}`,
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 font-mono text-xs text-primary-400 hover:text-primary-300 transition-colors group"
+                    >
+                      {item.inventory_receipts.invoice_number || "—"}
+                      <ExternalLink
+                        size={10}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                    </button>
+                  ) : (
+                    <span className="text-surface-400 font-mono text-xs">
+                      {item.inventory_receipts?.invoice_number || "—"}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-white">
+                  {item.inventory_receipts?.suppliers?.name || "—"}
+                </td>
+                <td className="px-4 py-3 text-right font-mono text-white">
+                  {item.quantity}
+                </td>
+                <td className="px-4 py-3 text-right font-mono text-surface-300">
+                  KSh {fmtD(item.unit_cost)}
+                </td>
+                <td className="px-4 py-3 text-right font-mono font-semibold text-primary-400">
+                  KSh {fmtD(item.line_total)}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <PaymentBadge
+                    paidAt={item.inventory_receipts?.paid_at}
+                    purchaseDate={item.inventory_receipts?.purchase_date}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="bg-surface-900 font-semibold">
+            <tr>
+              <td colSpan={3} className="px-4 py-2 text-surface-400 text-xs">
+                Total ({purchases.length} records)
+              </td>
+              <td className="px-4 py-2 text-right font-mono text-white text-xs">
+                {purchases.reduce((s, p) => s + (p.quantity || 0), 0)}
+              </td>
+              <td />
+              <td className="px-4 py-2 text-right font-mono text-primary-400 text-xs">
+                KSh {fmtD(purchases.reduce((s, p) => s + (p.line_total || 0), 0))}
+              </td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <MobileCardList>
+        {pageItems.map((item) => (
+          <MobileCard key={item.id}>
+            <div className="flex items-center justify-between">
+              <span className="text-surface-300 text-sm">{fmtDate(item.inventory_receipts?.purchase_date)}</span>
+              <PaymentBadge paidAt={item.inventory_receipts?.paid_at} purchaseDate={item.inventory_receipts?.purchase_date} />
+            </div>
+            <div className="text-white font-medium text-sm">{item.inventory_receipts?.suppliers?.name || "—"}</div>
+            {item.inventory_receipts?.invoice_number && (
+              <div className="font-mono text-xs text-primary-400">{item.inventory_receipts.invoice_number}</div>
+            )}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-surface-400">Qty: <span className="text-white font-mono">{item.quantity}</span> × <span className="text-surface-300 font-mono">KSh {fmtD(item.unit_cost)}</span></span>
+              <span className="text-primary-400 font-semibold font-mono">KSh {fmtD(item.line_total)}</span>
+            </div>
+          </MobileCard>
+        ))}
+        <MobileCard className="bg-surface-900/50!">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-surface-400">Total ({purchases.length} records) · Qty: <span className="text-white font-mono">{purchases.reduce((s, p) => s + (p.quantity || 0), 0)}</span></span>
+            <span className="text-primary-400 font-semibold font-mono">KSh {fmtD(purchases.reduce((s, p) => s + (p.line_total || 0), 0))}</span>
+          </div>
+        </MobileCard>
+      </MobileCardList>
+
       <HistoryPagination
         page={safePage}
         totalPages={totalPages}
@@ -562,73 +591,100 @@ const SalesTab = ({ productId, dateRange }) => {
 
   return (
     <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
-          <tr>
-            {SCOLS.map(({ key, label, align, hidden }) => (
-              <th
-                key={key}
-                onClick={() => handleSort(key)}
-                className={`px-4 py-3 text-${align} cursor-pointer select-none hover:text-white transition-colors${hidden ? " hidden sm:table-cell" : ""}`}
-              >
-                {label}
-                <HistorySortIcon
-                  col={key}
-                  sortCol={sortCol}
-                  sortDir={sortDir}
-                />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-surface-700">
-          {pageItems.map((item) => {
-            const revenue = (item.quantity || 0) * (item.price || 0);
-            return (
-              <tr
-                key={item.id}
-                className="hover:bg-surface-700/50 transition-colors"
-              >
-                <td className="px-4 py-3 text-surface-300 whitespace-nowrap">
-                  {fmtDate(item.sale_date)}
-                </td>
-                <td className="px-4 py-3 text-surface-400 hidden sm:table-cell">
-                  Bill# {item.bill_id ?? "—"}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-white">
-                  {item.quantity}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-surface-300">
-                  KSh {fmtD(item.price)}
-                </td>
-                <td className="px-4 py-3 text-right font-mono font-semibold text-green-400">
-                  KSh {fmtD(revenue)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot className="bg-surface-900 font-semibold">
-          <tr>
-            <td colSpan={2} className="px-4 py-2 text-surface-400 text-xs">
-              Total ({sales.length} records)
-            </td>
-            <td className="px-4 py-2 text-right font-mono text-white text-xs">
-              {sales.reduce((s, r) => s + (r.quantity || 0), 0)}
-            </td>
-            <td />
-            <td className="px-4 py-2 text-right font-mono text-green-400 text-xs">
-              KSh{" "}
-              {fmtD(
-                sales.reduce(
-                  (s, r) => s + (r.quantity || 0) * (r.price || 0),
-                  0,
-                ),
-              )}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
+      <div className="hidden md:block">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
+            <tr>
+              {SCOLS.map(({ key, label, align, hidden }) => (
+                <th
+                  key={key}
+                  onClick={() => handleSort(key)}
+                  className={`px-4 py-3 text-${align} cursor-pointer select-none hover:text-white transition-colors${hidden ? " hidden sm:table-cell" : ""}`}
+                >
+                  {label}
+                  <HistorySortIcon
+                    col={key}
+                    sortCol={sortCol}
+                    sortDir={sortDir}
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-surface-700">
+            {pageItems.map((item) => {
+              const revenue = (item.quantity || 0) * (item.price || 0);
+              return (
+                <tr
+                  key={item.id}
+                  className="hover:bg-surface-700/50 transition-colors"
+                >
+                  <td className="px-4 py-3 text-surface-300 whitespace-nowrap">
+                    {fmtDate(item.sale_date)}
+                  </td>
+                  <td className="px-4 py-3 text-surface-400 hidden sm:table-cell">
+                    Bill# {item.bill_id ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-white">
+                    {item.quantity}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-surface-300">
+                    KSh {fmtD(item.price)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono font-semibold text-green-400">
+                    KSh {fmtD(revenue)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot className="bg-surface-900 font-semibold">
+            <tr>
+              <td colSpan={2} className="px-4 py-2 text-surface-400 text-xs">
+                Total ({sales.length} records)
+              </td>
+              <td className="px-4 py-2 text-right font-mono text-white text-xs">
+                {sales.reduce((s, r) => s + (r.quantity || 0), 0)}
+              </td>
+              <td />
+              <td className="px-4 py-2 text-right font-mono text-green-400 text-xs">
+                KSh{" "}
+                {fmtD(
+                  sales.reduce(
+                    (s, r) => s + (r.quantity || 0) * (r.price || 0),
+                    0,
+                  ),
+                )}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <MobileCardList>
+        {pageItems.map((item) => {
+          const revenue = (item.quantity || 0) * (item.price || 0);
+          return (
+            <MobileCard key={item.id}>
+              <div className="flex items-center justify-between">
+                <span className="text-surface-300 text-sm">{fmtDate(item.sale_date)}</span>
+                <span className="text-green-400 font-semibold font-mono text-sm">KSh {fmtD(revenue)}</span>
+              </div>
+              {item.bill_id && <div className="text-xs text-surface-400">Bill# {item.bill_id}</div>}
+              <div className="text-xs text-surface-400">
+                Qty: <span className="text-white font-mono">{item.quantity}</span> × <span className="text-surface-300 font-mono">KSh {fmtD(item.price)}</span>
+              </div>
+            </MobileCard>
+          );
+        })}
+        <MobileCard className="bg-surface-900/50!">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-surface-400">Total ({sales.length} records) · Qty: <span className="text-white font-mono">{sales.reduce((s, r) => s + (r.quantity || 0), 0)}</span></span>
+            <span className="text-green-400 font-semibold font-mono">KSh {fmtD(sales.reduce((s, r) => s + (r.quantity || 0) * (r.price || 0), 0))}</span>
+          </div>
+        </MobileCard>
+      </MobileCardList>
+
       <HistoryPagination
         page={safePage}
         totalPages={totalPages}

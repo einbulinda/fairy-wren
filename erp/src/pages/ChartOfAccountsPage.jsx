@@ -6,6 +6,7 @@ import {
   updateAccount,
   updateAccountStatus,
 } from "@/services/accounts.service";
+import { MobileCard, MobileField } from "@/components/shared/MobileCard";
 import {
   BookOpen,
   Building,
@@ -484,8 +485,8 @@ const ChartOfAccountsPage = () => {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-surface-900/50 border-b border-surface-700">
               <tr>
@@ -766,6 +767,83 @@ const ChartOfAccountsPage = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden">
+          {paginated.length === 0 ? (
+            <div className="px-4 py-16 text-center text-surface-400">
+              <BookOpen size={32} className="mx-auto mb-3 text-surface-600" />
+              <p>No accounts found</p>
+            </div>
+          ) : (
+            <div className="p-3 space-y-3">
+              {paginated.map((account) => {
+                const isEditing = editingId === account.id;
+                const cls = getClassInfo(account.account_class);
+                const Icon = cls.icon;
+                const hasChildren = account.children?.length > 0;
+
+                if (isEditing) {
+                  return (
+                    <MobileCard key={account.id}>
+                      <div className="space-y-3">
+                        <input className="w-full px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: e.target.value })} placeholder="Code" />
+                        <input className="w-full px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Name" />
+                        <select className="w-full px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none" value={editForm.account_class} onChange={(e) => setEditForm({ ...editForm, account_class: e.target.value })}>
+                          {ACCOUNT_CLASSES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        </select>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleUpdate(account.id)} disabled={updateMutation.isPending} className="flex-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg flex items-center justify-center gap-1"><Save size={14} /> Save</button>
+                          <button onClick={() => { setEditingId(null); setEditForm({}); }} className="flex-1 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-white text-sm rounded-lg flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
+                        </div>
+                      </div>
+                    </MobileCard>
+                  );
+                }
+
+                return (
+                  <MobileCard key={account.id} className={!account.active ? "opacity-50" : ""}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {hasChildren && (
+                          <button onClick={() => toggleExpand(account.id)} className="p-0.5 hover:bg-surface-600 rounded">
+                            {expandedRows.has(account.id) ? <ChevronDown size={14} className="text-surface-400" /> : <ChevronRight size={14} className="text-surface-400" />}
+                          </button>
+                        )}
+                        <div className={`p-1 rounded ${cls.bg}`}><Icon size={13} className={cls.color} /></div>
+                        <div style={{ paddingLeft: `${account.level * 0.75}rem` }}>
+                          <span className="font-mono text-xs text-surface-400">{account.code}</span>
+                          <span className="text-white font-medium text-sm ml-2">{account.name}</span>
+                          {account.is_control_account && <Shield size={12} className="text-yellow-400 inline ml-1" />}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${cls.badge}`}>{cls.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${account.active ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${account.active ? "bg-emerald-500" : "bg-red-500"}`} />
+                          {account.active ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-surface-300 capitalize text-xs">{account.normal_balance || "—"}</span>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => statusMutation.mutate({ id: account.id, active: !account.active })} className={`p-1.5 rounded-lg transition-colors ${account.active ? "bg-red-500/15 hover:bg-red-500/25 text-red-400" : "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400"}`}>
+                          {account.active ? <ToggleRight size={15} /> : <ToggleLeft size={15} />}
+                        </button>
+                        <button onClick={() => { setEditingId(account.id); setEditForm({ code: account.code, name: account.name, account_class: account.account_class, parent_id: account.parent_id || "", normal_balance: account.normal_balance || "", is_control_account: account.is_control_account || false }); }} className="p-1.5 bg-surface-700/50 hover:bg-surface-700 rounded-lg transition-colors">
+                          <Edit2 size={15} className="text-surface-300" />
+                        </button>
+                      </div>
+                    </div>
+                  </MobileCard>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Pagination */}
