@@ -17,6 +17,7 @@ import {
   BarChart2,
   FileText,
   Settings,
+  Receipt,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -42,6 +43,7 @@ const navSections = [
           { to: "/inventory/approvals", icon: ClipboardCheck, label: "Approvals" },
         ],
       },
+      { to: "/sales", icon: Receipt, label: "Sales" },
       { to: "/products", icon: Grid, label: "Products" },
       { to: "/suppliers", icon: Truck, label: "Suppliers" },
     ],
