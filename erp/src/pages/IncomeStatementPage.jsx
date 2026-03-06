@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useIncomeStatement } from "@/hooks/useIncomeStatement";
+import { useSettings } from "@/hooks/useSettings";
 import {
   TrendingUp,
   ChevronDown,
@@ -7,7 +8,7 @@ import {
   Download,
 } from "lucide-react";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", {
@@ -289,7 +290,7 @@ const buildPdfRows = (sections) => {
   return rows;
 };
 
-const generatePDF = (sections, startDate, endDate) => {
+const generatePDF = (sections, startDate, endDate, orgName) => {
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -305,10 +306,13 @@ const generatePDF = (sections, startDate, endDate) => {
       year: "numeric",
     });
 
-  doc.setFontSize(14);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkText);
-  doc.text("INCOME STATEMENT", pageWidth / 2, 20, { align: "center" });
+  doc.text(orgName || "Fairy Wren Limited", pageWidth / 2, 15, { align: "center" });
+
+  doc.setFontSize(14);
+  doc.text("INCOME STATEMENT", pageWidth / 2, 22, { align: "center" });
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
@@ -316,17 +320,17 @@ const generatePDF = (sections, startDate, endDate) => {
   doc.text(
     `For the period ${fmtDate(startDate)} to ${fmtDate(endDate)}`,
     pageWidth / 2,
-    27,
+    29,
     { align: "center" }
   );
-  doc.text("(Amounts in KES)", pageWidth / 2, 32, { align: "center" });
+  doc.text("(Amounts in KES)", pageWidth / 2, 34, { align: "center" });
 
   const pdfRows = buildPdfRows(sections);
   const tableBody = [];
 
   pdfRows.forEach((row) => {
     if (row.type === "spacer") {
-      tableBody.push([{ content: "", colSpan: 2, styles: { cellPadding: { top: 3, bottom: 3 } } }]);
+      tableBody.push([{ content: "", colSpan: 2, styles: { cellPadding: { top: 1.5, bottom: 1.5 } } }]);
       return;
     }
     if (row.type === "section") {
@@ -338,7 +342,7 @@ const generatePDF = (sections, startDate, endDate) => {
           fontSize: 9.5,
           fillColor: headerBg,
           textColor: darkText,
-          cellPadding: { top: 3, bottom: 3, left: 5 },
+          cellPadding: { top: 1.5, bottom: 1.5, left: 5 },
         },
       }]);
       return;
@@ -355,7 +359,7 @@ const generatePDF = (sections, startDate, endDate) => {
             fontStyle: "bold",
             fontSize: 10,
             textColor: darkText,
-            cellPadding: { top: 4, bottom: 4, left: 5 },
+            cellPadding: { top: 2, bottom: 2, left: 5 },
             lineWidth: { top: 0.5, bottom: 0.5 },
             lineColor: accentColor,
           },
@@ -367,7 +371,7 @@ const generatePDF = (sections, startDate, endDate) => {
             fontSize: 10,
             halign: "right",
             textColor: darkText,
-            cellPadding: { top: 4, bottom: 4, right: 5 },
+            cellPadding: { top: 2, bottom: 2, right: 5 },
             lineWidth: { top: 0.5, bottom: 0.5 },
             lineColor: accentColor,
           },
@@ -384,7 +388,7 @@ const generatePDF = (sections, startDate, endDate) => {
             fontStyle: "bold",
             fontSize: 9,
             textColor: darkText,
-            cellPadding: { top: 3, bottom: 3, left: 10 },
+            cellPadding: { top: 1.5, bottom: 1.5, left: 10 },
             lineWidth: { top: 0.3 },
             lineColor: [180, 180, 180],
           },
@@ -396,7 +400,7 @@ const generatePDF = (sections, startDate, endDate) => {
             fontSize: 9,
             halign: "right",
             textColor: darkText,
-            cellPadding: { top: 3, bottom: 3, right: 5 },
+            cellPadding: { top: 1.5, bottom: 1.5, right: 5 },
             lineWidth: { top: 0.3 },
             lineColor: [180, 180, 180],
           },
@@ -411,7 +415,7 @@ const generatePDF = (sections, startDate, endDate) => {
         styles: {
           fontSize: 9,
           textColor: mediumText,
-          cellPadding: { top: 2, bottom: 2, left: 10 + indent },
+          cellPadding: { top: 1, bottom: 1, left: 10 + indent },
         },
       },
       {
@@ -420,14 +424,14 @@ const generatePDF = (sections, startDate, endDate) => {
           fontSize: 9,
           halign: "right",
           textColor: mediumText,
-          cellPadding: { top: 2, bottom: 2, right: 5 },
+          cellPadding: { top: 1, bottom: 1, right: 5 },
         },
       },
     ]);
   });
 
-  doc.autoTable({
-    startY: 38,
+  autoTable(doc, {
+    startY: 40,
     head: [["Account", "KES"]],
     body: tableBody,
     theme: "plain",
@@ -436,7 +440,7 @@ const generatePDF = (sections, startDate, endDate) => {
       textColor: [255, 255, 255],
       fontStyle: "bold",
       fontSize: 9,
-      cellPadding: { top: 3, bottom: 3, left: 5, right: 5 },
+      cellPadding: { top: 2, bottom: 2, left: 5, right: 5 },
     },
     columnStyles: {
       0: { cellWidth: "auto" },
@@ -471,6 +475,8 @@ const IncomeStatementPage = () => {
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
   const { data, isLoading, isFetching } = useIncomeStatement(startDate, endDate);
+  const { data: settings } = useSettings();
+  const orgName = settings?.organisation_name || "Fairy Wren Limited";
 
   const sections = useMemo(() => {
     if (!data?.accounts) return null;
@@ -529,9 +535,9 @@ const IncomeStatementPage = () => {
 
   const handleDownloadPdf = useCallback(() => {
     if (sections) {
-      generatePDF(sections, startDate, endDate);
+      generatePDF(sections, startDate, endDate, orgName);
     }
-  }, [sections, startDate, endDate]);
+  }, [sections, startDate, endDate, orgName]);
 
   const inputCls =
     "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";

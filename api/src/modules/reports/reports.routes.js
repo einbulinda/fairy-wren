@@ -64,5 +64,8 @@ router.get("/trial-balance", (req, res, next) =>
 router.get("/cash-flow", (req, res, next) =>
   reportsController.getCashFlowStatement(req, res, next)
 );
+router.get("/equity-changes", (req, res, next) =>
+  reportsController.getEquityChanges(req, res, next)
+);
 
 module.exports = router;

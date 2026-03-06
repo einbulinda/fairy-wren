@@ -379,6 +379,20 @@ class ReportsController {
     }
   }
 
+  async getEquityChanges(req, res, next) {
+    try {
+      const { startDate, endDate } = this.extractDateRange(req);
+      const data = await reportsService.getEquityChanges(startDate, endDate);
+      res.status(200).json({
+        data,
+        success: true,
+        meta: { startDate, endDate },
+      });
+    } catch (err) {
+      this.handleError(err, res, next);
+    }
+  }
+
   async getBalanceSheet(req, res, next) {
     try {
       const { asOfDate } = req.query;

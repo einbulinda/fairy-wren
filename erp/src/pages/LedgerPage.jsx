@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAccounts, fetchAccountLedger } from "@/services/accounts.service";
-import { BookOpen, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { BookOpen, TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from "lucide-react";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 }).format(n ?? 0);
@@ -10,10 +10,13 @@ const today = new Date();
 const firstOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
 const todayStr = today.toISOString().split("T")[0];
 
+const PAGE_SIZE = 10;
+
 const LedgerPage = () => {
   const [accountId, setAccountId] = useState("");
   const [from, setFrom] = useState(firstOfMonth);
   const [to, setTo] = useState(todayStr);
+  const [page, setPage] = useState(1);
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["accounts"],
@@ -34,6 +37,14 @@ const LedgerPage = () => {
   const totalCredits = ledger.reduce((s, r) => s + Number(r.credit ?? 0), 0);
   const closingBalance = ledger.length ? Number(ledger[ledger.length - 1].running_balance) : 0;
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(ledger.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = ledger.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
+
   const inputCls = "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";
 
   return (
@@ -43,7 +54,7 @@ const LedgerPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">Account</label>
-            <select className={`w-full ${inputCls}`} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            <select className={`w-full ${inputCls}`} value={accountId} onChange={(e) => { setAccountId(e.target.value); setPage(1); }}>
               <option value="">Select account...</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>{a.code} – {a.name}</option>
@@ -52,11 +63,11 @@ const LedgerPage = () => {
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">From</label>
-            <input type="date" className={`w-full ${inputCls}`} value={from} onChange={(e) => setFrom(e.target.value)} />
+            <input type="date" className={`w-full ${inputCls}`} value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">To</label>
-            <input type="date" className={`w-full ${inputCls}`} value={to} onChange={(e) => setTo(e.target.value)} />
+            <input type="date" className={`w-full ${inputCls}`} value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
           </div>
         </div>
       </div>
@@ -114,6 +125,7 @@ const LedgerPage = () => {
             <p>No transactions in this period</p>
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-surface-900/50 border-b border-surface-700">
@@ -127,7 +139,7 @@ const LedgerPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-700/50">
-                {ledger.map((row, i) => {
+                {pageItems.map((row, i) => {
                   const balance = Number(row.running_balance);
                   return (
                     <tr key={i} className="hover:bg-surface-700/30 transition-colors">
@@ -151,6 +163,33 @@ const LedgerPage = () => {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
+              <span className="text-sm text-surface-400">
+                Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, ledger.length)} of {ledger.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="px-3 text-xs text-surface-400">
+                  {safePage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>

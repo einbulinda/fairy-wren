@@ -2402,3 +2402,44 @@ GROUP BY coa.id, coa.code, coa.name, coa.account_class,
 HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
 ORDER BY coa.code;
 $function$;
+/*
+ ============================================================================
+ STATEMENT OF CHANGES IN EQUITY (IAS 1)
+ ----------------------------------------------------------------------------
+ Returns equity account balances and period movements split into contributions
+ (credits) and drawings (debits) for the given date range.
+ ============================================================================
+ */
+CREATE OR REPLACE FUNCTION public.rpc_equity_changes(
+    p_start_date date,
+    p_end_date date
+) RETURNS TABLE (
+    account_id uuid,
+    account_code varchar,
+    account_name varchar,
+    parent_id uuid,
+    normal_balance varchar,
+    opening_balance numeric,
+    closing_balance numeric,
+    contributions numeric,
+    drawings numeric
+) LANGUAGE sql STABLE AS $function$
+SELECT
+    coa.id AS account_id,
+    coa.code AS account_code,
+    coa.name AS account_name,
+    coa.parent_id,
+    coa.normal_balance,
+    COALESCE(SUM(CASE WHEN je.entry_date < p_start_date THEN jl.credit - jl.debit ELSE 0 END), 0) AS opening_balance,
+    COALESCE(SUM(CASE WHEN je.entry_date <= p_end_date THEN jl.credit - jl.debit ELSE 0 END), 0) AS closing_balance,
+    COALESCE(SUM(CASE WHEN je.entry_date >= p_start_date AND je.entry_date <= p_end_date THEN jl.credit ELSE 0 END), 0) AS contributions,
+    COALESCE(SUM(CASE WHEN je.entry_date >= p_start_date AND je.entry_date <= p_end_date THEN jl.debit ELSE 0 END), 0) AS drawings
+FROM chart_of_accounts coa
+    LEFT JOIN journal_lines jl ON jl.account_id = coa.id
+    LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
+WHERE coa.account_class = 'equity'
+    AND coa.active = true
+GROUP BY coa.id, coa.code, coa.name, coa.parent_id, coa.normal_balance
+HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
+ORDER BY coa.code;
+$function$;

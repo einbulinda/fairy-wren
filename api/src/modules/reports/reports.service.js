@@ -366,6 +366,25 @@ class ReportsService {
 
     return { accounts: accounts || [], netIncome };
   }
+  async getEquityChanges(startDate, endDate) {
+    this.validateDateRange(startDate, endDate);
+
+    const dayBefore = new Date(startDate);
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    const openingDate = dayBefore.toISOString().split("T")[0];
+
+    const [accounts, openingNetIncome, closingNetIncome] = await Promise.all([
+      reportsRepository.getEquityChanges(startDate, endDate),
+      reportsRepository.getNetIncome(openingDate),
+      reportsRepository.getNetIncome(endDate),
+    ]);
+
+    return {
+      accounts: accounts || [],
+      openingNetIncome: openingNetIncome || 0,
+      closingNetIncome: closingNetIncome || 0,
+    };
+  }
 }
 
 module.exports = new ReportsService();

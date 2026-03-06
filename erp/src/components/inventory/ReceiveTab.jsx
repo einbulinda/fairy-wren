@@ -14,6 +14,7 @@ import { useReceiveInventory, useStockItems } from "@/hooks/useInventory";
 import { fetchSuppliers } from "@/services/suppliers.service";
 import { inputCls } from "./inventoryUtils";
 import ProductSearchModal from "./ProductSearchModal";
+import QuickAddSupplierModal from "./QuickAddSupplierModal";
 
 const ReceiveTab = ({ onSuccess }) => {
   const [suppliers, setSuppliers] = useState([]);
@@ -25,6 +26,7 @@ const ReceiveTab = ({ onSuccess }) => {
   });
   const [lines, setLines] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showSupplierModal, setShowSupplierModal] = useState(false);
 
   const receiveMutation = useReceiveInventory();
   const { data: stockItems = [] } = useStockItems();
@@ -128,26 +130,36 @@ const ReceiveTab = ({ onSuccess }) => {
               <label className="block text-xs text-surface-400 mb-1">
                 Supplier *
               </label>
-              <div className="relative">
-                <Building2
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"
-                />
-                <select
-                  value={form.supplier_id}
-                  onChange={(e) =>
-                    setForm({ ...form, supplier_id: e.target.value })
-                  }
-                  className={inputCls + " pl-8"}
-                  required
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Building2
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"
+                  />
+                  <select
+                    value={form.supplier_id}
+                    onChange={(e) =>
+                      setForm({ ...form, supplier_id: e.target.value })
+                    }
+                    className={inputCls + " pl-8"}
+                    required
+                  >
+                    <option value="">Select…</option>
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSupplierModal(true)}
+                  className="px-2.5 py-2 bg-primary-600 hover:bg-primary-500 rounded-lg text-white text-sm transition-colors shrink-0"
+                  title="Add new supplier"
                 >
-                  <option value="">Select…</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  <Plus size={14} />
+                </button>
               </div>
             </div>
             <div>
@@ -299,6 +311,19 @@ const ReceiveTab = ({ onSuccess }) => {
           lines={lines}
           onSelect={addLine}
           onClose={() => setShowModal(false)}
+          onProductCreated={(product) => {
+            setProducts((prev) => [...prev, { ...product, current_stock: 0 }]);
+          }}
+        />
+      )}
+
+      {showSupplierModal && (
+        <QuickAddSupplierModal
+          onCreated={(supplier) => {
+            setSuppliers((prev) => [...prev, supplier]);
+            setForm((prev) => ({ ...prev, supplier_id: supplier.id }));
+          }}
+          onClose={() => setShowSupplierModal(false)}
         />
       )}
     </>

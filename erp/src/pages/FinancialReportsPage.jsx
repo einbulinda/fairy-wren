@@ -68,6 +68,14 @@ const reports = [
       "Cash inflows and outflows from operations, investing, and financing.",
   },
   {
+    to: "/reports/equity-changes",
+    icon: Scale,
+    iconColor: "text-primary-400",
+    title: "Statement of Changes in Equity",
+    description:
+      "Directors' contributions, drawings, and net income movements across equity accounts.",
+  },
+  {
     to: "/reports/trial-balance",
     icon: BarChart3,
     iconColor: "text-primary-400",

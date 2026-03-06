@@ -16,6 +16,7 @@ import {
   LineChart,
   BarChart2,
   FileText,
+  Settings,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -80,6 +81,7 @@ const navSections = [
     items: [
       { to: "/users", icon: Users, label: "User Management" },
       { to: "/approvals", icon: ClipboardCheck, label: "Approvals" },
+      { to: "/settings", icon: Settings, label: "Settings" },
     ],
   },
 ];

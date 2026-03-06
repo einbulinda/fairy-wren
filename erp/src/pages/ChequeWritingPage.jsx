@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAccounts } from "@/services/accounts.service";
 import { useCheques, useCreateCheque, useClearCheque, useVoidCheque } from "@/hooks/useCheques";
-import { Plus, CheckCircle, XCircle, Clock, Receipt, ArrowLeftRight, X } from "lucide-react";
+import { Plus, CheckCircle, XCircle, Clock, Receipt, ArrowLeftRight, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 }).format(n ?? 0);
@@ -31,12 +31,15 @@ const EMPTY_FORM = {
   amount: "", cheque_date: today, memo: "",
 };
 
+const PAGE_SIZE = 10;
+
 const ChequeWritingPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["accounts"],
@@ -56,6 +59,14 @@ const ChequeWritingPage = () => {
   const createMutation = useCreateCheque();
   const clearMutation = useClearCheque();
   const voidMutation = useVoidCheque();
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(cheques.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = cheques.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   // ── Account buckets ──────────────────────────────────────────────────────
   const bankAccounts = useMemo(() => {
@@ -299,16 +310,16 @@ const ChequeWritingPage = () => {
         <div className="p-4 border-b border-surface-700 flex flex-wrap items-center gap-3">
           <h2 className="font-semibold text-white mr-auto">Payment Register</h2>
           <select className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
             <option value="">All Statuses</option>
             <option value="issued">Issued</option>
             <option value="cleared">Cleared</option>
             <option value="voided">Voided</option>
           </select>
           <input type="date" className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} />
+            value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
           <input type="date" className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterTo} onChange={(e) => setFilterTo(e.target.value)} />
+            value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
           {!showForm && (
             <button onClick={() => setShowForm(true)}
               className="flex items-center gap-2 px-4 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
@@ -327,6 +338,7 @@ const ChequeWritingPage = () => {
             <p>No records found</p>
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-surface-900/50 border-b border-surface-700">
@@ -341,7 +353,7 @@ const ChequeWritingPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-700/50">
-                {cheques.map((c) => {
+                {pageItems.map((c) => {
                   const s = STATUS_STYLES[c.status] || STATUS_STYLES.issued;
                   const Icon = s.icon;
                   return (
@@ -392,6 +404,33 @@ const ChequeWritingPage = () => {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
+              <span className="text-sm text-surface-400">
+                Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, cheques.length)} of {cheques.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="px-3 text-xs text-surface-400">
+                  {safePage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>

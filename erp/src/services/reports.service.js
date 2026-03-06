@@ -41,3 +41,10 @@ export const fetchCashFlowStatement = async (startDate, endDate) => {
   });
   return data.data;
 };
+
+export const fetchEquityChanges = async (startDate, endDate) => {
+  const { data } = await api.get("/reports/equity-changes", {
+    params: { startDate, endDate },
+  });
+  return data.data;
+};

@@ -29,3 +29,23 @@
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
 }
+
+/*
+ * Light-mode overrides
+ * When .dark is NOT on <html>, swap the surface scale so dark-themed
+ * utilities render with light colors. text-white becomes dark text.
+ */
+:root:not(.dark) {
+  --color-surface-950: #f0f2f5;
+  --color-surface-900: #ffffff;
+  --color-surface-800: #f8fafc;
+  --color-surface-700: #e2e8f0;
+  --color-surface-600: #cbd5e1;
+  --color-surface-500: #94a3b8;
+  --color-surface-400: #64748b;
+  --color-surface-300: #475569;
+  --color-surface-200: #334155;
+  --color-surface-100: #1e293b;
+  --color-surface-50: #0f172a;
+  --color-white: #111827;
+}

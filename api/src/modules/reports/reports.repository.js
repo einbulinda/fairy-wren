@@ -203,6 +203,13 @@ class ReportsRepository {
       p_end_date: endDate,
     });
   }
+
+  async getEquityChanges(startDate, endDate) {
+    return callRpc("rpc_equity_changes", {
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
+  }
 }
 
 module.exports = new ReportsRepository();

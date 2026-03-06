@@ -4,7 +4,7 @@ import { fetchAccounts } from "@/services/accounts.service";
 import { useJournals, useCreateJournal, useVoidJournal } from "@/hooks/useJournals";
 import {
   Plus, Trash2, AlertCircle, CheckCircle, BookOpen,
-  Filter, Eye, XCircle, ChevronDown, ChevronRight,
+  Filter, Eye, XCircle, ChevronDown, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -26,12 +26,15 @@ const SOURCE_LABELS = {
 
 const inputCls = "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
 
+const PAGE_SIZE = 10;
+
 const JournalEntryPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [filterSource, setFilterSource] = useState("manual");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
+  const [page, setPage] = useState(1);
 
   // Form state
   const [entryDate, setEntryDate] = useState(today);
@@ -56,6 +59,14 @@ const JournalEntryPage = () => {
   const { data: journals = [], isLoading } = useJournals(filters);
   const createMutation = useCreateJournal();
   const voidMutation = useVoidJournal();
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(journals.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = journals.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const totalDebits = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
   const totalCredits = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
@@ -111,12 +122,12 @@ const JournalEntryPage = () => {
       {/* Header actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <select className={`${inputCls} text-sm`} value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
+          <select className={`${inputCls} text-sm`} value={filterSource} onChange={(e) => { setFilterSource(e.target.value); setPage(1); }}>
             <option value="">All Sources</option>
             {Object.entries(SOURCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          <input type="date" className={`${inputCls} text-sm`} value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} placeholder="From" />
-          <input type="date" className={`${inputCls} text-sm`} value={filterTo} onChange={(e) => setFilterTo(e.target.value)} placeholder="To" />
+          <input type="date" className={`${inputCls} text-sm`} value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} placeholder="From" />
+          <input type="date" className={`${inputCls} text-sm`} value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} placeholder="To" />
         </div>
         <button onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
@@ -248,8 +259,9 @@ const JournalEntryPage = () => {
             <p>No journal entries found</p>
           </div>
         ) : (
+          <>
           <div className="divide-y divide-surface-700/50">
-            {journals.map((j) => {
+            {pageItems.map((j) => {
               const isExpanded = expandedId === j.id;
               const totalDr = j.journal_lines?.reduce((s, l) => s + Number(l.debit ?? 0), 0) ?? 0;
               const isVoided = !!j.reversed_entry_id;
@@ -313,6 +325,33 @@ const JournalEntryPage = () => {
               );
             })}
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
+              <span className="text-sm text-surface-400">
+                Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, journals.length)} of {journals.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="px-3 text-xs text-surface-400">
+                  {safePage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>

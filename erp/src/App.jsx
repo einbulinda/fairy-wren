@@ -11,6 +11,7 @@ import BalanceSheetPage from "@/pages/BalanceSheetPage";
 import IncomeStatementPage from "@/pages/IncomeStatementPage";
 import TrialBalancePage from "@/pages/TrialBalancePage";
 import CashFlowStatementPage from "@/pages/CashFlowStatementPage";
+import EquityChangesPage from "@/pages/EquityChangesPage";
 import ChartOfAccountsPage from "@/pages/ChartOfAccountsPage";
 import LedgerPage from "@/pages/LedgerPage";
 import JournalEntryPage from "@/pages/JournalEntryPage";
@@ -25,6 +26,7 @@ import PayrollPage from "@/pages/PayrollPage";
 import ReceiptDetailPage from "@/pages/ReceiptDetailPage";
 import UsersPage from "@/pages/UsersPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
+import SettingsPage from "@/pages/SettingsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,8 +65,10 @@ const AppRoutes = () => {
         <Route path="reports/income-statement" element={<IncomeStatementPage />} />
         <Route path="reports/trial-balance" element={<TrialBalancePage />} />
         <Route path="reports/cash-flow" element={<CashFlowStatementPage />} />
+        <Route path="reports/equity-changes" element={<EquityChangesPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="approvals" element={<PlaceholderPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );
@@ -81,9 +85,9 @@ function App() {
             toastOptions={{
               duration: 3000,
               style: {
-                background: "#1e293b",
-                color: "#fff",
-                border: "1px solid #334155",
+                background: "var(--color-surface-800)",
+                color: "var(--color-white, #fff)",
+                border: "1px solid var(--color-surface-700)",
               },
               success: {
                 iconTheme: {

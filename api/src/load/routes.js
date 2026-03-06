@@ -18,6 +18,7 @@ const posRoutes = require("../modules/pos/pos.routes");
 const journalsRoutes = require("../modules/journals/journals.routes");
 const chequesRoutes = require("../modules/cheques/cheques.routes");
 const payrollRoutes = require("../modules/payroll/payroll.routes");
+const settingsRoutes = require("../modules/settings/settings.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
@@ -38,5 +39,6 @@ router.use("/pos", authMiddleware, posRoutes);
 router.use("/journals", authMiddleware, journalsRoutes);
 router.use("/cheques", authMiddleware, chequesRoutes);
 router.use("/payroll", authMiddleware, payrollRoutes);
+router.use("/settings", authMiddleware, settingsRoutes);
 
 module.exports = router;

@@ -55,6 +55,7 @@ const UsersPage = () => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [page, setPage] = useState(1);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -75,6 +76,14 @@ const UsersPage = () => {
     }
     return list;
   }, [users, showInactive, roleFilter, search]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const openCreate = () => {
     setEditTarget(null);
@@ -147,7 +156,7 @@ const UsersPage = () => {
             type="text"
             placeholder="Search users…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className={`${inputCls} pl-8`}
           />
         </div>
@@ -155,7 +164,7 @@ const UsersPage = () => {
         {/* Role filter pills */}
         <div className="flex flex-wrap gap-1.5">
           <button
-            onClick={() => setRoleFilter(null)}
+            onClick={() => { setRoleFilter(null); setPage(1); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               roleFilter === null
                 ? "bg-primary-600 text-white"
@@ -167,7 +176,7 @@ const UsersPage = () => {
           {ROLES.map(({ value, label }) => (
             <button
               key={value}
-              onClick={() => setRoleFilter(roleFilter === value ? null : value)}
+              onClick={() => { setRoleFilter(roleFilter === value ? null : value); setPage(1); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 roleFilter === value
                   ? "bg-primary-600 text-white"
@@ -181,7 +190,7 @@ const UsersPage = () => {
 
         {/* Show inactive toggle */}
         <button
-          onClick={() => setShowInactive((v) => !v)}
+          onClick={() => { setShowInactive((v) => !v); setPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
             showInactive
               ? "bg-surface-600 border-surface-500 text-white"
@@ -225,7 +234,7 @@ const UsersPage = () => {
                 </td>
               </tr>
             ) : (
-              filtered.map((user) => (
+              pageItems.map((user) => (
                 <tr
                   key={user.id}
                   className={`transition-colors hover:bg-surface-700/30 ${!user.active ? "opacity-50" : ""}`}
@@ -287,6 +296,32 @@ const UsersPage = () => {
             )}
           </tbody>
         </table>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
+            <span className="text-sm text-surface-400">
+              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="px-3 text-xs text-surface-400">
+                {safePage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats footer */}

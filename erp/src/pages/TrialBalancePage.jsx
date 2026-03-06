@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useTrialBalance } from "@/hooks/useTrialBalance";
+import { useSettings } from "@/hooks/useSettings";
 import {
   BarChart3,
   ChevronDown,
@@ -9,7 +10,7 @@ import {
   Download,
 } from "lucide-react";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", {
@@ -57,7 +58,7 @@ const CLASS_ORDER = [
 
 // --- PDF Generation ---
 
-const generatePDF = (accounts, totals, startDate, endDate) => {
+const generatePDF = (accounts, totals, startDate, endDate, orgName) => {
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -72,10 +73,13 @@ const generatePDF = (accounts, totals, startDate, endDate) => {
       year: "numeric",
     });
 
-  doc.setFontSize(14);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkText);
-  doc.text("TRIAL BALANCE", pageWidth / 2, 20, { align: "center" });
+  doc.text(orgName || "Fairy Wren Limited", pageWidth / 2, 15, { align: "center" });
+
+  doc.setFontSize(14);
+  doc.text("TRIAL BALANCE", pageWidth / 2, 22, { align: "center" });
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
@@ -83,10 +87,10 @@ const generatePDF = (accounts, totals, startDate, endDate) => {
   doc.text(
     `For the period ${fmtDate(startDate)} to ${fmtDate(endDate)}`,
     pageWidth / 2,
-    27,
+    29,
     { align: "center" }
   );
-  doc.text("(Amounts in KES)", pageWidth / 2, 32, { align: "center" });
+  doc.text("(Amounts in KES)", pageWidth / 2, 34, { align: "center" });
 
   const tableBody = accounts.map((a) => [
     a.account_code,
@@ -126,8 +130,8 @@ const generatePDF = (accounts, totals, startDate, endDate) => {
     },
   ]);
 
-  doc.autoTable({
-    startY: 38,
+  autoTable(doc, {
+    startY: 40,
     head: [["Code", "Account", "Debit (KES)", "Credit (KES)"]],
     body: tableBody,
     theme: "plain",
@@ -136,12 +140,12 @@ const generatePDF = (accounts, totals, startDate, endDate) => {
       textColor: [255, 255, 255],
       fontStyle: "bold",
       fontSize: 9,
-      cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
+      cellPadding: { top: 2, bottom: 2, left: 4, right: 4 },
     },
     bodyStyles: {
       fontSize: 8.5,
       textColor: mediumText,
-      cellPadding: { top: 2, bottom: 2, left: 4, right: 4 },
+      cellPadding: { top: 1, bottom: 1, left: 4, right: 4 },
     },
     columnStyles: {
       0: { cellWidth: 22 },
@@ -178,6 +182,8 @@ const TrialBalancePage = () => {
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
   const { data, isLoading, isFetching } = useTrialBalance(startDate, endDate);
+  const { data: settings } = useSettings();
+  const orgName = settings?.organisation_name || "Fairy Wren Limited";
 
   const { accounts, totals, grouped } = useMemo(() => {
     if (!data?.accounts)
@@ -222,9 +228,9 @@ const TrialBalancePage = () => {
 
   const handleDownloadPdf = useCallback(() => {
     if (accounts.length > 0 && totals) {
-      generatePDF(accounts, totals, startDate, endDate);
+      generatePDF(accounts, totals, startDate, endDate, orgName);
     }
-  }, [accounts, totals, startDate, endDate]);
+  }, [accounts, totals, startDate, endDate, orgName]);
 
   const inputCls =
     "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";

@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useBalanceSheet } from "@/hooks/useBalanceSheet";
+import { useSettings } from "@/hooks/useSettings";
 import {
   FileText,
   ChevronDown,
@@ -9,7 +10,7 @@ import {
   Download,
 } from "lucide-react";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", {
@@ -265,7 +266,7 @@ const buildPdfRows = (sections) => {
   return rows;
 };
 
-const generatePDF = (sections, formattedDate, asOfDate) => {
+const generatePDF = (sections, formattedDate, asOfDate, orgName) => {
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -276,16 +277,19 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
   const mediumText = [100, 100, 100];
 
   // Header
-  doc.setFontSize(14);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkText);
-  doc.text("STATEMENT OF FINANCIAL POSITION", pageWidth / 2, 20, { align: "center" });
+  doc.text(orgName || "Fairy Wren Limited", pageWidth / 2, 15, { align: "center" });
+
+  doc.setFontSize(14);
+  doc.text("STATEMENT OF FINANCIAL POSITION", pageWidth / 2, 22, { align: "center" });
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...mediumText);
-  doc.text(`As at ${formattedDate}`, pageWidth / 2, 27, { align: "center" });
-  doc.text("(Amounts in KES)", pageWidth / 2, 32, { align: "center" });
+  doc.text(`As at ${formattedDate}`, pageWidth / 2, 29, { align: "center" });
+  doc.text("(Amounts in KES)", pageWidth / 2, 34, { align: "center" });
 
   // Build table data
   const pdfRows = buildPdfRows(sections);
@@ -293,7 +297,7 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
 
   pdfRows.forEach((row) => {
     if (row.type === "spacer") {
-      tableBody.push([{ content: "", colSpan: 2, styles: { cellPadding: { top: 3, bottom: 3 } } }]);
+      tableBody.push([{ content: "", colSpan: 2, styles: { cellPadding: { top: 1.5, bottom: 1.5 } } }]);
       return;
     }
     if (row.type === "divider") {
@@ -318,7 +322,7 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
           fontSize: 9.5,
           fillColor: headerBg,
           textColor: darkText,
-          cellPadding: { top: 3, bottom: 3, left: 5 },
+          cellPadding: { top: 1.5, bottom: 1.5, left: 5 },
         },
       }]);
       return;
@@ -335,7 +339,7 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
             fontStyle: "bold",
             fontSize: 10,
             textColor: darkText,
-            cellPadding: { top: 4, bottom: 4, left: 5 },
+            cellPadding: { top: 2, bottom: 2, left: 5 },
             lineWidth: { top: 0.5, bottom: 0.5 },
             lineColor: accentColor,
           },
@@ -347,7 +351,7 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
             fontSize: 10,
             halign: "right",
             textColor: darkText,
-            cellPadding: { top: 4, bottom: 4, right: 5 },
+            cellPadding: { top: 2, bottom: 2, right: 5 },
             lineWidth: { top: 0.5, bottom: 0.5 },
             lineColor: accentColor,
           },
@@ -364,7 +368,7 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
             fontStyle: "bold",
             fontSize: 9,
             textColor: darkText,
-            cellPadding: { top: 3, bottom: 3, left: 10 },
+            cellPadding: { top: 1.5, bottom: 1.5, left: 10 },
             lineWidth: { top: 0.3 },
             lineColor: [180, 180, 180],
           },
@@ -376,7 +380,7 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
             fontSize: 9,
             halign: "right",
             textColor: darkText,
-            cellPadding: { top: 3, bottom: 3, right: 5 },
+            cellPadding: { top: 1.5, bottom: 1.5, right: 5 },
             lineWidth: { top: 0.3 },
             lineColor: [180, 180, 180],
           },
@@ -393,7 +397,7 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
           fontStyle: row.italic ? "italic" : "normal",
           fontSize: 9,
           textColor: row.italic ? accentColor : mediumText,
-          cellPadding: { top: 2, bottom: 2, left: 10 + indent },
+          cellPadding: { top: 1, bottom: 1, left: 10 + indent },
         },
       },
       {
@@ -403,14 +407,14 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
           fontSize: 9,
           halign: "right",
           textColor: row.italic ? accentColor : mediumText,
-          cellPadding: { top: 2, bottom: 2, right: 5 },
+          cellPadding: { top: 1, bottom: 1, right: 5 },
         },
       },
     ]);
   });
 
-  doc.autoTable({
-    startY: 38,
+  autoTable(doc, {
+    startY: 40,
     head: [["Account", "KES"]],
     body: tableBody,
     theme: "plain",
@@ -419,7 +423,7 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
       textColor: [255, 255, 255],
       fontStyle: "bold",
       fontSize: 9,
-      cellPadding: { top: 3, bottom: 3, left: 5, right: 5 },
+      cellPadding: { top: 2, bottom: 2, left: 5, right: 5 },
     },
     columnStyles: {
       0: { cellWidth: "auto" },
@@ -454,6 +458,8 @@ const generatePDF = (sections, formattedDate, asOfDate) => {
 const BalanceSheetPage = () => {
   const [asOfDate, setAsOfDate] = useState(todayStr);
   const { data, isLoading, isFetching } = useBalanceSheet(asOfDate);
+  const { data: settings } = useSettings();
+  const orgName = settings?.organisation_name || "Fairy Wren Limited";
 
   const sections = useMemo(() => {
     if (!data?.accounts) return null;
@@ -521,9 +527,9 @@ const BalanceSheetPage = () => {
 
   const handleDownloadPdf = useCallback(() => {
     if (sections) {
-      generatePDF(sections, formattedDate, asOfDate);
+      generatePDF(sections, formattedDate, asOfDate, orgName);
     }
-  }, [sections, formattedDate, asOfDate]);
+  }, [sections, formattedDate, asOfDate, orgName]);
 
   const inputCls =
     "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";

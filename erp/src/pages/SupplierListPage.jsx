@@ -7,6 +7,7 @@ import {
   ToggleLeft,
   ToggleRight,
   Building2,
+  ChevronLeft,
   ChevronRight,
   X,
   Truck,
@@ -21,6 +22,8 @@ import toast from "react-hot-toast";
 const inputCls =
   "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
 
+const PAGE_SIZE = 10;
+
 const EMPTY_FORM = {
   name: "",
   contact_person: "",
@@ -33,6 +36,7 @@ const SupplierListPage = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
+  const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -56,6 +60,14 @@ const SupplierListPage = () => {
     }
     return list;
   }, [suppliers, search, showInactive]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const openCreate = () => {
     setEditTarget(null);
@@ -138,7 +150,7 @@ const SupplierListPage = () => {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 placeholder="Search suppliers..."
                 className="w-full pl-9 pr-8 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
@@ -155,7 +167,7 @@ const SupplierListPage = () => {
               <input
                 type="checkbox"
                 checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
+                onChange={(e) => { setShowInactive(e.target.checked); setPage(1); }}
                 className="accent-primary-500"
               />
               Show inactive
@@ -188,6 +200,7 @@ const SupplierListPage = () => {
                 </p>
               </div>
             ) : (
+              <>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -213,7 +226,7 @@ const SupplierListPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-700/40">
-                    {filtered.map((supplier) => (
+                    {pageItems.map((supplier) => (
                       <tr
                         key={supplier.id}
                         className="hover:bg-surface-700/30 transition-colors group"
@@ -289,6 +302,33 @@ const SupplierListPage = () => {
                   </tbody>
                 </table>
               </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
+                  <span className="text-sm text-surface-400">
+                    Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={safePage === 1}
+                      className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span className="px-3 text-xs text-surface-400">
+                      {safePage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={safePage === totalPages}
+                      className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>

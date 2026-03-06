@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, Plus } from "lucide-react";
 import { inputCls } from "./inventoryUtils";
+import QuickAddProductModal from "./QuickAddProductModal";
 
-const ProductSearchModal = ({ products, lines, onSelect, onClose }) => {
+const ProductSearchModal = ({ products, lines, onSelect, onClose, onProductCreated }) => {
   const [search, setSearch] = useState("");
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const filtered = useMemo(
     () =>
@@ -22,12 +24,21 @@ const ProductSearchModal = ({ products, lines, onSelect, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-surface-700">
           <h3 className="text-white font-semibold text-sm">Add Product</h3>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-surface-700 text-surface-400"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowQuickAdd(true)}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-500 text-white text-xs font-medium transition-colors"
+            >
+              <Plus size={12} /> New
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-surface-700 text-surface-400"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -70,6 +81,16 @@ const ProductSearchModal = ({ products, lines, onSelect, onClose }) => {
           )}
         </div>
       </div>
+
+      {showQuickAdd && (
+        <QuickAddProductModal
+          onCreated={(product) => {
+            onProductCreated?.(product);
+            setShowQuickAdd(false);
+          }}
+          onClose={() => setShowQuickAdd(false)}
+        />
+      )}
     </div>
   );
 };

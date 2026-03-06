@@ -10,6 +10,7 @@ exports.list = async (filters) => {
 
 exports.getById = async (id) => {
   const { data, error } = await repo.findById(id);
+  console.log("Fetched journal entry:", { id, data, error });
   if (error || !data) throw new Error("JOURNAL_NOT_FOUND");
   return data;
 };
@@ -19,7 +20,8 @@ exports.create = async (payload, context) => {
   const { lines, ...entryPayload } = dto;
 
   // Insert header
-  const { data: entry, error: entryError } = await repo.createEntry(entryPayload);
+  const { data: entry, error: entryError } =
+    await repo.createEntry(entryPayload);
   if (entryError) throw new Error("FAILED_TO_CREATE_JOURNAL");
 
   // Insert lines
@@ -33,7 +35,11 @@ exports.create = async (payload, context) => {
     action: "JOURNAL_CREATED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
-    metadata: { reference: entry.reference, description: entry.description, lines: lines.length },
+    metadata: {
+      reference: entry.reference,
+      description: entry.description,
+      lines: lines.length,
+    },
   });
 
   return exports.getById(entry.id);
@@ -43,7 +49,8 @@ exports.void = async (id, context) => {
   const original = await exports.getById(id);
 
   if (original.reversed_entry_id) throw new Error("JOURNAL_ALREADY_VOIDED");
-  if (original.source_type !== "manual") throw new Error("CANNOT_VOID_SYSTEM_JOURNAL");
+  if (original.source_type !== "manual")
+    throw new Error("CANNOT_VOID_SYSTEM_JOURNAL");
 
   // Create reversing entry
   const reversalPayload = {
@@ -53,7 +60,8 @@ exports.void = async (id, context) => {
     source_type: "manual",
   };
 
-  const { data: reversal, error: reversalError } = await repo.createEntry(reversalPayload);
+  const { data: reversal, error: reversalError } =
+    await repo.createEntry(reversalPayload);
   if (reversalError) throw new Error("FAILED_TO_CREATE_REVERSAL");
 
   // Reverse the lines (swap debits and credits)

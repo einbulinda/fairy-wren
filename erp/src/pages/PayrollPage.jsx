@@ -4,6 +4,7 @@ import {
   Play,
   CheckCircle,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Plus,
   Edit2,
@@ -21,6 +22,8 @@ import PayslipModal from "@/components/payroll/PayslipModal";
 import SalaryPanel from "@/components/payroll/SalaryPanel";
 import ProcessRunPanel from "@/components/payroll/ProcessRunPanel";
 import { fmt, fmtPeriod, getStruct } from "@/components/payroll/payrollUtils";
+
+const PAGE_SIZE = 10;
 
 const TABS = [
   { id: "employees", label: "Employees", icon: Users },
@@ -184,6 +187,7 @@ const RunDetailRow = ({ runId, colSpan }) => {
 // ---------------------------------------------------------------------------
 const EmployeesTab = () => {
   const [editTarget, setEditTarget] = useState(null);
+  const [page, setPage] = useState(1);
   const { data: employees = [], isLoading } = usePayrollEmployees();
 
   const n = (v) => Number(v) || 0;
@@ -199,6 +203,14 @@ const EmployeesTab = () => {
       n(s.shif) +
       n(s.housing_levy) +
       n(s.other_deductions));
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(employees.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = employees.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   if (isLoading)
     return (
@@ -232,7 +244,7 @@ const EmployeesTab = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-800">
-            {employees.map((emp) => {
+            {pageItems.map((emp) => {
               const s = getStruct(emp);
               return (
                 <tr
@@ -282,6 +294,32 @@ const EmployeesTab = () => {
             No employees found.
           </div>
         )}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-surface-700">
+            <span className="text-sm text-surface-400">
+              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, employees.length)} of {employees.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="px-3 text-xs text-surface-400">
+                {safePage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {editTarget && (
@@ -300,9 +338,18 @@ const EmployeesTab = () => {
 const RunsTab = ({ employees }) => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [expandedRunId, setExpandedRunId] = useState(null);
+  const [page, setPage] = useState(1);
 
   const { data: runs = [], isLoading } = usePayrollRuns();
   const markPaid = useMarkRunPaid();
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(runs.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = runs.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const toggleExpand = (id) =>
     setExpandedRunId((prev) => (prev === id ? null : id));
@@ -351,7 +398,7 @@ const RunsTab = ({ employees }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-800">
-            {runs.map((run) => (
+            {pageItems.map((run) => (
               <>
                 <tr
                   key={run.id}
@@ -415,6 +462,32 @@ const RunsTab = ({ employees }) => {
         {runs.length === 0 && (
           <div className="text-center py-12 text-surface-400">
             No payroll runs yet. Process the first one above.
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-surface-700">
+            <span className="text-sm text-surface-400">
+              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, runs.length)} of {runs.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="px-3 text-xs text-surface-400">
+                {safePage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
         )}
       </div>
