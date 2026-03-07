@@ -9,15 +9,9 @@ import {
   Scale,
 } from "lucide-react";
 import { useBalanceSheet } from "@/hooks/useBalanceSheet";
+import { fmt } from "@/utils/formatters";
 
 const todayStr = new Date().toISOString().split("T")[0];
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    minimumFractionDigits: 2,
-  }).format(n ?? 0);
 
 const buildTree = (accounts) => {
   const map = {};

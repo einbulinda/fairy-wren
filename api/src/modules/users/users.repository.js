@@ -2,7 +2,7 @@ const getSupabase = require("../../config/supabase");
 
 exports.findAll = async (filters = {}) => {
   const supabase = getSupabase();
-  let query = supabase.from("profiles").select("*");
+  let query = supabase.from("profiles").select("id, name, role, active, created_at");
 
   if (filters.active !== undefined) {
     query = query.eq("active", filters.active);
@@ -12,7 +12,7 @@ exports.findAll = async (filters = {}) => {
 
 exports.findById = async (id) => {
   const supabase = getSupabase();
-  return supabase.from("profiles").select("*").eq("id", id).single();
+  return supabase.from("profiles").select("id, name, role, active, created_at").eq("id", id).single();
 };
 
 exports.userExists = async (fingerprint) => {

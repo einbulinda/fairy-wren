@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useTrialBalance } from "@/hooks/useTrialBalance";
+import { dateInputCls } from "@/utils/constants";
 import { useSettings } from "@/hooks/useSettings";
 import {
   BarChart3,
@@ -12,12 +13,7 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { MobileCard, MobileField } from "@/components/shared/MobileCard";
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n ?? 0);
+import { fmtNumber as fmt } from "@/utils/formatters";
 
 const today = new Date();
 const defaultEndDate = today.toISOString().split("T")[0];
@@ -233,8 +229,7 @@ const TrialBalancePage = () => {
     }
   }, [accounts, totals, startDate, endDate, orgName]);
 
-  const inputCls =
-    "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";
+  const inputCls = dateInputCls;
 
   return (
     <div className="space-y-6">

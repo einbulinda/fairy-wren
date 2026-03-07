@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { Save, Building2, Loader2 } from "lucide-react";
 import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import toast from "react-hot-toast";
-
-const inputCls =
-  "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
+import { inputCls } from "@/utils/constants";
 
 const labelCls = "block text-sm font-medium text-surface-300 mb-1";
 

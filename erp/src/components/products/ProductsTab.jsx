@@ -20,9 +20,7 @@ import {
   useUpdateProductStatus,
 } from "@/hooks/useProducts";
 import { useCategories } from "@/hooks/useCategories";
-
-const inputCls =
-  "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
+import { inputCls } from "@/utils/constants";
 
 const UNITS = ["bottle", "can", "glass", "tot", "packet"];
 

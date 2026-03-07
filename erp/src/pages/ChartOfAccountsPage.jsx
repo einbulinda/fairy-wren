@@ -7,6 +7,7 @@ import {
   updateAccountStatus,
 } from "@/services/accounts.service";
 import { MobileCard, MobileField } from "@/components/shared/MobileCard";
+import { inputCls } from "@/utils/constants";
 import {
   BookOpen,
   Building,
@@ -301,8 +302,6 @@ const ChartOfAccountsPage = () => {
     currentPage * itemsPerPage,
   );
 
-  const inputCls =
-    "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white placeholder-surface-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
   const selectCls = `${inputCls} cursor-pointer`;
 
   if (isLoading)

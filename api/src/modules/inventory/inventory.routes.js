@@ -1,5 +1,6 @@
 const express = require("express");
 const controller = require("./inventory.controller");
+const { requireRole } = require("../../middleware/rbac.middleware");
 
 const router = express.Router();
 
@@ -13,9 +14,9 @@ router.get("/items", controller.getInventoryItems);
    PROCUREMENT / RECEIVING
    ====================================================== */
 
-router.post("/receipts", controller.createInventoryReceipt);
+router.post("/receipts", requireRole("manager", "owner"), controller.createInventoryReceipt);
 router.get("/receipts/:id", controller.getReceiptDetail);
-router.post("/receipts/:id/pay", controller.markReceiptPaid);
+router.post("/receipts/:id/pay", requireRole("manager", "owner"), controller.markReceiptPaid);
 
 /* ======================================================
    STOCK TAKE (RPC-BASED)
@@ -32,8 +33,8 @@ router.post(
   "/stock-take-sessions/:id/complete",
   controller.completeStockTakeSession,
 );
-router.post("/stock-take-sessions/:id/approve", controller.approveStockTake);
-router.post("/stock-take-sessions/:id/reject", controller.rejectStockTake);
+router.post("/stock-take-sessions/:id/approve", requireRole("manager", "owner"), controller.approveStockTake);
+router.post("/stock-take-sessions/:id/reject", requireRole("manager", "owner"), controller.rejectStockTake);
 
 /* ======================================================
    STOCK TAKE REPORTING

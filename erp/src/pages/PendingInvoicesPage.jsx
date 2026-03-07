@@ -13,24 +13,10 @@ import { usePendingInvoices } from "@/hooks/useSuppliers";
 import { useMarkReceiptPaid } from "@/hooks/useInventory";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
 import toast from "react-hot-toast";
+import { fmt, fmtDate } from "@/utils/formatters";
+import { inputCls } from "@/utils/constants";
 
 const PAGE_SIZE = 15;
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    minimumFractionDigits: 2,
-  }).format(n ?? 0);
-
-const fmtDate = (d) => {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-KE", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 const daysOutstanding = (purchaseDate) => {
   if (!purchaseDate) return 0;
@@ -43,9 +29,6 @@ const agingBucket = (days) => {
   if (days <= 90) return { label: "61-90 days", color: "text-orange-400 bg-orange-500/15" };
   return { label: "90+ days", color: "text-red-400 bg-red-500/15" };
 };
-
-const inputCls =
-  "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
 
 const PAYMENT_METHODS = [
   { value: "bank", label: "Bank Transfer" },

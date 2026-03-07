@@ -16,8 +16,6 @@ module.exports = (err, req, res, next) => {
     err.stack || code,
   );
 
-  console.log("ERROR", err);
-
   res.status(mapped.status).json({
     success: false,
     error: {

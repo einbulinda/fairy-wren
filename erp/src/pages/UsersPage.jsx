@@ -13,9 +13,8 @@ import {
 } from "lucide-react";
 import { useUsers, useCreateUser, useUpdateUser, useToggleUserStatus } from "@/hooks/useUsers";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
-
-const inputCls =
-  "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
+import { fmtDate } from "@/utils/formatters";
+import { inputCls } from "@/utils/constants";
 
 const ROLES = [
   { value: "waitress", label: "Waitress" },
@@ -42,15 +41,6 @@ const RoleBadge = ({ role }) => (
     {role}
   </span>
 );
-
-const fmtDate = (d) =>
-  d
-    ? new Date(d).toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : "—";
 
 const UsersPage = () => {
   const [search, setSearch] = useState("");

@@ -10,13 +10,10 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 }).format(n ?? 0);
+import { fmt } from "@/utils/formatters";
+import { inputCls } from "@/utils/constants";
 
 const EMPTY_FORM = { expense_date: "", supplier_id: "", account_id: "", credit_account_id: "", amount: "", invoice_number: "", description: "" };
-
-const inputCls = "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
 
 const sourceBadge = (source) => {
   const cls = source === "expense" ? "bg-primary-500/15 text-primary-400" : "bg-amber-500/15 text-amber-400";

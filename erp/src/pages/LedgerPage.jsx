@@ -4,12 +4,8 @@ import { fetchAccounts, fetchAccountLedger } from "@/services/accounts.service";
 import { fetchJournals } from "@/services/journals.service";
 import { BookOpen, TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from "lucide-react";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 }).format(n ?? 0);
-
-const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+import { fmt, fmtDate } from "@/utils/formatters";
+import { dateInputCls } from "@/utils/constants";
 
 const today = new Date();
 const firstOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
@@ -87,7 +83,7 @@ const LedgerPage = () => {
     safePage * PAGE_SIZE,
   );
 
-  const inputCls = "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";
+  const inputCls = dateInputCls;
 
   return (
     <div className="space-y-6">

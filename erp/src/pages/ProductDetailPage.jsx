@@ -25,13 +25,12 @@ import {
   useProductSalesHistory,
 } from "@/hooks/useProducts";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
+import { fmtDate } from "@/utils/formatters";
+import { dateInputCls as inputCls } from "@/utils/constants";
 
 const TAB_OVERVIEW = "overview";
 const TAB_PURCHASES = "purchases";
 const TAB_SALES = "sales";
-
-const inputCls =
-  "px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
 
 const getMonthRange = (date = new Date()) => {
   const y = date.getFullYear();
@@ -78,15 +77,6 @@ const fmtD = (n) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-const fmtDate = (d) =>
-  d
-    ? new Date(d).toLocaleDateString("en-KE", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-    : "—";
-
 // ─── Metric Card ──────────────────────────────────────────────────────────────
 
 const MetricCard = ({

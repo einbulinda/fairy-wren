@@ -10,22 +10,8 @@ import {
 } from "lucide-react";
 import { useReceiptDetail, useMarkReceiptPaid } from "@/hooks/useInventory";
 import toast from "react-hot-toast";
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    minimumFractionDigits: 2,
-  }).format(n ?? 0);
-
-const fmtDate = (d) =>
-  d
-    ? new Date(d).toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : "—";
+import { fmt, fmtDate } from "@/utils/formatters";
+import { inputCls } from "@/utils/constants";
 
 const daysOutstanding = (purchaseDate) => {
   if (!purchaseDate) return null;
@@ -54,9 +40,6 @@ const PaymentBadge = ({ paidAt, purchaseDate, large = false }) => {
     </span>
   );
 };
-
-const inputCls =
-  "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
 
 const PAYMENT_METHODS = [
   { value: "bank", label: "Bank Transfer" },

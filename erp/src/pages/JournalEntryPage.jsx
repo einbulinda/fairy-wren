@@ -7,9 +7,8 @@ import {
   Filter, Eye, XCircle, ChevronDown, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 }).format(n ?? 0);
+import { fmt } from "@/utils/formatters";
+import { dateInputCls as inputCls } from "@/utils/constants";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -23,8 +22,6 @@ const SOURCE_LABELS = {
   cheque: "Cheque",
   customer_invoice: "Invoice",
 };
-
-const inputCls = "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
 
 const PAGE_SIZE = 10;
 

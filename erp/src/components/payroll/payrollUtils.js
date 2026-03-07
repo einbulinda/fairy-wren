@@ -1,9 +1,4 @@
-export const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    minimumFractionDigits: 2,
-  }).format(n ?? 0);
+export { fmt } from "@/utils/formatters";
 
 export const fmtPeriod = (period) => {
   if (!period) return "—";
@@ -11,8 +6,7 @@ export const fmtPeriod = (period) => {
   return d.toLocaleString("en-US", { month: "long", year: "numeric" });
 };
 
-export const inputCls =
-  "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
+export { inputCls } from "@/utils/constants";
 
 export const labelCls = "block text-xs font-medium text-surface-400 mb-1";
 

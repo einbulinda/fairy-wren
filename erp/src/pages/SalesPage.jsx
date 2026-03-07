@@ -18,12 +18,8 @@ import {
 import { useBills } from "@/hooks/useBills";
 import * as XLSX from "xlsx";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n ?? 0);
+import { fmtNumber as fmt, fmtDate } from "@/utils/formatters";
+import { dateInputCls } from "@/utils/constants";
 
 const today = new Date();
 const defaultEndDate = today.toISOString().split("T")[0];
@@ -72,15 +68,6 @@ const computeItemCount = (bill) =>
     (sum, round) => sum + (round.round_items?.length || 0),
     0,
   ) || 0;
-
-const fmtDate = (d) =>
-  d
-    ? new Date(d).toLocaleDateString("en-KE", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : "—";
 
 const SalesPage = () => {
   const [startDate, setStartDate] = useState(defaultStartDate);
@@ -203,8 +190,7 @@ const SalesPage = () => {
     XLSX.writeFile(wb, `bills-${startDate}-to-${endDate}.xlsx`);
   };
 
-  const inputCls =
-    "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";
+  const inputCls = dateInputCls;
 
   return (
     <div className="space-y-6">

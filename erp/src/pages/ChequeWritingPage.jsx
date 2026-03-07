@@ -4,9 +4,8 @@ import { fetchAccounts } from "@/services/accounts.service";
 import { useCheques, useCreateCheque, useClearCheque, useVoidCheque } from "@/hooks/useCheques";
 import { Plus, CheckCircle, XCircle, Clock, Receipt, ArrowLeftRight, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 }).format(n ?? 0);
+import { fmt } from "@/utils/formatters";
+import { inputCls } from "@/utils/constants";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -23,8 +22,6 @@ const TX_TYPES = [
 ];
 
 const TX_LABELS = { bank_cheque: "Bank Cheque", petty_cash: "Petty Cash", transfer: "Transfer" };
-
-const inputCls = "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
 
 const EMPTY_FORM = {
   transaction_type: "bank_cheque",

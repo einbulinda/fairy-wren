@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useIncomeStatement } from "@/hooks/useIncomeStatement";
+import { dateInputCls } from "@/utils/constants";
 import { useSettings } from "@/hooks/useSettings";
 import {
   TrendingUp,
@@ -9,12 +10,7 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n ?? 0);
+import { fmtNumber as fmt } from "@/utils/formatters";
 
 const today = new Date();
 const defaultEndDate = today.toISOString().split("T")[0];
@@ -539,8 +535,7 @@ const IncomeStatementPage = () => {
     }
   }, [sections, startDate, endDate, orgName]);
 
-  const inputCls =
-    "px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";
+  const inputCls = dateInputCls;
 
   const summaryCards = sections
     ? [

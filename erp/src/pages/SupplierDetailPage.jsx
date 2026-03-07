@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
-import { format } from "date-fns";
 import {
   ChevronLeft,
   ChevronRight,
@@ -27,27 +26,10 @@ import {
 } from "@/hooks/useSuppliers";
 import toast from "react-hot-toast";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
+import { fmt, fmtDate } from "@/utils/formatters";
+import { inputCls } from "@/utils/constants";
 
 const PAGE_SIZE = 10;
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    minimumFractionDigits: 2,
-  }).format(n ?? 0);
-
-const fmtDate = (d) => {
-  if (!d) return "—";
-  try {
-    return format(new Date(d), "dd MMM yyyy");
-  } catch {
-    return d;
-  }
-};
-
-const inputCls =
-  "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
 
 const dateInputCls =
   "px-2 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 w-36";
