@@ -7,7 +7,6 @@ import { PaymentService } from "@/services/payment.service";
 import {
   ShoppingCart,
   Receipt,
-  FileText,
   ClipboardCheck,
   Search,
   X,
@@ -21,7 +20,6 @@ import { calculateBillTotals } from "../utils/calculations";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/shared/ReceiptModal";
 import OpenBillsModal from "../components/bills/OpenBillsModal";
-import AllBillsView from "../components/bills/AllBillsView";
 import ProductGrid from "../components/products/ProductGrid";
 import PaymentModal from "../components/pos/PaymentModal";
 import CurrentBill from "../components/bills/CurrentBill";
@@ -545,32 +543,6 @@ const POSScreen = () => {
               <span>SALE</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab("bills")}
-              className={`
-                px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm font-medium
-                ${
-                  activeTab === "bills"
-                    ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                    : "bg-gray-800/60 text-gray-400 hover:text-white hover:bg-gray-800"
-                }
-              `}
-            >
-              <FileText size={18} />
-              <span>All Bills</span>
-              <span
-                className={`
-                px-2 py-0.5 rounded-full text-xs font-bold
-                ${
-                  activeTab === "bills"
-                    ? "bg-white/20"
-                    : "bg-purple-500/20 text-purple-300"
-                }
-              `}
-              >
-                {bills.length}
-              </span>
-            </button>
 
             {canAccessConfirm && (
               <button
@@ -862,13 +834,6 @@ const POSScreen = () => {
           </div>
         )}
 
-        {/* All Bills View */}
-        {activeTab === "bills" && (
-          <div className="p-4 overflow-y-auto h-full">
-            <AllBillsView bills={bills} />
-          </div>
-        )}
-
         {/* Confirm Payments View */}
         {activeTab === "confirm" && (
           <div className="p-4 overflow-y-auto h-full">
@@ -883,7 +848,7 @@ const POSScreen = () => {
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-md border-t-2 border-purple-500/30 safe-area-inset-bottom z-50">
-        <div className="grid grid-cols-3 h-16">
+        <div className="grid grid-cols-2 h-16">
           <button
             onClick={() => setActiveTab("pos")}
             className={`
@@ -902,33 +867,6 @@ const POSScreen = () => {
               aria-hidden="true"
             />
             <span className="text-xs font-medium">POS</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("bills")}
-            className={`
-              flex flex-col items-center justify-center gap-1 transition-all duration-200 relative
-              ${
-                activeTab === "bills"
-                  ? "text-white bg-linear-to-t from-purple-600/20 to-transparent"
-                  : "text-gray-400 active:bg-gray-800/50"
-              }
-            `}
-            aria-label="All Bills"
-          >
-            <div className="relative">
-              <FileText
-                size={24}
-                className={activeTab === "bills" ? "text-purple-400" : ""}
-                aria-hidden="true"
-              />
-              {confirmPaidBills.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {confirmPaidBills.length}
-                </span>
-              )}
-            </div>
-            <span className="text-xs font-medium">Bills</span>
           </button>
 
           {canAccessConfirm && (

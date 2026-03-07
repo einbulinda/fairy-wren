@@ -1,7 +1,20 @@
-import { X } from "lucide-react";
+import { useState, useMemo } from "react";
+import { X, Search } from "lucide-react";
 import { calculateBillTotals } from "../../utils/calculations";
 
 const OpenBillsModal = ({ bills, onSelectBill, onClose }) => {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return bills;
+    const q = search.toLowerCase();
+    return bills.filter(
+      (bill) =>
+        bill.customer_name?.toLowerCase().includes(q) ||
+        bill.id?.toLowerCase().includes(q),
+    );
+  }, [bills, search]);
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
       <div className="bg-gray-900/95 backdrop-blur-md border-2 border-purple-500/30 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-purple-500/20">
@@ -18,9 +31,24 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose }) => {
           </button>
         </div>
 
+        {/* Search */}
+        <div className="px-4 sm:px-6 pt-4 shrink-0">
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by customer name or bill ID..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-800/60 border border-purple-500/20 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 transition-colors"
+              autoFocus
+            />
+          </div>
+        </div>
+
         {/* Bills List */}
         <div className="overflow-y-auto space-y-3 flex-1 p-4 sm:p-6">
-          {bills.map((bill) => {
+          {filtered.map((bill) => {
             const totals = calculateBillTotals(bill);
             const safeRounds = bill?.rounds ?? [];
             return (
@@ -63,9 +91,13 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose }) => {
             );
           })}
 
-          {bills.length === 0 && (
+          {filtered.length === 0 && (
             <div className="text-gray-500 text-center py-12 sm:py-16">
-              <p className="text-base sm:text-lg">No open bills available.</p>
+              <p className="text-base sm:text-lg">
+                {search.trim()
+                  ? "No bills match your search."
+                  : "No open bills available."}
+              </p>
             </div>
           )}
         </div>
