@@ -1,3 +1,5 @@
+import { fmt } from "@/utils/formatters";
+
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const WeeklyInsightsCard = ({ data }) => {
@@ -23,7 +25,7 @@ const WeeklyInsightsCard = ({ data }) => {
         const label = DAY_LABELS[day.day_of_week] || day.day_name?.slice(0, 3);
 
         return (
-          <div key={day.day_of_week} className="flex items-center gap-3">
+          <div key={day.day_of_week} className="group relative flex items-center gap-3">
             <span className={`text-xs w-7 shrink-0 ${isWeekend ? "text-orange-400 font-semibold" : "text-surface-400"}`}>
               {label}
             </span>
@@ -38,6 +40,12 @@ const WeeklyInsightsCard = ({ data }) => {
                 className={`absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-surface-900 ${isWeekend ? "bg-orange-400" : "bg-primary-400"}`}
                 style={{ left: `calc(${pct}% - 5px)` }}
               />
+            </div>
+            {/* Revenue tooltip */}
+            <div className="absolute left-1/2 -translate-x-1/2 -top-8 hidden group-hover:block z-10">
+              <div className="bg-surface-800 border border-surface-600 rounded-md px-2.5 py-1 shadow-lg text-xs text-white whitespace-nowrap" style={{ opacity: 0.8 }}>
+                {fmt(revenue)}
+              </div>
             </div>
           </div>
         );

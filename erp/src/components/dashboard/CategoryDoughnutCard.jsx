@@ -32,7 +32,7 @@ const CategoryDoughnutCard = ({ data }) => {
       const d = payload[0];
       const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : 0;
       return (
-        <div className="bg-surface-800 border border-surface-600 rounded-lg p-3 shadow-lg">
+        <div className="bg-surface-800 border border-surface-600 rounded-lg p-3 shadow-lg" style={{ opacity: 0.8 }}>
           <p className="text-white font-semibold mb-1">{d.name}</p>
           <p className="text-primary-400 text-sm">{formatCurrency(d.value)}</p>
           <p className="text-surface-400 text-xs">{pct}% &bull; {d.payload.quantity} items</p>
