@@ -473,7 +473,6 @@ const ExpensesPage = () => {
                             <MobileCard onClick={() => toggleExpand(child.account_id)} className="py-3!">
                               <div className="flex items-center gap-2">
                                 {childExpanded ? <ChevronDown size={13} className="text-surface-400" /> : <ChevronRight size={13} className="text-surface-400" />}
-                                <span className="text-surface-500 font-mono text-xs">{child.account_code}</span>
                                 <span className="text-surface-300 text-sm">{child.account_name}</span>
                               </div>
                               <div className="flex items-center justify-between">

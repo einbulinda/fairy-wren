@@ -35,6 +35,11 @@ export const createSupplierPayment = async ({ supplierId, ...payload }) => {
   return data.data;
 };
 
+export const fetchPendingInvoices = async () => {
+  const { data } = await api.get("/suppliers/pending-invoices");
+  return data.data ?? data;
+};
+
 export const fetchSupplierStatement = async (id, from, to) => {
   const { data } = await api.get(`/suppliers/${id}/statement`, {
     params: { from: from || undefined, to: to || undefined },

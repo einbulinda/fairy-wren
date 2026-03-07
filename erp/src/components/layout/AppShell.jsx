@@ -15,6 +15,7 @@ const routeTitles = {
   "/inventory": "Inventory Management",
   "/products": "Products",
   "/suppliers": "Suppliers",
+  "/suppliers/pending-invoices": "Pending Invoices",
   "/accounts": "Chart of Accounts",
   "/ledger": "General Ledger",
   "/journals": "Journal Entries",

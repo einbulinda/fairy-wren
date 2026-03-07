@@ -28,6 +28,7 @@ import UsersPage from "@/pages/UsersPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 import SettingsPage from "@/pages/SettingsPage";
 import SalesPage from "@/pages/SalesPage";
+import PendingInvoicesPage from "@/pages/PendingInvoicesPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +56,7 @@ const AppRoutes = () => {
         <Route path="products/:id" element={<ProductDetailPage />} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="suppliers" element={<SupplierListPage />} />
+        <Route path="suppliers/pending-invoices" element={<PendingInvoicesPage />} />
         <Route path="suppliers/:id" element={<SupplierDetailPage />} />
         <Route path="accounts" element={<ChartOfAccountsPage />} />
         <Route path="ledger" element={<LedgerPage />} />

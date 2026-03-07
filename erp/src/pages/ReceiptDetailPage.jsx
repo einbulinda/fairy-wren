@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -8,6 +9,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useReceiptDetail, useMarkReceiptPaid } from "@/hooks/useInventory";
+import toast from "react-hot-toast";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", {
@@ -53,11 +55,27 @@ const PaymentBadge = ({ paidAt, purchaseDate, large = false }) => {
   );
 };
 
+const inputCls =
+  "w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent";
+
+const PAYMENT_METHODS = [
+  { value: "bank", label: "Bank Transfer" },
+  { value: "cash", label: "Cash" },
+  { value: "mpesa", label: "M-Pesa" },
+  { value: "cheque", label: "Cheque" },
+];
+
 const ReceiptDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: receipt, isLoading, isError } = useReceiptDetail(id);
   const markPaid = useMarkReceiptPaid();
+  const [showPayForm, setShowPayForm] = useState(false);
+  const [payForm, setPayForm] = useState({
+    payment_method: "bank",
+    reference: "",
+    notes: "",
+  });
 
   if (isLoading) {
     return (
@@ -144,15 +162,81 @@ const ReceiptDetailPage = () => {
             )}
             {!isPaid && (
               <button
-                onClick={() => markPaid.mutate(id)}
-                disabled={markPaid.isPending}
-                className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                onClick={() => setShowPayForm((v) => !v)}
+                className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                {markPaid.isPending ? "Saving…" : "Mark as Paid"}
+                {showPayForm ? "Cancel" : "Process Payment"}
               </button>
             )}
           </div>
         </div>
+
+        {showPayForm && !isPaid && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!payForm.reference.trim()) {
+                toast.error("Payment reference is required");
+                return;
+              }
+              markPaid.mutate(
+                { id, ...payForm },
+                {
+                  onSuccess: () => {
+                    setShowPayForm(false);
+                  },
+                },
+              );
+            }}
+            className="mt-4 pt-4 border-t border-surface-700 grid grid-cols-1 sm:grid-cols-3 gap-3"
+          >
+            <div className="space-y-1">
+              <label className="text-xs text-surface-400 font-medium">Payment Method *</label>
+              <select
+                value={payForm.payment_method}
+                onChange={(e) => setPayForm((f) => ({ ...f, payment_method: e.target.value }))}
+                className={inputCls}
+              >
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-surface-400 font-medium">Reference No. *</label>
+              <input
+                type="text"
+                value={payForm.reference}
+                onChange={(e) => setPayForm((f) => ({ ...f, reference: e.target.value }))}
+                placeholder="Cheque no, M-Pesa ref..."
+                className={inputCls}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-surface-400 font-medium">Notes</label>
+              <input
+                type="text"
+                value={payForm.notes}
+                onChange={(e) => setPayForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Optional notes..."
+                className={inputCls}
+              />
+            </div>
+            <div className="sm:col-span-3 flex items-center justify-between">
+              <span className="text-sm text-surface-400">
+                Amount: <span className="text-white font-bold">{fmt(receipt.total_amount)}</span>
+              </span>
+              <button
+                type="submit"
+                disabled={markPaid.isPending}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {markPaid.isPending ? "Processing..." : "Confirm Payment"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Line items table */}

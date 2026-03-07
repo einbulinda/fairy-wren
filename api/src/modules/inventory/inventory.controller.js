@@ -46,6 +46,7 @@ exports.markReceiptPaid = async (req, res, next) => {
   try {
     const data = await receivingService.markReceiptPaid(
       req.params.id,
+      req.body,
       buildContext(req),
     );
     respond(res, 200, data);

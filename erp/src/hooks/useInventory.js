@@ -171,9 +171,13 @@ export const useMarkReceiptPaid = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: markReceiptPaid,
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ["receipt-detail", id] });
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["receipt-detail", vars.id] });
       queryClient.invalidateQueries({ queryKey: ["product-purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
       toast.success("Receipt marked as paid");
     },
     onError: (err) => {

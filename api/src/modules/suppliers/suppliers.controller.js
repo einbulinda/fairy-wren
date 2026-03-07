@@ -52,6 +52,15 @@ exports.archiveSupplier = async (req, res, next) => {
   }
 };
 
+exports.getPendingInvoices = async (req, res, next) => {
+  try {
+    const data = await service.getPendingInvoices();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getPurchases = async (req, res, next) => {
   try {
     const data = await service.getPurchases(req.params.id);

@@ -56,6 +56,15 @@ exports.createPayment = async (payload) => {
   return supabase.from("supplier_payments").insert(payload).select().single();
 };
 
+exports.findPendingInvoices = async () => {
+  const supabase = getSupabase();
+  return supabase
+    .from("inventory_receipts")
+    .select("id, invoice_number, purchase_date, total_amount, status, paid_at, notes, supplier_id, suppliers(id, name)")
+    .is("paid_at", null)
+    .order("purchase_date", { ascending: true });
+};
+
 exports.findStatement = async (supplierId, startDate, endDate) => {
   const supabase = getSupabase();
   return supabase.rpc("rpc_supplier_statement", {

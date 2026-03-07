@@ -81,6 +81,12 @@ exports.archive = async (id, active, context) => {
   });
 };
 
+exports.getPendingInvoices = async () => {
+  const { data, error } = await repo.findPendingInvoices();
+  if (error) throw new Error("FAILED_TO_FETCH_PENDING_INVOICES");
+  return data;
+};
+
 exports.getPurchases = async (id) => {
   const { data, error } = await repo.findPurchases(id);
   if (error) throw new Error("FAILED_TO_FETCH_PURCHASES");

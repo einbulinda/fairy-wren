@@ -18,6 +18,7 @@ import {
   FileText,
   Settings,
   Receipt,
+  Clock,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -38,14 +39,22 @@ const navSections = [
         label: "Inventory",
         children: [
           { to: "/inventory", end: true, icon: Package, label: "Stock Levels" },
-          { to: "/inventory/receive", icon: Truck, label: "Receive Inventory" },
           { to: "/inventory/reports", icon: BarChart2, label: "Reports" },
           { to: "/inventory/approvals", icon: ClipboardCheck, label: "Approvals" },
         ],
       },
       { to: "/sales", icon: Receipt, label: "Sales" },
       { to: "/products", icon: Grid, label: "Products" },
-      { to: "/suppliers", icon: Truck, label: "Suppliers" },
+      {
+        to: "/suppliers",
+        icon: Truck,
+        label: "Suppliers",
+        children: [
+          { to: "/suppliers", end: true, icon: Truck, label: "All Suppliers" },
+          { to: "/suppliers/pending-invoices", icon: Clock, label: "Pending Invoices" },
+          { to: "/inventory/receive", icon: Package, label: "Receive Goods" },
+        ],
+      },
     ],
   },
   {

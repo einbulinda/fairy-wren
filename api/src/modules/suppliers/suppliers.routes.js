@@ -5,6 +5,7 @@ const router = express.Router();
 
 router.get("/", controller.listSuppliers);
 router.post("/", controller.createSupplier);
+router.get("/pending-invoices", controller.getPendingInvoices);
 
 router.get("/:id/purchases", controller.getPurchases);
 router.get("/:id/payments", controller.getPayments);

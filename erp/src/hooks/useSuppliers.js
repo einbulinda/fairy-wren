@@ -9,6 +9,7 @@ import {
   fetchSupplierPayments,
   createSupplierPayment,
   fetchSupplierStatement,
+  fetchPendingInvoices,
 } from "@/services/suppliers.service";
 
 export const useSuppliers = (params = {}) => {
@@ -94,6 +95,14 @@ export const useSupplierStatement = (id, from, to) => {
     queryKey: ["supplier-statement", id, from, to],
     queryFn: () => fetchSupplierStatement(id, from, to),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const usePendingInvoices = () => {
+  return useQuery({
+    queryKey: ["pending-invoices"],
+    queryFn: fetchPendingInvoices,
     staleTime: 2 * 60 * 1000,
   });
 };

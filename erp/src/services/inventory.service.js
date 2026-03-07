@@ -65,8 +65,8 @@ export const fetchReceiptDetail = async (id) => {
   return data.data ?? data;
 };
 
-export const markReceiptPaid = async (id) => {
-  const { data } = await api.post(`/inventory/receipts/${id}/pay`, {});
+export const markReceiptPaid = async ({ id, ...payload }) => {
+  const { data } = await api.post(`/inventory/receipts/${id}/pay`, payload);
   return data.data ?? data;
 };
 
