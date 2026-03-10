@@ -14,9 +14,17 @@ router.get("/items", controller.getInventoryItems);
    PROCUREMENT / RECEIVING
    ====================================================== */
 
-router.post("/receipts", requireRole("manager", "owner"), controller.createInventoryReceipt);
+router.post(
+  "/receipts",
+  requireRole("director", "owner"),
+  controller.createInventoryReceipt,
+);
 router.get("/receipts/:id", controller.getReceiptDetail);
-router.post("/receipts/:id/pay", requireRole("manager", "owner"), controller.markReceiptPaid);
+router.post(
+  "/receipts/:id/pay",
+  requireRole("director", "owner"),
+  controller.markReceiptPaid,
+);
 
 /* ======================================================
    STOCK TAKE (RPC-BASED)
@@ -33,8 +41,16 @@ router.post(
   "/stock-take-sessions/:id/complete",
   controller.completeStockTakeSession,
 );
-router.post("/stock-take-sessions/:id/approve", requireRole("manager", "owner"), controller.approveStockTake);
-router.post("/stock-take-sessions/:id/reject", requireRole("manager", "owner"), controller.rejectStockTake);
+router.post(
+  "/stock-take-sessions/:id/approve",
+  requireRole("director", "owner"),
+  controller.approveStockTake,
+);
+router.post(
+  "/stock-take-sessions/:id/reject",
+  requireRole("director", "owner"),
+  controller.rejectStockTake,
+);
 
 /* ======================================================
    STOCK TAKE REPORTING
