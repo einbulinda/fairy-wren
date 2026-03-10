@@ -1,5 +1,16 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
+
+/*=======================================================================
+ MIGRATIONS TRACKING TABLE
+ Tracks which migration scripts have been applied to this database.
+ Managed by api/src/database/migrate.js — never edit rows by hand.
+ ========================================================================*/
+CREATE TABLE IF NOT EXISTS public._migrations (
+    id serial PRIMARY KEY,
+    name text NOT NULL UNIQUE,
+    applied_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE public.approval_requests (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     request_type character varying NOT NULL,
@@ -90,7 +101,7 @@ CREATE TABLE public.chart_of_accounts (
         normal_balance = ANY (ARRAY ['debit'::text, 'credit'::text])
     ),
     is_control_account boolean DEFAULT false,
-    code character varying,
+    code character varying UNIQUE,
     CONSTRAINT chart_of_accounts_pkey PRIMARY KEY (id),
     CONSTRAINT chart_of_accounts_parent_fk FOREIGN KEY (parent_id) REFERENCES public.chart_of_accounts(id)
 );
@@ -458,9 +469,11 @@ CREATE TABLE public.suppliers (
     updated_by uuid,
     contact_person character varying,
     address text,
+    account_id uuid,
     CONSTRAINT suppliers_pkey PRIMARY KEY (id),
     CONSTRAINT suppliers_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
-    CONSTRAINT suppliers_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
+    CONSTRAINT suppliers_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id),
+    CONSTRAINT suppliers_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.chart_of_accounts(id)
 );
 /*=======================================================================
  CHEQUES TABLE

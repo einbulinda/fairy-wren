@@ -13,8 +13,13 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { fmtNumber as fmt } from "@/utils/formatters";
+import AccountLedgerModal from "@/components/shared/AccountLedgerModal";
 
-const todayStr = new Date().toISOString().split("T")[0];
+const today = new Date();
+const todayStr = today.toISOString().split("T")[0];
+const defaultStartDate = new Date(today.getFullYear(), 0, 1)
+  .toISOString()
+  .split("T")[0];
 
 // Build a tree from flat accounts list
 const buildTree = (accounts) => {
@@ -61,10 +66,11 @@ const sumRoots = (roots) => roots.reduce((s, n) => s + Number(n.balance), 0);
 
 // --- Sub-components ---
 
-const LineItem = ({ node, depth = 0 }) => {
+const LineItem = ({ node, depth = 0, onDrillDown }) => {
   const [expanded, setExpanded] = useState(!node.is_control_account);
   const hasChildren = node.children.length > 0;
   const balance = Number(node.balance);
+  const canDrill = !hasChildren && balance !== 0 && onDrillDown;
 
   return (
     <>
@@ -94,14 +100,25 @@ const LineItem = ({ node, depth = 0 }) => {
             hasChildren ? "text-white font-medium" : "text-surface-300"
           }`}
         >
-          {!expanded || !hasChildren ? fmt(balance) : ""}
+          {!expanded || !hasChildren ? (
+            canDrill ? (
+              <button
+                onClick={() => onDrillDown(node.account_id, node.account_name)}
+                className="text-primary-400 hover:text-primary-300 underline decoration-dotted underline-offset-2 transition-colors"
+              >
+                {fmt(balance)}
+              </button>
+            ) : (
+              fmt(balance)
+            )
+          ) : ""}
         </td>
       </tr>
       {expanded &&
         hasChildren && (
           <>
             {node.children.map((child) => (
-              <LineItem key={child.account_id} node={child} depth={depth + 1} />
+              <LineItem key={child.account_id} node={child} depth={depth + 1} onDrillDown={onDrillDown} />
             ))}
             <tr className="border-t border-surface-700/50">
               <td
@@ -120,7 +137,7 @@ const LineItem = ({ node, depth = 0 }) => {
   );
 };
 
-const CollapsibleSection = ({ title, nodes, subtotalLabel, subtotalAmount, children }) => {
+const CollapsibleSection = ({ title, nodes, subtotalLabel, subtotalAmount, children, onDrillDown }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -156,7 +173,7 @@ const CollapsibleSection = ({ title, nodes, subtotalLabel, subtotalAmount, child
       {!collapsed && (
         <>
           {nodes.map((node) => (
-            <LineItem key={node.account_id} node={node} />
+            <LineItem key={node.account_id} node={node} onDrillDown={onDrillDown} />
           ))}
           {children}
           <tr className="border-t border-surface-600">
@@ -452,10 +469,19 @@ const generatePDF = (sections, formattedDate, asOfDate, orgName) => {
 // --- Main Component ---
 
 const BalanceSheetPage = () => {
+  const [startDate, setStartDate] = useState(defaultStartDate);
   const [asOfDate, setAsOfDate] = useState(todayStr);
+  const [drillDown, setDrillDown] = useState(null);
   const { data, isLoading, isFetching } = useBalanceSheet(asOfDate);
   const { data: settings } = useSettings();
   const orgName = settings?.organisation_name || "Fairy Wren Limited";
+
+  const handleDrillDown = useCallback(
+    (accountId, accountName) => {
+      setDrillDown({ accountId, accountName, from: startDate, to: asOfDate });
+    },
+    [startDate, asOfDate],
+  );
 
   const sections = useMemo(() => {
     if (!data?.accounts) return null;
@@ -544,10 +570,21 @@ const BalanceSheetPage = () => {
               <p className="text-xs text-surface-500">(Amounts in KES)</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 sm:ml-auto">
+          <div className="flex items-center gap-3 sm:ml-auto flex-wrap">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
-                As of Date
+                From
+              </label>
+              <input
+                type="date"
+                className={inputCls}
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
+                As at
               </label>
               <input
                 type="date"
@@ -605,6 +642,7 @@ const BalanceSheetPage = () => {
                     nodes={getRenderNodes(sections.equityTree)}
                     subtotalLabel="Total Equity"
                     subtotalAmount={sections.totalEquity}
+                    onDrillDown={handleDrillDown}
                   >
                     {/* Net Income row */}
                     <tr className="hover:bg-surface-700/20 transition-colors">
@@ -628,6 +666,7 @@ const BalanceSheetPage = () => {
                     nodes={getRenderNodes(sections.nonCurrentLiabilities)}
                     subtotalLabel="Total Non-current Liabilities"
                     subtotalAmount={sections.totalNonCurrentLiabilities}
+                    onDrillDown={handleDrillDown}
                   />
 
                   <SpacerRow />
@@ -656,6 +695,7 @@ const BalanceSheetPage = () => {
                     nodes={getRenderNodes(sections.nonCurrentAssets)}
                     subtotalLabel="Total Non-current Assets"
                     subtotalAmount={sections.totalNonCurrentAssets}
+                    onDrillDown={handleDrillDown}
                   />
 
                   <SpacerRow />
@@ -666,6 +706,7 @@ const BalanceSheetPage = () => {
                     nodes={getRenderNodes(sections.currentAssets)}
                     subtotalLabel="Total Current Assets"
                     subtotalAmount={sections.totalCurrentAssets}
+                    onDrillDown={handleDrillDown}
                   />
 
                   <SpacerRow />
@@ -676,6 +717,7 @@ const BalanceSheetPage = () => {
                     nodes={getRenderNodes(sections.currentLiabilities)}
                     subtotalLabel="Total Current Liabilities"
                     subtotalAmount={sections.totalCurrentLiabilities}
+                    onDrillDown={handleDrillDown}
                   />
 
                   <SpacerRow />
@@ -745,6 +787,16 @@ const BalanceSheetPage = () => {
             </div>
           </div>
         </>
+      )}
+
+      {drillDown && (
+        <AccountLedgerModal
+          accountId={drillDown.accountId}
+          accountName={drillDown.accountName}
+          from={drillDown.from}
+          to={drillDown.to}
+          onClose={() => setDrillDown(null)}
+        />
       )}
     </div>
   );

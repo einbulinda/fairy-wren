@@ -48,6 +48,7 @@ const PendingInvoicesPage = () => {
   const [payForm, setPayForm] = useState({
     payment_method: "bank",
     reference: "",
+    amount: "",
     notes: "",
   });
 
@@ -122,11 +123,11 @@ const PendingInvoicesPage = () => {
       return;
     }
     markPaid.mutate(
-      { id: payingId, ...payForm },
+      { id: payingId, ...payForm, amount: payForm.amount ? parseFloat(payForm.amount) : undefined },
       {
         onSuccess: () => {
           setPayingId(null);
-          setPayForm({ payment_method: "bank", reference: "", notes: "" });
+          setPayForm({ payment_method: "bank", reference: "", amount: "", notes: "" });
         },
       },
     );
@@ -184,7 +185,7 @@ const PendingInvoicesPage = () => {
               <X size={16} />
             </button>
           </div>
-          <form onSubmit={handlePay} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <form onSubmit={handlePay} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div className="space-y-1">
               <label className="text-xs text-surface-400 font-medium">Payment Method *</label>
               <select
@@ -196,6 +197,18 @@ const PendingInvoicesPage = () => {
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-surface-400 font-medium">Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={payForm.amount}
+                onChange={(e) => setPayForm((f) => ({ ...f, amount: e.target.value }))}
+                placeholder={fmt(sorted.find((i) => i.id === payingId)?.total_amount)}
+                className={inputCls}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-surface-400 font-medium">Reference No. *</label>
@@ -218,7 +231,7 @@ const PendingInvoicesPage = () => {
                 className={inputCls}
               />
             </div>
-            <div className="sm:col-span-3 flex justify-end">
+            <div className="sm:col-span-4 flex justify-end">
               <button
                 type="submit"
                 disabled={markPaid.isPending}
@@ -295,7 +308,7 @@ const PendingInvoicesPage = () => {
                           <button
                             onClick={() => {
                               setPayingId(inv.id);
-                              setPayForm({ payment_method: "bank", reference: "", notes: "" });
+                              setPayForm({ payment_method: "bank", reference: "", amount: "", notes: "" });
                             }}
                             className="px-3 py-1 bg-green-600/20 text-green-400 hover:bg-green-600/40 rounded-lg text-xs font-medium transition-colors"
                           >
@@ -342,7 +355,7 @@ const PendingInvoicesPage = () => {
                       <button
                         onClick={() => {
                           setPayingId(inv.id);
-                          setPayForm({ payment_method: "bank", reference: "", notes: "" });
+                          setPayForm({ payment_method: "bank", reference: "", amount: "", notes: "" });
                         }}
                         className="px-3 py-1 bg-green-600/20 text-green-400 hover:bg-green-600/40 rounded-lg text-xs font-medium transition-colors"
                       >

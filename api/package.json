@@ -6,7 +6,9 @@
   "scripts": {
     "test": "jest",
     "start": "node src/server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "migrate": "node src/database/migrate.js",
+    "migrate:status": "node src/database/migrate.js --status"
   },
   "jest": {
     "setupFilesAfterEnv": [

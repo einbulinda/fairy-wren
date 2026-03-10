@@ -11,6 +11,7 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { fmtNumber as fmt } from "@/utils/formatters";
+import AccountLedgerModal from "@/components/shared/AccountLedgerModal";
 
 const today = new Date();
 const defaultEndDate = today.toISOString().split("T")[0];
@@ -59,10 +60,24 @@ const sumRoots = (roots) => roots.reduce((s, n) => s + Number(n.balance), 0);
 
 // --- Sub-components ---
 
-const LineItem = ({ node, depth = 0 }) => {
+const LineItem = ({ node, depth = 0, onDrillDown }) => {
   const [expanded, setExpanded] = useState(!node.is_control_account);
   const hasChildren = node.children.length > 0;
   const balance = Number(node.balance);
+  const isLeafWithBalance = !hasChildren && balance !== 0;
+
+  const balanceDisplay = !expanded || !hasChildren ? (
+    isLeafWithBalance && onDrillDown ? (
+      <button
+        onClick={() => onDrillDown(node.account_id, node.account_name)}
+        className="hover:text-primary-400 cursor-pointer underline decoration-dotted underline-offset-2 transition-colors"
+      >
+        {fmt(balance)}
+      </button>
+    ) : (
+      fmt(balance)
+    )
+  ) : "";
 
   return (
     <>
@@ -92,14 +107,14 @@ const LineItem = ({ node, depth = 0 }) => {
             hasChildren ? "text-white font-medium" : "text-surface-300"
           }`}
         >
-          {!expanded || !hasChildren ? fmt(balance) : ""}
+          {balanceDisplay}
         </td>
       </tr>
       {expanded &&
         hasChildren && (
           <>
             {node.children.map((child) => (
-              <LineItem key={child.account_id} node={child} depth={depth + 1} />
+              <LineItem key={child.account_id} node={child} depth={depth + 1} onDrillDown={onDrillDown} />
             ))}
             <tr className="border-t border-surface-700/50">
               <td
@@ -118,7 +133,7 @@ const LineItem = ({ node, depth = 0 }) => {
   );
 };
 
-const CollapsibleSection = ({ title, nodes, subtotalLabel, subtotalAmount }) => {
+const CollapsibleSection = ({ title, nodes, subtotalLabel, subtotalAmount, onDrillDown }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -149,7 +164,7 @@ const CollapsibleSection = ({ title, nodes, subtotalLabel, subtotalAmount }) => 
       {!collapsed && (
         <>
           {nodes.map((node) => (
-            <LineItem key={node.account_id} node={node} />
+            <LineItem key={node.account_id} node={node} onDrillDown={onDrillDown} />
           ))}
           <tr className="border-t border-surface-600">
             <td className="px-4 py-2 font-semibold text-white" style={{ paddingLeft: "28px" }}>
@@ -473,6 +488,11 @@ const IncomeStatementPage = () => {
   const { data, isLoading, isFetching } = useIncomeStatement(startDate, endDate);
   const { data: settings } = useSettings();
   const orgName = settings?.organisation_name || "Fairy Wren Limited";
+  const [drillDown, setDrillDown] = useState(null);
+
+  const handleDrillDown = useCallback((accountId, accountName) => {
+    setDrillDown({ accountId, accountName, from: startDate, to: endDate });
+  }, [startDate, endDate]);
 
   const sections = useMemo(() => {
     if (!data?.accounts) return null;
@@ -672,6 +692,7 @@ const IncomeStatementPage = () => {
                     nodes={getRenderNodes(sections.revenueTree)}
                     subtotalLabel="Total Revenue"
                     subtotalAmount={sections.totalRevenue}
+                    onDrillDown={handleDrillDown}
                   />
 
                   <SpacerRow />
@@ -682,6 +703,7 @@ const IncomeStatementPage = () => {
                     nodes={getRenderNodes(sections.cogsTree)}
                     subtotalLabel="Total Cost of Sales"
                     subtotalAmount={sections.totalCOGS}
+                    onDrillDown={handleDrillDown}
                   />
 
                   <SpacerRow />
@@ -702,6 +724,7 @@ const IncomeStatementPage = () => {
                         nodes={getRenderNodes(sections.operatingCostTree)}
                         subtotalLabel="Total Operating Costs"
                         subtotalAmount={sections.totalOperatingCosts}
+                        onDrillDown={handleDrillDown}
                       />
                     </>
                   )}
@@ -715,6 +738,7 @@ const IncomeStatementPage = () => {
                         nodes={getRenderNodes(sections.adminCostTree)}
                         subtotalLabel="Total Administrative Costs"
                         subtotalAmount={sections.totalAdminCosts}
+                        onDrillDown={handleDrillDown}
                       />
                     </>
                   )}
@@ -728,6 +752,7 @@ const IncomeStatementPage = () => {
                         nodes={getRenderNodes(sections.otherExpenseTree)}
                         subtotalLabel="Total Other Expenses"
                         subtotalAmount={sections.totalOtherExpenses}
+                        onDrillDown={handleDrillDown}
                       />
                     </>
                   )}
@@ -750,6 +775,7 @@ const IncomeStatementPage = () => {
                         nodes={getRenderNodes(sections.financeCostTree)}
                         subtotalLabel="Total Finance Costs"
                         subtotalAmount={sections.totalFinanceCosts}
+                        onDrillDown={handleDrillDown}
                       />
                     </>
                   )}
@@ -802,6 +828,15 @@ const IncomeStatementPage = () => {
             </div>
           )}
         </>
+      )}
+      {drillDown && (
+        <AccountLedgerModal
+          accountId={drillDown.accountId}
+          accountName={drillDown.accountName}
+          from={drillDown.from}
+          to={drillDown.to}
+          onClose={() => setDrillDown(null)}
+        />
       )}
     </div>
   );

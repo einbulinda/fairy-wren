@@ -55,7 +55,11 @@ exports.create = async (payload, context) => {
     action: "ACCOUNT_CREATED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
-    metadata: { name: data.name, code: data.code, account_class: data.account_class },
+    metadata: {
+      name: data.name,
+      code: data.code,
+      account_class: data.account_class,
+    },
   });
 
   return data;
@@ -101,6 +105,7 @@ exports.update = async (id, payload, context) => {
   const { data, error } = await repo.update(id, dto);
 
   if (error || !data) {
+    console.log("Failed to update account:", { id, dto, error });
     throw new Error("FAILED_TO_UPDATE_ACCOUNT");
   }
 
@@ -183,7 +188,11 @@ exports.getChildren = async (parentId) => {
 
 exports.getLedger = async (accountId, startDate, endDate) => {
   await exports.getById(accountId); // validates account exists
-  const { data, error } = await repo.getAccountLedger(accountId, startDate, endDate);
+  const { data, error } = await repo.getAccountLedger(
+    accountId,
+    startDate,
+    endDate,
+  );
   if (error) throw new Error("FAILED_TO_FETCH_LEDGER");
   return data || [];
 };

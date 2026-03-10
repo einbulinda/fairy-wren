@@ -18,7 +18,8 @@ exports.markReceiptPaid = async (id, payload, context) => {
   if (!payload.reference) throw new Error("REFERENCE_REQUIRED");
 
   // Get receipt to know the amount and supplier
-  const { data: receipt, error: receiptErr } = await receiptsRepo.getReceiptById(id);
+  const { data: receipt, error: receiptErr } =
+    await receiptsRepo.getReceiptById(id);
   if (receiptErr || !receipt) throw new Error("RECEIPT_NOT_FOUND");
   if (receipt.paid_at) throw new Error("RECEIPT_ALREADY_PAID");
 
@@ -27,9 +28,28 @@ exports.markReceiptPaid = async (id, payload, context) => {
   // Determine which account to credit (cash or bank)
   const accountCode = payload.payment_method === "cash" ? "1010" : "1020";
   const { data: creditAccount } = await accountsRepo.findByCode(accountCode);
-  const { data: apAccount } = await accountsRepo.findByCode("AP");
 
-  if (!creditAccount || !apAccount) throw new Error("GL_ACCOUNTS_NOT_CONFIGURED");
+  // Use supplier-specific AP child account if available, fall back to generic AP
+  const { data: supplier } = await supplierPaymentsRepo.findById(receipt.supplier_id);
+  let apAccount;
+  if (supplier?.account_id) {
+    const { data: supplierAccount } = await accountsRepo.findById(supplier.account_id);
+    apAccount = supplierAccount;
+  }
+  if (!apAccount) {
+    const { data: genericAp } = await accountsRepo.findByCode("2100");
+    apAccount = genericAp;
+  }
+
+  if (!creditAccount || !apAccount) {
+    console.log(
+      "GL accounts not configured properly. AP Account:",
+      apAccount,
+      "Credit Account:",
+      creditAccount,
+    );
+    throw new Error("GL_ACCOUNTS_NOT_CONFIGURED");
+  }
 
   // Create journal entry: Dr AP / Cr Cash or Bank
   const ref = `SPM-${payload.reference}`;
@@ -43,22 +63,33 @@ exports.markReceiptPaid = async (id, payload, context) => {
   if (!entry) throw new Error("FAILED_TO_CREATE_JOURNAL_ENTRY");
 
   await journalRepo.createLines([
-    { journal_entry_id: entry.id, account_id: apAccount.id, debit: amount, credit: 0 },
-    { journal_entry_id: entry.id, account_id: creditAccount.id, debit: 0, credit: amount },
+    {
+      journal_entry_id: entry.id,
+      account_id: apAccount.id,
+      debit: amount,
+      credit: 0,
+    },
+    {
+      journal_entry_id: entry.id,
+      account_id: creditAccount.id,
+      debit: 0,
+      credit: amount,
+    },
   ]);
 
   // Create supplier payment record
-  const { data: payment, error: paymentErr } = await supplierPaymentsRepo.createPayment({
-    supplier_id: receipt.supplier_id,
-    payment_date: new Date().toISOString().split("T")[0],
-    amount,
-    payment_method: payload.payment_method,
-    reference: payload.reference,
-    bank_account_id: creditAccount.id,
-    journal_entry_id: entry.id,
-    created_by: context.userId,
-    notes: payload.notes || `Payment for invoice ${receipt.invoice_number}`,
-  });
+  const { data: payment, error: paymentErr } =
+    await supplierPaymentsRepo.createPayment({
+      supplier_id: receipt.supplier_id,
+      payment_date: new Date().toISOString().split("T")[0],
+      amount,
+      payment_method: payload.payment_method,
+      reference: payload.reference,
+      bank_account_id: creditAccount.id,
+      journal_entry_id: entry.id,
+      created_by: context.userId,
+      notes: payload.notes || `Payment for invoice ${receipt.invoice_number}`,
+    });
 
   if (paymentErr) throw new Error("FAILED_TO_CREATE_PAYMENT");
 

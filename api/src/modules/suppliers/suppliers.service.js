@@ -2,6 +2,7 @@ const repo = require("./suppliers.repository");
 const auditRepo = require("../audit/audit.repository");
 const journalRepo = require("../journals/journals.repository");
 const accountsRepo = require("../accounts/accounts.repository");
+const accountsService = require("../accounts/accounts.service");
 const {
   CreateSupplierDTO,
   UpdateSupplierDTO,
@@ -27,8 +28,29 @@ exports.create = async (payload, context) => {
 
   const dto = CreateSupplierDTO(payload);
 
+  // Auto-create a child GL account under Trade Payables (AP)
+  const { data: apParent } = await accountsRepo.findByCode("2100");
+  let accountId = null;
+
+  if (apParent) {
+    const nextCode = await accountsRepo.getNextChildCode(apParent.id, apParent.code);
+    const account = await accountsService.create(
+      {
+        name: dto.name,
+        code: nextCode,
+        account_class: apParent.account_class || "liability",
+        parent_id: apParent.id,
+        normal_balance: "credit",
+        is_control_account: false,
+      },
+      context,
+    );
+    accountId = account.id;
+  }
+
   const { data, error } = await repo.create({
     ...dto,
+    account_id: accountId,
     active: true,
   });
 
@@ -40,7 +62,7 @@ exports.create = async (payload, context) => {
     action: "SUPPLIER_CREATED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
-    metadata: { name: data.name },
+    metadata: { name: data.name, account_id: accountId },
   });
 
   return data;
@@ -112,10 +134,20 @@ exports.createPayment = async (supplierId, payload, context) => {
 
   const dto = CreatePaymentDTO(payload);
 
-  // Auto-post journal: Dr AP / Cr Bank if both accounts are available
+  // Auto-post journal: Dr supplier AP account / Cr Bank if both accounts are available
   let journalEntryId = null;
   if (dto.bank_account_id) {
-    const { data: apAccount } = await accountsRepo.findByCode("AP");
+    // Use supplier-specific AP child account if available, fall back to generic AP
+    const { data: supplier } = await repo.findById(supplierId);
+    let apAccount;
+    if (supplier?.account_id) {
+      const { data: supplierAccount } = await accountsRepo.findById(supplier.account_id);
+      apAccount = supplierAccount;
+    }
+    if (!apAccount) {
+      const { data: genericAp } = await accountsRepo.findByCode("2100");
+      apAccount = genericAp;
+    }
     if (apAccount) {
       const ref = `SPM-${dto.reference || dto.payment_date}`;
       const { data: entry } = await journalRepo.createEntry({

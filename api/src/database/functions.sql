@@ -1,3 +1,15 @@
+/*=======================================================================
+ MIGRATION RUNNER HELPER
+ Allows the migration runner (migrate.js) to execute arbitrary SQL
+ via the Supabase JS client.  Restricted to the service_role key.
+ ========================================================================*/
+CREATE OR REPLACE FUNCTION public.exec_sql(query text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $function$
+BEGIN
+    EXECUTE query;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION public.enforce_balanced_journal() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN IF (
         SELECT COALESCE(SUM(debit), 0) != COALESCE(SUM(credit), 0)
         FROM journal_lines
@@ -1166,15 +1178,23 @@ $function$;
 CREATE OR REPLACE FUNCTION public.post_inventory_purchase_journal() RETURNS trigger LANGUAGE plpgsql AS $function$
 DECLARE v_inventory_account UUID;
 v_ap_account UUID;
+v_supplier_account UUID;
 v_journal_id UUID;
+v_credit_account UUID;
 BEGIN
 SELECT inventory_account_id INTO v_inventory_account
 FROM inventory_items
 WHERE id = NEW.product_id;
+-- Try to get the supplier-specific AP child account
+SELECT s.account_id INTO v_supplier_account
+FROM inventory_receipts r
+JOIN suppliers s ON s.id = r.supplier_id
+WHERE r.id = NEW.receipt_id;
+-- Fall back to the generic AP control account if supplier has no dedicated account
 SELECT id INTO v_ap_account
 FROM chart_of_accounts
-WHERE code = 'AP';
--- your AP control account
+WHERE code = '2100';
+v_credit_account := COALESCE(v_supplier_account, v_ap_account);
 INSERT INTO journal_entries (
         entry_date,
         source_type,
@@ -1195,7 +1215,7 @@ VALUES (
         NEW.line_total
     );
 INSERT INTO journal_lines (journal_entry_id, account_id, credit)
-VALUES (v_journal_id, v_ap_account, NEW.line_total);
+VALUES (v_journal_id, v_credit_account, NEW.line_total);
 RETURN NEW;
 END;
 $function$;
@@ -2177,9 +2197,11 @@ SELECT coa.id AS account_id,
         ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
     END AS balance
 FROM chart_of_accounts coa
-    LEFT JOIN journal_lines jl ON jl.account_id = coa.id
-    LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
-    AND je.entry_date <= p_as_of_date
+    LEFT JOIN (
+        journal_lines jl
+        JOIN journal_entries je ON je.id = jl.journal_entry_id
+            AND je.entry_date <= p_as_of_date
+    ) ON jl.account_id = coa.id
 WHERE coa.account_class IN (
         'asset',
         'current_asset',
@@ -2266,10 +2288,12 @@ SELECT coa.id AS account_id,
         ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
     END AS balance
 FROM chart_of_accounts coa
-    LEFT JOIN journal_lines jl ON jl.account_id = coa.id
-    LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
-        AND je.entry_date >= p_start_date
-        AND je.entry_date <= p_end_date
+    LEFT JOIN (
+        journal_lines jl
+        JOIN journal_entries je ON je.id = jl.journal_entry_id
+            AND je.entry_date >= p_start_date
+            AND je.entry_date <= p_end_date
+    ) ON jl.account_id = coa.id
 WHERE coa.active = true
 GROUP BY coa.id,
     coa.code,

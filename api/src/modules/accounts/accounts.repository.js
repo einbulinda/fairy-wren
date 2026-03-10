@@ -91,6 +91,24 @@ exports.getChildren = async (parentId) => {
     .order("code", { ascending: true });
 };
 
+exports.getNextChildCode = async (parentId, parentCode) => {
+  const supabase = getSupabase();
+  const { data: children } = await supabase
+    .from("chart_of_accounts")
+    .select("code")
+    .eq("parent_id", parentId)
+    .order("code", { ascending: false })
+    .limit(1);
+
+  if (!children || children.length === 0) {
+    return `${parentCode}01`;
+  }
+
+  const lastCode = children[0].code;
+  const suffix = parseInt(lastCode.replace(parentCode, ""), 10) || 0;
+  return `${parentCode}${String(suffix + 1).padStart(2, "0")}`;
+};
+
 exports.getAccountLedger = async (accountId, startDate, endDate) => {
   const supabase = getSupabase();
   return supabase.rpc("rpc_account_ledger", {

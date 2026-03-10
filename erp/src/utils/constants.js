@@ -2,7 +2,7 @@ export const USER_ROLES = {
   WAITRESS: "waitress",
   BARTENDER: "bartender",
   MANAGER: "manager",
-  OWNER: "owner",
+  OWNER: "director",
 };
 
 export const ERP_ALLOWED_ROLES = [

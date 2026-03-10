@@ -14,6 +14,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { MobileCard, MobileField } from "@/components/shared/MobileCard";
 import { fmtNumber as fmt } from "@/utils/formatters";
+import AccountLedgerModal from "@/components/shared/AccountLedgerModal";
 
 const today = new Date();
 const defaultEndDate = today.toISOString().split("T")[0];
@@ -178,9 +179,17 @@ const generatePDF = (accounts, totals, startDate, endDate, orgName) => {
 const TrialBalancePage = () => {
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
+  const [drillDown, setDrillDown] = useState(null);
   const { data, isLoading, isFetching } = useTrialBalance(startDate, endDate);
   const { data: settings } = useSettings();
   const orgName = settings?.organisation_name || "Fairy Wren Limited";
+
+  const handleDrillDown = useCallback(
+    (accountId, accountName) => {
+      setDrillDown({ accountId, accountName, from: startDate, to: endDate });
+    },
+    [startDate, endDate],
+  );
 
   const { accounts, totals, grouped } = useMemo(() => {
     if (!data?.accounts)
@@ -312,7 +321,7 @@ const TrialBalancePage = () => {
                 </thead>
                 <tbody className="divide-y divide-surface-700/30">
                   {grouped.map((group) => (
-                    <ClassSection key={group.cls} group={group} />
+                    <ClassSection key={group.cls} group={group} onDrillDown={handleDrillDown} />
                   ))}
                   <tr className="border-t-2 border-surface-500 bg-surface-900/50">
                     <td className="px-4 py-3" />
@@ -378,13 +387,23 @@ const TrialBalancePage = () => {
           </div>
         </>
       )}
+
+      {drillDown && (
+        <AccountLedgerModal
+          accountId={drillDown.accountId}
+          accountName={drillDown.accountName}
+          from={drillDown.from}
+          to={drillDown.to}
+          onClose={() => setDrillDown(null)}
+        />
+      )}
     </div>
   );
 };
 
 // --- Class Section (collapsible group) ---
 
-const ClassSection = ({ group }) => {
+const ClassSection = ({ group, onDrillDown }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -417,7 +436,12 @@ const ClassSection = ({ group }) => {
       </tr>
 
       {!collapsed &&
-        group.accounts.map((account) => (
+        group.accounts.map((account) => {
+          const hasActivity = Number(account.total_debit) > 0 || Number(account.total_credit) > 0;
+          const drillCls = hasActivity && onDrillDown
+            ? "text-primary-400 hover:text-primary-300 underline decoration-dotted underline-offset-2 cursor-pointer transition-colors"
+            : "text-surface-300";
+          return (
           <tr
             key={account.account_id}
             className="hover:bg-surface-700/20 transition-colors"
@@ -428,14 +452,27 @@ const ClassSection = ({ group }) => {
             <td className="px-4 py-2 text-surface-300">
               {account.account_name}
             </td>
-            <td className="px-4 py-2 text-right tabular-nums text-surface-300">
-              {fmt(account.total_debit)}
+            <td className="px-4 py-2 text-right tabular-nums">
+              <button
+                className={drillCls}
+                onClick={() => hasActivity && onDrillDown?.(account.account_id, account.account_name)}
+                disabled={!hasActivity || !onDrillDown}
+              >
+                {fmt(account.total_debit)}
+              </button>
             </td>
-            <td className="px-4 py-2 text-right tabular-nums text-surface-300">
-              {fmt(account.total_credit)}
+            <td className="px-4 py-2 text-right tabular-nums">
+              <button
+                className={drillCls}
+                onClick={() => hasActivity && onDrillDown?.(account.account_id, account.account_name)}
+                disabled={!hasActivity || !onDrillDown}
+              >
+                {fmt(account.total_credit)}
+              </button>
             </td>
           </tr>
-        ))}
+          );
+        })}
     </>
   );
 };
