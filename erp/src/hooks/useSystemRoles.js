@@ -24,8 +24,8 @@ export const useCreateSystemRole = () => {
       toast.success("System role created");
     },
     onError: (err) => {
-      const msg = err?.response?.data?.error || err.message;
-      toast.error(msg === "CODE_ALREADY_EXISTS" ? "That code already exists" : "Failed to create system role");
+      const msg = err?.response?.data?.error?.message || err.message;
+      toast.error(msg);
     },
   });
 };
@@ -51,8 +51,8 @@ export const useDeleteSystemRole = () => {
       toast.success("System role deleted");
     },
     onError: (err) => {
-      const msg = err?.response?.data?.error || err.message;
-      toast.error(msg === "SYSTEM_ROLE_IN_USE" ? "Cannot delete: role is assigned to users" : "Failed to delete system role");
+      const msg = err?.response?.data?.error?.message || err.message;
+      toast.error(msg);
     },
   });
 };

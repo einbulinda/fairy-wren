@@ -24,8 +24,8 @@ export const useCreateAccountClass = () => {
       toast.success("Account class created");
     },
     onError: (err) => {
-      const msg = err?.response?.data?.error || err.message;
-      toast.error(msg === "CODE_ALREADY_EXISTS" ? "That code already exists" : "Failed to create account class");
+      const msg = err?.response?.data?.error?.message || err.message;
+      toast.error(msg);
     },
   });
 };
@@ -51,8 +51,8 @@ export const useDeleteAccountClass = () => {
       toast.success("Account class deleted");
     },
     onError: (err) => {
-      const msg = err?.response?.data?.error || err.message;
-      toast.error(msg === "ACCOUNT_CLASS_IN_USE" ? "Cannot delete: class is in use by accounts" : "Failed to delete account class");
+      const msg = err?.response?.data?.error?.message || err.message;
+      toast.error(msg);
     },
   });
 };

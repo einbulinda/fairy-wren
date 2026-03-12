@@ -280,6 +280,46 @@ const ERROR_MAP = {
     message: "Failed to fetch inventory ledger",
   },
 
+  // ===== ACCOUNTS =====
+  ACCOUNT_NAME_REQUIRED: { status: 400, message: "Account name is required" },
+  ACCOUNT_CODE_REQUIRED: { status: 400, message: "Account code is required" },
+  ACCOUNT_CLASS_REQUIRED: { status: 400, message: "Account class is required" },
+  INVALID_ACCOUNT_CLASS: { status: 400, message: "Invalid account class" },
+  INVALID_NORMAL_BALANCE: { status: 400, message: "Normal balance must be debit or credit" },
+  ACCOUNT_NOT_FOUND: { status: 404, message: "Account not found" },
+  ACCOUNT_CODE_ALREADY_EXISTS: { status: 409, message: "Account code already exists" },
+  PARENT_ACCOUNT_NOT_FOUND: { status: 404, message: "Parent account not found" },
+  ACCOUNT_CANNOT_BE_ITS_OWN_PARENT: { status: 400, message: "Account cannot be its own parent" },
+  ACCOUNT_HAS_CHILD_ACCOUNTS: { status: 409, message: "Cannot delete account with child accounts" },
+  FAILED_TO_FETCH_ACCOUNTS: { status: 500, message: "Failed to fetch accounts" },
+  FAILED_TO_FETCH_ACCOUNT: { status: 500, message: "Failed to fetch account" },
+  FAILED_TO_CREATE_ACCOUNT: { status: 500, message: "Failed to create account" },
+  FAILED_TO_UPDATE_ACCOUNT: { status: 500, message: "Failed to update account" },
+  FAILED_TO_UPDATE_ACCOUNT_STATUS: { status: 500, message: "Failed to update account status" },
+  FAILED_TO_DELETE_ACCOUNT: { status: 500, message: "Failed to delete account" },
+  FAILED_TO_FETCH_CHILD_ACCOUNTS: { status: 500, message: "Failed to fetch child accounts" },
+  NO_FIELDS_TO_UPDATE: { status: 400, message: "No fields to update" },
+
+  // ===== ACCOUNT CLASSES =====
+  CODE_REQUIRED: { status: 400, message: "Code is required" },
+  LABEL_REQUIRED: { status: 400, message: "Label is required" },
+  INVALID_CATEGORY: { status: 400, message: "Invalid category" },
+  CODE_ALREADY_EXISTS: { status: 409, message: "Code already exists" },
+  ACCOUNT_CLASS_NOT_FOUND: { status: 404, message: "Account class not found" },
+  ACCOUNT_CLASS_IN_USE: { status: 409, message: "Cannot delete: account class is in use" },
+  FAILED_TO_FETCH_ACCOUNT_CLASSES: { status: 500, message: "Failed to fetch account classes" },
+  FAILED_TO_CREATE_ACCOUNT_CLASS: { status: 500, message: "Failed to create account class" },
+  FAILED_TO_UPDATE_ACCOUNT_CLASS: { status: 500, message: "Failed to update account class" },
+  FAILED_TO_DELETE_ACCOUNT_CLASS: { status: 500, message: "Failed to delete account class" },
+
+  // ===== SYSTEM ROLES =====
+  SYSTEM_ROLE_NOT_FOUND: { status: 404, message: "System role not found" },
+  SYSTEM_ROLE_IN_USE: { status: 409, message: "Cannot delete: role is assigned to users" },
+  FAILED_TO_FETCH_SYSTEM_ROLES: { status: 500, message: "Failed to fetch system roles" },
+  FAILED_TO_CREATE_SYSTEM_ROLE: { status: 500, message: "Failed to create system role" },
+  FAILED_TO_UPDATE_SYSTEM_ROLE: { status: 500, message: "Failed to update system role" },
+  FAILED_TO_DELETE_SYSTEM_ROLE: { status: 500, message: "Failed to delete system role" },
+
   // ===== COMMON =====
   UNAUTHORIZED: {
     status: 401,

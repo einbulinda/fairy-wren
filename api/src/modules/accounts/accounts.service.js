@@ -105,7 +105,6 @@ exports.update = async (id, payload, context) => {
   const { data, error } = await repo.update(id, dto);
 
   if (error || !data) {
-    console.log("Failed to update account:", { id, dto, error });
     throw new Error("FAILED_TO_UPDATE_ACCOUNT");
   }
 

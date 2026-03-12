@@ -24,8 +24,8 @@ export const useCreateUser = () => {
       toast.success("User created successfully");
     },
     onError: (err) => {
-      const msg = err?.response?.data?.error || err.message;
-      toast.error(msg === "PIN_ALREADY_IN_USE" ? "That PIN is already in use" : "Failed to create user");
+      const msg = err?.response?.data?.error?.message || err.message;
+      toast.error(msg);
     },
   });
 };
@@ -39,8 +39,8 @@ export const useUpdateUser = () => {
       toast.success("User updated successfully");
     },
     onError: (err) => {
-      const msg = err?.response?.data?.error || err.message;
-      toast.error(msg === "PIN_ALREADY_IN_USE" ? "That PIN is already in use" : "Failed to update user");
+      const msg = err?.response?.data?.error?.message || err.message;
+      toast.error(msg);
     },
   });
 };
