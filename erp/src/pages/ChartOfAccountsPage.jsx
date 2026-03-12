@@ -8,6 +8,7 @@ import {
 } from "@/services/accounts.service";
 import { MobileCard, MobileField } from "@/components/shared/MobileCard";
 import { inputCls } from "@/utils/constants";
+import { useAccountClasses } from "@/hooks/useAccountClasses";
 import {
   BookOpen,
   Building,
@@ -35,107 +36,29 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-const ACCOUNT_CLASSES = [
-  {
-    value: "asset",
-    label: "Asset",
-    icon: Wallet,
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
-    badge: "bg-blue-500/20 text-blue-300",
-  },
-  {
-    value: "current_asset",
-    label: "Current Asset",
-    icon: Wallet,
-    color: "text-sky-400",
-    bg: "bg-sky-500/10",
-    badge: "bg-sky-500/20 text-sky-300",
-  },
-  {
-    value: "non_current_asset",
-    label: "Non-Current Asset",
-    icon: Landmark,
-    color: "text-indigo-400",
-    bg: "bg-indigo-500/10",
-    badge: "bg-indigo-500/20 text-indigo-300",
-  },
-  {
-    value: "liability",
-    label: "Liability",
-    icon: TrendingDown,
-    color: "text-red-400",
-    bg: "bg-red-500/10",
-    badge: "bg-red-500/20 text-red-300",
-  },
-  {
-    value: "current_liability",
-    label: "Current Liability",
-    icon: TrendingDown,
-    color: "text-pink-400",
-    bg: "bg-pink-500/10",
-    badge: "bg-pink-500/20 text-pink-300",
-  },
-  {
-    value: "equity",
-    label: "Equity",
-    icon: Building,
-    color: "text-violet-400",
-    bg: "bg-violet-500/10",
-    badge: "bg-violet-500/20 text-violet-300",
-  },
-  {
-    value: "income",
-    label: "Revenue",
-    icon: TrendingUp,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    badge: "bg-emerald-500/20 text-emerald-300",
-  },
-  {
-    value: "cost_of_sales",
-    label: "Cost of Sales",
-    icon: DollarSign,
-    color: "text-yellow-400",
-    bg: "bg-yellow-500/10",
-    badge: "bg-yellow-500/20 text-yellow-300",
-  },
-  {
-    value: "expense",
-    label: "Expense",
-    icon: ShoppingCart,
-    color: "text-orange-400",
-    bg: "bg-orange-500/10",
-    badge: "bg-orange-500/20 text-orange-300",
-  },
-  {
-    value: "admin_cost",
-    label: "Admin Cost",
-    icon: Shield,
-    color: "text-slate-400",
-    bg: "bg-slate-500/10",
-    badge: "bg-slate-500/20 text-slate-300",
-  },
-  {
-    value: "operating_cost",
-    label: "Operating Cost",
-    icon: PiggyBank,
-    color: "text-teal-400",
-    bg: "bg-teal-500/10",
-    badge: "bg-teal-500/20 text-teal-300",
-  },
-  {
-    value: "finance_cost",
-    label: "Finance Cost",
-    icon: Landmark,
-    color: "text-rose-400",
-    bg: "bg-rose-500/10",
-    badge: "bg-rose-500/20 text-rose-300",
-  },
-];
+// Visual styling map — new classes added via Settings get a neutral default
+const CLASS_STYLES = {
+  asset:                 { icon: Wallet, color: "text-blue-400", bg: "bg-blue-500/10", badge: "bg-blue-500/20 text-blue-300" },
+  current_asset:         { icon: Wallet, color: "text-sky-400", bg: "bg-sky-500/10", badge: "bg-sky-500/20 text-sky-300" },
+  non_current_asset:     { icon: Landmark, color: "text-indigo-400", bg: "bg-indigo-500/10", badge: "bg-indigo-500/20 text-indigo-300" },
+  liability:             { icon: TrendingDown, color: "text-red-400", bg: "bg-red-500/10", badge: "bg-red-500/20 text-red-300" },
+  current_liability:     { icon: TrendingDown, color: "text-pink-400", bg: "bg-pink-500/10", badge: "bg-pink-500/20 text-pink-300" },
+  non_current_liability: { icon: TrendingDown, color: "text-fuchsia-400", bg: "bg-fuchsia-500/10", badge: "bg-fuchsia-500/20 text-fuchsia-300" },
+  equity:                { icon: Building, color: "text-violet-400", bg: "bg-violet-500/10", badge: "bg-violet-500/20 text-violet-300" },
+  income:                { icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10", badge: "bg-emerald-500/20 text-emerald-300" },
+  cost_of_sales:         { icon: DollarSign, color: "text-yellow-400", bg: "bg-yellow-500/10", badge: "bg-yellow-500/20 text-yellow-300" },
+  expense:               { icon: ShoppingCart, color: "text-orange-400", bg: "bg-orange-500/10", badge: "bg-orange-500/20 text-orange-300" },
+  admin_cost:            { icon: Shield, color: "text-slate-400", bg: "bg-slate-500/10", badge: "bg-slate-500/20 text-slate-300" },
+  operating_cost:        { icon: PiggyBank, color: "text-teal-400", bg: "bg-teal-500/10", badge: "bg-teal-500/20 text-teal-300" },
+  finance_cost:          { icon: Landmark, color: "text-rose-400", bg: "bg-rose-500/10", badge: "bg-rose-500/20 text-rose-300" },
+};
 
-const getClassInfo = (cls) =>
-  ACCOUNT_CLASSES.find((c) => c.value === cls) || ACCOUNT_CLASSES[0];
+const DEFAULT_STYLE = { icon: BookOpen, color: "text-surface-400", bg: "bg-surface-500/10", badge: "bg-surface-500/20 text-surface-300" };
+
+const getClassInfo = (cls) => {
+  const style = CLASS_STYLES[cls] || DEFAULT_STYLE;
+  return { value: cls, label: cls, ...style };
+};
 
 const EMPTY_FORM = {
   code: "",
@@ -148,6 +71,20 @@ const EMPTY_FORM = {
 
 const ChartOfAccountsPage = () => {
   const queryClient = useQueryClient();
+  const { data: accountClasses = [] } = useAccountClasses();
+
+  // Build dropdown list from DB lookup, merging in visual styles
+  const ACCOUNT_CLASSES = useMemo(
+    () =>
+      accountClasses
+        .filter((c) => c.active)
+        .map((c) => ({
+          value: c.code,
+          label: c.label,
+          ...(CLASS_STYLES[c.code] || DEFAULT_STYLE),
+        })),
+    [accountClasses],
+  );
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ["accounts"],

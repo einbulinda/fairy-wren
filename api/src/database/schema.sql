@@ -85,14 +85,27 @@ CREATE TABLE public.categories (
     color text NOT NULL,
     CONSTRAINT categories_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.account_classes (
+    code TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (
+        category = ANY (ARRAY ['asset', 'liability', 'equity', 'income', 'expense'])
+    ),
+    active BOOLEAN NOT NULL DEFAULT true,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE public.system_roles (
+    code TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT true,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
 CREATE TABLE public.chart_of_accounts (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     name character varying NOT NULL,
-    account_class text NOT NULL CHECK (
-        account_class = ANY (
-            ARRAY ['asset'::text, 'liability'::text, 'equity'::text, 'income'::text, 'expense'::text, 'cost_of_sales'::text]
-        )
-    ),
+    account_class text NOT NULL REFERENCES public.account_classes(code),
     parent_id uuid,
     active boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
@@ -327,11 +340,7 @@ CREATE TABLE public.products (
 CREATE TABLE public.profiles (
     id uuid NOT NULL DEFAULT uuid_generate_v4(),
     name character varying NOT NULL,
-    role character varying NOT NULL CHECK (
-        role::text = ANY (
-            ARRAY ['waitress'::text, 'bartender'::text, 'manager'::text, 'owner'::text]
-        )
-    ),
+    role character varying NOT NULL REFERENCES public.system_roles(code),
     active boolean DEFAULT true,
     pin_hash text NOT NULL,
     pin_fingerprint text NOT NULL,

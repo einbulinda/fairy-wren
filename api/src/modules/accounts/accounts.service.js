@@ -22,7 +22,7 @@ exports.getByCode = async (code) => {
 
 exports.create = async (payload, context) => {
   // 1. Validate and normalize with DTO
-  const dto = CreateAccountDTO(payload);
+  const dto = await CreateAccountDTO(payload);
 
   // 2. Check if account code already exists
   const existingAccount = await exports.getByCode(dto.code);
@@ -67,7 +67,7 @@ exports.create = async (payload, context) => {
 
 exports.update = async (id, payload, context) => {
   // 1. Validate and normalize with DTO
-  const dto = UpdateAccountDTO(payload);
+  const dto = await UpdateAccountDTO(payload);
 
   if (Object.keys(dto).length === 0) {
     throw new Error("NO_FIELDS_TO_UPDATE");

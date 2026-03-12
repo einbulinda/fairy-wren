@@ -1,22 +1,8 @@
-const ACCOUNT_CLASSES = [
-  "asset",
-  "liability",
-  "equity",
-  "income",
-  "expense",
-  "cost_of_sales",
-  "non_current_asset",
-  "current_asset",
-  "non_current_liability",
-  "current_liability",
-  "finance_cost",
-  "admin_cost",
-  "operating_cost",
-];
+const { getActiveCodes } = require("../account-classes/account-classes.service");
 
 const NORMAL_BALANCES = ["debit", "credit"];
 
-exports.CreateAccountDTO = (payload) => {
+exports.CreateAccountDTO = async (payload) => {
   const dto = {
     name: String(payload.name || "").trim(),
     code: String(payload.code || "").trim(),
@@ -28,8 +14,9 @@ exports.CreateAccountDTO = (payload) => {
   if (!dto.code) throw new Error("ACCOUNT_CODE_REQUIRED");
   if (!dto.account_class) throw new Error("ACCOUNT_CLASS_REQUIRED");
 
-  // Validate account_class
-  if (!ACCOUNT_CLASSES.includes(dto.account_class)) {
+  // Validate account_class against DB lookup
+  const validClasses = await getActiveCodes();
+  if (!validClasses.includes(dto.account_class)) {
     throw new Error("INVALID_ACCOUNT_CLASS");
   }
 
@@ -57,7 +44,7 @@ exports.CreateAccountDTO = (payload) => {
   return dto;
 };
 
-exports.UpdateAccountDTO = (payload) => {
+exports.UpdateAccountDTO = async (payload) => {
   const dto = {};
 
   if (payload.name !== undefined) {
@@ -72,7 +59,8 @@ exports.UpdateAccountDTO = (payload) => {
 
   if (payload.account_class !== undefined) {
     dto.account_class = String(payload.account_class).toLowerCase();
-    if (!ACCOUNT_CLASSES.includes(dto.account_class)) {
+    const validClasses = await getActiveCodes();
+    if (!validClasses.includes(dto.account_class)) {
       throw new Error("INVALID_ACCOUNT_CLASS");
     }
   }

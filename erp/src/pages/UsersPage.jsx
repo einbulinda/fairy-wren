@@ -12,16 +12,10 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useUsers, useCreateUser, useUpdateUser, useToggleUserStatus } from "@/hooks/useUsers";
+import { useSystemRoles } from "@/hooks/useSystemRoles";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import { fmtDate } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
-
-const ROLES = [
-  { value: "waitress", label: "Waitress" },
-  { value: "bartender", label: "Bartender" },
-  { value: "manager", label: "Manager" },
-  { value: "owner", label: "Owner" },
-];
 
 const ROLE_STYLES = {
   owner: "bg-purple-500/20 text-purple-400",
@@ -32,7 +26,7 @@ const ROLE_STYLES = {
 
 const PAGE_SIZE = 10;
 
-const EMPTY_FORM = { name: "", role: "waitress", pin: "", confirmPin: "" };
+const EMPTY_FORM = { name: "", role: "", pin: "", confirmPin: "" };
 
 const RoleBadge = ({ role }) => (
   <span
@@ -53,6 +47,15 @@ const UsersPage = () => {
   const [pinError, setPinError] = useState("");
 
   const { data: users = [], isLoading } = useUsers();
+  const { data: systemRoles = [] } = useSystemRoles();
+
+  const ROLES = useMemo(
+    () =>
+      systemRoles
+        .filter((r) => r.active)
+        .map((r) => ({ value: r.code, label: r.label })),
+    [systemRoles],
+  );
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const toggleMutation = useToggleUserStatus();
@@ -78,7 +81,7 @@ const UsersPage = () => {
 
   const openCreate = () => {
     setEditTarget(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, role: ROLES[0]?.value || "" });
     setPinError("");
     setPanelOpen(true);
   };
@@ -443,6 +446,7 @@ const UsersPage = () => {
                   className={inputCls}
                   required
                 >
+                  <option value="">Select role…</option>
                   {ROLES.map(({ value, label }) => (
                     <option key={value} value={value}>
                       {label}
