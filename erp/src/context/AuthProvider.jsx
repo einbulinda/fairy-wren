@@ -45,6 +45,11 @@ export const AuthProvider = ({ children }) => {
     return loggedInUser;
   };
 
+  const refreshUser = useCallback(() => {
+    const stored = TokenService.getUser();
+    if (stored) setUser(stored);
+  }, []);
+
   const logout = useCallback(() => {
     TokenService.clear();
     setUser(null);
@@ -59,6 +64,7 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: !!user,
         login,
         logout,
+        refreshUser,
         loading,
       }}
     >

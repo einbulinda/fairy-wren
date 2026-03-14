@@ -76,3 +76,77 @@ exports.me = async (user) => {
   if (!user) throw new Error("UNAUTHORIZED");
   return user;
 };
+
+exports.updateProfile = async (userId, payload, context) => {
+  const userRepo = require("../users/users.repository");
+
+  const dto = {};
+  if (payload.name !== undefined) dto.name = String(payload.name).trim();
+  if (Object.keys(dto).length === 0) throw new Error("NO_FIELDS_TO_UPDATE");
+
+  const { data, error } = await userRepo.update(userId, dto);
+  if (error || !data) throw new Error("FAILED_TO_UPDATE_PROFILE");
+
+  await auditRepo.log({
+    entity: "profiles",
+    entity_id: userId,
+    action: "PROFILE_UPDATED",
+    performed_by: userId,
+    correlation_id: context.correlationId,
+    metadata: { name: data.name },
+  });
+
+  return { id: data.id, name: data.name, role: data.role, active: data.active };
+};
+
+exports.changePin = async (userId, payload, context) => {
+  const userRepo = require("../users/users.repository");
+
+  if (!payload.currentPin || !payload.newPin)
+    throw new Error("CURRENT_AND_NEW_PIN_REQUIRED");
+
+  if (payload.newPin.length < 4)
+    throw new Error("PIN_TOO_SHORT");
+
+  // Fetch full user record with pin_hash
+  const supabase = require("../../config/supabase")();
+  const { data: fullUser, error: fetchErr } = await supabase
+    .from("profiles")
+    .select("id, pin_hash, pin_fingerprint")
+    .eq("id", userId)
+    .single();
+
+  if (fetchErr || !fullUser) throw new Error("USER_NOT_FOUND");
+
+  // Verify current PIN
+  const valid = await bcrypt.compare(payload.currentPin, fullUser.pin_hash);
+  if (!valid) throw new Error("INVALID_CURRENT_PIN");
+
+  // Compute new fingerprint & hash
+  const newFingerprint = crypto
+    .createHmac("sha256", process.env.PIN_PEPPER)
+    .update(payload.newPin)
+    .digest("hex");
+
+  // Check uniqueness
+  const { data: existing } = await userRepo.userExists(newFingerprint);
+  if (existing && existing.id !== userId) throw new Error("PIN_ALREADY_IN_USE");
+
+  const newHash = await bcrypt.hash(payload.newPin, 10);
+
+  const { error: updateErr } = await userRepo.update(userId, {
+    pin_hash: newHash,
+    pin_fingerprint: newFingerprint,
+  });
+  if (updateErr) throw new Error("FAILED_TO_CHANGE_PIN");
+
+  await auditRepo.log({
+    entity: "profiles",
+    entity_id: userId,
+    action: "PIN_CHANGED",
+    performed_by: userId,
+    correlation_id: context.correlationId,
+  });
+
+  return { success: true };
+};

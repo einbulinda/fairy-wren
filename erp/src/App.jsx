@@ -29,6 +29,7 @@ import PlaceholderPage from "@/pages/PlaceholderPage";
 import SettingsPage from "@/pages/SettingsPage";
 import SalesPage from "@/pages/SalesPage";
 import PendingInvoicesPage from "@/pages/PendingInvoicesPage";
+import ProfilePage from "@/pages/ProfilePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,6 +73,7 @@ const AppRoutes = () => {
         <Route path="reports/equity-changes" element={<EquityChangesPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="approvals" element={<PlaceholderPage />} />
+        <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>

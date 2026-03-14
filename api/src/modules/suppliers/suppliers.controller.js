@@ -104,3 +104,36 @@ exports.getStatement = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.exportStatementCsv = async (req, res, next) => {
+  try {
+    const supplier = await service.getById(req.params.id);
+    const data = await service.getStatement(
+      req.params.id,
+      req.query.from,
+      req.query.to,
+    );
+
+    const rows = [["Date", "Type", "Reference", "Description", "Debit", "Credit", "Balance"]];
+    for (const r of data) {
+      rows.push([
+        r.txn_date,
+        r.txn_type,
+        `"${(r.reference || "").replace(/"/g, '""')}"`,
+        `"${(r.description || "").replace(/"/g, '""')}"`,
+        Number(r.debit || 0).toFixed(2),
+        Number(r.credit || 0).toFixed(2),
+        Number(r.running_balance || 0).toFixed(2),
+      ]);
+    }
+
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const filename = `${supplier.name.replace(/[^a-zA-Z0-9]/g, "_")}_statement.csv`;
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+};

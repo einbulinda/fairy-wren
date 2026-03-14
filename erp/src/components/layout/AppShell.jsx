@@ -25,6 +25,7 @@ const routeTitles = {
   "/reports": "Performance Analytics",
   "/users": "User Management",
   "/approvals": "Approvals",
+  "/profile": "My Profile",
 };
 
 const bottomNavItems = [

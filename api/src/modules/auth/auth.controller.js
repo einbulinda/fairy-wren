@@ -27,3 +27,23 @@ exports.me = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const context = { correlationId: req.correlationId };
+    const data = await service.updateProfile(req.user.id, req.body, context);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.changePin = async (req, res, next) => {
+  try {
+    const context = { correlationId: req.correlationId };
+    const data = await service.changePin(req.user.id, req.body, context);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};

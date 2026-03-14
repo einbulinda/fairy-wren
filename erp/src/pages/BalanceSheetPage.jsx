@@ -486,7 +486,7 @@ const BalanceSheetPage = () => {
   const sections = useMemo(() => {
     if (!data?.accounts) return null;
 
-    const currentAssets = data.accounts.filter((a) => a.account_class === "current_asset");
+    const currentAssets = data.accounts.filter((a) => a.account_class === "current_asset" || a.account_class === "bank");
     const nonCurrentAssets = data.accounts.filter((a) => a.account_class === "non_current_asset");
     const genericAssets = data.accounts.filter((a) => a.account_class === "asset");
     const currentLiabilities = data.accounts.filter((a) => a.account_class === "current_liability");

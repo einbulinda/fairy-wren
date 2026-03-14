@@ -33,6 +33,7 @@ import {
   ChevronLeft,
   PiggyBank,
   Landmark,
+  Banknote,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -51,6 +52,7 @@ const CLASS_STYLES = {
   admin_cost:            { icon: Shield, color: "text-slate-400", bg: "bg-slate-500/10", badge: "bg-slate-500/20 text-slate-300" },
   operating_cost:        { icon: PiggyBank, color: "text-teal-400", bg: "bg-teal-500/10", badge: "bg-teal-500/20 text-teal-300" },
   finance_cost:          { icon: Landmark, color: "text-rose-400", bg: "bg-rose-500/10", badge: "bg-rose-500/20 text-rose-300" },
+  bank:                  { icon: Banknote, color: "text-cyan-400", bg: "bg-cyan-500/10", badge: "bg-cyan-500/20 text-cyan-300" },
 };
 
 const DEFAULT_STYLE = { icon: BookOpen, color: "text-surface-400", bg: "bg-surface-500/10", badge: "bg-surface-500/20 text-surface-300" };

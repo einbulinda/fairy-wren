@@ -2206,6 +2206,7 @@ WHERE coa.account_class IN (
         'asset',
         'current_asset',
         'non_current_asset',
+        'bank',
         'liability',
         'current_liability',
         'non_current_liability',
@@ -2416,7 +2417,7 @@ FROM chart_of_accounts coa
     LEFT JOIN journal_lines jl ON jl.account_id = coa.id
     LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
 WHERE coa.account_class IN (
-        'asset', 'current_asset', 'non_current_asset',
+        'asset', 'current_asset', 'non_current_asset', 'bank',
         'liability', 'current_liability', 'non_current_liability',
         'equity'
     )

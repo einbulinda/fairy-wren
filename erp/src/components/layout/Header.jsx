@@ -192,7 +192,7 @@ const Header = ({ title, onMenuClick }) => {
             {userMenuOpen && (
               <div className="absolute right-0 mt-1 w-48 bg-surface-800 rounded-lg shadow-lg border border-surface-700 py-1 z-50">
                 <button
-                  onClick={() => setUserMenuOpen(false)}
+                  onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
                   className="w-full flex items-center gap-2 px-4 py-2 text-sm text-surface-300 hover:bg-surface-700 hover:text-white"
                 >
                   <User size={16} />

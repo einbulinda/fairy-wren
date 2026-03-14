@@ -16,6 +16,8 @@ import {
   ExternalLink,
   CheckCircle2,
   Clock,
+  Download,
+  Printer,
 } from "lucide-react";
 import {
   useSupplier,
@@ -24,6 +26,7 @@ import {
   useCreateSupplierPayment,
   useSupplierStatement,
 } from "@/hooks/useSuppliers";
+import { exportSupplierStatementCsv } from "@/services/suppliers.service";
 import toast from "react-hot-toast";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import { fmt, fmtDate } from "@/utils/formatters";
@@ -774,9 +777,29 @@ const SupplierDetailPage = () => {
         <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
           <div className="p-4 border-b border-surface-700 flex items-center justify-between">
             <h2 className="font-semibold text-white">Supplier Statement</h2>
-            <span className="text-xs text-surface-400">
-              {statement.length} transaction{statement.length !== 1 ? "s" : ""}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-surface-400 mr-2">
+                {statement.length} transaction{statement.length !== 1 ? "s" : ""}
+              </span>
+              {statement.length > 0 && (
+                <>
+                  <button
+                    onClick={() => exportSupplierStatementCsv(id, stmtFrom || undefined, stmtTo || undefined).catch(() => toast.error("Export failed"))}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-surface-700 hover:bg-surface-600 text-surface-300 text-xs rounded-lg transition-colors"
+                    title="Download as Excel/CSV"
+                  >
+                    <Download size={13} /> Excel
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-surface-700 hover:bg-surface-600 text-surface-300 text-xs rounded-lg transition-colors"
+                    title="Print / Save as PDF"
+                  >
+                    <Printer size={13} /> PDF
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           <DateFilter

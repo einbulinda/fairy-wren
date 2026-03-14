@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAccounts } from "@/services/accounts.service";
 import { useCheques, useCreateCheque, useClearCheque, useVoidCheque } from "@/hooks/useCheques";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { useUsers } from "@/hooks/useUsers";
 import { Plus, CheckCircle, XCircle, Clock, Receipt, ArrowLeftRight, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import { fmt } from "@/utils/formatters";
@@ -23,9 +25,16 @@ const TX_TYPES = [
 
 const TX_LABELS = { bank_cheque: "Bank Cheque", petty_cash: "Petty Cash", transfer: "Transfer" };
 
+const PAYEE_TYPES = [
+  { value: "supplier", label: "Supplier" },
+  { value: "employee", label: "Employee" },
+  { value: "other", label: "Other" },
+];
+
 const EMPTY_FORM = {
   transaction_type: "bank_cheque",
-  cheque_number: "", payee_name: "", bank_account_id: "", debit_account_id: "",
+  cheque_number: "", payee_type: "supplier", payee_id: "", payee_name: "",
+  bank_account_id: "", debit_account_id: "",
   amount: "", cheque_date: today, memo: "",
 };
 
@@ -44,6 +53,8 @@ const ChequeWritingPage = () => {
     queryFn: () => fetchAccounts({ active: true }),
     staleTime: 5 * 60 * 1000,
   });
+  const { data: suppliers = [] } = useSuppliers({ active: true });
+  const { data: users = [] } = useUsers();
 
   const filters = useMemo(() => {
     const f = {};
@@ -66,31 +77,15 @@ const ChequeWritingPage = () => {
     safePage * PAGE_SIZE,
   );
 
-  // ── Account buckets ──────────────────────────────────────────────────────
-  const bankAccounts = useMemo(() => {
-    const b = accounts.filter((a) =>
-      a.account_class === "asset" && a.parent_id !== null && a.name.toLowerCase().includes("bank")
-    );
-    return b.length ? b : accounts.filter((a) => a.account_class === "asset" && a.parent_id !== null);
-  }, [accounts]);
+  // ── Account buckets — all source from "bank" account class ───────────────
+  const bankClassAccounts = useMemo(
+    () => accounts.filter((a) => a.account_class === "bank" && a.active),
+    [accounts],
+  );
 
-  const pettyCashAccounts = useMemo(() => {
-    const p = accounts.filter((a) =>
-      a.account_class === "asset" && a.parent_id !== null &&
-      (a.name.toLowerCase().includes("petty") || a.name.toLowerCase().includes("cash"))
-    );
-    return p.length ? p : accounts.filter((a) => a.account_class === "asset" && a.parent_id !== null);
-  }, [accounts]);
-
-  const allCashBankAccounts = useMemo(() => {
-    const all = accounts.filter((a) =>
-      a.account_class === "asset" && a.parent_id !== null &&
-      (a.name.toLowerCase().includes("bank") ||
-       a.name.toLowerCase().includes("cash") ||
-       a.name.toLowerCase().includes("petty"))
-    );
-    return all.length ? all : accounts.filter((a) => a.account_class === "asset" && a.parent_id !== null);
-  }, [accounts]);
+  const bankAccounts = bankClassAccounts;
+  const pettyCashAccounts = bankClassAccounts;
+  const allCashBankAccounts = bankClassAccounts;
 
   // Children of expense or liability parents only — never post to header accounts
   const debitAccounts = useMemo(() =>
@@ -120,9 +115,24 @@ const ChequeWritingPage = () => {
     setForm({ ...EMPTY_FORM, cheque_date: form.cheque_date, transaction_type: type });
   };
 
+  const handlePayeeTypeChange = (payee_type) => {
+    setForm({ ...form, payee_type, payee_id: "", payee_name: "" });
+  };
+
+  const handlePayeeSelect = (id) => {
+    if (form.payee_type === "supplier") {
+      const s = suppliers.find((s) => s.id === id);
+      setForm({ ...form, payee_id: id, payee_name: s?.name || "" });
+    } else if (form.payee_type === "employee") {
+      const u = users.find((u) => u.id === id);
+      setForm({ ...form, payee_id: id, payee_name: u?.name || "" });
+    }
+  };
+
   const handleSubmit = () => {
     if (!form.cheque_number || !form.bank_account_id || !form.debit_account_id || !form.amount) return;
     if (!isTransfer && !form.payee_name) return;
+    if (!isTransfer && form.payee_type !== "other" && !form.payee_id) return;
     createMutation.mutate(
       { ...form, amount: parseFloat(form.amount) },
       { onSuccess: () => { setForm({ ...EMPTY_FORM, transaction_type: form.transaction_type }); setShowForm(false); } }
@@ -230,11 +240,45 @@ const ChequeWritingPage = () => {
 
             {/* Payee — hidden for transfers */}
             {!isTransfer && (
-              <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-                <label className="text-xs text-surface-400 font-medium">Pay To *</label>
-                <input className={inputCls} placeholder="Payee name" value={form.payee_name}
-                  onChange={(e) => setForm({ ...form, payee_name: e.target.value })} />
-              </div>
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs text-surface-400 font-medium">Payee Type *</label>
+                  <div className="flex rounded-lg border border-surface-600 bg-surface-900 p-0.5 gap-0.5">
+                    {PAYEE_TYPES.map((t) => (
+                      <button key={t.value} type="button"
+                        onClick={() => handlePayeeTypeChange(t.value)}
+                        className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                          form.payee_type === t.value ? "bg-primary-600 text-white" : "text-surface-400 hover:text-white"
+                        }`}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+                  <label className="text-xs text-surface-400 font-medium">Pay To *</label>
+                  {form.payee_type === "supplier" ? (
+                    <select className={inputCls} value={form.payee_id}
+                      onChange={(e) => handlePayeeSelect(e.target.value)}>
+                      <option value="">Select supplier…</option>
+                      {suppliers.filter((s) => s.active).map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  ) : form.payee_type === "employee" ? (
+                    <select className={inputCls} value={form.payee_id}
+                      onChange={(e) => handlePayeeSelect(e.target.value)}>
+                      <option value="">Select employee…</option>
+                      {users.filter((u) => u.active).map((u) => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input className={inputCls} placeholder="Payee name" value={form.payee_name}
+                      onChange={(e) => setForm({ ...form, payee_name: e.target.value })} />
+                  )}
+                </div>
+              </>
             )}
 
             {/* From account */}
@@ -293,7 +337,9 @@ const ChequeWritingPage = () => {
             <button onClick={handleSubmit}
               disabled={
                 !form.cheque_number || !form.bank_account_id || !form.debit_account_id || !form.amount ||
-                (!isTransfer && !form.payee_name) || createMutation.isPending
+                (!isTransfer && !form.payee_name) ||
+                (!isTransfer && form.payee_type !== "other" && !form.payee_id) ||
+                createMutation.isPending
               }
               className="px-5 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors">
               {isTransfer ? <ArrowLeftRight size={15} /> : <Receipt size={15} />}

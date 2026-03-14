@@ -12,6 +12,7 @@ router.get("/:id/purchases", controller.getPurchases);
 router.get("/:id/payments", controller.getPayments);
 router.post("/:id/payments", requireRole("manager", "owner"), controller.createPayment);
 router.get("/:id/statement", controller.getStatement);
+router.get("/:id/statement/export", controller.exportStatementCsv);
 
 router.get("/:id", controller.getSupplier);
 router.patch("/:id", requireRole("manager", "owner"), controller.updateSupplier);

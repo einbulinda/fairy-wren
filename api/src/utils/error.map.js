@@ -12,6 +12,26 @@ const ERROR_MAP = {
     status: 429,
     message: "Too many login attempts. Please try again later.",
   },
+  CURRENT_AND_NEW_PIN_REQUIRED: {
+    status: 400,
+    message: "Current PIN and new PIN are required",
+  },
+  PIN_TOO_SHORT: {
+    status: 400,
+    message: "PIN must be at least 4 digits",
+  },
+  INVALID_CURRENT_PIN: {
+    status: 401,
+    message: "Current PIN is incorrect",
+  },
+  FAILED_TO_UPDATE_PROFILE: {
+    status: 500,
+    message: "Failed to update profile",
+  },
+  FAILED_TO_CHANGE_PIN: {
+    status: 500,
+    message: "Failed to change PIN",
+  },
 
   // ===== USERS =====
   INVALID_USER_DATA: {
@@ -319,6 +339,27 @@ const ERROR_MAP = {
   FAILED_TO_CREATE_SYSTEM_ROLE: { status: 500, message: "Failed to create system role" },
   FAILED_TO_UPDATE_SYSTEM_ROLE: { status: 500, message: "Failed to update system role" },
   FAILED_TO_DELETE_SYSTEM_ROLE: { status: 500, message: "Failed to delete system role" },
+
+  // ===== CHEQUES =====
+  INVALID_TRANSACTION_TYPE: { status: 400, message: "Invalid transaction type" },
+  CHEQUE_NUMBER_REQUIRED: { status: 400, message: "Cheque/reference number is required" },
+  INVALID_PAYEE_TYPE: { status: 400, message: "Invalid payee type" },
+  PAYEE_NAME_REQUIRED: { status: 400, message: "Payee name is required" },
+  PAYEE_ID_REQUIRED: { status: 400, message: "Payee must be selected" },
+  BANK_ACCOUNT_REQUIRED: { status: 400, message: "Bank account is required" },
+  DEBIT_ACCOUNT_REQUIRED: { status: 400, message: "Charge account is required" },
+  CHEQUE_DATE_REQUIRED: { status: 400, message: "Date is required" },
+  INVALID_AMOUNT: { status: 400, message: "Amount must be greater than zero" },
+  CHEQUE_NUMBER_ALREADY_EXISTS: { status: 409, message: "Cheque number already exists" },
+  CHEQUE_NOT_FOUND: { status: 404, message: "Cheque not found" },
+  CHEQUE_NOT_IN_ISSUED_STATUS: { status: 400, message: "Cheque is not in issued status" },
+  CHEQUE_ALREADY_VOIDED: { status: 400, message: "Cheque is already voided" },
+  FAILED_TO_FETCH_CHEQUES: { status: 500, message: "Failed to fetch cheques" },
+  FAILED_TO_CREATE_CHEQUE: { status: 500, message: "Failed to create cheque" },
+  FAILED_TO_CREATE_CHEQUE_JOURNAL: { status: 500, message: "Failed to create journal entry for cheque" },
+  FAILED_TO_CREATE_CHEQUE_JOURNAL_LINES: { status: 500, message: "Failed to create journal lines for cheque" },
+  FAILED_TO_CLEAR_CHEQUE: { status: 500, message: "Failed to clear cheque" },
+  FAILED_TO_VOID_CHEQUE: { status: 500, message: "Failed to void cheque" },
 
   // ===== COMMON =====
   UNAUTHORIZED: {

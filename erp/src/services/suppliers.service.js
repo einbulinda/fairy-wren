@@ -46,3 +46,20 @@ export const fetchSupplierStatement = async (id, from, to) => {
   });
   return data.data;
 };
+
+export const exportSupplierStatementCsv = async (id, from, to) => {
+  const response = await api.get(`/suppliers/${id}/statement/export`, {
+    params: { from: from || undefined, to: to || undefined },
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement("a");
+  link.href = url;
+  const disposition = response.headers["content-disposition"] || "";
+  const filename = disposition.match(/filename="?(.+?)"?$/)?.[1] || "statement.csv";
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};

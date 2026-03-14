@@ -495,6 +495,8 @@ CREATE TABLE IF NOT EXISTS public.cheques (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     cheque_number varchar(50) NOT NULL,
     payee_name varchar(255) NOT NULL,
+    payee_type varchar(20) DEFAULT 'other' CHECK (payee_type IN ('supplier', 'employee', 'other')),
+    payee_id uuid,
     bank_account_id uuid NOT NULL REFERENCES chart_of_accounts(id),
     debit_account_id uuid NOT NULL REFERENCES chart_of_accounts(id),
     amount numeric(15, 2) NOT NULL CHECK (amount > 0),

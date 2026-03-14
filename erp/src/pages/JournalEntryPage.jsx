@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAccounts } from "@/services/accounts.service";
 import { useJournals, useCreateJournal, useVoidJournal } from "@/hooks/useJournals";
 import {
   Plus, Trash2, AlertCircle, CheckCircle, BookOpen,
   Filter, Eye, XCircle, ChevronDown, ChevronLeft, ChevronRight,
+  ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { fmt } from "@/utils/formatters";
@@ -57,10 +58,52 @@ const JournalEntryPage = () => {
   const createMutation = useCreateJournal();
   const voidMutation = useVoidJournal();
 
+  const [sortConfig, setSortConfig] = useState({ key: "entry_date", direction: "desc" });
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+    setPage(1);
+  };
+
+  const SortIcon = ({ col }) => {
+    if (sortConfig.key !== col)
+      return <ArrowUpDown size={13} className="text-surface-500" />;
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp size={13} className="text-primary-400" />
+    ) : (
+      <ArrowDown size={13} className="text-primary-400" />
+    );
+  };
+
+  const sorted = useMemo(() => {
+    return [...journals].sort((a, b) => {
+      let av, bv;
+      const key = sortConfig.key;
+      if (key === "total") {
+        av = a.journal_lines?.reduce((s, l) => s + Number(l.debit ?? 0), 0) ?? 0;
+        bv = b.journal_lines?.reduce((s, l) => s + Number(l.debit ?? 0), 0) ?? 0;
+        return sortConfig.direction === "asc" ? av - bv : bv - av;
+      }
+      if (key === "account") {
+        av = (a.journal_lines?.[0]?.chart_of_accounts?.name ?? "").toLowerCase();
+        bv = (b.journal_lines?.[0]?.chart_of_accounts?.name ?? "").toLowerCase();
+      } else {
+        av = String(a[key] ?? "").toLowerCase();
+        bv = String(b[key] ?? "").toLowerCase();
+      }
+      return sortConfig.direction === "asc"
+        ? av.localeCompare(bv)
+        : bv.localeCompare(av);
+    });
+  }, [journals, sortConfig]);
+
   // Pagination
-  const totalPages = Math.max(1, Math.ceil(journals.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pageItems = journals.slice(
+  const pageItems = sorted.slice(
     (safePage - 1) * PAGE_SIZE,
     safePage * PAGE_SIZE,
   );
@@ -244,7 +287,7 @@ const JournalEntryPage = () => {
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
         <div className="p-4 border-b border-surface-700">
           <h2 className="font-semibold text-white">
-            Journal Entries <span className="text-surface-400 font-normal text-sm">({journals.length})</span>
+            Journal Entries <span className="text-surface-400 font-normal text-sm">({sorted.length})</span>
           </h2>
         </div>
 
@@ -257,75 +300,111 @@ const JournalEntryPage = () => {
           </div>
         ) : (
           <>
-          <div className="divide-y divide-surface-700/50">
-            {pageItems.map((j) => {
-              const isExpanded = expandedId === j.id;
-              const totalDr = j.journal_lines?.reduce((s, l) => s + Number(l.debit ?? 0), 0) ?? 0;
-              const isVoided = !!j.reversed_entry_id;
-              return (
-                <div key={j.id}>
-                  <div className="px-4 py-3 flex items-center gap-3 hover:bg-surface-700/30 transition-colors cursor-pointer"
-                    onClick={() => setExpandedId(isExpanded ? null : j.id)}>
-                    {isExpanded ? <ChevronDown size={15} className="text-surface-400 shrink-0" /> : <ChevronRight size={15} className="text-surface-400 shrink-0" />}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-white text-sm font-medium">{j.description || j.reference || `JNL-${j.id.slice(0, 8)}`}</span>
-                        {j.reference && j.description && <span className="text-surface-500 text-xs font-mono">{j.reference}</span>}
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${j.source_type === "manual" ? "bg-primary-500/15 text-primary-300" : "bg-surface-700 text-surface-300"}`}>
-                          {SOURCE_LABELS[j.source_type] || j.source_type}
-                        </span>
-                        {isVoided && <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-red-500/15 text-red-400">Voided</span>}
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5 text-xs text-surface-500">
-                        <span>{new Date(j.entry_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                        <span>{j.journal_lines?.length ?? 0} lines</span>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-white font-medium text-sm">{fmt(totalDr)}</p>
-                    </div>
-                    {j.source_type === "manual" && !isVoided && (
-                      <button onClick={(e) => { e.stopPropagation(); handleVoid(j.id); }}
-                        className="p-1.5 text-surface-500 hover:text-red-400 transition-colors shrink-0" title="Void entry">
-                        <XCircle size={16} />
-                      </button>
-                    )}
-                  </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-700">
+                  <th className="w-8 px-2" />
+                  {[
+                    { key: "entry_date", label: "Date" },
+                    { key: "account", label: "Account" },
+                    { key: "reference", label: "Reference No" },
+                    { key: "source_type", label: "Journal Type" },
+                    { key: "total", label: "DR / CR" },
+                  ].map(({ key, label }) => (
+                    <th key={key}
+                      onClick={() => handleSort(key)}
+                      className={`px-3 py-3 text-left text-xs font-medium text-surface-400 cursor-pointer select-none hover:text-white transition-colors ${key === "total" ? "text-right" : ""}`}>
+                      <span className="inline-flex items-center gap-1">
+                        {label} <SortIcon col={key} />
+                      </span>
+                    </th>
+                  ))}
+                  <th className="w-10 px-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-700/50">
+                {pageItems.map((j) => {
+                  const isExpanded = expandedId === j.id;
+                  const totalDr = j.journal_lines?.reduce((s, l) => s + Number(l.debit ?? 0), 0) ?? 0;
+                  const isVoided = !!j.reversed_entry_id;
+                  const primaryAccount = j.journal_lines?.[0]?.chart_of_accounts?.name || "—";
+                  return (
+                    <Fragment key={j.id}>
+                      <tr className="hover:bg-surface-700/30 transition-colors cursor-pointer"
+                        onClick={() => setExpandedId(isExpanded ? null : j.id)}>
+                        <td className="px-2 py-3">
+                          {isExpanded ? <ChevronDown size={15} className="text-surface-400" /> : <ChevronRight size={15} className="text-surface-400" />}
+                        </td>
+                        <td className="px-3 py-3 text-surface-300 whitespace-nowrap">
+                          {new Date(j.entry_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}
+                        </td>
+                        <td className="px-3 py-3 text-white">
+                          <span>{primaryAccount}</span>
+                          {(j.journal_lines?.length ?? 0) > 1 && (
+                            <span className="ml-1.5 text-xs text-surface-500">+{j.journal_lines.length - 1}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className="text-surface-300 font-mono text-xs">{j.reference || "—"}</span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${j.source_type === "manual" ? "bg-primary-500/15 text-primary-300" : "bg-surface-700 text-surface-300"}`}>
+                            {SOURCE_LABELS[j.source_type] || j.source_type}
+                          </span>
+                          {isVoided && <span className="ml-1.5 px-1.5 py-0.5 rounded text-xs font-medium bg-red-500/15 text-red-400">Voided</span>}
+                        </td>
+                        <td className="px-3 py-3 text-right text-white font-medium whitespace-nowrap">{fmt(totalDr)}</td>
+                        <td className="px-2 py-3 text-center">
+                          {j.source_type === "manual" && !isVoided ? (
+                            <button onClick={(e) => { e.stopPropagation(); handleVoid(j.id); }}
+                              className="p-1 text-surface-500 hover:text-red-400 transition-colors" title="Void entry">
+                              <XCircle size={16} />
+                            </button>
+                          ) : <span className="inline-block w-4" />}
+                        </td>
+                      </tr>
 
-                  {isExpanded && j.journal_lines && (
-                    <div className="px-8 pb-3 bg-surface-900/40">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="text-surface-500">
-                            <th className="py-1.5 text-left font-medium">Account</th>
-                            <th className="py-1.5 text-left font-medium pl-4">Description</th>
-                            <th className="py-1.5 text-right font-medium">Debit</th>
-                            <th className="py-1.5 text-right font-medium">Credit</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-surface-700/30">
-                          {j.journal_lines.map((l) => (
-                            <tr key={l.id}>
-                              <td className="py-1.5 text-surface-300">
-                                {l.chart_of_accounts?.name || l.account_id}
-                              </td>
-                              <td className="py-1.5 text-surface-400 pl-4">{l.description || ""}</td>
-                              <td className="py-1.5 text-right text-emerald-400">{Number(l.debit) > 0 ? fmt(l.debit) : ""}</td>
-                              <td className="py-1.5 text-right text-red-400">{Number(l.credit) > 0 ? fmt(l.credit) : ""}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                      {isExpanded && j.journal_lines && (
+                        <tr>
+                          <td colSpan={7} className="p-0">
+                            <div className="px-8 py-2 bg-surface-900/40">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-surface-500">
+                                    <th className="py-1.5 text-left font-medium">Account</th>
+                                    <th className="py-1.5 text-left font-medium pl-4">Description</th>
+                                    <th className="py-1.5 text-right font-medium">Debit</th>
+                                    <th className="py-1.5 text-right font-medium">Credit</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-surface-700/30">
+                                  {j.journal_lines.map((l) => (
+                                    <tr key={l.id}>
+                                      <td className="py-1.5 text-surface-300">
+                                        {l.chart_of_accounts?.name || l.account_id}
+                                      </td>
+                                      <td className="py-1.5 text-surface-400 pl-4">{l.description || ""}</td>
+                                      <td className="py-1.5 text-right text-emerald-400">{Number(l.debit) > 0 ? fmt(l.debit) : ""}</td>
+                                      <td className="py-1.5 text-right text-red-400">{Number(l.credit) > 0 ? fmt(l.credit) : ""}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
               <span className="text-sm text-surface-400">
-                Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, journals.length)} of {journals.length}
+                Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, sorted.length)} of {sorted.length}
               </span>
               <div className="flex items-center gap-1">
                 <button
