@@ -71,6 +71,7 @@ exports.listBills = async (filters = {}) => {
       rounds (
         id,
         round_number,
+        created_at,
         round_items (
           id,
           quantity,
@@ -83,7 +84,8 @@ exports.listBills = async (filters = {}) => {
 
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.startDate) query = query.gte("created_at", filters.startDate);
-  if (filters.endDate) query = query.lte("created_at", filters.endDate + "T23:59:59");
+  if (filters.endDate)
+    query = query.lte("created_at", filters.endDate + "T23:59:59");
 
   return query.order("created_at", { ascending: false });
 };

@@ -59,11 +59,16 @@ const ReceiptModal = ({ bill, onClose }) => {
         {bill.rounds.map((round, idx) => (
           <div key={idx} className="thermal-round">
             <div className="thermal-round-header">
-              ORDER {round.round_number} -{" "}
-              {new Date(round.created_at).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              ORDER {round.round_number} -
+              {new Date(round.created_at)
+                .toLocaleString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+                .replace(",", " •")}
             </div>
             {round.round_items.map((item) => (
               <div key={item.id} className="thermal-item">
@@ -182,13 +187,17 @@ const ReceiptModal = ({ bill, onClose }) => {
                 <div className="flex justify-between text-xs">
                   <span className="text-gray-400">Date:</span>
                   <span className="text-white">
-                    {new Date(bill.created_at).toLocaleDateString()}
+                    {new Date(bill.created_at).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-gray-400">Time:</span>
                   <span className="text-white">
-                    {new Date(bill.created_at).toLocaleTimeString([], {
+                    {new Date(bill.created_at).toLocaleString("en-GB", {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
@@ -205,10 +214,15 @@ const ReceiptModal = ({ bill, onClose }) => {
                         ORDER {round.round_number}
                       </span>
                       <span className="text-gray-500">
-                        {new Date(round.created_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(round.created_at)
+                          .toLocaleString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                          .replace(",", " •")}
                       </span>
                     </div>
                     {round.round_items.map((item) => (
@@ -218,10 +232,14 @@ const ReceiptModal = ({ bill, onClose }) => {
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="text-gray-400">
-                            {item.quantity} x KSh. {item.price.toLocaleString()}
+                            {item.quantity} x KSh.{" "}
+                            {item.price.toLocaleString("en-KE")}
                           </span>
                           <span className="text-pink-400 font-bold">
-                            KSh. {(item.price * item.quantity).toLocaleString()}
+                            KSh.{" "}
+                            {(item.price * item.quantity).toLocaleString(
+                              "en-KE",
+                            )}
                           </span>
                         </div>
                       </div>
