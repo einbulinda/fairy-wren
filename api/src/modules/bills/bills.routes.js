@@ -5,6 +5,7 @@ const router = express.Router();
 
 // Bills
 router.get("/", controller.listBills);
+router.get("/my-stats", controller.getMyStats);
 router.post("/", controller.createBill);
 router.get("/:id", controller.getBill);
 

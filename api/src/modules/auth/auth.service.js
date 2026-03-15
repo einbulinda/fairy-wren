@@ -4,6 +4,7 @@ const { LoginDTO } = require("./auth.dto");
 const repo = require("./auth.repository");
 const auditRepo = require("../audit/audit.repository");
 const { signToken } = require("../../utils/jwt");
+const { getPermissionsForRole } = require("../system-roles/system-roles.service");
 
 exports.login = async (payload, context) => {
   if (!payload?.pin) {
@@ -47,10 +48,13 @@ exports.login = async (payload, context) => {
 
     throw new Error("INVALID_CREDENTIALS");
   }
+  const permissions = await getPermissionsForRole(user.role);
+
   const token = signToken({
     id: user.id,
     role: user.role,
     name: user.name,
+    permissions,
   });
 
   await auditRepo.log({
@@ -68,6 +72,7 @@ exports.login = async (payload, context) => {
       name: user.name,
       role: user.role,
       active: user.active,
+      permissions,
     },
   };
 };
@@ -96,7 +101,8 @@ exports.updateProfile = async (userId, payload, context) => {
     metadata: { name: data.name },
   });
 
-  return { id: data.id, name: data.name, role: data.role, active: data.active };
+  const permissions = await getPermissionsForRole(data.role);
+  return { id: data.id, name: data.name, role: data.role, active: data.active, permissions };
 };
 
 exports.changePin = async (userId, payload, context) => {

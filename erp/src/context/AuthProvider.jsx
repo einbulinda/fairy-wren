@@ -4,7 +4,7 @@ import { loginWithPin } from "@/services/auth.service";
 import { TokenService } from "@/api/token.service";
 import { INACTIVITY_TIMEOUT } from "@/api/constants";
 import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
-import { ERP_ALLOWED_ROLES } from "@/utils/constants";
+const hasErpAccess = (u) => u.permissions?.includes("erp_access");
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
     const token = TokenService.getToken();
 
     if (storedUser && token && !TokenService.isExpired()) {
-      if (ERP_ALLOWED_ROLES.includes(storedUser.role)) {
+      if (hasErpAccess(storedUser)) {
         setUser(storedUser);
       } else {
         TokenService.clear();
@@ -31,8 +31,8 @@ export const AuthProvider = ({ children }) => {
       data: { user: loggedInUser, token },
     } = await loginWithPin(pin);
 
-    if (!ERP_ALLOWED_ROLES.includes(loggedInUser.role)) {
-      throw { error: "Access denied. ERP is restricted to Directors only." };
+    if (!hasErpAccess(loggedInUser)) {
+      throw { error: "Access denied. Your role does not have ERP access." };
     }
 
     TokenService.save({

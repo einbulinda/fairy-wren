@@ -37,6 +37,7 @@ exports.create = async (payload) => {
     label,
     active: payload.active !== false,
     sort_order: payload.sort_order ?? 0,
+    permissions: Array.isArray(payload.permissions) ? payload.permissions : [],
   });
 
   if (error) throw new Error("FAILED_TO_CREATE_SYSTEM_ROLE");
@@ -55,6 +56,7 @@ exports.update = async (code, payload) => {
   }
   if (payload.active !== undefined) updates.active = Boolean(payload.active);
   if (payload.sort_order !== undefined) updates.sort_order = Number(payload.sort_order);
+  if (payload.permissions !== undefined) updates.permissions = Array.isArray(payload.permissions) ? payload.permissions : [];
 
   if (Object.keys(updates).length === 0) throw new Error("NO_FIELDS_TO_UPDATE");
 
@@ -62,6 +64,12 @@ exports.update = async (code, payload) => {
   if (error) throw new Error("FAILED_TO_UPDATE_SYSTEM_ROLE");
   exports.invalidateCache();
   return data;
+};
+
+exports.getPermissionsForRole = async (roleCode) => {
+  const { data, error } = await repo.findByCode(roleCode);
+  if (error || !data) return [];
+  return data.permissions || [];
 };
 
 exports.remove = async (code) => {

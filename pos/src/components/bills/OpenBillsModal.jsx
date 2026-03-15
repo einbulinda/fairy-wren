@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { X, Search } from "lucide-react";
 import { calculateBillTotals } from "../../utils/calculations";
 
-const OpenBillsModal = ({ bills, onSelectBill, onClose }) => {
+const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -21,7 +21,7 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose }) => {
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-purple-500/20 shrink-0">
           <h3 className="text-2xl font-bold bg-linear-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
-            Open Bills ({bills.length})
+            {title || "Open Bills"} ({bills.length})
           </h3>
           <button
             onClick={onClose}

@@ -14,6 +14,7 @@ import {
   Grid as GridIcon,
   AlertTriangle,
   RefreshCw,
+  User,
 } from "lucide-react";
 import LoadingSpinner from "../components/shared/LoadingSpinner";
 import { calculateBillTotals } from "../utils/calculations";
@@ -50,6 +51,10 @@ const POSScreen = () => {
     () => bills.filter((b) => b.status === "open"),
     [bills],
   );
+  const myOpenBills = useMemo(
+    () => openBills.filter((b) => b.created_by_user?.id === user?.id),
+    [openBills, user?.id],
+  );
   const confirmPaidBills = useMemo(
     () => bills.filter((b) => b.status === "awaiting_confirmation"),
     [bills],
@@ -78,6 +83,7 @@ const POSScreen = () => {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
+  const [showMyBillsModal, setShowMyBillsModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -92,9 +98,8 @@ const POSScreen = () => {
     }
   }, [reloadBills, refetchProducts]);
 
-  // Role checks
-  const isBartender = user?.role === "bartender";
-  const canAccessConfirm = isBartender;
+  // Permission checks
+  const canAccessConfirm = user?.permissions?.includes("approve_payments");
 
   // 🔒 CRITICAL: Helper to calculate TOTAL quantity across ENTIRE bill + current round
   const getTotalQuantityInBill = useCallback(
@@ -490,7 +495,7 @@ const POSScreen = () => {
       });
 
       toast.success(
-        user.role === "bartender"
+        user.permissions?.includes("approve_payments")
           ? "Payment processed successfully."
           : "Payment processed. Awaiting Confirmation.",
       );
@@ -606,6 +611,13 @@ const POSScreen = () => {
                   <span>Open Bills ({openBills.length})</span>
                 </button>
                 <button
+                  onClick={() => setShowMyBillsModal(true)}
+                  className="px-4 py-2 bg-linear-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-purple-500/20"
+                >
+                  <User size={18} />
+                  <span>My Bills ({myOpenBills.length})</span>
+                </button>
+                <button
                   onClick={handleRefresh}
                   disabled={refreshing}
                   className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
@@ -646,6 +658,13 @@ const POSScreen = () => {
             >
               <Receipt size={20} />
               <span>Open ({openBills.length})</span>
+            </button>
+            <button
+              onClick={() => setShowMyBillsModal(true)}
+              className="px-3 py-2.5 bg-linear-to-r from-purple-600 to-violet-600 active:from-purple-700 active:to-violet-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-purple-500/20"
+            >
+              <User size={20} />
+              <span>{myOpenBills.length}</span>
             </button>
             <button
               onClick={handleRefresh}
@@ -906,6 +925,15 @@ const POSScreen = () => {
           bills={openBills}
           onSelectBill={handleSelectOpenBill}
           onClose={() => setShowOpenBillsModal(false)}
+        />
+      )}
+
+      {showMyBillsModal && (
+        <OpenBillsModal
+          bills={myOpenBills}
+          onSelectBill={handleSelectOpenBill}
+          onClose={() => setShowMyBillsModal(false)}
+          title="My Open Bills"
         />
       )}
 

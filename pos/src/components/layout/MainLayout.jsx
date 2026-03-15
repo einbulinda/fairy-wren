@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { USER_ROLES } from "@/utils/constants";
 import {
   User,
   LogOut,
@@ -15,6 +14,8 @@ import fwLogo from "/fairy-logo-only.png";
 import POSScreen from "@/pages/POSScreen";
 import StockTakeEntry from "../../pages/StockTakeEntry";
 import { useBills } from "@/hooks/useBills";
+import { useMyBillStats } from "@/hooks/useMyBillStats";
+import { formatCurrency } from "@/utils/common";
 
 const getStorageKey = (role) => `fw_lastSeen_${role}`;
 
@@ -25,26 +26,25 @@ const MainLayout = () => {
   const [openBillsCount, setOpenBillsCount] = useState(0);
   const [pendingConfirmCount, setPendingConfirmCount] = useState(0);
   const { bills: openBills } = useBills({ active: true });
+  const { stats, period, setPeriod } = useMyBillStats();
 
   /**
    * Navigation tabs are memoized to avoid recreating arrays
    * and to keep consistency across effects and render.
    */
   const navigationTabs = useMemo(() => {
-    switch (user.role) {
-      case USER_ROLES.WAITRESS:
-        return [{ id: "pos", label: "POS", icon: ShoppingCart }];
-
-      case USER_ROLES.BARTENDER:
-        return [{ id: "pos", label: "POS", icon: ShoppingCart }];
-
-      case USER_ROLES.MANAGER:
-        return [];
-
-      default:
-        return [];
-    }
-  }, [user.role]);
+    const perms = user.permissions || [];
+    const tabs = [];
+    if (perms.includes("pos_access"))
+      tabs.push({ id: "pos", label: "POS", icon: ShoppingCart });
+    if (perms.includes("stock_take"))
+      tabs.push({
+        id: "stock-take",
+        label: "Stock Take",
+        icon: ClipboardCheck,
+      });
+    return tabs;
+  }, [user.permissions]);
 
   /**
    * View initialization logic simplified and made deterministic.
@@ -53,19 +53,13 @@ const MainLayout = () => {
    *   2. Role default
    */
   useEffect(() => {
-    const roleDefaults = {
-      [USER_ROLES.WAITRESS]: "pos",
-      [USER_ROLES.BARTENDER]: "pos",
-      [USER_ROLES.MANAGER]: "stock-take",
-    };
-
     const allowedViews = navigationTabs.map((t) => t.id);
     const savedView = localStorage.getItem(getStorageKey(user.role));
 
     if (savedView && allowedViews.includes(savedView)) {
       setCurrentView(savedView);
     } else {
-      setCurrentView(roleDefaults[user.role] || "pos");
+      setCurrentView(allowedViews[0] || "pos");
     }
   }, [user.role, navigationTabs]);
 
@@ -84,14 +78,12 @@ const MainLayout = () => {
    */
   const fetchCounts = useCallback(async () => {
     try {
-      if (![USER_ROLES.WAITRESS, USER_ROLES.BARTENDER].includes(user.role)) {
-        return;
-      }
+      const perms = user.permissions || [];
+      if (!perms.includes("pos_access")) return;
 
       setOpenBillsCount(openBills.length);
 
-      // Fetch pending confirmation count for bartender
-      if (user.role === USER_ROLES.BARTENDER) {
+      if (perms.includes("approve_payments")) {
         setPendingConfirmCount(
           openBills.filter((bill) => bill.status === "awaiting_confirmation")
             .length,
@@ -100,7 +92,7 @@ const MainLayout = () => {
     } catch (error) {
       console.error("Failed to fetch counts:", error);
     }
-  }, [user.role, openBills]);
+  }, [user.permissions, openBills]);
 
   /**
    * Cleanup now works correctly.
@@ -155,18 +147,65 @@ const MainLayout = () => {
             </div>
 
             {/* User Info & Logout */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 lg:gap-3">
+              {/* Stats Cards with Period Selector */}
+              {stats && (
+                <div className="hidden md:flex items-center gap-1.5">
+                  <select
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value)}
+                    className="bg-gray-800/50 text-xs text-white-300 border border-gray-600/50 rounded-lg px-2 py-1.5 focus:outline-none focus:border-yellow-400/50 cursor-pointer"
+                  >
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                  </select>
+                  <div className="bg-gray-700/50 px-2.5 py-1.5 rounded-lg text-center">
+                    <p className="text-[10px] text-gray-400 uppercase leading-none">
+                      Bills
+                    </p>
+                    <p className="text-sm font-bold text-white">
+                      {stats.totalBills}
+                    </p>
+                  </div>
+                  <div className="bg-gray-700/50 px-2.5 py-1.5 rounded-lg text-center">
+                    <p className="text-[10px] text-green-400 uppercase leading-none">
+                      Closed
+                    </p>
+                    <p className="text-sm font-bold text-green-400">
+                      {formatCurrency(stats.closedValue)}
+                    </p>
+                  </div>
+                  <div className="bg-gray-700/50 px-2.5 py-1.5 rounded-lg text-center">
+                    <p className="text-[10px] text-yellow-400 uppercase leading-none">
+                      Open
+                    </p>
+                    <p className="text-sm font-bold text-yellow-400">
+                      {formatCurrency(stats.openValue)}
+                    </p>
+                  </div>
+                  <div className="bg-gray-700/50 px-2.5 py-1.5 rounded-lg text-center">
+                    <p className="text-[10px] text-red-400 uppercase leading-none">
+                      Voided
+                    </p>
+                    <p className="text-sm font-bold text-red-400">
+                      {stats.voidedCount}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Open Bills Badge */}
               {openBillsCount > 0 && (
-                <div className="bg-yellow-500 text-gray-900 px-3 py-1 rounded-full text-xs font-bold shadow-lg hidden sm:flex items-center gap-1">
+                <div className="bg-yellow-500 text-gray-900 px-3 py-1 rounded-full text-xs font-bold shadow-lg hidden sm:flex md:hidden items-center gap-1">
                   <FileText size={14} />
                   {openBillsCount}
                 </div>
               )}
 
-              {/* Pending Confirmation Badge - Bartender only */}
+              {/* Pending Confirmation Badge */}
               {pendingConfirmCount > 0 &&
-                user.role === USER_ROLES.BARTENDER && (
+                user.permissions?.includes("approve_payments") && (
                   <div className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold animate-pulse shadow-lg hidden sm:flex items-center gap-1">
                     <ClipboardCheck size={14} />
                     {pendingConfirmCount}
@@ -177,12 +216,8 @@ const MainLayout = () => {
               <div className="hidden lg:flex items-center space-x-2 bg-gray-700/50 px-3 py-2 rounded-lg">
                 <User size={16} className="text-yellow-400" />
                 <div className="min-w-0">
-                  <p className="font-semibold text-sm truncate">
-                    {user.name}
-                  </p>
-                  <p className="text-xs text-gray-400 uppercase">
-                    {user.role}
-                  </p>
+                  <p className="font-semibold text-sm truncate">{user.name}</p>
+                  <p className="text-xs text-gray-400 uppercase">{user.role}</p>
                 </div>
               </div>
 
@@ -198,6 +233,28 @@ const MainLayout = () => {
           </div>
         </div>
       </header>
+
+      {/* Navigation tabs — shown when user has multiple views */}
+      {navigationTabs.length > 1 && (
+        <div className="bg-gray-800/80 border-b border-gray-700 px-4 lg:px-6">
+          <div className="flex gap-1">
+            {navigationTabs.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setCurrentView(id)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+                  currentView === id
+                    ? "border-yellow-400 text-yellow-400"
+                    : "border-transparent text-gray-400 hover:text-white"
+                }`}
+              >
+                <Icon size={16} />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main Content - Full Width */}
       <main className="p-4 lg:p-6 max-w-screen-2xl mx-auto">

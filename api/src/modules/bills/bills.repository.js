@@ -109,6 +109,31 @@ exports.insertRoundItems = async (items) => {
   return supabase.from("round_items").insert(items);
 };
 
+/* ---------- Stats ---------- */
+exports.listBillsByUser = async (userId, startDate, endDate) => {
+  const supabase = getSupabase();
+  return supabase
+    .from("bills")
+    .select(
+      `
+      id,
+      status,
+      created_at,
+      rounds (
+        id,
+        round_items (
+          quantity,
+          price
+        )
+      )
+    `,
+    )
+    .eq("created_by", userId)
+    .gte("created_at", startDate)
+    .lte("created_at", endDate)
+    .order("created_at", { ascending: false });
+};
+
 /* ---------- Sale Posting RPCs ---------- */
 exports.postRoundSale = async (roundId) => {
   const supabase = getSupabase();

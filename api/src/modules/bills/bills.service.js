@@ -38,7 +38,6 @@ exports.getBill = async (id) => {
 
 exports.listBills = async (filters) => {
   const { data, error } = await repo.listBills(filters);
-  console.log("Bills list result:", { data, error });
   if (error) throw new Error("FAILED_TO_FETCH_BILLS");
   return data;
 };
@@ -88,6 +87,75 @@ exports.voidBill = async (id, context) => {
   });
 
   return { id, status: "void" };
+};
+
+/* ---------- Stats ---------- */
+const getDateRange = (period) => {
+  const now = new Date();
+  let start;
+
+  switch (period) {
+    case "today":
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      break;
+    case "week": {
+      const day = now.getDay(); // 0=Sun
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (day === 0 ? 6 : day - 1));
+      break;
+    }
+    case "month":
+    default:
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+  }
+
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  return { startDate: start.toISOString(), endDate: end.toISOString() };
+};
+
+exports.getMyStats = async (userId, period = "month") => {
+  const { startDate, endDate } = getDateRange(period);
+
+  const { data, error } = await repo.listBillsByUser(userId, startDate, endDate);
+  if (error) throw new Error("FAILED_TO_FETCH_STATS");
+
+  const calcValue = (bill) =>
+    (bill.rounds || [])
+      .flatMap((r) => r.round_items || [])
+      .reduce((sum, item) => sum + parseFloat(item.price) * parseInt(item.quantity), 0);
+
+  const hasItems = (bill) =>
+    (bill.rounds || []).some((r) => (r.round_items || []).length > 0);
+
+  const stats = {
+    totalBills: data.length,
+    openCount: 0,
+    openValue: 0,
+    closedCount: 0,
+    closedValue: 0,
+    voidedCount: 0,
+    voidedValue: 0,
+  };
+
+  for (const bill of data) {
+    const value = calcValue(bill);
+    if (bill.status === "open") {
+      stats.openCount++;
+      stats.openValue += value;
+    } else if (bill.status === "paid" || bill.status === "closed" || bill.status === "awaiting_confirmation") {
+      stats.closedCount++;
+      stats.closedValue += value;
+    } else if (bill.status === "void" && hasItems(bill)) {
+      stats.voidedCount++;
+      stats.voidedValue += value;
+    }
+  }
+
+  stats.openValue = parseFloat(stats.openValue.toFixed(2));
+  stats.closedValue = parseFloat(stats.closedValue.toFixed(2));
+  stats.voidedValue = parseFloat(stats.voidedValue.toFixed(2));
+
+  return stats;
 };
 
 /* ---------- Rounds ---------- */

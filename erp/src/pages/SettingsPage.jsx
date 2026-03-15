@@ -268,6 +268,15 @@ const AccountClassesTab = () => {
   );
 };
 
+// ── Capabilities ──
+const CAPABILITIES = [
+  { key: "pos_access", label: "POS Access", description: "Can use the POS ordering system" },
+  { key: "stock_take", label: "Stock Take", description: "Can perform stock takes from POS" },
+  { key: "erp_access", label: "ERP Access", description: "Can access the ERP back-office" },
+  { key: "approve_payments", label: "Approve Payments", description: "Can confirm payment requests" },
+  { key: "view_all_bills", label: "View All Bills", description: "Can see all bills, not just own" },
+];
+
 // ── System Roles Tab ──
 const SystemRolesTab = () => {
   const { data: roles, isLoading } = useSystemRoles();
@@ -276,6 +285,8 @@ const SystemRolesTab = () => {
   const deleteMutation = useDeleteSystemRole();
   const [adding, setAdding] = useState(false);
   const [editCode, setEditCode] = useState(null);
+  const [permEditCode, setPermEditCode] = useState(null);
+  const [permDraft, setPermDraft] = useState([]);
   const [form, setForm] = useState({ code: "", label: "", sort_order: 0 });
 
   const resetForm = () => {
@@ -296,6 +307,27 @@ const SystemRolesTab = () => {
     setEditCode(item.code);
     setForm({ label: item.label, sort_order: item.sort_order });
     setAdding(false);
+    setPermEditCode(null);
+  };
+
+  const startPermEdit = (item) => {
+    setPermEditCode(item.code);
+    setPermDraft([...(item.permissions || [])]);
+    setAdding(false);
+    setEditCode(null);
+  };
+
+  const togglePerm = (key) => {
+    setPermDraft((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  };
+
+  const savePerm = () => {
+    updateMutation.mutate(
+      { code: permEditCode, permissions: permDraft },
+      { onSuccess: () => { setPermEditCode(null); setPermDraft([]); } },
+    );
   };
 
   if (isLoading) {
@@ -310,11 +342,11 @@ const SystemRolesTab = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-surface-400">
-          Define the roles available for system users.
+          Define the roles available for system users and assign their permissions.
         </p>
         {!adding && !editCode && (
           <button
-            onClick={() => { setAdding(true); setEditCode(null); setForm({ code: "", label: "", sort_order: 0 }); }}
+            onClick={() => { setAdding(true); setEditCode(null); setPermEditCode(null); setForm({ code: "", label: "", sort_order: 0 }); }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg transition-colors"
           >
             <Plus size={14} /> Add Role
@@ -381,9 +413,10 @@ const SystemRolesTab = () => {
             <tr className="border-b border-surface-700 text-surface-400 text-left">
               <th className="py-2 px-3 font-medium">Code</th>
               <th className="py-2 px-3 font-medium">Label</th>
+              <th className="py-2 px-3 font-medium">Permissions</th>
               <th className="py-2 px-3 font-medium">Order</th>
               <th className="py-2 px-3 font-medium">Status</th>
-              <th className="py-2 px-3 font-medium w-24">Actions</th>
+              <th className="py-2 px-3 font-medium w-28">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -391,6 +424,19 @@ const SystemRolesTab = () => {
               <tr key={item.code} className="border-b border-surface-800 hover:bg-surface-800/50">
                 <td className="py-2 px-3 text-white font-mono text-xs">{item.code}</td>
                 <td className="py-2 px-3 text-white">{item.label}</td>
+                <td className="py-2 px-3">
+                  {(item.permissions || []).length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {(item.permissions || []).map((p) => (
+                        <span key={p} className="text-[10px] px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-300 font-medium">
+                          {CAPABILITIES.find((c) => c.key === p)?.label || p}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-surface-500">None</span>
+                  )}
+                </td>
                 <td className="py-2 px-3 text-surface-400">{item.sort_order}</td>
                 <td className="py-2 px-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${item.active ? "bg-green-900/40 text-green-400" : "bg-red-900/40 text-red-400"}`}>
@@ -399,6 +445,13 @@ const SystemRolesTab = () => {
                 </td>
                 <td className="py-2 px-3">
                   <div className="flex gap-1">
+                    <button
+                      onClick={() => startPermEdit(item)}
+                      className="p-1 text-surface-400 hover:text-primary-400 transition-colors"
+                      title="Manage Permissions"
+                    >
+                      <Shield size={14} />
+                    </button>
                     <button
                       onClick={() => startEdit(item)}
                       className="p-1 text-surface-400 hover:text-primary-400 transition-colors"
@@ -424,6 +477,54 @@ const SystemRolesTab = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Permission editor */}
+      {permEditCode && (
+        <div className="bg-surface-800 border border-surface-600 rounded-lg p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+            <Shield size={15} className="text-primary-400" />
+            Permissions for <span className="font-mono text-primary-300">{permEditCode}</span>
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {CAPABILITIES.map(({ key, label, description }) => (
+              <label
+                key={key}
+                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  permDraft.includes(key)
+                    ? "border-primary-500/40 bg-primary-500/10"
+                    : "border-surface-700 hover:border-surface-600"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={permDraft.includes(key)}
+                  onChange={() => togglePerm(key)}
+                  className="mt-0.5 accent-primary-500"
+                />
+                <div>
+                  <p className="text-sm text-white font-medium">{label}</p>
+                  <p className="text-xs text-surface-400">{description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={savePerm}
+              disabled={updateMutation.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+            >
+              <Check size={14} /> Save Permissions
+            </button>
+            <button
+              onClick={() => { setPermEditCode(null); setPermDraft([]); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-surface-300 text-sm rounded-lg transition-colors"
+            >
+              <X size={14} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

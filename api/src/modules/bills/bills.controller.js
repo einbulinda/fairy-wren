@@ -52,6 +52,15 @@ exports.voidBill = async (req, res, next) => {
   }
 };
 
+exports.getMyStats = async (req, res, next) => {
+  try {
+    const data = await service.getMyStats(req.user.id, req.query.period);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.addRound = async (req, res, next) => {
   try {
     await service.addRound(req.params.id, req.body, buildContext(req));

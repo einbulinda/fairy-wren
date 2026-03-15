@@ -76,6 +76,7 @@ const ERROR_MAP = {
   INVALID_BILL_STATUS: { status: 400, message: "Invalid bill status" },
   FAILED_TO_UPDATE_BILL: { status: 500, message: "Failed to update bill" },
 
+  FAILED_TO_FETCH_STATS: { status: 500, message: "Failed to fetch bill statistics" },
   INVALID_ROUND_DATA: { status: 400, message: "Invalid round data" },
   FAILED_TO_CREATE_ROUND: { status: 500, message: "Failed to create round" },
   FAILED_TO_ADD_ROUND_ITEMS: {

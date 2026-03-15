@@ -100,6 +100,7 @@ CREATE TABLE public.system_roles (
     label TEXT NOT NULL,
     active BOOLEAN NOT NULL DEFAULT true,
     sort_order INTEGER NOT NULL DEFAULT 0,
+    permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE TABLE public.chart_of_accounts (
