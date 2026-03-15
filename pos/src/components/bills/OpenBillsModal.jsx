@@ -15,14 +15,57 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
     );
   }, [bills, search]);
 
+  const totalValue = useMemo(
+    () => bills.reduce((sum, bill) => sum + calculateBillTotals(bill).total, 0),
+    [bills],
+  );
+
+  const dateRange = useMemo(() => {
+    if (bills.length === 0) return null;
+    const fmt = (d) =>
+      new Date(d).toLocaleString("en-KE", {
+        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+      });
+    const sorted = [...bills].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const earliest = sorted[0].created_at;
+    const latest = sorted[sorted.length - 1].created_at;
+    return earliest === latest ? fmt(earliest) : `${fmt(earliest)} — ${fmt(latest)}`;
+  }, [bills]);
+
+  const oldestDays = bills.length > 0
+    ? Math.floor((new Date().getTime() - new Date([...bills].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0].created_at).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
       <div className="bg-gray-900/95 backdrop-blur-md border-2 border-purple-500/30 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-purple-500/20">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-purple-500/20 shrink-0">
-          <h3 className="text-2xl font-bold bg-linear-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
-            {title || "Open Bills"} ({bills.length})
-          </h3>
+          <div>
+            <h3 className="text-2xl font-bold bg-linear-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+              {title || "Open Bills"} ({bills.length})
+            </h3>
+            {bills.length > 0 && (
+              <>
+                <p className="text-sm text-gray-400 mt-1">
+                  Total:{" "}
+                  <span className="text-pink-400 font-semibold">
+                    KSh.{" "}
+                    {totalValue.toLocaleString("en-KE", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">{dateRange}</p>
+                {oldestDays > 0 && (
+                  <p className={`text-xs mt-1 font-medium ${oldestDays >= 7 ? "text-red-500 animate-pulse" : "text-orange-400"}`}>
+                    Please note you are holding open bills more than {oldestDays} day{oldestDays !== 1 ? "s" : ""}. Close bills once paid.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-purple-500/20 rounded-lg transition-colors"
@@ -34,7 +77,10 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
         {/* Search */}
         <div className="px-4 sm:px-6 pt-4 shrink-0">
           <div className="relative">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+            />
             <input
               type="text"
               value={search}
