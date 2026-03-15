@@ -14,6 +14,7 @@ import {
   FileText,
   PercentCircle,
   XCircle,
+  Package,
 } from "lucide-react";
 import { useBills } from "@/hooks/useBills";
 import * as XLSX from "xlsx";
@@ -33,6 +34,7 @@ const STATUS_TABS = [
   { key: "open", label: "Open" },
   { key: "completed", label: "Closed" },
   { key: "void", label: "Void" },
+  { key: "products", label: "Product Sales" },
 ];
 
 const STATUS_BADGE = {
@@ -90,7 +92,7 @@ const SalesPage = () => {
 
   const params = useMemo(() => {
     const p = { startDate, endDate };
-    if (statusFilter !== "all") p.status = statusFilter;
+    if (statusFilter !== "all" && statusFilter !== "products") p.status = statusFilter;
     return p;
   }, [startDate, endDate, statusFilter]);
 
@@ -161,6 +163,25 @@ const SalesPage = () => {
       outstandingCount: outstanding.length,
       outstandingAmount,
     };
+  }, [bills]);
+
+  // Product sales summary (aggregated from all bills in period)
+  const productSales = useMemo(() => {
+    const map = {};
+    for (const bill of bills) {
+      if (bill.status === "void") continue;
+      for (const round of bill.rounds || []) {
+        for (const item of round.round_items || []) {
+          const name = item.product?.name || "Unknown";
+          if (!map[name]) map[name] = { name, quantity: 0, value: 0 };
+          map[name].quantity += item.quantity;
+          map[name].value += item.quantity * item.price;
+        }
+      }
+    }
+    const list = Object.values(map).sort((a, b) => b.value - a.value);
+    const grandTotal = list.reduce((s, p) => s + p.value, 0);
+    return { items: list, grandTotal, grandQty: list.reduce((s, p) => s + p.quantity, 0) };
   }, [bills]);
 
   // Pagination
@@ -362,7 +383,84 @@ const SalesPage = () => {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Content */}
+        {statusFilter === "products" ? (
+          /* Product Sales Summary Table */
+          isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="animate-spin text-surface-400" size={28} />
+            </div>
+          ) : productSales.items.length === 0 ? (
+            <div className="py-16 text-center text-surface-500">
+              <Package size={36} className="mx-auto mb-3 text-surface-700" />
+              <p>No product sales for this period</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-surface-900/50 border-b border-surface-700">
+                  <tr>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider w-8">
+                      #
+                    </th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider">
+                      Product
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider">
+                      Qty Sold
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider">
+                      Sales Value (KES)
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider">
+                      Contribution %
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-700/30">
+                  {productSales.items.map((product, idx) => (
+                    <tr key={product.name} className="hover:bg-surface-700/20 transition-colors">
+                      <td className="px-4 py-2.5 text-surface-500 tabular-nums">
+                        {idx + 1}
+                      </td>
+                      <td className="px-4 py-2.5 text-white font-medium">
+                        {product.name}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-surface-300 tabular-nums">
+                        {product.quantity.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-white font-medium tabular-nums">
+                        {fmt(product.value)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-primary-400 tabular-nums">
+                        {productSales.grandTotal > 0
+                          ? ((product.value / productSales.grandTotal) * 100).toFixed(2)
+                          : "0.00"}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t-2 border-surface-600 bg-surface-900/70">
+                  <tr className="font-bold">
+                    <td className="px-4 py-3" />
+                    <td className="px-4 py-3 text-white">Total</td>
+                    <td className="px-4 py-3 text-right text-white tabular-nums">
+                      {productSales.grandQty.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-right text-emerald-400 tabular-nums">
+                      {fmt(productSales.grandTotal)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-primary-400 tabular-nums">
+                      100.00%
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )
+        ) : (
+          /* Bills Table */
+          <>
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="animate-spin text-surface-400" size={28} />
@@ -607,6 +705,8 @@ const SalesPage = () => {
               </button>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>
