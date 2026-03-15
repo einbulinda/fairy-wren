@@ -100,7 +100,11 @@ const getDateRange = (period) => {
       break;
     case "week": {
       const day = now.getDay(); // 0=Sun
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (day === 0 ? 6 : day - 1));
+      start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - (day === 0 ? 6 : day - 1),
+      );
       break;
     }
     case "month":
@@ -109,20 +113,35 @@ const getDateRange = (period) => {
       break;
   }
 
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  const end = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    23,
+    59,
+    59,
+  );
   return { startDate: start.toISOString(), endDate: end.toISOString() };
 };
 
 exports.getMyStats = async (userId, period = "month") => {
   const { startDate, endDate } = getDateRange(period);
 
-  const { data, error } = await repo.listBillsByUser(userId, startDate, endDate);
+  const { data, error } = await repo.listBillsByUser(
+    userId,
+    startDate,
+    endDate,
+  );
+
   if (error) throw new Error("FAILED_TO_FETCH_STATS");
 
   const calcValue = (bill) =>
     (bill.rounds || [])
       .flatMap((r) => r.round_items || [])
-      .reduce((sum, item) => sum + parseFloat(item.price) * parseInt(item.quantity), 0);
+      .reduce(
+        (sum, item) => sum + parseFloat(item.price) * parseInt(item.quantity),
+        0,
+      );
 
   const hasItems = (bill) =>
     (bill.rounds || []).some((r) => (r.round_items || []).length > 0);
@@ -142,7 +161,12 @@ exports.getMyStats = async (userId, period = "month") => {
     if (bill.status === "open") {
       stats.openCount++;
       stats.openValue += value;
-    } else if (bill.status === "paid" || bill.status === "closed" || bill.status === "awaiting_confirmation") {
+    } else if (
+      bill.status === "paid" ||
+      bill.status === "completed" ||
+      bill.status === "closed" ||
+      bill.status === "awaiting_confirmation"
+    ) {
       stats.closedCount++;
       stats.closedValue += value;
     } else if (bill.status === "void" && hasItems(bill)) {
