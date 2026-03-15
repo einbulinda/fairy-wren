@@ -162,7 +162,7 @@ const MainLayout = () => {
                   </select>
                   <div className="bg-gray-700/50 px-2.5 py-1.5 rounded-lg text-center">
                     <p className="text-[10px] text-gray-400 uppercase leading-none">
-                      Bills
+                      My Bills
                     </p>
                     <p className="text-sm font-bold text-white">
                       {stats.totalBills}
@@ -195,22 +195,22 @@ const MainLayout = () => {
                 </div>
               )}
 
-              {/* Open Bills Badge */}
+              {/* Open Bills Badge
               {openBillsCount > 0 && (
                 <div className="bg-yellow-500 text-gray-900 px-3 py-1 rounded-full text-xs font-bold shadow-lg hidden sm:flex md:hidden items-center gap-1">
                   <FileText size={14} />
                   {openBillsCount}
                 </div>
-              )}
+              )} */}
 
               {/* Pending Confirmation Badge */}
-              {pendingConfirmCount > 0 &&
+              {/* {pendingConfirmCount > 0 &&
                 user.permissions?.includes("approve_payments") && (
                   <div className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold animate-pulse shadow-lg hidden sm:flex items-center gap-1">
                     <ClipboardCheck size={14} />
                     {pendingConfirmCount}
                   </div>
-                )}
+                )} */}
 
               {/* User Info */}
               <div className="hidden lg:flex items-center space-x-2 bg-gray-700/50 px-3 py-2 rounded-lg">
