@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 import AuthContext from "@/context/AuthContext";
-import { loginWithPin } from "@/services/auth.service";
+import { loginWithPin, logoutSession } from "@/services/auth.service";
 import { TokenService } from "@/api/token.service";
 import { INACTIVITY_TIMEOUT } from "@/api/constants";
 import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
+import BillDisciplineModal from "@/components/shared/BillDisciplineModal";
+
 const hasPosAccess = (u) =>
   u.permissions?.includes("pos_access") || u.permissions?.includes("stock_take");
+
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showDisciplineReminder, setShowDisciplineReminder] = useState(false);
 
   // Restore session on refresh
-
   useEffect(() => {
     const storedUser = TokenService.getUser();
     const token = TokenService.getToken();
@@ -20,7 +24,6 @@ export const AuthProvider = ({ children }) => {
     if (storedUser && token && !TokenService.isExpired() && hasPosAccess(storedUser)) {
       setUser(storedUser);
     } else {
-      // Only clear if token exists AND is expired
       if (token && TokenService.isExpired()) {
         TokenService.clear();
       }
@@ -31,7 +34,7 @@ export const AuthProvider = ({ children }) => {
   // Login Handler
   const login = async (pin) => {
     const {
-      data: { user, token },
+      data: { user, token, lastSessionEndedAt },
     } = await loginWithPin(pin);
 
     if (!hasPosAccess(user)) {
@@ -45,11 +48,21 @@ export const AuthProvider = ({ children }) => {
     });
 
     setUser(user);
+
+    // Show discipline reminder if last session ended more than 6 hours ago
+    if (lastSessionEndedAt) {
+      const gap = Date.now() - new Date(lastSessionEndedAt).getTime();
+      if (gap > SIX_HOURS_MS) {
+        setShowDisciplineReminder(true);
+      }
+    }
+
     return user;
   };
 
   // Logout Handler
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await logoutSession("logout");
     TokenService.clear();
     setUser(null);
     window.location.replace("/");
@@ -68,6 +81,9 @@ export const AuthProvider = ({ children }) => {
       }}
     >
       {!loading && children}
+      {showDisciplineReminder && (
+        <BillDisciplineModal onClose={() => setShowDisciplineReminder(false)} />
+      )}
     </AuthContext.Provider>
   );
 };

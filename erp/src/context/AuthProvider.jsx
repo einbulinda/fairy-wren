@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AuthContext from "@/context/AuthContext";
-import { loginWithPin } from "@/services/auth.service";
+import { loginWithPin, logoutSession } from "@/services/auth.service";
 import { TokenService } from "@/api/token.service";
 import { INACTIVITY_TIMEOUT } from "@/api/constants";
 import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
@@ -50,7 +50,8 @@ export const AuthProvider = ({ children }) => {
     if (stored) setUser(stored);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await logoutSession("logout");
     TokenService.clear();
     setUser(null);
   }, []);

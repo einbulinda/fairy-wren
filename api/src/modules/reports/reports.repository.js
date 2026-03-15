@@ -210,6 +210,7 @@ class ReportsRepository {
       p_end_date: endDate,
     });
   }
+
 }
 
 module.exports = new ReportsRepository();

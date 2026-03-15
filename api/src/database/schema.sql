@@ -596,3 +596,23 @@ CREATE TABLE IF NOT EXISTS public.payroll_run_lines (
     paid_at timestamptz,
     created_at timestamptz DEFAULT now()
 );
+/*=======================================================================
+ LOGIN_SESSIONS TABLE
+ Tracks user login/logout sessions for audit and discipline reminders.
+ Each login creates a new row; logout/timeout/new_login closes it.
+ Created: 15/03/2026 - einbulinda
+ ============================================================================
+ */
+CREATE TABLE IF NOT EXISTS public.login_sessions (
+    id UUID NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES public.profiles(id),
+    ip_address TEXT,
+    user_agent TEXT,
+    app TEXT CHECK (app IN ('pos', 'erp')),
+    login_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    ended_at TIMESTAMPTZ,
+    end_reason TEXT CHECK (end_reason IN ('logout', 'timeout', 'new_login')),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_login_sessions_user_login ON public.login_sessions(user_id, login_at DESC);

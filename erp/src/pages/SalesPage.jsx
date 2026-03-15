@@ -21,11 +21,10 @@ import { MobileCard, MobileField, MobileCardList } from "@/components/shared/Mob
 import { fmtNumber as fmt, fmtDate } from "@/utils/formatters";
 import { dateInputCls } from "@/utils/constants";
 
-const today = new Date();
-const defaultEndDate = today.toISOString().split("T")[0];
-const defaultStartDate = new Date(today.getFullYear(), today.getMonth(), 1)
-  .toISOString()
-  .split("T")[0];
+const yesterday = new Date();
+yesterday.setDate(yesterday.getDate() - 1);
+const defaultStartDate = yesterday.toISOString().split("T")[0];
+const defaultEndDate = defaultStartDate;
 
 const PAGE_SIZE = 10;
 
@@ -143,12 +142,24 @@ const SalesPage = () => {
     const total = bills.length;
     const revenue = bills.reduce((s, b) => s + computeBillTotal(b), 0);
     const completed = bills.filter((b) => b.status === "completed").length;
-    const voided = bills.filter((b) => b.status === "void").length;
+    // Only count voided bills that had items added
+    const voided = bills.filter(
+      (b) => b.status === "void" && computeItemCount(b) > 0,
+    ).length;
+    const outstanding = bills.filter(
+      (b) => b.status === "open" || b.status === "awaiting_confirmation",
+    );
+    const outstandingAmount = outstanding.reduce(
+      (s, b) => s + computeBillTotal(b),
+      0,
+    );
     return {
       total,
       revenue,
       completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
       voidRate: total > 0 ? Math.round((voided / total) * 100) : 0,
+      outstandingCount: outstanding.length,
+      outstandingAmount,
     };
   }, [bills]);
 
@@ -242,7 +253,7 @@ const SalesPage = () => {
       </div>
 
       {/* Summary Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <FileText size={16} className="text-primary-400" />
@@ -282,6 +293,20 @@ const SalesPage = () => {
             </span>
           </div>
           <p className="text-2xl font-bold text-red-400">{stats.voidRate}%</p>
+        </div>
+        <div className="bg-surface-800/30 border border-amber-500/30 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Receipt size={16} className="text-amber-400" />
+            <span className="text-xs font-medium text-surface-400 uppercase">
+              Outstanding
+            </span>
+          </div>
+          <p className="text-2xl font-bold text-amber-400">
+            KES {fmt(stats.outstandingAmount)}
+          </p>
+          <p className="text-xs text-surface-500 mt-1">
+            {stats.outstandingCount} bill{stats.outstandingCount !== 1 ? "s" : ""} unpaid
+          </p>
         </div>
       </div>
 

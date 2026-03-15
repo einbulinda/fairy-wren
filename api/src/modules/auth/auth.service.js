@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const { LoginDTO } = require("./auth.dto");
 const repo = require("./auth.repository");
 const auditRepo = require("../audit/audit.repository");
+const sessionRepo = require("./login-sessions.repository");
 const { signToken } = require("../../utils/jwt");
 const { getPermissionsForRole } = require("../system-roles/system-roles.service");
 
@@ -65,6 +66,18 @@ exports.login = async (payload, context) => {
     correlation_id: context.correlationId,
   });
 
+  // Session tracking
+  await sessionRepo.endActiveSessions(user.id, "new_login");
+  await sessionRepo.create({
+    user_id: user.id,
+    ip_address: context.ipAddress,
+    user_agent: context.userAgent,
+    app: context.app,
+  });
+
+  const { data: lastSession } = await sessionRepo.getLastEndedSession(user.id);
+  const lastSessionEndedAt = lastSession?.ended_at || null;
+
   return {
     token,
     user: {
@@ -74,6 +87,7 @@ exports.login = async (payload, context) => {
       active: user.active,
       permissions,
     },
+    lastSessionEndedAt,
   };
 };
 
@@ -103,6 +117,18 @@ exports.updateProfile = async (userId, payload, context) => {
 
   const permissions = await getPermissionsForRole(data.role);
   return { id: data.id, name: data.name, role: data.role, active: data.active, permissions };
+};
+
+exports.endSession = async (userId, reason, context) => {
+  await sessionRepo.endActiveSessions(userId, reason || "logout");
+
+  await auditRepo.log({
+    entity: "auth",
+    entity_id: userId,
+    action: "LOGOUT",
+    performed_by: userId,
+    correlation_id: context.correlationId,
+  });
 };
 
 exports.changePin = async (userId, payload, context) => {

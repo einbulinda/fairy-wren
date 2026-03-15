@@ -4,14 +4,18 @@ exports.login = async (req, res, next) => {
   try {
     const context = {
       correlationId: req.correlationId,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+      app: req.body.app,
     };
 
-    const { token, user } = await service.login(req.body, context);
+    const { token, user, lastSessionEndedAt } = await service.login(req.body, context);
 
     respond(res, 200, {
       success: true,
       user,
       token,
+      lastSessionEndedAt,
     });
   } catch (err) {
     console.log("Login error:", err);
@@ -33,6 +37,16 @@ exports.updateProfile = async (req, res, next) => {
     const context = { correlationId: req.correlationId };
     const data = await service.updateProfile(req.user.id, req.body, context);
     respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.logout = async (req, res, next) => {
+  try {
+    const context = { correlationId: req.correlationId };
+    await service.endSession(req.user.id, req.body.reason || "logout", context);
+    respond(res, 200, { success: true });
   } catch (err) {
     next(err);
   }
