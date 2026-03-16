@@ -72,6 +72,7 @@ exports.voidBill = async (id, context) => {
    * then mark bill as void.
    */
   const { error: reversalError } = await repo.reverseBillSale(id);
+  console.log("Reversal error:", reversalError);
   if (reversalError) throw new Error("FAILED_TO_REVERSE_BILL_SALE");
 
   const { error } = await repo.updateBillStatus(id, "void", context.userId);

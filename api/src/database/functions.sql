@@ -437,7 +437,7 @@ BEGIN
                 entry_date, source_type, source_id,
                 description, reversed_entry_id
             ) VALUES (
-                CURRENT_DATE, v_entry.source_type, v_entry.source_id,
+                CURRENT_DATE, v_entry.source_type || '_reversal', v_entry.source_id,
                 v_entry.description || ' (VOID REVERSAL)', v_entry.id
             ) RETURNING id INTO v_reversal_id;
 
@@ -1151,8 +1151,19 @@ end if;
 return new;
 end;
 $function$;
-CREATE OR REPLACE FUNCTION public.post_inventory_purchase() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN
-INSERT INTO inventory_movements (
+CREATE OR REPLACE FUNCTION public.post_inventory_purchase()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_inventory_account UUID;
+    v_ap_account        UUID;
+    v_supplier_account  UUID;
+    v_credit_account    UUID;
+    v_journal_id        UUID;
+BEGIN
+    -- ========= 1. INVENTORY MOVEMENT =========
+    INSERT INTO inventory_movements (
         product_id,
         movement_date,
         quantity,
@@ -1162,7 +1173,7 @@ INSERT INTO inventory_movements (
         reference_id,
         notes
     )
-VALUES (
+    VALUES (
         NEW.product_id,
         CURRENT_DATE,
         NEW.quantity,
@@ -1170,53 +1181,62 @@ VALUES (
         'purchase',
         'inventory_receipt',
         NEW.receipt_id,
-        'Inventory receipt â€“ automatic posting'
+        'Inventory receipt – automatic posting'
     );
-RETURN NEW;
-END;
-$function$;
-CREATE OR REPLACE FUNCTION public.post_inventory_purchase_journal() RETURNS trigger LANGUAGE plpgsql AS $function$
-DECLARE v_inventory_account UUID;
-v_ap_account UUID;
-v_supplier_account UUID;
-v_journal_id UUID;
-v_credit_account UUID;
-BEGIN
-SELECT inventory_account_id INTO v_inventory_account
-FROM inventory_items
-WHERE id = NEW.product_id;
--- Try to get the supplier-specific AP child account
-SELECT s.account_id INTO v_supplier_account
-FROM inventory_receipts r
-JOIN suppliers s ON s.id = r.supplier_id
-WHERE r.id = NEW.receipt_id;
--- Fall back to the generic AP control account if supplier has no dedicated account
-SELECT id INTO v_ap_account
-FROM chart_of_accounts
-WHERE code = '2100';
-v_credit_account := COALESCE(v_supplier_account, v_ap_account);
-INSERT INTO journal_entries (
-        entry_date,
-        source_type,
-        source_id,
-        description
-    )
-VALUES (
-        CURRENT_DATE,
-        'inventory_receipt',
-        NEW.receipt_id,
-        'Inventory purchase'
-    )
-RETURNING id INTO v_journal_id;
-INSERT INTO journal_lines (journal_entry_id, account_id, debit)
-VALUES (
-        v_journal_id,
-        v_inventory_account,
-        NEW.line_total
-    );
-INSERT INTO journal_lines (journal_entry_id, account_id, credit)
-VALUES (v_journal_id, v_credit_account, NEW.line_total);
-RETURN NEW;
+
+    -- ========= 2. JOURNAL ENTRY: DR Inventory / CR Accounts Payable =========
+    SELECT inventory_account_id INTO v_inventory_account
+    FROM inventory_items
+    WHERE product_id = NEW.product_id;
+
+    SELECT s.account_id INTO v_supplier_account
+    FROM inventory_receipts r
+    JOIN suppliers s ON s.id = r.supplier_id
+    WHERE r.id = NEW.receipt_id;
+
+    SELECT id INTO v_ap_account
+    FROM chart_of_accounts
+    WHERE code = '2100';
+
+    v_credit_account := COALESCE(v_supplier_account, v_ap_account);
+
+    IF v_inventory_account IS NOT NULL
+       AND v_credit_account IS NOT NULL
+       AND NEW.line_total > 0 THEN
+
+        -- Reuse existing journal entry for this receipt, or create a new one
+        SELECT id INTO v_journal_id
+        FROM journal_entries
+        WHERE source_type = 'inventory_receipt'
+          AND source_id = NEW.receipt_id;
+
+        IF v_journal_id IS NULL THEN
+            INSERT INTO journal_entries (
+                entry_date,
+                source_type,
+                source_id,
+                description
+            )
+            VALUES (
+                CURRENT_DATE,
+                'inventory_receipt',
+                NEW.receipt_id,
+                'Inventory purchase – ' || COALESCE(
+                    (SELECT invoice_number FROM inventory_receipts WHERE id = NEW.receipt_id),
+                    'no ref'
+                )
+            )
+            RETURNING id INTO v_journal_id;
+        END IF;
+
+        INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+        VALUES (v_journal_id, v_inventory_account, NEW.line_total, 0);
+
+        INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+        VALUES (v_journal_id, v_credit_account, 0, NEW.line_total);
+    END IF;
+
+    RETURN NEW;
 END;
 $function$;
 CREATE OR REPLACE FUNCTION public.post_bill_inventory_and_cogs() RETURNS trigger LANGUAGE plpgsql AS $function$

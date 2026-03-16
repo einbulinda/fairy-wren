@@ -15,6 +15,7 @@ import {
   PercentCircle,
   XCircle,
   Package,
+  Printer,
 } from "lucide-react";
 import { useBills } from "@/hooks/useBills";
 import * as XLSX from "xlsx";
@@ -79,6 +80,9 @@ const SalesPage = () => {
   const [expandedBill, setExpandedBill] = useState(null);
   const [sortKey, setSortKey] = useState("created_at");
   const [sortDir, setSortDir] = useState("desc");
+  const [pSortKey, setPSortKey] = useState("value");
+  const [pSortDir, setPSortDir] = useState("desc");
+  const [pPage, setPPage] = useState(1);
 
   const toggleSort = (key) => {
     if (sortKey === key) {
@@ -88,6 +92,16 @@ const SalesPage = () => {
       setSortDir("asc");
     }
     setPage(1);
+  };
+
+  const togglePSort = (key) => {
+    if (pSortKey === key) {
+      setPSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setPSortKey(key);
+      setPSortDir("asc");
+    }
+    setPPage(1);
   };
 
   const params = useMemo(() => {
@@ -184,6 +198,38 @@ const SalesPage = () => {
     return { items: list, grandTotal, grandQty: list.reduce((s, p) => s + p.quantity, 0) };
   }, [bills]);
 
+  // Sort product sales
+  const sortedProducts = useMemo(() => {
+    const list = [...productSales.items];
+    const dir = pSortDir === "asc" ? 1 : -1;
+    list.sort((a, b) => {
+      switch (pSortKey) {
+        case "name":
+          return a.name.localeCompare(b.name) * dir;
+        case "quantity":
+          return (a.quantity - b.quantity) * dir;
+        case "value":
+          return (a.value - b.value) * dir;
+        case "contribution": {
+          const ac = productSales.grandTotal > 0 ? a.value / productSales.grandTotal : 0;
+          const bc = productSales.grandTotal > 0 ? b.value / productSales.grandTotal : 0;
+          return (ac - bc) * dir;
+        }
+        default:
+          return 0;
+      }
+    });
+    return list;
+  }, [productSales, pSortKey, pSortDir]);
+
+  // Product sales pagination
+  const pTotalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE));
+  const pSafePage = Math.min(pPage, pTotalPages);
+  const pPageItems = sortedProducts.slice(
+    (pSafePage - 1) * PAGE_SIZE,
+    pSafePage * PAGE_SIZE,
+  );
+
   // Pagination
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -220,6 +266,32 @@ const SalesPage = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Bills");
     XLSX.writeFile(wb, `bills-${startDate}-to-${endDate}.xlsx`);
+  };
+
+  // Product sales Excel export
+  const exportProductsToExcel = () => {
+    const rows = sortedProducts.map((p, idx) => ({
+      "#": idx + 1,
+      Product: p.name,
+      "Qty Sold": p.quantity,
+      "Sales Value (KES)": p.value,
+      "Contribution %":
+        productSales.grandTotal > 0
+          ? ((p.value / productSales.grandTotal) * 100).toFixed(2) + "%"
+          : "0.00%",
+    }));
+    rows.push({
+      "#": "",
+      Product: "Total",
+      "Qty Sold": productSales.grandQty,
+      "Sales Value (KES)": productSales.grandTotal,
+      "Contribution %": "100.00%",
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{ wch: 5 }, { wch: 30 }, { wch: 12 }, { wch: 18 }, { wch: 15 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Product Sales");
+    XLSX.writeFile(wb, `product-sales-${startDate}-to-${endDate}.xlsx`);
   };
 
   const inputCls = dateInputCls;
@@ -372,14 +444,35 @@ const SalesPage = () => {
             </div>
 
             {/* Export */}
-            <button
-              onClick={exportToExcel}
-              disabled={filtered.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
-            >
-              <Download size={14} />
-              Export
-            </button>
+            {statusFilter === "products" ? (
+              <>
+                <button
+                  onClick={exportProductsToExcel}
+                  disabled={productSales.items.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
+                >
+                  <Download size={14} />
+                  Excel
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  disabled={productSales.items.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 text-surface-300 hover:bg-surface-600 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
+                >
+                  <Printer size={14} />
+                  PDF
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={exportToExcel}
+                disabled={filtered.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
+              >
+                <Download size={14} />
+                Export
+              </button>
+            )}
           </div>
         </div>
 
@@ -396,6 +489,7 @@ const SalesPage = () => {
               <p>No product sales for this period</p>
             </div>
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-surface-900/50 border-b border-surface-700">
@@ -403,25 +497,49 @@ const SalesPage = () => {
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider w-8">
                       #
                     </th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider">
-                      Product
+                    <th
+                      className="px-4 py-2.5 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors"
+                      onClick={() => togglePSort("name")}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        Product
+                        {pSortKey === "name" ? (pSortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
+                      </span>
                     </th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider">
-                      Qty Sold
+                    <th
+                      className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors"
+                      onClick={() => togglePSort("quantity")}
+                    >
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        Qty Sold
+                        {pSortKey === "quantity" ? (pSortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
+                      </span>
                     </th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider">
-                      Sales Value (KES)
+                    <th
+                      className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors"
+                      onClick={() => togglePSort("value")}
+                    >
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        Sales Value (KES)
+                        {pSortKey === "value" ? (pSortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
+                      </span>
                     </th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider">
-                      Contribution %
+                    <th
+                      className="px-4 py-2.5 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors"
+                      onClick={() => togglePSort("contribution")}
+                    >
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        Contribution %
+                        {pSortKey === "contribution" ? (pSortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
+                      </span>
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-700/30">
-                  {productSales.items.map((product, idx) => (
+                  {pPageItems.map((product, idx) => (
                     <tr key={product.name} className="hover:bg-surface-700/20 transition-colors">
                       <td className="px-4 py-2.5 text-surface-500 tabular-nums">
-                        {idx + 1}
+                        {(pSafePage - 1) * PAGE_SIZE + idx + 1}
                       </td>
                       <td className="px-4 py-2.5 text-white font-medium">
                         {product.name}
@@ -457,6 +575,33 @@ const SalesPage = () => {
                 </tfoot>
               </table>
             </div>
+
+            {/* Product sales pagination */}
+            {pTotalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
+                <span className="text-sm text-surface-400">
+                  {sortedProducts.length} product{sortedProducts.length !== 1 ? "s" : ""} · Page{" "}
+                  {pSafePage} of {pTotalPages}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPPage((p) => Math.max(1, p - 1))}
+                    disabled={pSafePage === 1}
+                    className="p-1.5 rounded-lg text-surface-400 hover:text-white hover:bg-surface-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    onClick={() => setPPage((p) => Math.min(pTotalPages, p + 1))}
+                    disabled={pSafePage === pTotalPages}
+                    className="p-1.5 rounded-lg text-surface-400 hover:text-white hover:bg-surface-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
+            </>
           )
         ) : (
           /* Bills Table */

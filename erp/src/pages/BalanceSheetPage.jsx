@@ -21,6 +21,19 @@ const defaultStartDate = new Date(today.getFullYear(), 0, 1)
   .toISOString()
   .split("T")[0];
 
+// Filter out zero-balance leaf accounts (keep parents for structure)
+const filterZeroBalance = (nodes) => {
+  return nodes.filter((node) => {
+    const balance = Number(node.balance);
+    const hasChildren = node.children && node.children.length > 0;
+    // Keep if has balance, has children, or is a control account
+    return balance !== 0 || hasChildren || node.is_control_account;
+  }).map((node) => ({
+    ...node,
+    children: node.children ? filterZeroBalance(node.children) : [],
+  }));
+};
+
 // Build a tree from flat accounts list
 const buildTree = (accounts) => {
   const map = {};
@@ -483,22 +496,32 @@ const BalanceSheetPage = () => {
     [startDate, asOfDate],
   );
 
+  const [hideZeroBalance, setHideZeroBalance] = useState(false);
+
   const sections = useMemo(() => {
     if (!data?.accounts) return null;
 
     const currentAssets = data.accounts.filter((a) => a.account_class === "current_asset" || a.account_class === "bank");
     const nonCurrentAssets = data.accounts.filter((a) => a.account_class === "non_current_asset");
     const genericAssets = data.accounts.filter((a) => a.account_class === "asset");
-    const currentLiabilities = data.accounts.filter((a) => a.account_class === "current_liability");
+    const currentLiabilities = data.accounts.filter((a) => a.account_class === "current_liability" || a.account_class === "liability");
     const nonCurrentLiabilities = data.accounts.filter((a) => a.account_class === "non_current_liability");
-    const genericLiabilities = data.accounts.filter((a) => a.account_class === "liability");
     const equity = data.accounts.filter((a) => a.account_class === "equity");
 
-    const currentAssetTree = buildTree([...currentAssets, ...genericAssets]);
-    const nonCurrentAssetTree = buildTree(nonCurrentAssets);
-    const currentLiabilityTree = buildTree([...currentLiabilities, ...genericLiabilities]);
-    const nonCurrentLiabilityTree = buildTree(nonCurrentLiabilities);
-    const equityTree = buildTree(equity);
+    let currentAssetTree = buildTree([...currentAssets, ...genericAssets]);
+    let nonCurrentAssetTree = buildTree(nonCurrentAssets);
+    let currentLiabilityTree = buildTree(currentLiabilities);
+    let nonCurrentLiabilityTree = buildTree(nonCurrentLiabilities);
+    let equityTree = buildTree(equity);
+
+    // Optionally filter out zero-balance accounts
+    if (hideZeroBalance) {
+      currentAssetTree = filterZeroBalance(currentAssetTree);
+      nonCurrentAssetTree = filterZeroBalance(nonCurrentAssetTree);
+      currentLiabilityTree = filterZeroBalance(currentLiabilityTree);
+      nonCurrentLiabilityTree = filterZeroBalance(nonCurrentLiabilityTree);
+      equityTree = filterZeroBalance(equityTree);
+    }
 
     const netIncome = Number(data.netIncome ?? 0);
 
@@ -571,6 +594,16 @@ const BalanceSheetPage = () => {
             </div>
           </div>
           <div className="flex items-center gap-3 sm:ml-auto flex-wrap">
+            {/* Toggle zero-balance accounts */}
+            <label className="flex items-center gap-2 px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg cursor-pointer hover:bg-surface-700 transition-colors self-end">
+              <input
+                type="checkbox"
+                checked={hideZeroBalance}
+                onChange={(e) => setHideZeroBalance(e.target.checked)}
+                className="w-4 h-4 rounded border-surface-600 text-primary-500 focus:ring-primary-500 bg-surface-900"
+              />
+              <span className="text-sm text-surface-300">Hide zero balances</span>
+            </label>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
                 From

@@ -122,7 +122,7 @@ const ChequeWritingPage = () => {
   const handlePayeeSelect = (id) => {
     if (form.payee_type === "supplier") {
       const s = suppliers.find((s) => s.id === id);
-      setForm({ ...form, payee_id: id, payee_name: s?.name || "" });
+      setForm({ ...form, payee_id: id, payee_name: s?.name || "", debit_account_id: s?.account_id || "" });
     } else if (form.payee_type === "employee") {
       const u = users.find((u) => u.id === id);
       setForm({ ...form, payee_id: id, payee_name: u?.name || "" });

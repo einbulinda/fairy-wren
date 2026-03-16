@@ -79,6 +79,15 @@ exports.getPayments = async (req, res, next) => {
   }
 };
 
+exports.getUnpaidInvoices = async (req, res, next) => {
+  try {
+    const data = await service.getUnpaidInvoices(req.params.id);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.createPayment = async (req, res, next) => {
   try {
     const data = await service.createPayment(

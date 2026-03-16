@@ -10,6 +10,7 @@ import {
   createSupplierPayment,
   fetchSupplierStatement,
   fetchPendingInvoices,
+  fetchUnpaidInvoices,
 } from "@/services/suppliers.service";
 
 export const useSuppliers = (params = {}) => {
@@ -75,6 +76,15 @@ export const useSupplierPayments = (id) => {
   });
 };
 
+export const useUnpaidInvoices = (supplierId) => {
+  return useQuery({
+    queryKey: ["supplier-unpaid-invoices", supplierId],
+    queryFn: () => fetchUnpaidInvoices(supplierId),
+    enabled: !!supplierId,
+    staleTime: 60 * 1000,
+  });
+};
+
 export const useCreateSupplierPayment = (supplierId) => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -82,6 +92,8 @@ export const useCreateSupplierPayment = (supplierId) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supplier-payments", supplierId] });
       queryClient.invalidateQueries({ queryKey: ["supplier-statement", supplierId] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-unpaid-invoices", supplierId] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-purchases", supplierId] });
       toast.success("Payment recorded");
     },
     onError: (err) => {

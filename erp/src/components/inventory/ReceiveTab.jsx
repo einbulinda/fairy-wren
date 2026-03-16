@@ -16,11 +16,11 @@ import { inputCls } from "./inventoryUtils";
 import ProductSearchModal from "./ProductSearchModal";
 import QuickAddSupplierModal from "./QuickAddSupplierModal";
 
-const ReceiveTab = ({ onSuccess }) => {
+const ReceiveTab = ({ onSuccess, supplierId, supplierName }) => {
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({
-    supplier_id: "",
+    supplier_id: supplierId || "",
     invoice_number: "",
     purchase_date: new Date().toISOString().split("T")[0],
   });
@@ -32,8 +32,10 @@ const ReceiveTab = ({ onSuccess }) => {
   const { data: stockItems = [] } = useStockItems();
 
   useEffect(() => {
-    fetchSuppliers().then(setSuppliers).catch(console.error);
-  }, []);
+    if (!supplierId) {
+      fetchSuppliers().then(setSuppliers).catch(console.error);
+    }
+  }, [supplierId]);
 
   useEffect(() => {
     setProducts(stockItems);
@@ -98,7 +100,7 @@ const ReceiveTab = ({ onSuccess }) => {
         total_amount: total,
       });
       setForm({
-        supplier_id: "",
+        supplier_id: supplierId || "",
         invoice_number: "",
         purchase_date: new Date().toISOString().split("T")[0],
       });
@@ -130,37 +132,44 @@ const ReceiveTab = ({ onSuccess }) => {
               <label className="block text-xs text-surface-400 mb-1">
                 Supplier *
               </label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Building2
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"
-                  />
-                  <select
-                    value={form.supplier_id}
-                    onChange={(e) =>
-                      setForm({ ...form, supplier_id: e.target.value })
-                    }
-                    className={inputCls + " pl-8"}
-                    required
-                  >
-                    <option value="">Select…</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+              {supplierId ? (
+                <div className="flex items-center gap-2 px-3 py-2 bg-surface-700/50 border border-surface-600 rounded-lg text-white text-sm">
+                  <Building2 size={14} className="text-surface-400" />
+                  {supplierName}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowSupplierModal(true)}
-                  className="px-2.5 py-2 bg-primary-600 hover:bg-primary-500 rounded-lg text-white text-sm transition-colors shrink-0"
-                  title="Add new supplier"
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Building2
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"
+                    />
+                    <select
+                      value={form.supplier_id}
+                      onChange={(e) =>
+                        setForm({ ...form, supplier_id: e.target.value })
+                      }
+                      className={inputCls + " pl-8"}
+                      required
+                    >
+                      <option value="">Select…</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSupplierModal(true)}
+                    className="px-2.5 py-2 bg-primary-600 hover:bg-primary-500 rounded-lg text-white text-sm transition-colors shrink-0"
+                    title="Add new supplier"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs text-surface-400 mb-1">

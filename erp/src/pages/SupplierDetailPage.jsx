@@ -18,15 +18,21 @@ import {
   Clock,
   Download,
   Printer,
+  Banknote,
+  Truck,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAccounts } from "@/services/accounts.service";
 import {
   useSupplier,
   useSupplierPurchases,
   useSupplierPayments,
   useCreateSupplierPayment,
   useSupplierStatement,
+  useUnpaidInvoices,
 } from "@/hooks/useSuppliers";
 import { exportSupplierStatementCsv } from "@/services/suppliers.service";
+import ReceiveTab from "@/components/inventory/ReceiveTab";
 import toast from "react-hot-toast";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import { fmt, fmtDate } from "@/utils/formatters";
@@ -39,8 +45,10 @@ const dateInputCls =
 
 const TABS = [
   { id: "purchases", label: "Purchases", icon: Package },
+  { id: "receive", label: "Receive Goods", icon: Truck },
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "statement", label: "Statement", icon: FileText },
+  { id: "pay", label: "Pay", icon: Banknote },
 ];
 
 const PAYMENT_METHODS = [
@@ -168,6 +176,13 @@ const SupplierDetailPage = () => {
   const [stmtTo, setStmtTo] = useState("");
   const [stmtPage, setStmtPage] = useState(1);
 
+  // Pay tab state
+  const [payBankAccountId, setPayBankAccountId] = useState("");
+  const [payAllocations, setPayAllocations] = useState({}); // { invoiceId: amount }
+  const [payReference, setPayReference] = useState("");
+  const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
+  const [paySubmitting, setPaySubmitting] = useState(false);
+
   const { data: supplier, isLoading: supplierLoading } = useSupplier(id);
   const { data: purchases = [], isLoading: purchasesLoading } =
     useSupplierPurchases(id);
@@ -175,6 +190,17 @@ const SupplierDetailPage = () => {
     useSupplierPayments(id);
   const { data: statement = [], isLoading: statementLoading } =
     useSupplierStatement(id, stmtFrom || undefined, stmtTo || undefined);
+  const { data: unpaidInvoices = [], isLoading: unpaidLoading } =
+    useUnpaidInvoices(id);
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => fetchAccounts({ active: true }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const bankAccounts = useMemo(
+    () => accounts.filter((a) => a.account_class === "bank" && a.active),
+    [accounts],
+  );
   const createPayment = useCreateSupplierPayment(id);
 
   // All-time totals for the profile card
@@ -256,6 +282,61 @@ const SupplierDetailPage = () => {
           setShowPaymentForm(false);
           setPaymentForm(EMPTY_PAYMENT);
         },
+      },
+    );
+  };
+
+  // Pay tab helpers
+  const payTotal = useMemo(
+    () => Object.values(payAllocations).reduce((s, v) => s + (parseFloat(v) || 0), 0),
+    [payAllocations],
+  );
+
+  const handlePayAllocation = (invoiceId, value) => {
+    setPayAllocations((prev) => ({ ...prev, [invoiceId]: value }));
+  };
+
+  const handlePaySubmit = async () => {
+    if (!payBankAccountId) {
+      toast.error("Select a bank account");
+      return;
+    }
+    const allocations = Object.entries(payAllocations)
+      .filter(([, v]) => parseFloat(v) > 0)
+      .map(([invoice_id, amount]) => ({ invoice_id, amount: parseFloat(amount) }));
+    if (allocations.length === 0) {
+      toast.error("Enter amounts for at least one invoice");
+      return;
+    }
+    // Validate no overpayments
+    for (const alloc of allocations) {
+      const inv = unpaidInvoices.find((i) => i.id === alloc.invoice_id);
+      if (inv) {
+        const outstanding = Number(inv.total_amount) - Number(inv.amount_paid || 0);
+        if (alloc.amount > outstanding + 0.01) {
+          toast.error(`Amount exceeds outstanding for ${inv.invoice_number}`);
+          return;
+        }
+      }
+    }
+    setPaySubmitting(true);
+    createPayment.mutate(
+      {
+        payment_date: payDate,
+        amount: payTotal,
+        payment_method: "bank",
+        bank_account_id: payBankAccountId,
+        reference: payReference || null,
+        allocations,
+      },
+      {
+        onSuccess: () => {
+          setPayAllocations({});
+          setPayReference("");
+          setPayBankAccountId("");
+          setPaySubmitting(false);
+        },
+        onSettled: () => setPaySubmitting(false),
       },
     );
   };
@@ -518,6 +599,17 @@ const SupplierDetailPage = () => {
               />
             </>
           )}
+        </div>
+      )}
+
+      {/* ── Receive Goods tab ──────────────────────────────────────────────── */}
+      {tab === "receive" && (
+        <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-5">
+          <ReceiveTab
+            supplierId={id}
+            supplierName={supplier.name}
+            onSuccess={() => setTab("purchases")}
+          />
         </div>
       )}
 
@@ -993,6 +1085,147 @@ const SupplierDetailPage = () => {
               />
             </>
           )}
+        </div>
+      )}
+
+      {/* ── Pay tab ─────────────────────────────────────────────────────── */}
+      {tab === "pay" && (
+        <div className="space-y-4">
+          <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-5 space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-primary-500/15 rounded-lg">
+                <Banknote size={14} className="text-primary-400" />
+              </div>
+              <h3 className="font-semibold text-white">Pay Supplier Invoices</h3>
+            </div>
+
+            {/* Bank account + date + ref */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-surface-400 font-medium">Bank Account *</label>
+                <select
+                  className={inputCls}
+                  value={payBankAccountId}
+                  onChange={(e) => setPayBankAccountId(e.target.value)}
+                >
+                  <option value="">Select bank account…</option>
+                  {bankAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-surface-400 font-medium">Payment Date *</label>
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={payDate}
+                  onChange={(e) => setPayDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-surface-400 font-medium">Reference</label>
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder="Cheque no, transfer ref…"
+                  value={payReference}
+                  onChange={(e) => setPayReference(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Invoices table */}
+            {unpaidLoading ? (
+              <div className="py-8 text-center text-surface-400">Loading invoices...</div>
+            ) : unpaidInvoices.length === 0 ? (
+              <div className="py-8 text-center text-surface-500">
+                <CheckCircle2 size={32} className="mx-auto mb-2 text-green-500/40" />
+                <p>No outstanding invoices for this supplier.</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-surface-700 bg-surface-800/30">
+                        <th className="text-left px-4 py-3 text-surface-400 font-medium">Invoice #</th>
+                        <th className="text-left px-4 py-3 text-surface-400 font-medium">Date</th>
+                        <th className="text-right px-4 py-3 text-surface-400 font-medium">Invoice Amount</th>
+                        <th className="text-right px-4 py-3 text-surface-400 font-medium">Paid</th>
+                        <th className="text-right px-4 py-3 text-surface-400 font-medium">Outstanding</th>
+                        <th className="text-right px-4 py-3 text-surface-400 font-medium w-36">Pay Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-700/40">
+                      {unpaidInvoices.map((inv) => {
+                        const outstanding = Number(inv.total_amount) - Number(inv.amount_paid || 0);
+                        return (
+                          <tr key={inv.id} className="hover:bg-surface-700/30 transition-colors">
+                            <td className="px-4 py-3 font-mono text-xs text-primary-400">{inv.invoice_number}</td>
+                            <td className="px-4 py-3 text-surface-300">{fmtDate(inv.purchase_date)}</td>
+                            <td className="px-4 py-3 text-right text-white">{fmt(inv.total_amount)}</td>
+                            <td className="px-4 py-3 text-right text-green-400">{fmt(inv.amount_paid || 0)}</td>
+                            <td className="px-4 py-3 text-right text-red-400 font-medium">{fmt(outstanding)}</td>
+                            <td className="px-4 py-2 text-right">
+                              <input
+                                type="number"
+                                min="0"
+                                max={outstanding}
+                                step="0.01"
+                                placeholder="0.00"
+                                className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                value={payAllocations[inv.id] || ""}
+                                onChange={(e) => handlePayAllocation(inv.id, e.target.value)}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-surface-800/50 border-t border-surface-600">
+                        <td colSpan={5} className="px-4 py-3 text-right text-sm font-semibold text-surface-300">
+                          Total Payment
+                        </td>
+                        <td className="px-4 py-3 text-right text-lg font-bold text-white">
+                          {fmt(payTotal)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                {/* Journal preview */}
+                {payTotal > 0 && payBankAccountId && (
+                  <div className="bg-surface-900/50 border border-surface-700 rounded-lg p-3 text-xs">
+                    <p className="text-surface-400 mb-2 font-medium">Journal Entry Preview</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-white">Dr {supplier?.name || "Accounts Payable"}</span>
+                        <span className="text-emerald-400">{fmt(payTotal)}</span>
+                      </div>
+                      <div className="flex justify-between pl-4">
+                        <span className="text-white">Cr {bankAccounts.find((a) => a.id === payBankAccountId)?.name || "Bank"}</span>
+                        <span className="text-red-400">{fmt(payTotal)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={handlePaySubmit}
+                    disabled={paySubmitting || payTotal <= 0 || !payBankAccountId}
+                    className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <Banknote size={15} />
+                    {paySubmitting ? "Processing…" : `Pay ${fmt(payTotal)}`}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

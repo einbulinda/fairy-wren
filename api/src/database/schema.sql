@@ -176,6 +176,7 @@ CREATE TABLE public.inventory_items (
     inventory_account_id uuid NOT NULL,
     cogs_account_id uuid NOT NULL,
     product_id uuid UNIQUE,
+    name text,
     CONSTRAINT inventory_items_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.inventory_ledger (
@@ -532,6 +533,15 @@ CREATE TABLE IF NOT EXISTS public.supplier_payments (
     created_by uuid REFERENCES public.profiles(id),
     created_at timestamptz DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS public.supplier_payment_allocations (
+    id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    payment_id UUID NOT NULL REFERENCES public.supplier_payments(id) ON DELETE CASCADE,
+    invoice_id UUID NOT NULL REFERENCES public.inventory_receipts(id),
+    amount NUMERIC(15, 2) NOT NULL CHECK (amount > 0),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_spa_payment ON public.supplier_payment_allocations(payment_id);
+CREATE INDEX IF NOT EXISTS idx_spa_invoice ON public.supplier_payment_allocations(invoice_id);
 /*=======================================================================
  EMPLOYEE_SALARY_STRUCTURES TABLE
  Stores each employee's salary breakdown (earnings + deductions + payment

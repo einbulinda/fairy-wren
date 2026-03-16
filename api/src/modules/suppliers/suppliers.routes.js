@@ -10,6 +10,7 @@ router.get("/pending-invoices", requireRole("manager", "owner"), controller.getP
 
 router.get("/:id/purchases", controller.getPurchases);
 router.get("/:id/payments", controller.getPayments);
+router.get("/:id/unpaid-invoices", controller.getUnpaidInvoices);
 router.post("/:id/payments", requireRole("manager", "owner"), controller.createPayment);
 router.get("/:id/statement", controller.getStatement);
 router.get("/:id/statement/export", controller.exportStatementCsv);

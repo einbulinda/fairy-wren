@@ -25,6 +25,7 @@ import ProductGrid from "../components/products/ProductGrid";
 import PaymentModal from "../components/pos/PaymentModal";
 import CurrentBill from "../components/bills/CurrentBill";
 import ConfirmPaymentsView from "../components/pos/ConfirmPaymentsView";
+import ConfirmModal from "../components/shared/ConfirmModal";
 
 const POSScreen = () => {
   const { user } = useAuth();
@@ -84,6 +85,7 @@ const POSScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
   const [showMyBillsModal, setShowMyBillsModal] = useState(false);
+  const [showVoidConfirm, setShowVoidConfirm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -439,20 +441,19 @@ const POSScreen = () => {
     setCurrentRoundItems([]);
   };
 
-  const handleVoidBill = useCallback(async () => {
+  const handleVoidBill = useCallback(() => {
     if (!activeBill) return;
+    setShowVoidConfirm(true);
+  }, [activeBill]);
 
-    const confirmed = window.confirm(
-      `Are you sure you want to VOID this bill for ${activeBill.customer_name}?\n\nThis action cannot be undone and will permanently delete this bill.`,
-    );
-
-    if (!confirmed) return;
+  const confirmVoidBill = useCallback(async () => {
+    setShowVoidConfirm(false);
+    if (!activeBill) return;
 
     try {
       await voidBill(activeBill.id);
       toast.success(`Bill for ${activeBill.customer_name} has been voided`);
 
-      // Refresh bills list
       await reloadBills();
 
       setActiveBill(null);
@@ -954,6 +955,18 @@ const POSScreen = () => {
         <ReceiptModal
           bill={activeBill}
           onClose={() => setShowReceiptModal(false)}
+        />
+      )}
+
+      {showVoidConfirm && activeBill && (
+        <ConfirmModal
+          title="Void Bill"
+          message={`Are you sure you want to void the bill for ${activeBill.customer_name}? This action cannot be undone.`}
+          confirmLabel="Void Bill"
+          cancelLabel="Cancel"
+          variant="danger"
+          onConfirm={confirmVoidBill}
+          onCancel={() => setShowVoidConfirm(false)}
         />
       )}
 

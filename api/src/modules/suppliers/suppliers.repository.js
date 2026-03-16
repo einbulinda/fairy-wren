@@ -37,7 +37,7 @@ exports.findPurchases = async (supplierId) => {
   const supabase = getSupabase();
   return supabase
     .from("inventory_receipts")
-    .select("id, invoice_number, purchase_date, total_amount, status, paid_at, notes")
+    .select("id, invoice_number, purchase_date, total_amount, amount_paid, status, paid_at, notes")
     .eq("supplier_id", supplierId)
     .order("purchase_date", { ascending: false });
 };
@@ -60,9 +60,42 @@ exports.findPendingInvoices = async () => {
   const supabase = getSupabase();
   return supabase
     .from("inventory_receipts")
-    .select("id, invoice_number, purchase_date, total_amount, status, paid_at, notes, supplier_id, suppliers(id, name)")
+    .select("id, invoice_number, purchase_date, total_amount, amount_paid, status, paid_at, notes, supplier_id, suppliers(id, name)")
     .is("paid_at", null)
     .order("purchase_date", { ascending: true });
+};
+
+exports.findUnpaidInvoices = async (supplierId) => {
+  const supabase = getSupabase();
+  return supabase
+    .from("inventory_receipts")
+    .select("id, invoice_number, purchase_date, total_amount, amount_paid")
+    .eq("supplier_id", supplierId)
+    .is("paid_at", null)
+    .order("purchase_date", { ascending: true });
+};
+
+exports.createPaymentAllocations = async (allocations) => {
+  const supabase = getSupabase();
+  return supabase.from("supplier_payment_allocations").insert(allocations).select();
+};
+
+exports.updateInvoiceAmountPaid = async (invoiceId, amountPaid, totalAmount) => {
+  const supabase = getSupabase();
+  const update = { amount_paid: amountPaid };
+  if (amountPaid >= totalAmount) {
+    update.paid_at = new Date().toISOString();
+  }
+  return supabase.from("inventory_receipts").update(update).eq("id", invoiceId);
+};
+
+exports.findInvoiceById = async (invoiceId) => {
+  const supabase = getSupabase();
+  return supabase
+    .from("inventory_receipts")
+    .select("id, total_amount, amount_paid")
+    .eq("id", invoiceId)
+    .single();
 };
 
 exports.findStatement = async (supplierId, startDate, endDate) => {

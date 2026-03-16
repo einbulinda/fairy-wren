@@ -33,7 +33,10 @@ exports.create = async (payload, context) => {
   let accountId = null;
 
   if (apParent) {
-    const nextCode = await accountsRepo.getNextChildCode(apParent.id, apParent.code);
+    const nextCode = await accountsRepo.getNextChildCode(
+      apParent.id,
+      apParent.code,
+    );
     const account = await accountsService.create(
       {
         name: dto.name,
@@ -122,8 +125,18 @@ exports.getPayments = async (id) => {
 };
 
 exports.getStatement = async (id, from, to) => {
-  const { data, error } = await repo.findStatement(id, from || null, to || null);
+  const { data, error } = await repo.findStatement(
+    id,
+    from || null,
+    to || null,
+  );
   if (error) throw new Error("FAILED_TO_FETCH_STATEMENT");
+  return data;
+};
+
+exports.getUnpaidInvoices = async (supplierId) => {
+  const { data, error } = await repo.findUnpaidInvoices(supplierId);
+  if (error) throw new Error("FAILED_TO_FETCH_UNPAID_INVOICES");
   return data;
 };
 
@@ -133,6 +146,7 @@ exports.createPayment = async (supplierId, payload, context) => {
   }
 
   const dto = CreatePaymentDTO(payload);
+  const allocations = payload.allocations || []; // [{ invoice_id, amount }]
 
   // Auto-post journal: Dr supplier AP account / Cr Bank if both accounts are available
   let journalEntryId = null;
@@ -141,7 +155,9 @@ exports.createPayment = async (supplierId, payload, context) => {
     const { data: supplier } = await repo.findById(supplierId);
     let apAccount;
     if (supplier?.account_id) {
-      const { data: supplierAccount } = await accountsRepo.findById(supplier.account_id);
+      const { data: supplierAccount } = await accountsRepo.findById(
+        supplier.account_id,
+      );
       apAccount = supplierAccount;
     }
     if (!apAccount) {
@@ -158,8 +174,18 @@ exports.createPayment = async (supplierId, payload, context) => {
       });
       if (entry) {
         await journalRepo.createLines([
-          { journal_entry_id: entry.id, account_id: apAccount.id, debit: dto.amount, credit: 0 },
-          { journal_entry_id: entry.id, account_id: dto.bank_account_id, debit: 0, credit: dto.amount },
+          {
+            journal_entry_id: entry.id,
+            account_id: apAccount.id,
+            debit: dto.amount,
+            credit: 0,
+          },
+          {
+            journal_entry_id: entry.id,
+            account_id: dto.bank_account_id,
+            debit: 0,
+            credit: dto.amount,
+          },
         ]);
         journalEntryId = entry.id;
       }
@@ -175,13 +201,45 @@ exports.createPayment = async (supplierId, payload, context) => {
 
   if (error) throw new Error("FAILED_TO_CREATE_PAYMENT");
 
+  // Save invoice allocations and update invoice balances
+  if (allocations.length > 0 && data?.id) {
+    const allocationRows = allocations
+      .filter((a) => a.amount > 0)
+      .map((a) => ({
+        payment_id: data.id,
+        invoice_id: a.invoice_id,
+        amount: a.amount,
+      }));
+
+    if (allocationRows.length > 0) {
+      await repo.createPaymentAllocations(allocationRows);
+
+      // Update each invoice's amount_paid and mark fully paid
+      for (const alloc of allocationRows) {
+        const { data: inv } = await repo.findInvoiceById(alloc.invoice_id);
+        if (inv) {
+          const newPaid = Number(inv.amount_paid || 0) + alloc.amount;
+          await repo.updateInvoiceAmountPaid(
+            alloc.invoice_id,
+            newPaid,
+            Number(inv.total_amount),
+          );
+        }
+      }
+    }
+  }
+
   await auditRepo.log({
     entity: "supplier_payments",
     entity_id: data.id,
     action: "SUPPLIER_PAYMENT_RECORDED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
-    metadata: { supplier_id: supplierId, amount: dto.amount },
+    metadata: {
+      supplier_id: supplierId,
+      amount: dto.amount,
+      allocations: allocations.length,
+    },
   });
 
   return data;
