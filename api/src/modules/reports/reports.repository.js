@@ -211,6 +211,9 @@ class ReportsRepository {
     });
   }
 
+  async getZReport(date) {
+    return callRpc("rpc_z_report", { p_date: date });
+  }
 }
 
 module.exports = new ReportsRepository();

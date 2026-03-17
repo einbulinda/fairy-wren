@@ -38,7 +38,10 @@ const buildTree = (accounts) => {
   const rollUp = (node) => {
     if (node.children.length > 0) {
       node.children.forEach(rollUp);
-      const childSum = node.children.reduce((s, c) => s + Number(c.balance), 0);
+      // Exclude computed rows (Opening/Closing Inventory) from parent roll-up
+      const childSum = node.children
+        .filter((c) => !c.is_computed)
+        .reduce((s, c) => s + Number(c.balance), 0);
       if (Number(node.balance) === 0) {
         node.balance = childSum;
       }
@@ -56,15 +59,42 @@ const getRenderNodes = (roots) => {
   return roots;
 };
 
-const sumRoots = (roots) => roots.reduce((s, n) => s + Number(n.balance), 0);
+const sumRoots = (roots) =>
+  roots.reduce((s, n) => (n.is_computed ? s : s + Number(n.balance)), 0);
 
 // --- Sub-components ---
+
+const ComputedLineItem = ({ node, depth = 0 }) => {
+  const balance = Number(node.balance);
+  const isCredit = node.normal_balance === "credit";
+
+  return (
+    <tr className="hover:bg-surface-700/20 transition-colors">
+      <td className="px-4 py-2 text-amber-400 italic">
+        <div
+          className="flex items-center gap-1.5"
+          style={{ paddingLeft: `${(depth + 1) * 20}px` }}
+        >
+          <span className="w-5" />
+          {node.account_name}
+        </div>
+      </td>
+      <td className="px-4 py-2 text-right tabular-nums text-amber-400 italic">
+        {isCredit ? `(${fmt(balance)})` : fmt(balance)}
+      </td>
+    </tr>
+  );
+};
 
 const LineItem = ({ node, depth = 0, onDrillDown }) => {
   const [expanded, setExpanded] = useState(!node.is_control_account);
   const hasChildren = node.children.length > 0;
   const balance = Number(node.balance);
   const isLeafWithBalance = !hasChildren && balance !== 0;
+
+  if (node.is_computed) {
+    return <ComputedLineItem node={node} depth={depth} />;
+  }
 
   const balanceDisplay = !expanded || !hasChildren ? (
     isLeafWithBalance && onDrillDown ? (
@@ -205,10 +235,11 @@ const flattenNodes = (nodes, depth = 0) => {
   const rows = [];
   nodes.forEach((node) => {
     rows.push({
-      type: "line",
+      type: node.is_computed ? "computed" : "line",
       label: node.account_name,
       amount: Number(node.balance),
       depth,
+      isCredit: node.normal_balance === "credit",
     });
     if (node.children.length > 0) {
       rows.push(...flattenNodes(node.children, depth + 1));
@@ -420,21 +451,26 @@ const generatePDF = (sections, startDate, endDate, orgName) => {
       return;
     }
 
+    const isComputed = row.type === "computed";
+    const amberText = [194, 120, 3];
+
     tableBody.push([
       {
         content: row.label,
         styles: {
           fontSize: 9,
-          textColor: mediumText,
+          fontStyle: isComputed ? "italic" : "normal",
+          textColor: isComputed ? amberText : mediumText,
           cellPadding: { top: 1, bottom: 1, left: 10 + indent },
         },
       },
       {
-        content: amount,
+        content: isComputed && row.isCredit ? `(${fmt(row.amount)})` : amount,
         styles: {
           fontSize: 9,
+          fontStyle: isComputed ? "italic" : "normal",
           halign: "right",
-          textColor: mediumText,
+          textColor: isComputed ? amberText : mediumText,
           cellPadding: { top: 1, bottom: 1, right: 5 },
         },
       },

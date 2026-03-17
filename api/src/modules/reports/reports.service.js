@@ -358,14 +358,22 @@ class ReportsService {
       reportsRepository.getIncomeStatement(startDate, endDate),
     ]);
 
-    // Compute net income from income statement accounts
-    const netIncome = (incomeAccounts || []).reduce((sum, a) => {
-      if (a.account_class === "income") return sum + Number(a.balance);
-      return sum - Number(a.balance);
-    }, 0);
+    // Compute net income from income statement accounts (exclude computed rows)
+    const netIncome = (incomeAccounts || [])
+      .filter((a) => !a.is_computed)
+      .reduce((sum, a) => {
+        if (a.account_class === "income") return sum + Number(a.balance);
+        return sum - Number(a.balance);
+      }, 0);
 
     return { accounts: accounts || [], netIncome };
   }
+  async getZReport(date) {
+    this.validateDate(date);
+    const data = await reportsRepository.getZReport(date);
+    return data || {};
+  }
+
   async getEquityChanges(startDate, endDate) {
     this.validateDateRange(startDate, endDate);
 

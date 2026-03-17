@@ -254,13 +254,14 @@ DECLARE
     v_avg_cost NUMERIC;
     v_total_cost NUMERIC;
     v_inventory_account UUID;
-    v_cogs_account UUID;
+    v_purchases_account UUID;
     v_cogs_journal_id UUID;
     v_revenue_journal_id UUID;
     v_ar_account UUID;
     v_sales_account UUID;
     v_round_total NUMERIC := 0;
     v_bill_id UUID;
+    v_round_date DATE;
 BEGIN
     /* Idempotency guard */
     IF EXISTS (
@@ -269,12 +270,21 @@ BEGIN
     ) THEN RETURN;
     END IF;
 
-    /* Get the bill_id for this round */
-    SELECT bill_id INTO v_bill_id
-    FROM rounds WHERE id = p_round_id;
+    /* Get the bill_id and round date for this round */
+    SELECT r.bill_id, r.created_at::date
+    INTO v_bill_id, v_round_date
+    FROM rounds r WHERE r.id = p_round_id;
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Round not found: %', p_round_id;
+    END IF;
+
+    /* Resolve Inventory Purchases account (5003) once */
+    SELECT id INTO v_purchases_account
+    FROM chart_of_accounts WHERE code = '5003';
+
+    IF v_purchases_account IS NULL THEN
+        RAISE EXCEPTION 'Inventory Purchases account (5003) not found in chart_of_accounts';
     END IF;
 
     /* -------------------------------------------------------
@@ -305,31 +315,30 @@ BEGIN
             product_id, movement_date, quantity, unit_cost,
             movement_type, reference_type, reference_id, notes
         ) VALUES (
-            v_item.product_id, CURRENT_DATE, -v_item.quantity, v_avg_cost,
+            v_item.product_id, v_round_date, -v_item.quantity, v_avg_cost,
             'sale', 'round', p_round_id,
             'Sale via round submission'
         );
 
-        /* 2. Post COGS journal (only if accounts configured and cost > 0) */
-        SELECT inventory_account_id, cogs_account_id
-        INTO v_inventory_account, v_cogs_account
+        /* 2. Post COGS journal: DR Inventory Purchases (5003), CR Inventory */
+        SELECT inventory_account_id
+        INTO v_inventory_account
         FROM inventory_items
         WHERE product_id = v_item.product_id;
 
         IF v_inventory_account IS NOT NULL
-           AND v_cogs_account IS NOT NULL
            AND v_total_cost > 0 THEN
 
             INSERT INTO journal_entries (
                 entry_date, source_type, source_id, description
             ) VALUES (
-                CURRENT_DATE, 'round_cogs', p_round_id,
+                v_round_date, 'round_cogs', p_round_id,
                 'COGS on sale'
             ) RETURNING id INTO v_cogs_journal_id;
 
             INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
             VALUES
-                (v_cogs_journal_id, v_cogs_account, v_total_cost, 0),
+                (v_cogs_journal_id, v_purchases_account, v_total_cost, 0),
                 (v_cogs_journal_id, v_inventory_account, 0, v_total_cost);
         END IF;
 
@@ -339,6 +348,7 @@ BEGIN
 
     /* -------------------------------------------------------
        Revenue recognition: Dr A/R Open Bills, Cr Sales
+       Use the round's date (when items were served)
        ------------------------------------------------------- */
     IF v_round_total > 0 THEN
         SELECT id INTO v_ar_account
@@ -358,7 +368,7 @@ BEGIN
         INSERT INTO journal_entries (
             entry_date, source_type, source_id, description
         ) VALUES (
-            CURRENT_DATE, 'round_sale', p_round_id,
+            v_round_date, 'round_sale', p_round_id,
             'Revenue on round served'
         ) RETURNING id INTO v_revenue_journal_id;
 
@@ -2336,52 +2346,99 @@ $function$;
  ============================================================================
  */
 -- Returns income statement line items for a date range (income, cost_of_sales, expense)
-CREATE OR REPLACE FUNCTION public.rpc_income_statement(p_start_date date, p_end_date date) RETURNS TABLE (
-        account_id uuid,
-        account_code varchar,
-        account_name varchar,
-        account_class varchar,
-        parent_id uuid,
-        normal_balance varchar,
-        is_control_account boolean,
-        balance numeric
-    ) LANGUAGE sql STABLE AS $function$
-SELECT coa.id AS account_id,
-    coa.code AS account_code,
-    coa.name AS account_name,
-    coa.account_class,
-    coa.parent_id,
-    coa.normal_balance,
-    coa.is_control_account,
-    CASE
-        WHEN coa.normal_balance = 'credit' THEN COALESCE(SUM(jl.credit - jl.debit), 0)
-        ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
-    END AS balance
-FROM chart_of_accounts coa
+CREATE OR REPLACE FUNCTION public.rpc_income_statement(p_start_date date, p_end_date date)
+RETURNS TABLE (
+    account_id uuid,
+    account_code varchar,
+    account_name varchar,
+    account_class varchar,
+    parent_id uuid,
+    normal_balance varchar,
+    is_control_account boolean,
+    balance numeric,
+    is_computed boolean
+) LANGUAGE plpgsql STABLE AS $function$
+DECLARE
+    v_cos_parent_id UUID;
+    v_opening_inventory NUMERIC;
+    v_closing_inventory NUMERIC;
+    v_5002_balance NUMERIC;
+BEGIN
+    SELECT id INTO v_cos_parent_id
+    FROM chart_of_accounts WHERE code = '5000';
+
+    /* Manual opening balance posted to 5002 (DR 5002 / CR Bank)
+       never hit inventory asset accounts, so fold it in here. */
+    SELECT COALESCE(SUM(jl.debit - jl.credit), 0)
+    INTO v_5002_balance
+    FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl.journal_entry_id
+    WHERE jl.account_id = (SELECT id FROM chart_of_accounts WHERE code = '5002');
+
+    SELECT COALESCE(SUM(jl.debit - jl.credit), 0) + v_5002_balance
+    INTO v_opening_inventory
+    FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl.journal_entry_id
+    WHERE jl.account_id IN (SELECT DISTINCT inventory_account_id FROM inventory_items)
+      AND je.entry_date < p_start_date;
+
+    SELECT COALESCE(SUM(jl.debit - jl.credit), 0) + v_5002_balance
+    INTO v_closing_inventory
+    FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl.journal_entry_id
+    WHERE jl.account_id IN (SELECT DISTINCT inventory_account_id FROM inventory_items)
+      AND je.entry_date <= p_end_date;
+
+    RETURN QUERY
+
+    SELECT
+        coa.id AS account_id,
+        coa.code::varchar AS account_code,
+        coa.name::varchar AS account_name,
+        coa.account_class::varchar,
+        coa.parent_id,
+        coa.normal_balance::varchar,
+        coa.is_control_account,
+        CASE
+            WHEN coa.normal_balance = 'credit'
+                THEN COALESCE(SUM(jl.credit - jl.debit), 0)
+            ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
+        END AS balance,
+        false AS is_computed
+    FROM chart_of_accounts coa
     LEFT JOIN journal_lines jl ON jl.account_id = coa.id
     LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
-    AND je.entry_date >= p_start_date
-    AND je.entry_date <= p_end_date
-WHERE coa.account_class IN (
-        'income',
-        'cost_of_sales',
-        'expense',
-        'finance_cost',
-        'admin_cost',
-        'operating_cost'
-    )
-    AND coa.active = true
-GROUP BY coa.id,
-    coa.code,
-    coa.name,
-    coa.account_class,
-    coa.parent_id,
-    coa.normal_balance,
-    coa.is_control_account
-HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
-    OR coa.parent_id IS NULL
-    OR coa.is_control_account = true
-ORDER BY coa.code;
+        AND je.entry_date >= p_start_date
+        AND je.entry_date <= p_end_date
+    WHERE coa.account_class IN (
+            'income', 'cost_of_sales', 'expense',
+            'finance_cost', 'admin_cost', 'operating_cost'
+        )
+        AND coa.active = true
+    GROUP BY coa.id, coa.code, coa.name, coa.account_class,
+             coa.parent_id, coa.normal_balance, coa.is_control_account
+    HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
+        OR coa.parent_id IS NULL
+        OR coa.is_control_account = true
+
+    UNION ALL
+
+    SELECT
+        '00000000-0000-0000-0000-000000000001'::uuid,
+        '5001'::varchar, 'Opening Inventory'::varchar,
+        'cost_of_sales'::varchar, v_cos_parent_id,
+        'debit'::varchar, false, v_opening_inventory, true
+
+    UNION ALL
+
+    SELECT
+        '00000000-0000-0000-0000-000000000002'::uuid,
+        '5099'::varchar, 'Closing Inventory'::varchar,
+        'cost_of_sales'::varchar, v_cos_parent_id,
+        'credit'::varchar, false, v_closing_inventory, true
+
+    ORDER BY account_code;
+END;
 $function$;
 
 /*

@@ -68,4 +68,9 @@ router.get("/equity-changes", (req, res, next) =>
   reportsController.getEquityChanges(req, res, next)
 );
 
+// Z-Report (daily sales summary)
+router.get("/z-report", (req, res, next) =>
+  reportsController.getZReport(req, res, next)
+);
+
 module.exports = router;

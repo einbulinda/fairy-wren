@@ -411,6 +411,21 @@ class ReportsController {
       this.handleError(err, res, next);
     }
   }
+
+  async getZReport(req, res, next) {
+    try {
+      const { date } = req.query;
+      if (!date) {
+        const err = new Error("date query parameter is required");
+        err.status = 400;
+        throw err;
+      }
+      const data = await reportsService.getZReport(date);
+      res.status(200).json({ data, success: true, meta: { date } });
+    } catch (err) {
+      this.handleError(err, res, next);
+    }
+  }
 }
 
 module.exports = new ReportsController();

@@ -1,9 +1,9 @@
 import "./App.css";
-// import fairyLogo from "../public/fairy-wren-logo-removebg.png";
 import { useAuth } from "./hooks/useAuth";
 import LoginScreen from "./pages/LoginScreen";
 import MainLayout from "./components/layout/MainLayout";
 import { Toaster } from "react-hot-toast";
+import ErrorBoundary from "./components/shared/ErrorBoundary";
 
 const AppContent = () => {
   const { user } = useAuth();
@@ -17,7 +17,7 @@ const AppContent = () => {
 
 function App() {
   return (
-    <>
+    <ErrorBoundary>
       <AppContent />
       <Toaster
         position="top-right"
@@ -42,20 +42,8 @@ function App() {
           },
         }}
       />
-    </>
+    </ErrorBoundary>
   );
-}
-
-{
-  /* <div>
-        <a href="/" target="_blank">
-          <img src={fairyLogo} className="logo" alt="Fairy Wren logo" />
-        </a>
-      </div>
-      <h1>Fairy Wren Ltd</h1>
-      <div className="card">
-        <p>Coming soon ...</p>
-      </div> */
 }
 
 export default App;

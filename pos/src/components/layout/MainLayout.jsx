@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   FileText,
   ClipboardCheck,
+  Receipt,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
@@ -13,6 +14,7 @@ import fwLogo from "/fairy-logo-only.png";
 // View components
 import POSScreen from "@/pages/POSScreen";
 import StockTakeEntry from "../../pages/StockTakeEntry";
+import ZReportView from "@/pages/ZReportView";
 import { useBills } from "@/hooks/useBills";
 import { useMyBillStats } from "@/hooks/useMyBillStats";
 import { formatCurrency } from "@/utils/common";
@@ -43,6 +45,8 @@ const MainLayout = () => {
         label: "Stock Take",
         icon: ClipboardCheck,
       });
+    if (perms.includes("pos_access"))
+      tabs.push({ id: "z-report", label: "Z-Report", icon: Receipt });
     return tabs;
   }, [user.permissions]);
 
@@ -113,6 +117,8 @@ const MainLayout = () => {
         return <POSScreen onBillUpdate={fetchCounts} />;
       case "stock-take":
         return <StockTakeEntry />;
+      case "z-report":
+        return <ZReportView />;
       default:
         return null;
     }

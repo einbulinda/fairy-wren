@@ -48,3 +48,10 @@ export const fetchEquityChanges = async (startDate, endDate) => {
   });
   return data.data;
 };
+
+export const fetchZReport = async (date) => {
+  const { data } = await api.get("/reports/z-report", {
+    params: { date },
+  });
+  return data.data;
+};

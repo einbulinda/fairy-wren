@@ -22,6 +22,7 @@ import * as XLSX from "xlsx";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import { fmtNumber as fmt, fmtDate } from "@/utils/formatters";
 import { dateInputCls } from "@/utils/constants";
+import ZReportTab from "@/components/reports/ZReportTab";
 
 const yesterday = new Date();
 yesterday.setDate(yesterday.getDate() - 1);
@@ -36,6 +37,7 @@ const STATUS_TABS = [
   { key: "completed", label: "Closed" },
   { key: "void", label: "Void" },
   { key: "products", label: "Product Sales" },
+  { key: "z-report", label: "Z-Report" },
 ];
 
 const STATUS_BADGE = {
@@ -106,7 +108,7 @@ const SalesPage = () => {
 
   const params = useMemo(() => {
     const p = { startDate, endDate };
-    if (statusFilter !== "all" && statusFilter !== "products") p.status = statusFilter;
+    if (statusFilter !== "all" && statusFilter !== "products" && statusFilter !== "z-report") p.status = statusFilter;
     return p;
   }, [startDate, endDate, statusFilter]);
 
@@ -312,41 +314,43 @@ const SalesPage = () => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 sm:ml-auto">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
-                From
-              </label>
-              <input
-                type="date"
-                className={inputCls}
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setPage(1);
-                }}
-              />
+          {statusFilter !== "z-report" && (
+            <div className="flex items-center gap-3 sm:ml-auto">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
+                  From
+                </label>
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
+                  To
+                </label>
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
-                To
-              </label>
-              <input
-                type="date"
-                className={inputCls}
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Summary Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {statusFilter === "z-report" ? null : <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <FileText size={16} className="text-primary-400" />
@@ -401,7 +405,7 @@ const SalesPage = () => {
             {stats.outstandingCount} bill{stats.outstandingCount !== 1 ? "s" : ""} unpaid
           </p>
         </div>
-      </div>
+      </div>}
 
       {/* Bills Table */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
@@ -424,7 +428,7 @@ const SalesPage = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 sm:ml-auto">
+          {statusFilter !== "z-report" && <div className="flex items-center gap-2 sm:ml-auto">
             {/* Search */}
             <div className="relative">
               <Search
@@ -473,11 +477,15 @@ const SalesPage = () => {
                 Export
               </button>
             )}
-          </div>
+          </div>}
         </div>
 
         {/* Content */}
-        {statusFilter === "products" ? (
+        {statusFilter === "z-report" ? (
+          <div className="p-4">
+            <ZReportTab />
+          </div>
+        ) : statusFilter === "products" ? (
           /* Product Sales Summary Table */
           isLoading ? (
             <div className="flex items-center justify-center py-16">
