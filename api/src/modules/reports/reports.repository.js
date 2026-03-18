@@ -211,6 +211,10 @@ class ReportsRepository {
     });
   }
 
+  async getHourlyRevenue(date) {
+    return callRpc("rpc_hourly_revenue", { p_date: date });
+  }
+
   async getZReport(date) {
     return callRpc("rpc_z_report", { p_date: date });
   }

@@ -42,7 +42,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const SalesTrendChart = ({ data, monthlyData, revenueGrowth }) => {
+const SalesTrendChart = ({ data, monthlyData, revenueGrowth, hourlyData }) => {
   const [period, setPeriod] = useState("Monthly");
 
   const today = new Date();
@@ -52,6 +52,21 @@ const SalesTrendChart = ({ data, monthlyData, revenueGrowth }) => {
     if (!data || data.length === 0) return { chartData: [], xKey: "label" };
 
     if (period === "Today") {
+      if (hourlyData && hourlyData.length > 0) {
+        const hourMap = {};
+        hourlyData.forEach((h) => { hourMap[h.hour] = h; });
+        const chartPoints = [];
+        for (let h = 0; h < 24; h++) {
+          const entry = hourMap[h];
+          const label = `${h.toString().padStart(2, "0")}:00`;
+          chartPoints.push({
+            label,
+            revenue: entry ? Number(entry.total_revenue) : 0,
+            orders: entry ? Number(entry.total_orders) : 0,
+          });
+        }
+        return { chartData: chartPoints, xKey: "label" };
+      }
       const todayEntry = data.find((d) => d.business_date === todayStr);
       const entry = todayEntry || data[data.length - 1];
       return {
@@ -94,7 +109,7 @@ const SalesTrendChart = ({ data, monthlyData, revenueGrowth }) => {
       })),
       xKey: "label",
     };
-  }, [data, monthlyData, period, todayStr]);
+  }, [data, monthlyData, hourlyData, period, todayStr]);
 
   const totalRevenue = chartData.reduce((s, d) => s + d.revenue, 0);
   const totalOrders = chartData.reduce((s, d) => s + d.orders, 0);

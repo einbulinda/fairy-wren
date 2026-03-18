@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Clock, Copy } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Clock, Copy, Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
@@ -7,6 +7,7 @@ const OutstandingBillsTable = ({ data }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState("days_outstanding");
   const [sortDirection, setSortDirection] = useState("desc");
+  const [search, setSearch] = useState("");
   const itemsPerPage = 10;
 
   const calculateDaysOutstanding = (createdAt) => {
@@ -23,7 +24,16 @@ const OutstandingBillsTable = ({ data }) => {
     served_by: item.served_by || item.user?.name || "Unknown",
   }));
 
-  const sortedData = [...enhancedData].sort((a, b) => {
+  const searchLower = search.toLowerCase();
+  const filteredData = searchLower
+    ? enhancedData.filter((b) =>
+        b.customer_name.toLowerCase().includes(searchLower) ||
+        b.served_by.toLowerCase().includes(searchLower) ||
+        b.bill_id?.toLowerCase().includes(searchLower)
+      )
+    : enhancedData;
+
+  const sortedData = [...filteredData].sort((a, b) => {
     let aVal, bVal;
     if (sortField === "days_outstanding") { aVal = a.days_outstanding; bVal = b.days_outstanding; }
     else if (sortField === "bill_total") { aVal = parseFloat(a.bill_total) || 0; bVal = parseFloat(b.bill_total) || 0; }
@@ -59,6 +69,16 @@ const OutstandingBillsTable = ({ data }) => {
 
   return (
     <div className="space-y-4">
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
+        <input
+          type="text"
+          placeholder="Search by customer, staff, or bill ID..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+          className="w-full pl-9 pr-3 py-2 bg-surface-800 border border-surface-600 rounded-lg text-white text-sm placeholder-surface-500 focus:outline-none focus:border-primary-500"
+        />
+      </div>
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-surface-700">

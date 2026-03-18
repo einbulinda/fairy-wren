@@ -138,6 +138,12 @@ class ReportsService {
     return data || [];
   }
 
+  async getHourlyRevenue(date) {
+    this.validateDate(date);
+    const data = await reportsRepository.getHourlyRevenue(date);
+    return data || [];
+  }
+
   async getDashboardMetrics(startDate, endDate) {
     this.validateDateRange(startDate, endDate);
 
@@ -149,6 +155,8 @@ class ReportsService {
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     // Fetch all metrics in parallel for better performance
+    const todayStr = fmt(new Date());
+
     const [
       totalRevenue,
       dailyRevenue,
@@ -162,6 +170,7 @@ class ReportsService {
       billStatusSummary,
       previousMonthBills,
       dayOfWeekPerformance,
+      hourlyRevenue,
     ] = await Promise.all([
       this.getTotalRevenue(startDate, endDate),
       this.getDailyRevenue(startDate, endDate),
@@ -175,6 +184,7 @@ class ReportsService {
       this.getBillStatusSummary(startDate, endDate),
       this.getBillStatusSummary(fmt(prevMonthStart), fmt(prevMonthEnd)),
       this.getDayOfWeekPerformance(startDate, endDate),
+      this.getHourlyRevenue(todayStr),
     ]);
 
     const revenueGrowth =
@@ -208,6 +218,7 @@ class ReportsService {
       weeklyPerformance,
       billStatusSummary,
       dayOfWeekPerformance,
+      hourlyRevenue,
     };
   }
 

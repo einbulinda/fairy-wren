@@ -288,6 +288,7 @@ DECLARE
     v_ar_account UUID;
     v_sales_account UUID;
     v_round_total NUMERIC := 0;
+    v_total_cogs NUMERIC := 0;
     v_bill_id UUID;
     v_round_date DATE;
 BEGIN
@@ -316,7 +317,7 @@ BEGIN
     END IF;
 
     /* -------------------------------------------------------
-       LOOP: Inventory deduction + COGS per item
+       LOOP: Inventory deduction per item
        ------------------------------------------------------- */
     FOR v_item IN
         SELECT ri.id, ri.product_id, ri.quantity, ri.price
@@ -337,6 +338,7 @@ BEGIN
         END IF;
 
         v_total_cost := v_item.quantity * v_avg_cost;
+        v_total_cogs := v_total_cogs + v_total_cost;
 
         /* 1. Insert inventory movement (negative qty = sale) */
         INSERT INTO inventory_movements (
@@ -348,15 +350,25 @@ BEGIN
             'Sale via round submission'
         );
 
-        /* 2. Post COGS journal: DR Inventory Purchases (5003), CR Inventory */
-        SELECT inventory_account_id
+        /* 2. Mark item as posted */
+        UPDATE round_items SET inventory_posted = true WHERE id = v_item.id;
+    END LOOP;
+
+    /* -------------------------------------------------------
+       COGS journal: single entry for entire round
+       DR Inventory Purchases (5003), CR Inventory asset
+       ------------------------------------------------------- */
+    IF v_total_cogs > 0 THEN
+        /* Use the inventory account from the first item with one */
+        SELECT ii.inventory_account_id
         INTO v_inventory_account
-        FROM inventory_items
-        WHERE product_id = v_item.product_id;
+        FROM round_items ri
+        JOIN inventory_items ii ON ii.product_id = ri.product_id
+        WHERE ri.round_id = p_round_id
+          AND ii.inventory_account_id IS NOT NULL
+        LIMIT 1;
 
-        IF v_inventory_account IS NOT NULL
-           AND v_total_cost > 0 THEN
-
+        IF v_inventory_account IS NOT NULL THEN
             INSERT INTO journal_entries (
                 entry_date, source_type, source_id, description
             ) VALUES (
@@ -366,13 +378,10 @@ BEGIN
 
             INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
             VALUES
-                (v_cogs_journal_id, v_purchases_account, v_total_cost, 0),
-                (v_cogs_journal_id, v_inventory_account, 0, v_total_cost);
+                (v_cogs_journal_id, v_purchases_account, v_total_cogs, 0),
+                (v_cogs_journal_id, v_inventory_account, 0, v_total_cogs);
         END IF;
-
-        /* 3. Mark item as posted */
-        UPDATE round_items SET inventory_posted = true WHERE id = v_item.id;
-    END LOOP;
+    END IF;
 
     /* -------------------------------------------------------
        Revenue recognition: Dr A/R Open Bills, Cr Sales
