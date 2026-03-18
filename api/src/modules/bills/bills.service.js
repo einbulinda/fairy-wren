@@ -194,9 +194,10 @@ exports.addRound = async (billId, payload, context) => {
 
   /**
    * 1. Validate stock availability (Inventory module)
+   *    - Check stock for new items
+   *    - Also consider items already in the bill (prevent overselling across multiple rounds)
    */
-
-  await inventoryService.assertStockAvailable(dto.items);
+  await inventoryService.assertStockAvailableForBill(billId, dto.items);
 
   /**
    * 2. Determine next round number
@@ -234,7 +235,10 @@ exports.addRound = async (billId, payload, context) => {
    *    (IFRS 15.31 — revenue when control transfers; IAS 2.34 — COGS matched)
    */
   const { error: saleError } = await repo.postRoundSale(round.id);
-  if (saleError) throw new Error("FAILED_TO_POST_ROUND_SALE");
+  if (saleError) {
+    console.log("Sale posting error:", saleError);
+    throw new Error("FAILED_TO_POST_ROUND_SALE");
+  }
 
   await auditRepo.log({
     entity: "rounds",

@@ -172,6 +172,15 @@ SELECT b.id AS bill_id,
         ),
         (0)::numeric
     ) AS amount_paid,
+    COALESCE(
+        sum(
+            CASE
+                WHEN (p.status = 'pending'::payment_status) THEN p.amount
+                ELSE (0)::numeric
+            END
+        ),
+        (0)::numeric
+    ) AS pending_amount,
     (
         COALESCE(
             sum(((ri.quantity)::numeric * ri.price)),
@@ -185,7 +194,21 @@ SELECT b.id AS bill_id,
             ),
             (0)::numeric
         )
-    ) AS balance_due
+    ) AS balance_due,
+    (
+        COALESCE(
+            sum(((ri.quantity)::numeric * ri.price)),
+            (0)::numeric
+        ) - COALESCE(
+            sum(
+                CASE
+                    WHEN (p.status IN ('confirmed'::payment_status, 'pending'::payment_status)) THEN p.amount
+                    ELSE (0)::numeric
+                END
+            ),
+            (0)::numeric
+        )
+    ) AS payable_amount
 FROM (
         (
             (

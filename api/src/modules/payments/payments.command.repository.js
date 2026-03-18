@@ -9,7 +9,7 @@ exports.processPayment = async ({
   userId,
   paymentMode,
   amount,
-  role,
+  permissions,
 }) => {
   const supabase = getSupabase();
 
@@ -18,6 +18,6 @@ exports.processPayment = async ({
     p_amount: amount,
     p_payment_type: paymentMode,
     p_user_id: userId,
-    p_user_role: role,
+    p_user_permissions: permissions,
   });
 };

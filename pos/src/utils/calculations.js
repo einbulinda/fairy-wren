@@ -16,6 +16,24 @@ export const calculateBillTotals = (bill) => {
   };
 };
 
+export const calculateBillPaymentInfo = (bill) => {
+  const total = calculateBillTotals(bill).total;
+  const payments = bill.payments || [];
+  const amountPaid = payments
+    .filter((p) => p.status === "confirmed")
+    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+  const pendingAmount = payments
+    .filter((p) => p.status === "pending")
+    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+  return {
+    total,
+    amountPaid: parseFloat(amountPaid.toFixed(2)),
+    pendingAmount: parseFloat(pendingAmount.toFixed(2)),
+    balanceDue: parseFloat((total - amountPaid).toFixed(2)),
+    payableAmount: parseFloat((total - amountPaid - pendingAmount).toFixed(2)),
+  };
+};
+
 export const calculateRoundTotal = (items) => {
   return items.reduce((sum, item) => {
     return sum + parseFloat(item.price) * parseInt(item.quantity);

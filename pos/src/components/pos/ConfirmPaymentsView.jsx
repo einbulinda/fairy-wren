@@ -14,7 +14,10 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { calculateBillTotals } from "../../utils/calculations";
+import {
+  calculateBillTotals,
+  calculateBillPaymentInfo,
+} from "../../utils/calculations";
 import toast from "react-hot-toast";
 
 /**
@@ -110,8 +113,16 @@ const ConfirmPaymentsView = ({
           bValue = b.created_by_user.name.toLowerCase();
           break;
         case "payment_method":
-          aValue = (a.payments?.[0]?.payment_type || "cash").toLowerCase();
-          bValue = (b.payments?.[0]?.payment_type || "cash").toLowerCase();
+          aValue = (a.payments || [])
+            .filter((p) => p.status === "pending")
+            .map((p) => p.payment_type)
+            .sort()
+            .join(",") || "cash";
+          bValue = (b.payments || [])
+            .filter((p) => p.status === "pending")
+            .map((p) => p.payment_type)
+            .sort()
+            .join(",") || "cash";
           break;
         default:
           return 0;
@@ -272,7 +283,13 @@ const ConfirmPaymentsView = ({
             <tbody className="divide-y divide-purple-500/10">
               {filteredAndSortedBills.map((bill) => {
                 const totals = calculateBillTotals(bill);
-                const { payments } = bill;
+                const paymentInfo = calculateBillPaymentInfo(bill);
+                const pendingPayments = (bill.payments || []).filter(
+                  (p) => p.status === "pending",
+                );
+                const paymentTypes = [
+                  ...new Set(pendingPayments.map((p) => p.payment_type)),
+                ];
                 const isExpanded = expandedBillId === bill.id;
 
                 return (
@@ -304,16 +321,44 @@ const ConfirmPaymentsView = ({
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <span className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300 uppercase font-semibold">
-                          {payments?.length >= 1
-                            ? payments[0]?.payment_type
-                            : "Cash"}
-                        </span>
+                        <div className="flex gap-1 flex-wrap">
+                          {paymentTypes.length > 0
+                            ? paymentTypes.map((type) => (
+                                <span
+                                  key={type}
+                                  className={`text-xs px-2 py-1 rounded-full uppercase font-semibold ${
+                                    type === "mpesa"
+                                      ? "bg-green-500/20 text-green-300"
+                                      : "bg-purple-500/20 text-purple-300"
+                                  }`}
+                                >
+                                  {type === "mpesa" ? "M-PESA" : type}
+                                </span>
+                              ))
+                            : (
+                              <span className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300 uppercase font-semibold">
+                                Cash
+                              </span>
+                            )}
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <span className="font-mono font-bold text-lg text-pink-400">
-                          KSh {totals.total.toFixed(2)}
-                        </span>
+                        <div>
+                          <span className="font-mono font-bold text-lg text-pink-400">
+                            KSh {paymentInfo.pendingAmount.toLocaleString()}
+                          </span>
+                          {paymentInfo.amountPaid > 0 && (
+                            <div className="text-xs text-green-400">
+                              Paid: KSh {paymentInfo.amountPaid.toLocaleString()}
+                            </div>
+                          )}
+                          {paymentInfo.balanceDue > paymentInfo.pendingAmount && (
+                            <div className="text-xs text-yellow-400">
+                              Unpaid: KSh{" "}
+                              {(paymentInfo.balanceDue - paymentInfo.pendingAmount).toLocaleString()}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         <span className="text-xs text-gray-400">
@@ -389,17 +434,64 @@ const ConfirmPaymentsView = ({
                               </div>
 
                               {/* Total Summary */}
-                              <div className="mt-4 pt-3 border-t border-purple-500/20">
+                              <div className="mt-4 pt-3 border-t border-purple-500/20 space-y-1">
                                 <div className="flex justify-between items-center">
                                   <span className="text-sm font-semibold text-purple-300">
-                                    Total Amount
+                                    Bill Total
                                   </span>
-                                  <span className="font-mono font-bold text-xl text-pink-400">
+                                  <span className="font-mono font-bold text-lg text-pink-400">
                                     KSh {totals.total.toFixed(2)}
                                   </span>
                                 </div>
+                                {paymentInfo.amountPaid > 0 && (
+                                  <div className="flex justify-between items-center text-sm">
+                                    <span className="text-green-400">
+                                      Already Paid
+                                    </span>
+                                    <span className="font-mono text-green-400">
+                                      -KSh {paymentInfo.amountPaid.toLocaleString()}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
+
+                            {/* Pending Payments Breakdown */}
+                            {pendingPayments.length > 0 && (
+                              <div className="lg:w-64">
+                                <div className="bg-yellow-900/20 backdrop-blur-sm rounded-lg p-4 border border-yellow-500/20">
+                                  <h4 className="font-semibold text-sm text-yellow-300 mb-3">
+                                    Pending Payments ({pendingPayments.length})
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {pendingPayments.map((payment) => (
+                                      <div
+                                        key={payment.id}
+                                        className="flex items-center justify-between p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg"
+                                      >
+                                        <span
+                                          className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${
+                                            payment.payment_type === "mpesa"
+                                              ? "bg-green-500/20 text-green-300"
+                                              : "bg-purple-500/20 text-purple-300"
+                                          }`}
+                                        >
+                                          {payment.payment_type === "mpesa"
+                                            ? "M-PESA"
+                                            : payment.payment_type}
+                                        </span>
+                                        <span className="font-mono font-bold text-yellow-300">
+                                          KSh{" "}
+                                          {parseFloat(
+                                            payment.amount,
+                                          ).toLocaleString()}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
 
                             {/* M-Pesa Code if available */}
                             {bill.mpesa_code && (
@@ -448,7 +540,13 @@ const ConfirmPaymentsView = ({
         <div className="md:hidden divide-y divide-purple-500/10">
           {filteredAndSortedBills.map((bill) => {
             const totals = calculateBillTotals(bill);
-            const { payments } = bill;
+            const paymentInfo = calculateBillPaymentInfo(bill);
+            const pendingPayments = (bill.payments || []).filter(
+              (p) => p.status === "pending",
+            );
+            const paymentTypes = [
+              ...new Set(pendingPayments.map((p) => p.payment_type)),
+            ];
             const isExpanded = expandedBillId === bill.id;
 
             return (
@@ -489,13 +587,33 @@ const ConfirmPaymentsView = ({
                     </div>
                     <div className="text-right">
                       <div className="font-mono font-bold text-xl text-pink-400">
-                        KSh {totals.total.toFixed(2)}
+                        KSh {paymentInfo.pendingAmount.toLocaleString()}
                       </div>
-                      <div className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300 uppercase font-semibold inline-block mt-1">
-                        {payments?.length >= 1
-                          ? payments[0]?.payment_type
-                          : "Cash"}
+                      <div className="flex gap-1 mt-1 justify-end flex-wrap">
+                        {paymentTypes.length > 0
+                          ? paymentTypes.map((type) => (
+                              <span
+                                key={type}
+                                className={`text-xs px-2 py-1 rounded-full uppercase font-semibold ${
+                                  type === "mpesa"
+                                    ? "bg-green-500/20 text-green-300"
+                                    : "bg-purple-500/20 text-purple-300"
+                                }`}
+                              >
+                                {type === "mpesa" ? "M-PESA" : type}
+                              </span>
+                            ))
+                          : (
+                            <span className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300 uppercase font-semibold">
+                              Cash
+                            </span>
+                          )}
                       </div>
+                      {paymentInfo.amountPaid > 0 && (
+                        <div className="text-xs text-green-400 mt-1">
+                          Paid: KSh {paymentInfo.amountPaid.toLocaleString()}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -557,6 +675,39 @@ const ConfirmPaymentsView = ({
                         ))}
                       </div>
                     </div>
+
+                    {/* Pending Payments Breakdown */}
+                    {pendingPayments.length > 0 && (
+                      <div className="bg-yellow-900/20 backdrop-blur-sm rounded-lg p-3 border border-yellow-500/20">
+                        <h4 className="font-semibold text-xs text-yellow-300 mb-2">
+                          Pending Payments ({pendingPayments.length})
+                        </h4>
+                        <div className="space-y-1.5">
+                          {pendingPayments.map((payment) => (
+                            <div
+                              key={payment.id}
+                              className="flex items-center justify-between p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg"
+                            >
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${
+                                  payment.payment_type === "mpesa"
+                                    ? "bg-green-500/20 text-green-300"
+                                    : "bg-purple-500/20 text-purple-300"
+                                }`}
+                              >
+                                {payment.payment_type === "mpesa"
+                                  ? "M-PESA"
+                                  : payment.payment_type}
+                              </span>
+                              <span className="font-mono font-bold text-yellow-300 text-sm">
+                                KSh{" "}
+                                {parseFloat(payment.amount).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* M-Pesa Code (expanded view) */}
                     {bill.mpesa_code && (

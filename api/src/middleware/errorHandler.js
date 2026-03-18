@@ -12,15 +12,24 @@ module.exports = (err, req, res, next) => {
       method: req.method,
       correlationId: req.correlationId,
       userId: req.user?.id,
+      details: err.details,
     },
     err.stack || code,
   );
 
-  res.status(mapped.status).json({
+  // Build error response
+  const errorResponse = {
     success: false,
     error: {
       code,
       message: mapped.message,
     },
-  });
+  };
+
+  // Include detailed error messages if available (e.g., for INSUFFICIENT_STOCK)
+  if (err.details && Array.isArray(err.details)) {
+    errorResponse.error.details = err.details;
+  }
+
+  res.status(mapped.status).json(errorResponse);
 };

@@ -24,7 +24,7 @@ exports.processPayments = async (payload, context) => {
     amount,
     paymentMode,
     userId: context.userId,
-    role: context.role,
+    permissions: context.permissions,
   });
 
   if (error) {

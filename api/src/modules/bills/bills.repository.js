@@ -78,6 +78,14 @@ exports.listBills = async (filters = {}) => {
           price,
           product:products(id, name)
         )
+      ),
+      payments (
+        id,
+        amount,
+        payment_type,
+        status,
+        is_paid,
+        created_at
       )
     `,
   );

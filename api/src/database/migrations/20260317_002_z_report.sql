@@ -25,17 +25,17 @@ BEGIN
         'awaiting', COUNT(*) FILTER (WHERE b.status = 'awaiting_confirmation'),
         'total_revenue', COALESCE(SUM(
             CASE WHEN b.status IN ('completed', 'open', 'awaiting_confirmation')
-            THEN bt.subtotal ELSE 0 END
+            THEN bt.computed_subtotal ELSE 0 END
         ), 0),
         'completed_revenue', COALESCE(SUM(
-            CASE WHEN b.status = 'completed' THEN bt.subtotal ELSE 0 END
+            CASE WHEN b.status = 'completed' THEN bt.computed_subtotal ELSE 0 END
         ), 0),
         'outstanding_revenue', COALESCE(SUM(
             CASE WHEN b.status IN ('open', 'awaiting_confirmation')
-            THEN bt.subtotal ELSE 0 END
+            THEN bt.computed_subtotal ELSE 0 END
         ), 0),
         'void_value', COALESCE(SUM(
-            CASE WHEN b.status = 'void' THEN bt.subtotal ELSE 0 END
+            CASE WHEN b.status = 'void' THEN bt.computed_subtotal ELSE 0 END
         ), 0)
     ) INTO v_bills_summary
     FROM bills b

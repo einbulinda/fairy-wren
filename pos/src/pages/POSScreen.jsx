@@ -17,7 +17,10 @@ import {
   User,
 } from "lucide-react";
 import LoadingSpinner from "../components/shared/LoadingSpinner";
-import { calculateBillTotals } from "../utils/calculations";
+import {
+  calculateBillTotals,
+  calculateBillPaymentInfo,
+} from "../utils/calculations";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/shared/ReceiptModal";
 import OpenBillsModal from "../components/bills/OpenBillsModal";
@@ -82,7 +85,6 @@ const POSScreen = () => {
   const [isCreatingBill, setIsCreatingBill] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("cash");
 
   const [showMyBillsModal, setShowMyBillsModal] = useState(false);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
@@ -476,34 +478,36 @@ const POSScreen = () => {
     setShowPaymentModal(true);
   }, [activeBill, currentRoundItems.length]);
 
-  const handleProcessPayment = async (bill) => {
+  const handleProcessPayment = async (bill, paymentLines) => {
     setPaymentLoading(true);
     try {
-      const totals = calculateBillTotals(bill);
-
-      if (!totals || totals.total <= 0) {
-        throw new Error("Invalid bill total");
-      }
-
       if (!bill?.id || !bill?.rounds?.length) {
         throw new Error("Invalid bill for payment");
       }
 
-      await PaymentService.process({
-        billId: bill.id,
-        paymentMode: paymentMethod,
-        amount: totals.total,
-      });
+      let lastResult;
+      for (const line of paymentLines) {
+        const { data } = await PaymentService.process({
+          billId: bill.id,
+          paymentMode: line.method,
+          amount: line.amount,
+        });
+        lastResult = data;
+      }
 
-      toast.success(
-        user.permissions?.includes("approve_payments")
-          ? "Payment processed successfully."
-          : "Payment processed. Awaiting Confirmation.",
-      );
+      if (lastResult?.balance_due > 0) {
+        toast.success(
+          `Partial payment recorded. Remaining: KSh ${lastResult.balance_due.toLocaleString()}`,
+        );
+      } else {
+        toast.success(
+          user.permissions?.includes("approve_payments")
+            ? "Payment processed successfully."
+            : "Payment processed. Awaiting Confirmation.",
+        );
+      }
 
-      // Refresh data after payment
       reloadBills();
-
       setShowPaymentModal(false);
       setActiveBill(null);
       setCurrentRoundItems([]);
@@ -512,6 +516,41 @@ const POSScreen = () => {
         error.response?.data?.message ||
         error.message ||
         "Failed to process payment";
+      toast.error(errorMsg);
+      console.error(error);
+      // Reload to reflect any partial success
+      reloadBills();
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  // Confirm all pending payments on a bill (from ConfirmPaymentsView)
+  const handleConfirmPayment = async (bill) => {
+    setPaymentLoading(true);
+    try {
+      const totals = calculateBillTotals(bill);
+
+      const { data } = await PaymentService.process({
+        billId: bill.id,
+        paymentMode: "cash", // ignored for confirmation
+        amount: totals.total, // ignored for confirmation — RPC confirms all pending
+      });
+
+      if (data?.balance_due > 0) {
+        toast.success(
+          `Payments confirmed. Remaining balance: KSh ${data.balance_due.toLocaleString()}`,
+        );
+      } else {
+        toast.success("Payments confirmed and bill completed.");
+      }
+
+      reloadBills();
+    } catch (error) {
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to confirm payment";
       toast.error(errorMsg);
       console.error(error);
     } finally {
@@ -860,7 +899,7 @@ const POSScreen = () => {
             <ConfirmPaymentsView
               awaitingConfirmation={confirmPaidBills}
               canAccessConfirm={canAccessConfirm}
-              onProcessPayment={handleProcessPayment}
+              onProcessPayment={handleConfirmPayment}
             />
           </div>
         )}
@@ -938,18 +977,23 @@ const POSScreen = () => {
         />
       )}
 
-      {showPaymentModal && activeBill && (
-        <PaymentModal
-          isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          onConfirm={() => handleProcessPayment(activeBill)}
-          billTotals={billTotals}
-          canAccessConfirm={canAccessConfirm}
-          paymentMethod={paymentMethod}
-          setPaymentMethod={setPaymentMethod}
-          loading={paymentLoading}
-        />
-      )}
+      {showPaymentModal && activeBill && (() => {
+        const paymentInfo = calculateBillPaymentInfo(activeBill);
+        return (
+          <PaymentModal
+            isOpen={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            onSubmitPayments={(lines) =>
+              handleProcessPayment(activeBill, lines)
+            }
+            billTotal={paymentInfo.total}
+            balanceDue={paymentInfo.balanceDue}
+            amountPaid={paymentInfo.amountPaid}
+            canAccessConfirm={canAccessConfirm}
+            loading={paymentLoading}
+          />
+        );
+      })()}
 
       {showReceiptModal && activeBill && (
         <ReceiptModal

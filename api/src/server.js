@@ -1,8 +1,12 @@
 require("dotenv").config();
+const { validateEnv } = require("./config/env");
 const app = require("./app");
 const logger = require("pino")();
 
 console.log("Bootstrapping FairyWren API...");
+
+// Validate environment variables before starting
+validateEnv();
 
 const PORT = process.env.PORT || 8000;
 
