@@ -14,8 +14,7 @@ exports.processPayment = async (req, res, next) => {
     const data = await service.processPayments(
       {
         billId: req.body.billId,
-        amount: req.body.amount,
-        paymentMode: req.body.paymentMode,
+        payments: req.body.payments,
       },
       buildContext(req),
     );

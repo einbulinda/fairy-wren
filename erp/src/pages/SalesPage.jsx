@@ -4,7 +4,7 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
+
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -16,10 +16,11 @@ import {
   XCircle,
   Package,
   Printer,
+
 } from "lucide-react";
 import { useBills } from "@/hooks/useBills";
 import * as XLSX from "xlsx";
-import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
+import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
 import { fmtNumber as fmt, fmtDate } from "@/utils/formatters";
 import { dateInputCls } from "@/utils/constants";
 import ZReportTab from "@/components/reports/ZReportTab";
@@ -28,6 +29,35 @@ const yesterday = new Date();
 yesterday.setDate(yesterday.getDate() - 1);
 const defaultStartDate = yesterday.toISOString().split("T")[0];
 const defaultEndDate = defaultStartDate;
+
+const toISO = (d) => d.toISOString().split("T")[0];
+const getDatePreset = (key) => {
+  const today = new Date();
+  const d = (offset) => { const dt = new Date(); dt.setDate(dt.getDate() + offset); return dt; };
+  switch (key) {
+    case "today": return [toISO(today), toISO(today)];
+    case "yesterday": return [toISO(d(-1)), toISO(d(-1))];
+    case "this_week": {
+      const start = new Date(today); start.setDate(today.getDate() - today.getDay());
+      return [toISO(start), toISO(today)];
+    }
+    case "last_week": {
+      const end = new Date(today); end.setDate(today.getDate() - today.getDay() - 1);
+      const start = new Date(end); start.setDate(end.getDate() - 6);
+      return [toISO(start), toISO(end)];
+    }
+    case "this_month": {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      return [toISO(start), toISO(today)];
+    }
+    case "last_month": {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const end = new Date(today.getFullYear(), today.getMonth(), 0);
+      return [toISO(start), toISO(end)];
+    }
+    default: return null;
+  }
+};
 
 const PAGE_SIZE = 10;
 
@@ -158,7 +188,7 @@ const SalesPage = () => {
   // Summary stats from full list
   const stats = useMemo(() => {
     const total = bills.length;
-    const revenue = bills.reduce((s, b) => s + computeBillTotal(b), 0);
+    const revenue = bills.filter((b) => b.status !== "void").reduce((s, b) => s + computeBillTotal(b), 0);
     const completed = bills.filter((b) => b.status === "completed").length;
     // Only count voided bills that had items added
     const voided = bills.filter(
@@ -316,6 +346,31 @@ const SalesPage = () => {
           </div>
           {statusFilter !== "z-report" && (
             <div className="flex items-center gap-3 sm:ml-auto">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
+                  Quick Select
+                </label>
+                <select
+                  className={inputCls}
+                  defaultValue=""
+                  onChange={(e) => {
+                    const preset = getDatePreset(e.target.value);
+                    if (preset) {
+                      setStartDate(preset[0]);
+                      setEndDate(preset[1]);
+                      setPage(1);
+                    }
+                  }}
+                >
+                  <option value="" disabled>Choose…</option>
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="this_week">This Week</option>
+                  <option value="last_week">Last Week</option>
+                  <option value="this_month">This Month</option>
+                  <option value="last_month">Last Month</option>
+                </select>
+              </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
                   From

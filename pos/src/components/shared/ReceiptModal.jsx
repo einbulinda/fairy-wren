@@ -104,6 +104,39 @@ const ReceiptModal = ({ bill, onClose }) => {
         </div>
       </div>
 
+      {bill.payments?.length > 0 && (
+        <div className="thermal-payments">
+          <div className="thermal-divider">
+            ----------------------------------------
+          </div>
+          <div style={{ fontWeight: "bold", marginBottom: "2px" }}>PAYMENTS:</div>
+          {bill.payments.filter(p => p.is_paid).map((p, i) => (
+            <div key={i} className="thermal-row">
+              <span>{p.payment_type?.toUpperCase()} - {new Date(p.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</span>
+              <span>KSh. {p.amount.toLocaleString()}</span>
+            </div>
+          ))}
+          {(() => {
+            const paid = bill.payments.filter(p => p.is_paid).reduce((s, p) => s + p.amount, 0);
+            const bal = totals.total - paid;
+            return (
+              <>
+                <div className="thermal-row" style={{ fontWeight: "bold" }}>
+                  <span>PAID:</span>
+                  <span>KSh. {paid.toLocaleString()}</span>
+                </div>
+                {bal > 0 && (
+                  <div className="thermal-row" style={{ fontWeight: "bold" }}>
+                    <span>BALANCE DUE:</span>
+                    <span>KSh. {bal.toLocaleString()}</span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
+
       <div className="thermal-footer">
         <div className="thermal-divider">
           ----------------------------------------
@@ -119,6 +152,7 @@ const ReceiptModal = ({ bill, onClose }) => {
         <div className="thermal-thanks">Thank you for your visit!</div>
         <div className="thermal-thanks-sub">Please come again!</div>
         <div className="thermal-id">Bill ID: {bill.id}</div>
+        <div style={{ fontStyle: "italic", marginTop: "4px", fontSize: "9px" }}>This is not a Tax Invoice</div>
       </div>
     </>
   );
@@ -266,6 +300,39 @@ const ReceiptModal = ({ bill, onClose }) => {
                 </div>
               </div>
 
+              {/* Payments */}
+              {bill.payments?.length > 0 && (() => {
+                const confirmed = bill.payments.filter(p => p.is_paid);
+                if (!confirmed.length) return null;
+                const paid = confirmed.reduce((s, p) => s + p.amount, 0);
+                const bal = totals.total - paid;
+                return (
+                  <div className="space-y-2 mb-4 pb-3 border-b-2 border-dashed border-purple-500/30">
+                    <div className="text-xs font-bold text-purple-400 uppercase">Payments</div>
+                    {confirmed.map((p, i) => (
+                      <div key={i} className="flex justify-between text-xs">
+                        <span className="text-gray-400">
+                          {p.payment_type?.toUpperCase()} — {new Date(p.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        </span>
+                        <span className="text-emerald-400 font-semibold">
+                          KSh. {p.amount.toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-xs font-bold pt-1">
+                      <span className="text-gray-400">PAID:</span>
+                      <span className="text-emerald-400">KSh. {paid.toLocaleString()}</span>
+                    </div>
+                    {bal > 0 && (
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-gray-400">BALANCE DUE:</span>
+                        <span className="text-pink-400">KSh. {bal.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Footer */}
               <div className="text-center space-y-2 pt-3 border-t-2 border-dashed border-purple-500/30">
                 <div className="text-xs text-purple-300">
@@ -280,6 +347,9 @@ const ReceiptModal = ({ bill, onClose }) => {
                 </div>
                 <div className="text-[10px] text-gray-600 pt-2">
                   Bill ID: {bill.id}
+                </div>
+                <div className="text-[10px] text-gray-500 italic pt-1">
+                  This is not a Tax Invoice
                 </div>
               </div>
             </div>

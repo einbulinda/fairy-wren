@@ -13,16 +13,15 @@ const auditRepo = require("../audit/audit.repository");
  */
 
 exports.processPayments = async (payload, context) => {
-  const { billId, amount, paymentMode } = payload;
+  const { billId, payments } = payload;
 
-  if (!billId || !amount || !paymentMode) {
+  if (!billId || !Array.isArray(payments)) {
     throw new Error("INVALID_PAYMENT_DATA");
   }
 
   const { data, error } = await paymentsCommandRepo.processPayment({
     billId,
-    amount,
-    paymentMode,
+    payments,
     userId: context.userId,
     permissions: context.permissions,
   });
@@ -32,10 +31,6 @@ exports.processPayments = async (payload, context) => {
     throw new Error("FAILED_TO_PROCESS_PAYMENT");
   }
 
-  /**
-   * Audit: payment processing is financially material
-   * DB handles status transitions; API logs responsibility
-   */
   await auditRepo.log({
     entity: "payments",
     entity_id: data?.payment_id ?? billId,
@@ -44,8 +39,7 @@ exports.processPayments = async (payload, context) => {
     correlation_id: context.correlationId,
     metadata: {
       billId,
-      amount,
-      paymentMode,
+      payments,
     },
   });
 

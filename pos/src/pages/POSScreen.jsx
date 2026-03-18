@@ -485,19 +485,14 @@ const POSScreen = () => {
         throw new Error("Invalid bill for payment");
       }
 
-      let lastResult;
-      for (const line of paymentLines) {
-        const { data } = await PaymentService.process({
-          billId: bill.id,
-          paymentMode: line.method,
-          amount: line.amount,
-        });
-        lastResult = data;
-      }
+      const { data } = await PaymentService.process({
+        billId: bill.id,
+        payments: paymentLines,
+      });
 
-      if (lastResult?.balance_due > 0) {
+      if (data?.balance_due > 0) {
         toast.success(
-          `Partial payment recorded. Remaining: KSh ${lastResult.balance_due.toLocaleString()}`,
+          `Partial payment recorded. Remaining: KSh ${data.balance_due.toLocaleString()}`,
         );
       } else {
         toast.success(
@@ -518,8 +513,6 @@ const POSScreen = () => {
         "Failed to process payment";
       toast.error(errorMsg);
       console.error(error);
-      // Reload to reflect any partial success
-      reloadBills();
     } finally {
       setPaymentLoading(false);
     }
@@ -529,12 +522,9 @@ const POSScreen = () => {
   const handleConfirmPayment = async (bill) => {
     setPaymentLoading(true);
     try {
-      const totals = calculateBillTotals(bill);
-
       const { data } = await PaymentService.process({
         billId: bill.id,
-        paymentMode: "cash", // ignored for confirmation
-        amount: totals.total, // ignored for confirmation — RPC confirms all pending
+        payments: [], // empty = confirm mode, RPC confirms all pending
       });
 
       if (data?.balance_due > 0) {

@@ -7,16 +7,14 @@ const getSupabase = require("../../config/supabase");
 exports.processPayment = async ({
   billId,
   userId,
-  paymentMode,
-  amount,
+  payments,
   permissions,
 }) => {
   const supabase = getSupabase();
 
   return await supabase.rpc("process_payment", {
     p_bill_id: billId,
-    p_amount: amount,
-    p_payment_type: paymentMode,
+    p_payments: payments,
     p_user_id: userId,
     p_user_permissions: permissions,
   });

@@ -87,8 +87,7 @@ $function$;
  */
 CREATE OR REPLACE FUNCTION public.process_payment(
         p_bill_id uuid,
-        p_amount numeric,
-        p_payment_type text,
+        p_payments jsonb,
         p_user_id uuid,
         p_user_permissions jsonb DEFAULT ‘[]’::jsonb
     ) RETURNS json LANGUAGE plpgsql AS $function$
@@ -96,7 +95,10 @@ DECLARE v_bill bills %ROWTYPE;
 v_totals RECORD;
 v_can_approve boolean;
 v_payment payments %ROWTYPE;
-v_new_balance numeric;
+v_line jsonb;
+v_line_amount numeric;
+v_line_type text;
+v_lines_total numeric := 0;
 v_new_status text;
 BEGIN
 v_can_approve := p_user_permissions @> ‘["approve_payments"]’::jsonb;
@@ -124,12 +126,11 @@ END IF;
  CASE 2: CONFIRM ALL PENDING PAYMENTS (approve_payments)
  When bill is awaiting_confirmation and user can approve,
  confirm all pending payments in one go.
- p_amount is ignored — we use actual pending totals.
+ p_payments is ignored — we use actual pending totals.
  ===================================================== */
 IF v_can_approve
 AND v_bill.status = ‘awaiting_confirmation’
 AND v_totals.pending_amount > 0 THEN
-    /* Confirm all pending payments */
     FOR v_payment IN
         SELECT * FROM payments
         WHERE bill_id = p_bill_id AND status = ‘pending’
@@ -141,14 +142,9 @@ AND v_totals.pending_amount > 0 THEN
             updated_by = p_user_id,
             updated_at = now()
         WHERE id = v_payment.id;
-        -- Accounting event per payment
         PERFORM post_payment_journal(v_payment.id);
     END LOOP;
-    /* Re-read totals after confirmation */
-    SELECT * INTO v_totals
-    FROM bill_totals
-    WHERE bill_id = p_bill_id;
-    /* Determine new bill status */
+    SELECT * INTO v_totals FROM bill_totals WHERE bill_id = p_bill_id;
     IF v_totals.balance_due <= 0 THEN
         v_new_status := ‘completed’;
     ELSE
@@ -167,51 +163,52 @@ AND v_totals.pending_amount > 0 THEN
     );
 END IF;
 /* =====================================================
- Validate payment amount for new payments (Cases 1 & 3)
+ Validate payment lines
  ===================================================== */
-IF p_amount <= 0 THEN
-    RAISE EXCEPTION ‘Payment amount must be positive’;
+IF p_payments IS NULL OR jsonb_array_length(p_payments) = 0 THEN
+    RAISE EXCEPTION ‘At least one payment line is required’;
 END IF;
+FOR v_line IN SELECT * FROM jsonb_array_elements(p_payments)
+LOOP
+    v_line_amount := (v_line->>’amount’)::numeric;
+    v_line_type := v_line->>’method’;
+    IF v_line_amount IS NULL OR v_line_amount <= 0 THEN
+        RAISE EXCEPTION ‘Each payment line must have a positive amount’;
+    END IF;
+    IF v_line_type IS NULL OR v_line_type NOT IN (‘cash’, ‘mpesa’) THEN
+        RAISE EXCEPTION ‘Invalid payment type: %’, v_line_type;
+    END IF;
+    v_lines_total := v_lines_total + v_line_amount;
+END LOOP;
 IF NOT v_can_approve THEN
-    /* Non-approvers: check against payable_amount (excludes pending) */
-    IF p_amount > v_totals.payable_amount THEN
-        RAISE EXCEPTION ‘Amount % exceeds payable balance %. Paid: %, Pending: %’,
-            p_amount, v_totals.payable_amount, v_totals.amount_paid, v_totals.pending_amount;
+    IF v_lines_total > v_totals.payable_amount THEN
+        RAISE EXCEPTION ‘Total % exceeds payable balance %. Paid: %, Pending: %’,
+            v_lines_total, v_totals.payable_amount, v_totals.amount_paid, v_totals.pending_amount;
     END IF;
 ELSE
-    /* Approvers: check against balance_due (confirmed only) */
-    IF p_amount > v_totals.balance_due THEN
-        RAISE EXCEPTION ‘Amount % exceeds balance due %’,
-            p_amount, v_totals.balance_due;
+    IF v_lines_total > v_totals.balance_due THEN
+        RAISE EXCEPTION ‘Total % exceeds balance due %’,
+            v_lines_total, v_totals.balance_due;
     END IF;
 END IF;
 /* =====================================================
- CASE 1: NO approve_payments → INITIATE PAYMENT (PENDING)
+ CASE 1: NO approve_payments → INITIATE PAYMENTS (PENDING)
  ===================================================== */
 IF NOT v_can_approve THEN
-    INSERT INTO payments (
-            bill_id,
-            amount,
-            payment_type,
-            status,
-            is_paid,
-            created_by
-        )
-    VALUES (
+    FOR v_line IN SELECT * FROM jsonb_array_elements(p_payments)
+    LOOP
+        INSERT INTO payments (bill_id, amount, payment_type, status, is_paid, created_by)
+        VALUES (
             p_bill_id,
-            p_amount,
-            p_payment_type,
+            (v_line->>’amount’)::numeric,
+            v_line->>’method’,
             ‘pending’,
             false,
             p_user_id
         );
-    UPDATE bills
-    SET status = ‘awaiting_confirmation’
-    WHERE id = p_bill_id;
-    /* Re-read totals */
-    SELECT * INTO v_totals
-    FROM bill_totals
-    WHERE bill_id = p_bill_id;
+    END LOOP;
+    UPDATE bills SET status = ‘awaiting_confirmation’ WHERE id = p_bill_id;
+    SELECT * INTO v_totals FROM bill_totals WHERE bill_id = p_bill_id;
     RETURN json_build_object(
         ‘status’, ‘pending’,
         ‘message’, ‘Payment awaiting confirmation’,
@@ -221,42 +218,31 @@ IF NOT v_can_approve THEN
     );
 END IF;
 /* =====================================================
- CASE 3: DIRECT PAYMENT (approve_payments)
+ CASE 3: DIRECT PAYMENTS (approve_payments)
  ===================================================== */
 IF v_can_approve THEN
-    INSERT INTO payments (
-            bill_id,
-            amount,
-            payment_type,
-            status,
-            is_paid,
-            created_by,
-            updated_by
-        )
-    VALUES (
+    FOR v_line IN SELECT * FROM jsonb_array_elements(p_payments)
+    LOOP
+        INSERT INTO payments (bill_id, amount, payment_type, status, is_paid, created_by, updated_by)
+        VALUES (
             p_bill_id,
-            p_amount,
-            p_payment_type,
+            (v_line->>’amount’)::numeric,
+            v_line->>’method’,
             ‘confirmed’,
             true,
             p_user_id,
             p_user_id
         )
-    RETURNING * INTO v_payment;
-    -- Accounting event
-    PERFORM post_payment_journal(v_payment.id);
-    /* Re-read totals */
-    SELECT * INTO v_totals
-    FROM bill_totals
-    WHERE bill_id = p_bill_id;
-    /* Determine new bill status */
+        RETURNING * INTO v_payment;
+        PERFORM post_payment_journal(v_payment.id);
+    END LOOP;
+    SELECT * INTO v_totals FROM bill_totals WHERE bill_id = p_bill_id;
     IF v_totals.balance_due <= 0 THEN
         v_new_status := ‘completed’;
     ELSE
         v_new_status := ‘open’;
     END IF;
     UPDATE bills SET status = v_new_status WHERE id = p_bill_id;
-    -- Inventory already deducted at round submission via post_round_sale()
     RETURN json_build_object(
         ‘status’, ‘confirmed’,
         ‘message’, CASE WHEN v_new_status = ‘completed’
@@ -1095,7 +1081,9 @@ select date(p.created_at) as business_date,
     sum(p.amount) as total_revenue,
     count(distinct p.bill_id) as total_orders
 from payments p
+    join bills b on b.id = p.bill_id
 where p.is_paid = true
+    and b.status != 'void'
     and date(p.created_at) between p_start_date and p_end_date
 group by date(p.created_at)
 order by business_date;
@@ -1120,6 +1108,7 @@ from v_bill_financials bf
     join bills b on b.id = bf.bill_id
     left join profiles p on p.id = b.created_by
 where date(b.created_at) between p_start_date and p_end_date
+    and b.status != 'void'
     and bf.outstanding_amount > 0
 order by outstanding_amount desc;
 $function$;
@@ -1128,20 +1117,24 @@ CREATE OR REPLACE FUNCTION public.rpc_payment_type_summary(p_start_date date, p_
         total_amount numeric,
         count bigint
     ) LANGUAGE sql STABLE AS $function$
-select payment_type,
-    sum(amount) as total_amount,
+select p.payment_type,
+    sum(p.amount) as total_amount,
     count(*) as count
-from payments
-where is_paid = true
-    and date(created_at) between p_start_date and p_end_date
-group by payment_type
-order by payment_type;
+from payments p
+    join bills b on b.id = p.bill_id
+where p.is_paid = true
+    and b.status != 'void'
+    and date(p.created_at) between p_start_date and p_end_date
+group by p.payment_type
+order by p.payment_type;
 $function$;
 CREATE OR REPLACE FUNCTION public.rpc_total_revenue(p_start_date date, p_end_date date) RETURNS numeric LANGUAGE sql STABLE AS $function$
-select coalesce(sum(amount), 0)
-from payments
-where is_paid = true
-    and date(created_at) between p_start_date and p_end_date;
+select coalesce(sum(p.amount), 0)
+from payments p
+    join bills b on b.id = p.bill_id
+where p.is_paid = true
+    and b.status != 'void'
+    and date(p.created_at) between p_start_date and p_end_date;
 $function$;
 CREATE OR REPLACE FUNCTION public.set_inventory_receipt_item_total() RETURNS trigger LANGUAGE plpgsql AS $function$ begin new.line_total := coalesce(new.quantity, 0) * coalesce(new.unit_cost, 0);
 return new;

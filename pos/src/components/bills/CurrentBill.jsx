@@ -15,7 +15,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { useState } from "react";
-import { calculateBillTotals } from "../../utils/calculations";
+import {
+  calculateBillTotals,
+  calculateBillPaymentInfo,
+} from "../../utils/calculations";
 
 const CurrentBill = ({
   bill,
@@ -41,6 +44,7 @@ const CurrentBill = ({
 
   const currentRoundTotal = calculateCurrentRoundTotal();
   const billTotals = calculateBillTotals(bill);
+  const paymentInfo = bill ? calculateBillPaymentInfo(bill) : null;
   const hasStockWarnings = Object.keys(stockWarnings).length > 0;
   const hasCriticalStockError = Object.values(stockWarnings).some(
     (w) => w?.severity === "error",
@@ -356,6 +360,50 @@ const CurrentBill = ({
                   {((billTotals?.subtotal || 0) + currentRoundTotal).toFixed(2)}
                 </span>
               </div>
+
+              {/* Payments Made */}
+              {paymentInfo && (paymentInfo.amountPaid > 0 || paymentInfo.pendingAmount > 0) && (
+                <div className="space-y-1.5 pt-2 border-t border-purple-500/10">
+                  {paymentInfo.amountPaid > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-green-400">Paid:</span>
+                      <span className="font-mono font-semibold text-green-400">
+                        -KSh {paymentInfo.amountPaid.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {paymentInfo.pendingAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-yellow-400">Pending:</span>
+                      <span className="font-mono font-semibold text-yellow-400">
+                        KSh {paymentInfo.pendingAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {/* Individual payment lines */}
+                  {(bill.payments || [])
+                    .filter((p) => p.status === "confirmed" || p.status === "pending")
+                    .map((p) => (
+                      <div key={p.id} className="flex justify-between text-xs pl-3">
+                        <span className={p.status === "confirmed" ? "text-green-500/70" : "text-yellow-500/70"}>
+                          {p.payment_type === "mpesa" ? "M-PESA" : "Cash"}
+                          {p.status === "pending" && " (pending)"}
+                        </span>
+                        <span className={`font-mono ${p.status === "confirmed" ? "text-green-500/70" : "text-yellow-500/70"}`}>
+                          KSh {parseFloat(p.amount).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  <div className="flex justify-between items-center pt-1.5 border-t border-purple-500/10">
+                    <span className="text-base font-bold text-pink-400">
+                      Balance Due:
+                    </span>
+                    <span className="text-xl font-bold text-pink-400 font-mono">
+                      KSh {paymentInfo.balanceDue.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (

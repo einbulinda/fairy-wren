@@ -13,78 +13,35 @@ SELECT b.id AS bill_id,
     b.customer_name AS customer,
     b.created_by AS created_by_id,
     u.name AS created_by_name,
-    COALESCE(
-        sum(((ri.quantity)::numeric * ri.price)),
-        (0)::numeric
-    ) AS subtotal,
+    COALESCE(item_totals.subtotal, (0)::numeric) AS subtotal,
     (0)::numeric AS tax,
-    COALESCE(
-        sum(((ri.quantity)::numeric * ri.price)),
-        (0)::numeric
-    ) AS total,
-    COALESCE(
-        sum(
-            CASE
-                WHEN (p.status = 'confirmed'::payment_status) THEN p.amount
-                ELSE (0)::numeric
-            END
-        ),
-        (0)::numeric
-    ) AS amount_paid,
-    COALESCE(
-        sum(
-            CASE
-                WHEN (p.status = 'pending'::payment_status) THEN p.amount
-                ELSE (0)::numeric
-            END
-        ),
-        (0)::numeric
-    ) AS pending_amount,
+    COALESCE(item_totals.subtotal, (0)::numeric) AS total,
+    COALESCE(pay_totals.amount_paid, (0)::numeric) AS amount_paid,
+    COALESCE(pay_totals.pending_amount, (0)::numeric) AS pending_amount,
     (
-        COALESCE(
-            sum(((ri.quantity)::numeric * ri.price)),
-            (0)::numeric
-        ) - COALESCE(
-            sum(
-                CASE
-                    WHEN (p.status = 'confirmed'::payment_status) THEN p.amount
-                    ELSE (0)::numeric
-                END
-            ),
-            (0)::numeric
-        )
+        COALESCE(item_totals.subtotal, (0)::numeric)
+        - COALESCE(pay_totals.amount_paid, (0)::numeric)
     ) AS balance_due,
     (
-        COALESCE(
-            sum(((ri.quantity)::numeric * ri.price)),
-            (0)::numeric
-        ) - COALESCE(
-            sum(
-                CASE
-                    WHEN (p.status IN ('confirmed'::payment_status, 'pending'::payment_status)) THEN p.amount
-                    ELSE (0)::numeric
-                END
-            ),
-            (0)::numeric
-        )
+        COALESCE(item_totals.subtotal, (0)::numeric)
+        - COALESCE(pay_totals.amount_paid, (0)::numeric)
+        - COALESCE(pay_totals.pending_amount, (0)::numeric)
     ) AS payable_amount
-FROM (
-        (
-            (
-                (
-                    bills b
-                    LEFT JOIN profiles u ON ((u.id = b.created_by))
-                )
-                LEFT JOIN rounds r ON ((r.bill_id = b.id))
-            )
-            LEFT JOIN round_items ri ON ((ri.round_id = r.id))
-        )
-        LEFT JOIN payments p ON ((p.bill_id = b.id))
-    )
-GROUP BY b.id,
-    b.customer_name,
-    b.created_by,
-    u.name;
+FROM bills b
+LEFT JOIN profiles u ON u.id = b.created_by
+LEFT JOIN LATERAL (
+    SELECT sum(ri.quantity::numeric * ri.price) AS subtotal
+    FROM rounds r
+    JOIN round_items ri ON ri.round_id = r.id
+    WHERE r.bill_id = b.id
+) item_totals ON true
+LEFT JOIN LATERAL (
+    SELECT
+        sum(CASE WHEN p.status = 'confirmed' THEN p.amount ELSE 0 END) AS amount_paid,
+        sum(CASE WHEN p.status = 'pending' THEN p.amount ELSE 0 END) AS pending_amount
+    FROM payments p
+    WHERE p.bill_id = b.id
+) pay_totals ON true;
 
 -- ============================================================================
 -- 2. POST PAYMENT JOURNAL — fix: use v_payment.amount, not v_totals.total
