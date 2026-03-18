@@ -2,6 +2,14 @@
 -- Previously, rpc_daily_revenue, rpc_total_revenue, and rpc_payment_type_summary
 -- only filtered on is_paid=true but didn't check bill status, so payments from
 -- voided bills were still counted as revenue.
+--
+-- DROP first because return types may have changed and CREATE OR REPLACE
+-- cannot alter the return type of an existing function.
+
+DROP FUNCTION IF EXISTS public.rpc_daily_revenue(date, date);
+DROP FUNCTION IF EXISTS public.rpc_total_revenue(date, date);
+DROP FUNCTION IF EXISTS public.rpc_payment_type_summary(date, date);
+DROP FUNCTION IF EXISTS public.rpc_outstanding_bills(date, date);
 
 CREATE OR REPLACE FUNCTION public.rpc_daily_revenue(p_start_date date, p_end_date date) RETURNS TABLE(
         business_date date,
