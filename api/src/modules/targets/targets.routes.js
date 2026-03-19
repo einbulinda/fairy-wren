@@ -8,11 +8,11 @@ const router = express.Router();
 // BUSINESS TARGETS ROUTES
 // ==========================================
 
+// Get all targets for a year (must be before :year/:month to avoid "year" matching :year)
+router.get("/business/year/:year", controller.getYearlyBusinessTargets);
+
 // Get single month target
 router.get("/business/:year/:month", controller.getBusinessTarget);
-
-// Get all targets for a year
-router.get("/business/year/:year", controller.getYearlyBusinessTargets);
 
 // Save/update a target
 router.post("/business", requireRole("owner", "manager"), controller.saveBusinessTarget);

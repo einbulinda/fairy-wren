@@ -108,6 +108,7 @@ const parseCurrency = (value) => {
   return parseFloat(value.toString().replace(/[^0-9.-]+/g, "")) || 0;
 };
 
+const EMPTY = [];
 const labelCls = "block text-sm font-medium text-surface-300 mb-1";
 
 // ==========================================
@@ -205,7 +206,7 @@ const BusinessTargetsTab = () => {
 
   const queryClient = useQueryClient();
 
-  const { data: yearlyTargets = [], isLoading: targetsLoading } = useQuery({
+  const { data: yearlyTargets = EMPTY, isLoading: targetsLoading } = useQuery({
     queryKey: ["business-targets", selectedYear],
     queryFn: () => fetchYearlyTargets(selectedYear),
   });
@@ -542,13 +543,13 @@ const StaffTargetsTab = () => {
   const [staffOverrides, setStaffOverrides] = useState({});
 
   const queryClient = useQueryClient();
-  const { data: users = [] } = useUsers();
+  const { data: users = EMPTY } = useUsers();
   const activeStaff = useMemo(
     () => users.filter((u) => u.active !== false && u.role?.toLowerCase() !== "owner"),
     [users],
   );
 
-  const { data: staffTargets = [], isLoading: staffTargetsLoading } = useQuery({
+  const { data: staffTargets = EMPTY, isLoading: staffTargetsLoading } = useQuery({
     queryKey: ["user-targets", selectedYear, selectedMonth],
     queryFn: () => fetchAllUserTargets(selectedYear, selectedMonth),
   });

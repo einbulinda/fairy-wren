@@ -3,13 +3,9 @@
  Allows the migration runner (migrate.js) to execute arbitrary SQL
  via the Supabase JS client.  Restricted to the service_role key.
  ========================================================================*/
-CREATE OR REPLACE FUNCTION public.exec_sql(query text)
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $function$
-BEGIN
-    EXECUTE query;
+CREATE OR REPLACE FUNCTION public.exec_sql(query text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $function$ BEGIN EXECUTE query;
 END;
 $function$;
-
 CREATE OR REPLACE FUNCTION public.enforce_balanced_journal() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN IF (
         SELECT COALESCE(SUM(debit), 0) != COALESCE(SUM(credit), 0)
         FROM journal_lines
@@ -89,7 +85,7 @@ CREATE OR REPLACE FUNCTION public.process_payment(
         p_bill_id uuid,
         p_payments jsonb,
         p_user_id uuid,
-        p_user_permissions jsonb DEFAULT ‘[]’::jsonb
+        p_user_permissions jsonb DEFAULT ‘ [] ’::jsonb
     ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE v_bill bills %ROWTYPE;
 v_totals RECORD;
@@ -100,8 +96,7 @@ v_line_amount numeric;
 v_line_type text;
 v_lines_total numeric := 0;
 v_new_status text;
-BEGIN
-v_can_approve := p_user_permissions @> ‘["approve_payments"]’::jsonb;
+BEGIN v_can_approve := p_user_permissions @> ‘ ["approve_payments"] ’::jsonb;
 /* =====================================================
  Lock bill
  ===================================================== */
@@ -109,10 +104,10 @@ SELECT * INTO v_bill
 FROM bills
 WHERE id = p_bill_id FOR
 UPDATE;
-IF NOT FOUND THEN RAISE EXCEPTION ‘Bill not found’;
+IF NOT FOUND THEN RAISE EXCEPTION ‘ Bill not found ’;
 END IF;
-IF v_bill.status NOT IN (‘open’, ‘awaiting_confirmation’) THEN
-    RAISE EXCEPTION ‘Bill is not payable (status: %)’, v_bill.status;
+IF v_bill.status NOT IN (‘ open ’, ‘ awaiting_confirmation ’) THEN RAISE EXCEPTION ‘ Bill is not payable (status: %) ’,
+v_bill.status;
 END IF;
 /* =====================================================
  Fetch authoritative totals
@@ -120,7 +115,7 @@ END IF;
 SELECT * INTO v_totals
 FROM bill_totals
 WHERE bill_id = p_bill_id;
-IF NOT FOUND THEN RAISE EXCEPTION ‘Bill totals not found’;
+IF NOT FOUND THEN RAISE EXCEPTION ‘ Bill totals not found ’;
 END IF;
 /* =====================================================
  CASE 2: CONFIRM ALL PENDING PAYMENTS (approve_payments)
@@ -129,132 +124,173 @@ END IF;
  p_payments is ignored — we use actual pending totals.
  ===================================================== */
 IF v_can_approve
-AND v_bill.status = ‘awaiting_confirmation’
-AND v_totals.pending_amount > 0 THEN
-    FOR v_payment IN
-        SELECT * FROM payments
-        WHERE bill_id = p_bill_id AND status = ‘pending’
-        FOR UPDATE
-    LOOP
-        UPDATE payments
-        SET status = ‘confirmed’,
-            is_paid = true,
-            updated_by = p_user_id,
-            updated_at = now()
-        WHERE id = v_payment.id;
-        PERFORM post_payment_journal(v_payment.id);
-    END LOOP;
-    SELECT * INTO v_totals FROM bill_totals WHERE bill_id = p_bill_id;
-    IF v_totals.balance_due <= 0 THEN
-        v_new_status := ‘completed’;
-    ELSE
-        v_new_status := ‘open’;
-    END IF;
-    UPDATE bills SET status = v_new_status WHERE id = p_bill_id;
-    RETURN json_build_object(
-        ‘status’, ‘confirmed’,
-        ‘message’, CASE WHEN v_new_status = ‘completed’
-            THEN ‘Payments confirmed and bill completed’
-            ELSE ‘Payments confirmed. Bill has remaining balance’
-        END,
-        ‘balance_due’, v_totals.balance_due,
-        ‘amount_paid’, v_totals.amount_paid,
-        ‘pending_amount’, 0
-    );
+AND v_bill.status = ‘ awaiting_confirmation ‘ THEN FOR v_payment IN
+SELECT *
+FROM payments
+WHERE bill_id = p_bill_id
+    AND status = ‘ pending ’ FOR
+UPDATE LOOP
+UPDATE payments
+SET status = ‘ confirmed ’,
+    is_paid = true,
+    updated_by = p_user_id,
+    updated_at = now()
+WHERE id = v_payment.id;
+PERFORM post_payment_journal(v_payment.id);
+END LOOP;
+SELECT * INTO v_totals
+FROM bill_totals
+WHERE bill_id = p_bill_id;
+IF v_totals.balance_due <= 0 THEN v_new_status := ‘ completed ’;
+ELSE v_new_status := ‘ open ’;
+END IF;
+UPDATE bills
+SET status = v_new_status
+WHERE id = p_bill_id;
+RETURN json_build_object(
+    ‘ status ’,
+    ‘ confirmed ’,
+    ‘ message ’,
+    CASE
+        WHEN v_new_status = ‘ completed ’ THEN ‘ Payments confirmed
+        and bill completed ’
+        ELSE ‘ Payments confirmed.Bill has remaining balance ’
+    END,
+    ‘ balance_due ’,
+    v_totals.balance_due,
+    ‘ amount_paid ’,
+    v_totals.amount_paid,
+    ‘ pending_amount ’,
+    0
+);
 END IF;
 /* =====================================================
  Validate payment lines
  ===================================================== */
-IF p_payments IS NULL OR jsonb_array_length(p_payments) = 0 THEN
-    RAISE EXCEPTION ‘At least one payment line is required’;
+IF p_payments IS NULL
+OR jsonb_array_length(p_payments) = 0 THEN RAISE EXCEPTION ‘ At least one payment line is required ’;
 END IF;
-FOR v_line IN SELECT * FROM jsonb_array_elements(p_payments)
-LOOP
-    v_line_amount := (v_line->>’amount’)::numeric;
-    v_line_type := v_line->>’method’;
-    IF v_line_amount IS NULL OR v_line_amount <= 0 THEN
-        RAISE EXCEPTION ‘Each payment line must have a positive amount’;
-    END IF;
-    IF v_line_type IS NULL OR v_line_type NOT IN (‘cash’, ‘mpesa’) THEN
-        RAISE EXCEPTION ‘Invalid payment type: %’, v_line_type;
-    END IF;
-    v_lines_total := v_lines_total + v_line_amount;
+FOR v_line IN
+SELECT *
+FROM jsonb_array_elements(p_payments) LOOP v_line_amount := (v_line->>’ amount ’)::numeric;
+v_line_type := v_line->>’ method ’;
+IF v_line_amount IS NULL
+OR v_line_amount <= 0 THEN RAISE EXCEPTION ‘ Each payment line must have a positive amount ’;
+END IF;
+IF v_line_type IS NULL
+OR v_line_type NOT IN (‘ cash ’, ‘ mpesa ’) THEN RAISE EXCEPTION ‘ Invalid payment type: % ’,
+v_line_type;
+END IF;
+v_lines_total := v_lines_total + v_line_amount;
 END LOOP;
-IF NOT v_can_approve THEN
-    IF v_lines_total > v_totals.payable_amount THEN
-        RAISE EXCEPTION ‘Total % exceeds payable balance %. Paid: %, Pending: %’,
-            v_lines_total, v_totals.payable_amount, v_totals.amount_paid, v_totals.pending_amount;
-    END IF;
-ELSE
-    IF v_lines_total > v_totals.balance_due THEN
-        RAISE EXCEPTION ‘Total % exceeds balance due %’,
-            v_lines_total, v_totals.balance_due;
-    END IF;
+IF NOT v_can_approve THEN IF v_lines_total > v_totals.payable_amount THEN RAISE EXCEPTION ‘ Total % exceeds payable balance %. Paid: %,
+Pending: % ’,
+v_lines_total,
+v_totals.payable_amount,
+v_totals.amount_paid,
+v_totals.pending_amount;
+END IF;
+ELSE IF v_lines_total > v_totals.balance_due THEN RAISE EXCEPTION ‘ Total % exceeds balance due % ’,
+v_lines_total,
+v_totals.balance_due;
+END IF;
 END IF;
 /* =====================================================
  CASE 1: NO approve_payments → INITIATE PAYMENTS (PENDING)
  ===================================================== */
-IF NOT v_can_approve THEN
-    FOR v_line IN SELECT * FROM jsonb_array_elements(p_payments)
-    LOOP
-        INSERT INTO payments (bill_id, amount, payment_type, status, is_paid, created_by)
-        VALUES (
-            p_bill_id,
-            (v_line->>’amount’)::numeric,
-            v_line->>’method’,
-            ‘pending’,
-            false,
-            p_user_id
-        );
-    END LOOP;
-    UPDATE bills SET status = ‘awaiting_confirmation’ WHERE id = p_bill_id;
-    SELECT * INTO v_totals FROM bill_totals WHERE bill_id = p_bill_id;
-    RETURN json_build_object(
-        ‘status’, ‘pending’,
-        ‘message’, ‘Payment awaiting confirmation’,
-        ‘balance_due’, v_totals.balance_due,
-        ‘amount_paid’, v_totals.amount_paid,
-        ‘pending_amount’, v_totals.pending_amount
+IF NOT v_can_approve THEN FOR v_line IN
+SELECT *
+FROM jsonb_array_elements(p_payments) LOOP
+INSERT INTO payments (
+        bill_id,
+        amount,
+        payment_type,
+        status,
+        is_paid,
+        created_by
+    )
+VALUES (
+        p_bill_id,
+        (v_line->>’ amount ’)::numeric,
+        v_line->>’ method ’,
+        ‘ pending ’,
+        false,
+        p_user_id
     );
+END LOOP;
+UPDATE bills
+SET status = ‘ awaiting_confirmation ’
+WHERE id = p_bill_id;
+SELECT * INTO v_totals
+FROM bill_totals
+WHERE bill_id = p_bill_id;
+RETURN json_build_object(
+    ‘ status ’,
+    ‘ pending ’,
+    ‘ message ’,
+    ‘ Payment awaiting confirmation ’,
+    ‘ balance_due ’,
+    v_totals.balance_due,
+    ‘ amount_paid ’,
+    v_totals.amount_paid,
+    ‘ pending_amount ’,
+    v_totals.pending_amount
+);
 END IF;
 /* =====================================================
  CASE 3: DIRECT PAYMENTS (approve_payments)
  ===================================================== */
-IF v_can_approve THEN
-    FOR v_line IN SELECT * FROM jsonb_array_elements(p_payments)
-    LOOP
-        INSERT INTO payments (bill_id, amount, payment_type, status, is_paid, created_by, updated_by)
-        VALUES (
-            p_bill_id,
-            (v_line->>’amount’)::numeric,
-            v_line->>’method’,
-            ‘confirmed’,
-            true,
-            p_user_id,
-            p_user_id
-        )
-        RETURNING * INTO v_payment;
-        PERFORM post_payment_journal(v_payment.id);
-    END LOOP;
-    SELECT * INTO v_totals FROM bill_totals WHERE bill_id = p_bill_id;
-    IF v_totals.balance_due <= 0 THEN
-        v_new_status := ‘completed’;
-    ELSE
-        v_new_status := ‘open’;
-    END IF;
-    UPDATE bills SET status = v_new_status WHERE id = p_bill_id;
-    RETURN json_build_object(
-        ‘status’, ‘confirmed’,
-        ‘message’, CASE WHEN v_new_status = ‘completed’
-            THEN ‘Payment completed’
-            ELSE ‘Partial payment recorded’
-        END,
-        ‘balance_due’, v_totals.balance_due,
-        ‘amount_paid’, v_totals.amount_paid,
-        ‘pending_amount’, v_totals.pending_amount
-    );
+IF v_can_approve THEN FOR v_line IN
+SELECT *
+FROM jsonb_array_elements(p_payments) LOOP
+INSERT INTO payments (
+        bill_id,
+        amount,
+        payment_type,
+        status,
+        is_paid,
+        created_by,
+        updated_by
+    )
+VALUES (
+        p_bill_id,
+        (v_line->>’ amount ’)::numeric,
+        v_line->>’ method ’,
+        ‘ confirmed ’,
+        true,
+        p_user_id,
+        p_user_id
+    )
+RETURNING * INTO v_payment;
+PERFORM post_payment_journal(v_payment.id);
+END LOOP;
+SELECT * INTO v_totals
+FROM bill_totals
+WHERE bill_id = p_bill_id;
+IF v_totals.balance_due <= 0 THEN v_new_status := ‘ completed ’;
+ELSE v_new_status := ‘ open ’;
 END IF;
-RAISE EXCEPTION ‘Invalid payment state or insufficient permissions’;
+UPDATE bills
+SET status = v_new_status
+WHERE id = p_bill_id;
+RETURN json_build_object(
+    ‘ status ’,
+    ‘ confirmed ’,
+    ‘ message ’,
+    CASE
+        WHEN v_new_status = ‘ completed ’ THEN ‘ Payment completed ’
+        ELSE ‘ Partial payment recorded ’
+    END,
+    ‘ balance_due ’,
+    v_totals.balance_due,
+    ‘ amount_paid ’,
+    v_totals.amount_paid,
+    ‘ pending_amount ’,
+    v_totals.pending_amount
+);
+END IF;
+RAISE EXCEPTION ‘ Invalid payment state
+or insufficient permissions ’;
 END;
 $function$;
 /*
@@ -264,156 +300,185 @@ $function$;
  Called when a round is submitted (items served to customer).
  Per IFRS 15.31-34, revenue is recognized at point of control transfer.
  Per IAS 2.34, COGS is matched to the same period.
-
+ 
  Actions:
-   1. For each round_item: insert inventory_movement (sale, -qty)
-   2. For each round_item: post COGS journal (Dr COGS, Cr Inventory)
-   3. For the round total: post revenue journal (Dr A/R Open Bills, Cr Sales)
-   4. Set round_items.inventory_posted = true
-
+ 1. For each round_item: insert inventory_movement (sale, -qty)
+ 2. For each round_item: post COGS journal (Dr COGS, Cr Inventory)
+ 3. For the round total: post revenue journal (Dr A/R Open Bills, Cr Sales)
+ 4. Set round_items.inventory_posted = true
+ 
  products.current_stock is recalculated automatically by the existing
  trg_update_inventory trigger on inventory_movements.
  ============================================================================
  */
-CREATE OR REPLACE FUNCTION public.post_round_sale(p_round_id uuid)
-RETURNS void LANGUAGE plpgsql AS $function$
-DECLARE
-    v_item RECORD;
-    v_avg_cost NUMERIC;
-    v_total_cost NUMERIC;
-    v_inventory_account UUID;
-    v_purchases_account UUID;
-    v_cogs_journal_id UUID;
-    v_revenue_journal_id UUID;
-    v_ar_account UUID;
-    v_sales_account UUID;
-    v_round_total NUMERIC := 0;
-    v_total_cogs NUMERIC := 0;
-    v_bill_id UUID;
-    v_round_date DATE;
+CREATE OR REPLACE FUNCTION public.post_round_sale(p_round_id uuid) RETURNS void LANGUAGE plpgsql AS $function$
+DECLARE v_item RECORD;
+v_avg_cost NUMERIC;
+v_total_cost NUMERIC;
+v_inventory_account UUID;
+v_purchases_account UUID;
+v_cogs_journal_id UUID;
+v_revenue_journal_id UUID;
+v_ar_account UUID;
+v_sales_account UUID;
+v_round_total NUMERIC := 0;
+v_total_cogs NUMERIC := 0;
+v_bill_id UUID;
+v_round_date DATE;
 BEGIN
-    /* Idempotency guard */
-    IF EXISTS (
-        SELECT 1 FROM journal_entries
-        WHERE source_type = 'round_sale' AND source_id = p_round_id
-    ) THEN RETURN;
-    END IF;
-
-    /* Get the bill_id and round date for this round */
-    SELECT r.bill_id, r.created_at::date
-    INTO v_bill_id, v_round_date
-    FROM rounds r WHERE r.id = p_round_id;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Round not found: %', p_round_id;
-    END IF;
-
-    /* Resolve Inventory Purchases account (5003) once */
-    SELECT id INTO v_purchases_account
-    FROM chart_of_accounts WHERE code = '5003';
-
-    IF v_purchases_account IS NULL THEN
-        RAISE EXCEPTION 'Inventory Purchases account (5003) not found in chart_of_accounts';
-    END IF;
-
-    /* -------------------------------------------------------
-       LOOP: Inventory deduction per item
-       ------------------------------------------------------- */
-    FOR v_item IN
-        SELECT ri.id, ri.product_id, ri.quantity, ri.price
-        FROM round_items ri
-        WHERE ri.round_id = p_round_id
-          AND ri.inventory_posted = false
-    LOOP
-        /* Accumulate round total for revenue entry */
-        v_round_total := v_round_total + (v_item.quantity * v_item.price);
-
-        /* Get weighted average cost */
-        SELECT COALESCE(avg_unit_cost, 0) INTO v_avg_cost
-        FROM inventory_avg_cost
-        WHERE product_id = v_item.product_id;
-
-        IF v_avg_cost IS NULL THEN
-            v_avg_cost := 0;
-        END IF;
-
-        v_total_cost := v_item.quantity * v_avg_cost;
-        v_total_cogs := v_total_cogs + v_total_cost;
-
-        /* 1. Insert inventory movement (negative qty = sale) */
-        INSERT INTO inventory_movements (
-            product_id, movement_date, quantity, unit_cost,
-            movement_type, reference_type, reference_id, notes
-        ) VALUES (
-            v_item.product_id, v_round_date, -v_item.quantity, v_avg_cost,
-            'sale', 'round', p_round_id,
-            'Sale via round submission'
-        );
-
-        /* 2. Mark item as posted */
-        UPDATE round_items SET inventory_posted = true WHERE id = v_item.id;
-    END LOOP;
-
-    /* -------------------------------------------------------
-       COGS journal: single entry for entire round
-       DR Inventory Purchases (5003), CR Inventory asset
-       ------------------------------------------------------- */
-    IF v_total_cogs > 0 THEN
-        /* Use the inventory account from the first item with one */
-        SELECT ii.inventory_account_id
-        INTO v_inventory_account
-        FROM round_items ri
-        JOIN inventory_items ii ON ii.product_id = ri.product_id
-        WHERE ri.round_id = p_round_id
-          AND ii.inventory_account_id IS NOT NULL
-        LIMIT 1;
-
-        IF v_inventory_account IS NOT NULL THEN
-            INSERT INTO journal_entries (
-                entry_date, source_type, source_id, description
-            ) VALUES (
-                v_round_date, 'round_cogs', p_round_id,
-                'COGS on sale'
-            ) RETURNING id INTO v_cogs_journal_id;
-
-            INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
-            VALUES
-                (v_cogs_journal_id, v_purchases_account, v_total_cogs, 0),
-                (v_cogs_journal_id, v_inventory_account, 0, v_total_cogs);
-        END IF;
-    END IF;
-
-    /* -------------------------------------------------------
-       Revenue recognition: Dr A/R Open Bills, Cr Sales
-       Use the round's date (when items were served)
-       ------------------------------------------------------- */
-    IF v_round_total > 0 THEN
-        SELECT id INTO v_ar_account
-        FROM chart_of_accounts WHERE code = '1201';
-
-        SELECT id INTO v_sales_account
-        FROM chart_of_accounts WHERE code = '4000';
-
-        IF v_ar_account IS NULL THEN
-            RAISE EXCEPTION 'A/R Open Bills account (1201) not found in chart_of_accounts';
-        END IF;
-
-        IF v_sales_account IS NULL THEN
-            RAISE EXCEPTION 'Sales Revenue account (4000) not found in chart_of_accounts';
-        END IF;
-
-        INSERT INTO journal_entries (
-            entry_date, source_type, source_id, description
-        ) VALUES (
-            v_round_date, 'round_sale', p_round_id,
-            'Revenue on round served'
-        ) RETURNING id INTO v_revenue_journal_id;
-
-        INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
-        VALUES
-            (v_revenue_journal_id, v_ar_account, v_round_total, 0),
-            (v_revenue_journal_id, v_sales_account, 0, v_round_total);
-    END IF;
+/* Idempotency guard */
+IF EXISTS (
+    SELECT 1
+    FROM journal_entries
+    WHERE source_type = 'round_sale'
+        AND source_id = p_round_id
+) THEN RETURN;
+END IF;
+/* Get the bill_id and round date for this round */
+SELECT r.bill_id,
+    r.created_at::date INTO v_bill_id,
+    v_round_date
+FROM rounds r
+WHERE r.id = p_round_id;
+IF NOT FOUND THEN RAISE EXCEPTION 'Round not found: %',
+p_round_id;
+END IF;
+/* Resolve Inventory Purchases account (5003) once */
+SELECT id INTO v_purchases_account
+FROM chart_of_accounts
+WHERE code = '5003';
+IF v_purchases_account IS NULL THEN RAISE EXCEPTION 'Inventory Purchases account (5003) not found in chart_of_accounts';
+END IF;
+/* -------------------------------------------------------
+ LOOP: Inventory deduction per item
+ ------------------------------------------------------- */
+FOR v_item IN
+SELECT ri.id,
+    ri.product_id,
+    ri.quantity,
+    ri.price
+FROM round_items ri
+WHERE ri.round_id = p_round_id
+    AND ri.inventory_posted = false LOOP
+    /* Accumulate round total for revenue entry */
+    v_round_total := v_round_total + (v_item.quantity * v_item.price);
+/* Get weighted average cost */
+SELECT COALESCE(avg_unit_cost, 0) INTO v_avg_cost
+FROM inventory_avg_cost
+WHERE product_id = v_item.product_id;
+IF v_avg_cost IS NULL THEN v_avg_cost := 0;
+END IF;
+v_total_cost := v_item.quantity * v_avg_cost;
+v_total_cogs := v_total_cogs + v_total_cost;
+/* 1. Insert inventory movement (negative qty = sale) */
+INSERT INTO inventory_movements (
+        product_id,
+        movement_date,
+        quantity,
+        unit_cost,
+        movement_type,
+        reference_type,
+        reference_id,
+        notes
+    )
+VALUES (
+        v_item.product_id,
+        v_round_date,
+        - v_item.quantity,
+        v_avg_cost,
+        'sale',
+        'round',
+        p_round_id,
+        'Sale via round submission'
+    );
+/* 2. Mark item as posted */
+UPDATE round_items
+SET inventory_posted = true
+WHERE id = v_item.id;
+END LOOP;
+/* -------------------------------------------------------
+ COGS journal: single entry for entire round
+ DR Inventory Purchases (5003), CR Inventory asset
+ ------------------------------------------------------- */
+IF v_total_cogs > 0 THEN
+/* Use the inventory account from the first item with one */
+SELECT ii.inventory_account_id INTO v_inventory_account
+FROM round_items ri
+    JOIN inventory_items ii ON ii.product_id = ri.product_id
+WHERE ri.round_id = p_round_id
+    AND ii.inventory_account_id IS NOT NULL
+LIMIT 1;
+IF v_inventory_account IS NOT NULL THEN
+INSERT INTO journal_entries (
+        entry_date,
+        source_type,
+        source_id,
+        description
+    )
+VALUES (
+        v_round_date,
+        'round_cogs',
+        p_round_id,
+        'COGS on sale'
+    )
+RETURNING id INTO v_cogs_journal_id;
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+VALUES (
+        v_cogs_journal_id,
+        v_purchases_account,
+        v_total_cogs,
+        0
+    ),
+    (
+        v_cogs_journal_id,
+        v_inventory_account,
+        0,
+        v_total_cogs
+    );
+END IF;
+END IF;
+/* -------------------------------------------------------
+ Revenue recognition: Dr A/R Open Bills, Cr Sales
+ Use the round's date (when items were served)
+ ------------------------------------------------------- */
+IF v_round_total > 0 THEN
+SELECT id INTO v_ar_account
+FROM chart_of_accounts
+WHERE code = '1201';
+SELECT id INTO v_sales_account
+FROM chart_of_accounts
+WHERE code = '4000';
+IF v_ar_account IS NULL THEN RAISE EXCEPTION 'A/R Open Bills account (1201) not found in chart_of_accounts';
+END IF;
+IF v_sales_account IS NULL THEN RAISE EXCEPTION 'Sales Revenue account (4000) not found in chart_of_accounts';
+END IF;
+INSERT INTO journal_entries (
+        entry_date,
+        source_type,
+        source_id,
+        description
+    )
+VALUES (
+        v_round_date,
+        'round_sale',
+        p_round_id,
+        'Revenue on round served'
+    )
+RETURNING id INTO v_revenue_journal_id;
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+VALUES (
+        v_revenue_journal_id,
+        v_ar_account,
+        v_round_total,
+        0
+    ),
+    (
+        v_revenue_journal_id,
+        v_sales_account,
+        0,
+        v_round_total
+    );
+END IF;
 END;
 $function$;
 /*
@@ -424,82 +489,102 @@ $function$;
  entries that were posted at round submission.
  ============================================================================
  */
-CREATE OR REPLACE FUNCTION public.reverse_bill_sale(p_bill_id uuid)
-RETURNS void LANGUAGE plpgsql AS $function$
-DECLARE
-    v_round RECORD;
-    v_item RECORD;
-    v_entry RECORD;
-    v_reversal_id UUID;
-    v_avg_cost NUMERIC;
+CREATE OR REPLACE FUNCTION public.reverse_bill_sale(p_bill_id uuid) RETURNS void LANGUAGE plpgsql AS $function$
+DECLARE v_round RECORD;
+v_item RECORD;
+v_entry RECORD;
+v_reversal_id UUID;
+v_avg_cost NUMERIC;
 BEGIN
-    /* Loop through each round in the bill */
-    FOR v_round IN
-        SELECT id FROM rounds WHERE bill_id = p_bill_id
-    LOOP
-        /* 1. Reverse inventory movements for this round */
-        FOR v_item IN
-            SELECT ri.id, ri.product_id, ri.quantity
-            FROM round_items ri
-            WHERE ri.round_id = v_round.id
-              AND ri.inventory_posted = true
-        LOOP
-            /* Get the cost that was used in the original movement */
-            SELECT COALESCE(unit_cost, 0) INTO v_avg_cost
-            FROM inventory_movements
-            WHERE reference_type = 'round'
-              AND reference_id = v_round.id
-              AND product_id = v_item.product_id
-              AND quantity < 0
-            LIMIT 1;
-
-            IF v_avg_cost IS NULL THEN
-                v_avg_cost := 0;
-            END IF;
-
-            /* Insert reversal movement (positive qty = stock restored) */
-            INSERT INTO inventory_movements (
-                product_id, movement_date, quantity, unit_cost,
-                movement_type, reference_type, reference_id, notes
-            ) VALUES (
-                v_item.product_id, CURRENT_DATE, v_item.quantity, v_avg_cost,
-                'adjustment_in', 'void', v_round.id,
-                'Reversal - bill voided'
-            );
-
-            /* Mark as unposted */
-            UPDATE round_items SET inventory_posted = false WHERE id = v_item.id;
-        END LOOP;
-
-        /* 2. Reverse all journal entries for this round */
-        FOR v_entry IN
-            SELECT je.id, je.source_type, je.source_id, je.description
-            FROM journal_entries je
-            WHERE je.source_id = v_round.id
-              AND je.source_type IN ('round_sale', 'round_cogs')
-              AND je.reversed_entry_id IS NULL
-        LOOP
-            /* Create reversal journal entry */
-            INSERT INTO journal_entries (
-                entry_date, source_type, source_id,
-                description, reversed_entry_id
-            ) VALUES (
-                CURRENT_DATE, v_entry.source_type || '_reversal', v_entry.source_id,
-                v_entry.description || ' (VOID REVERSAL)', v_entry.id
-            ) RETURNING id INTO v_reversal_id;
-
-            /* Reverse all lines (swap debit/credit) */
-            INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
-            SELECT v_reversal_id, jl.account_id, jl.credit, jl.debit
-            FROM journal_lines jl
-            WHERE jl.journal_entry_id = v_entry.id;
-
-            /* Mark original as reversed */
-            UPDATE journal_entries
-            SET reversed_entry_id = v_reversal_id
-            WHERE id = v_entry.id;
-        END LOOP;
-    END LOOP;
+/* Loop through each round in the bill */
+FOR v_round IN
+SELECT id
+FROM rounds
+WHERE bill_id = p_bill_id LOOP
+    /* 1. Reverse inventory movements for this round */
+    FOR v_item IN
+SELECT ri.id,
+    ri.product_id,
+    ri.quantity
+FROM round_items ri
+WHERE ri.round_id = v_round.id
+    AND ri.inventory_posted = true LOOP
+    /* Get the cost that was used in the original movement */
+SELECT COALESCE(unit_cost, 0) INTO v_avg_cost
+FROM inventory_movements
+WHERE reference_type = 'round'
+    AND reference_id = v_round.id
+    AND product_id = v_item.product_id
+    AND quantity < 0
+LIMIT 1;
+IF v_avg_cost IS NULL THEN v_avg_cost := 0;
+END IF;
+/* Insert reversal movement (positive qty = stock restored) */
+INSERT INTO inventory_movements (
+        product_id,
+        movement_date,
+        quantity,
+        unit_cost,
+        movement_type,
+        reference_type,
+        reference_id,
+        notes
+    )
+VALUES (
+        v_item.product_id,
+        CURRENT_DATE,
+        v_item.quantity,
+        v_avg_cost,
+        'adjustment_in',
+        'void',
+        v_round.id,
+        'Reversal - bill voided'
+    );
+/* Mark as unposted */
+UPDATE round_items
+SET inventory_posted = false
+WHERE id = v_item.id;
+END LOOP;
+/* 2. Reverse all journal entries for this round */
+FOR v_entry IN
+SELECT je.id,
+    je.source_type,
+    je.source_id,
+    je.description
+FROM journal_entries je
+WHERE je.source_id = v_round.id
+    AND je.source_type IN ('round_sale', 'round_cogs')
+    AND je.reversed_entry_id IS NULL LOOP
+    /* Create reversal journal entry */
+INSERT INTO journal_entries (
+        entry_date,
+        source_type,
+        source_id,
+        description,
+        reversed_entry_id
+    )
+VALUES (
+        CURRENT_DATE,
+        v_entry.source_type || '_reversal',
+        v_entry.source_id,
+        v_entry.description || ' (VOID REVERSAL)',
+        v_entry.id
+    )
+RETURNING id INTO v_reversal_id;
+/* Reverse all lines (swap debit/credit) */
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+SELECT v_reversal_id,
+    jl.account_id,
+    jl.credit,
+    jl.debit
+FROM journal_lines jl
+WHERE jl.journal_entry_id = v_entry.id;
+/* Mark original as reversed */
+UPDATE journal_entries
+SET reversed_entry_id = v_reversal_id
+WHERE id = v_entry.id;
+END LOOP;
+END LOOP;
 END;
 $function$;
 /*
@@ -536,7 +621,7 @@ WHERE code = CASE
         ELSE '1020'
     END;
 /* Revenue already recognized at round submission (Dr A/R, Cr Sales).
-   Payment settles the receivable: Dr Cash/Bank, Cr A/R Open Bills. */
+ Payment settles the receivable: Dr Cash/Bank, Cr A/R Open Bills. */
 SELECT id INTO v_ar_account
 FROM chart_of_accounts
 WHERE code = '1201';
@@ -556,7 +641,12 @@ VALUES (
 RETURNING id INTO v_journal_id;
 /* Dr Cash / Bank, Cr A/R Open Bills — use actual payment amount */
 INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
-VALUES (v_journal_id, v_cash_account, v_payment.amount, 0),
+VALUES (
+        v_journal_id,
+        v_cash_account,
+        v_payment.amount,
+        0
+    ),
     (v_journal_id, v_ar_account, 0, v_payment.amount);
 END;
 $function$;
@@ -1137,11 +1227,17 @@ where p.is_paid = true
 group by p.payment_type
 order by p.payment_type;
 $function$;
+/*
+ ===============================================================================
+ TOTAL REVENUE COMPUTATION
+ ===============================================================================
+ */
+DROP FUNCTION IF EXISTS public.rpc_total_revenue(p_start_date, p_end_date);
 CREATE OR REPLACE FUNCTION public.rpc_total_revenue(p_start_date date, p_end_date date) RETURNS numeric LANGUAGE sql STABLE AS $function$
 select coalesce(sum(p.amount), 0)
 from payments p
     join bills b on b.id = p.bill_id
-where p.is_paid = true
+where p.status = 'confirmed'
     and b.status != 'void'
     and date(p.created_at) between p_start_date and p_end_date;
 $function$;
@@ -1201,19 +1297,14 @@ end if;
 return new;
 end;
 $function$;
-CREATE OR REPLACE FUNCTION public.post_inventory_purchase()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_inventory_account UUID;
-    v_ap_account        UUID;
-    v_supplier_account  UUID;
-    v_credit_account    UUID;
-    v_journal_id        UUID;
-BEGIN
-    -- ========= 1. INVENTORY MOVEMENT =========
-    INSERT INTO inventory_movements (
+CREATE OR REPLACE FUNCTION public.post_inventory_purchase() RETURNS trigger LANGUAGE plpgsql AS $function$
+DECLARE v_inventory_account UUID;
+v_ap_account UUID;
+v_supplier_account UUID;
+v_credit_account UUID;
+v_journal_id UUID;
+BEGIN -- ========= 1. INVENTORY MOVEMENT =========
+INSERT INTO inventory_movements (
         product_id,
         movement_date,
         quantity,
@@ -1223,7 +1314,7 @@ BEGIN
         reference_id,
         notes
     )
-    VALUES (
+VALUES (
         NEW.product_id,
         CURRENT_DATE,
         NEW.quantity,
@@ -1233,60 +1324,63 @@ BEGIN
         NEW.receipt_id,
         'Inventory receipt – automatic posting'
     );
-
-    -- ========= 2. JOURNAL ENTRY: DR Inventory / CR Accounts Payable =========
-    SELECT inventory_account_id INTO v_inventory_account
-    FROM inventory_items
-    WHERE product_id = NEW.product_id;
-
-    SELECT s.account_id INTO v_supplier_account
-    FROM inventory_receipts r
+-- ========= 2. JOURNAL ENTRY: DR Inventory / CR Accounts Payable =========
+SELECT inventory_account_id INTO v_inventory_account
+FROM inventory_items
+WHERE product_id = NEW.product_id;
+SELECT s.account_id INTO v_supplier_account
+FROM inventory_receipts r
     JOIN suppliers s ON s.id = r.supplier_id
-    WHERE r.id = NEW.receipt_id;
-
-    SELECT id INTO v_ap_account
-    FROM chart_of_accounts
-    WHERE code = '2100';
-
-    v_credit_account := COALESCE(v_supplier_account, v_ap_account);
-
-    IF v_inventory_account IS NOT NULL
-       AND v_credit_account IS NOT NULL
-       AND NEW.line_total > 0 THEN
-
-        -- Reuse existing journal entry for this receipt, or create a new one
-        SELECT id INTO v_journal_id
-        FROM journal_entries
-        WHERE source_type = 'inventory_receipt'
-          AND source_id = NEW.receipt_id;
-
-        IF v_journal_id IS NULL THEN
-            INSERT INTO journal_entries (
-                entry_date,
-                source_type,
-                source_id,
-                description
-            )
-            VALUES (
-                CURRENT_DATE,
-                'inventory_receipt',
-                NEW.receipt_id,
-                'Inventory purchase – ' || COALESCE(
-                    (SELECT invoice_number FROM inventory_receipts WHERE id = NEW.receipt_id),
-                    'no ref'
-                )
-            )
-            RETURNING id INTO v_journal_id;
-        END IF;
-
-        INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
-        VALUES (v_journal_id, v_inventory_account, NEW.line_total, 0);
-
-        INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
-        VALUES (v_journal_id, v_credit_account, 0, NEW.line_total);
-    END IF;
-
-    RETURN NEW;
+WHERE r.id = NEW.receipt_id;
+SELECT id INTO v_ap_account
+FROM chart_of_accounts
+WHERE code = '2100';
+v_credit_account := COALESCE(v_supplier_account, v_ap_account);
+IF v_inventory_account IS NOT NULL
+AND v_credit_account IS NOT NULL
+AND NEW.line_total > 0 THEN -- Reuse existing journal entry for this receipt, or create a new one
+SELECT id INTO v_journal_id
+FROM journal_entries
+WHERE source_type = 'inventory_receipt'
+    AND source_id = NEW.receipt_id;
+IF v_journal_id IS NULL THEN
+INSERT INTO journal_entries (
+        entry_date,
+        source_type,
+        source_id,
+        description
+    )
+VALUES (
+        CURRENT_DATE,
+        'inventory_receipt',
+        NEW.receipt_id,
+        'Inventory purchase – ' || COALESCE(
+            (
+                SELECT invoice_number
+                FROM inventory_receipts
+                WHERE id = NEW.receipt_id
+            ),
+            'no ref'
+        )
+    )
+RETURNING id INTO v_journal_id;
+END IF;
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+VALUES (
+        v_journal_id,
+        v_inventory_account,
+        NEW.line_total,
+        0
+    );
+INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+VALUES (
+        v_journal_id,
+        v_credit_account,
+        0,
+        NEW.line_total
+    );
+END IF;
+RETURN NEW;
 END;
 $function$;
 CREATE OR REPLACE FUNCTION public.post_bill_inventory_and_cogs() RETURNS trigger LANGUAGE plpgsql AS $function$
@@ -2232,7 +2326,6 @@ WHERE coa.account_class = 'expense'
 ORDER BY txn_date DESC;
 END;
 $function$;
-
 /*
  ============================================================================
  BALANCE SHEET RPC
@@ -2270,7 +2363,7 @@ FROM chart_of_accounts coa
     LEFT JOIN (
         journal_lines jl
         JOIN journal_entries je ON je.id = jl.journal_entry_id
-            AND je.entry_date <= p_as_of_date
+        AND je.entry_date <= p_as_of_date
     ) ON jl.account_id = coa.id
 WHERE coa.account_class IN (
         'asset',
@@ -2327,24 +2420,19 @@ WHERE je.entry_date <= p_as_of_date
     )
     AND coa.active = true;
 $function$;
-
-
 -- Returns trial balance for a date range: debit and credit totals per account
-CREATE OR REPLACE FUNCTION public.rpc_trial_balance(
-    p_start_date date,
-    p_end_date date
-) RETURNS TABLE (
-    account_id uuid,
-    account_code varchar,
-    account_name varchar,
-    account_class varchar,
-    parent_id uuid,
-    normal_balance varchar,
-    is_control_account boolean,
-    total_debit numeric,
-    total_credit numeric,
-    balance numeric
-) LANGUAGE sql STABLE AS $function$
+CREATE OR REPLACE FUNCTION public.rpc_trial_balance(p_start_date date, p_end_date date) RETURNS TABLE (
+        account_id uuid,
+        account_code varchar,
+        account_name varchar,
+        account_class varchar,
+        parent_id uuid,
+        normal_balance varchar,
+        is_control_account boolean,
+        total_debit numeric,
+        total_credit numeric,
+        balance numeric
+    ) LANGUAGE sql STABLE AS $function$
 SELECT coa.id AS account_id,
     coa.code AS account_code,
     coa.name AS account_name,
@@ -2362,8 +2450,8 @@ FROM chart_of_accounts coa
     LEFT JOIN (
         journal_lines jl
         JOIN journal_entries je ON je.id = jl.journal_entry_id
-            AND je.entry_date >= p_start_date
-            AND je.entry_date <= p_end_date
+        AND je.entry_date >= p_start_date
+        AND je.entry_date <= p_end_date
     ) ON jl.account_id = coa.id
 WHERE coa.active = true
 GROUP BY coa.id,
@@ -2376,7 +2464,6 @@ GROUP BY coa.id,
 HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
 ORDER BY coa.code;
 $function$;
-
 /*
  ============================================================================
  INCOME STATEMENT RPC
@@ -2386,101 +2473,111 @@ $function$;
  ============================================================================
  */
 -- Returns income statement line items for a date range (income, cost_of_sales, expense)
-CREATE OR REPLACE FUNCTION public.rpc_income_statement(p_start_date date, p_end_date date)
-RETURNS TABLE (
-    account_id uuid,
-    account_code varchar,
-    account_name varchar,
-    account_class varchar,
-    parent_id uuid,
-    normal_balance varchar,
-    is_control_account boolean,
-    balance numeric,
-    is_computed boolean
-) LANGUAGE plpgsql STABLE AS $function$
-DECLARE
-    v_cos_parent_id UUID;
-    v_opening_inventory NUMERIC;
-    v_closing_inventory NUMERIC;
-    v_5002_balance NUMERIC;
+CREATE OR REPLACE FUNCTION public.rpc_income_statement(p_start_date date, p_end_date date) RETURNS TABLE (
+        account_id uuid,
+        account_code varchar,
+        account_name varchar,
+        account_class varchar,
+        parent_id uuid,
+        normal_balance varchar,
+        is_control_account boolean,
+        balance numeric,
+        is_computed boolean
+    ) LANGUAGE plpgsql STABLE AS $function$
+DECLARE v_cos_parent_id UUID;
+v_opening_inventory NUMERIC;
+v_closing_inventory NUMERIC;
+v_5002_balance NUMERIC;
 BEGIN
-    SELECT id INTO v_cos_parent_id
-    FROM chart_of_accounts WHERE code = '5000';
-
-    /* Manual opening balance posted to 5002 (DR 5002 / CR Bank)
-       never hit inventory asset accounts, so fold it in here. */
-    SELECT COALESCE(SUM(jl.debit - jl.credit), 0)
-    INTO v_5002_balance
-    FROM journal_lines jl
+SELECT id INTO v_cos_parent_id
+FROM chart_of_accounts
+WHERE code = '5000';
+/* Manual opening balance posted to 5002 (DR 5002 / CR Bank)
+ never hit inventory asset accounts, so fold it in here. */
+SELECT COALESCE(SUM(jl.debit - jl.credit), 0) INTO v_5002_balance
+FROM journal_lines jl
     JOIN journal_entries je ON je.id = jl.journal_entry_id
-    WHERE jl.account_id = (SELECT id FROM chart_of_accounts WHERE code = '5002');
-
-    SELECT COALESCE(SUM(jl.debit - jl.credit), 0) + v_5002_balance
-    INTO v_opening_inventory
-    FROM journal_lines jl
+WHERE jl.account_id = (
+        SELECT id
+        FROM chart_of_accounts
+        WHERE code = '5002'
+    );
+SELECT COALESCE(SUM(jl.debit - jl.credit), 0) + v_5002_balance INTO v_opening_inventory
+FROM journal_lines jl
     JOIN journal_entries je ON je.id = jl.journal_entry_id
-    WHERE jl.account_id IN (SELECT DISTINCT inventory_account_id FROM inventory_items)
-      AND je.entry_date < p_start_date;
-
-    SELECT COALESCE(SUM(jl.debit - jl.credit), 0) + v_5002_balance
-    INTO v_closing_inventory
-    FROM journal_lines jl
+WHERE jl.account_id IN (
+        SELECT DISTINCT inventory_account_id
+        FROM inventory_items
+    )
+    AND je.entry_date < p_start_date;
+SELECT COALESCE(SUM(jl.debit - jl.credit), 0) + v_5002_balance INTO v_closing_inventory
+FROM journal_lines jl
     JOIN journal_entries je ON je.id = jl.journal_entry_id
-    WHERE jl.account_id IN (SELECT DISTINCT inventory_account_id FROM inventory_items)
-      AND je.entry_date <= p_end_date;
-
-    RETURN QUERY
-
-    SELECT
-        coa.id AS account_id,
-        coa.code::varchar AS account_code,
-        coa.name::varchar AS account_name,
-        coa.account_class::varchar,
-        coa.parent_id,
-        coa.normal_balance::varchar,
-        coa.is_control_account,
-        CASE
-            WHEN coa.normal_balance = 'credit'
-                THEN COALESCE(SUM(jl.credit - jl.debit), 0)
-            ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
-        END AS balance,
-        false AS is_computed
-    FROM chart_of_accounts coa
+WHERE jl.account_id IN (
+        SELECT DISTINCT inventory_account_id
+        FROM inventory_items
+    )
+    AND je.entry_date <= p_end_date;
+RETURN QUERY
+SELECT coa.id AS account_id,
+    coa.code::varchar AS account_code,
+    coa.name::varchar AS account_name,
+    coa.account_class::varchar,
+    coa.parent_id,
+    coa.normal_balance::varchar,
+    coa.is_control_account,
+    CASE
+        WHEN coa.normal_balance = 'credit' THEN COALESCE(SUM(jl.credit - jl.debit), 0)
+        ELSE COALESCE(SUM(jl.debit - jl.credit), 0)
+    END AS balance,
+    false AS is_computed
+FROM chart_of_accounts coa
     LEFT JOIN journal_lines jl ON jl.account_id = coa.id
     LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
-        AND je.entry_date >= p_start_date
-        AND je.entry_date <= p_end_date
-    WHERE coa.account_class IN (
-            'income', 'cost_of_sales', 'expense',
-            'finance_cost', 'admin_cost', 'operating_cost'
-        )
-        AND coa.active = true
-    GROUP BY coa.id, coa.code, coa.name, coa.account_class,
-             coa.parent_id, coa.normal_balance, coa.is_control_account
-    HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
-        OR coa.parent_id IS NULL
-        OR coa.is_control_account = true
-
-    UNION ALL
-
-    SELECT
-        '00000000-0000-0000-0000-000000000001'::uuid,
-        '5001'::varchar, 'Opening Inventory'::varchar,
-        'cost_of_sales'::varchar, v_cos_parent_id,
-        'debit'::varchar, false, v_opening_inventory, true
-
-    UNION ALL
-
-    SELECT
-        '00000000-0000-0000-0000-000000000002'::uuid,
-        '5099'::varchar, 'Closing Inventory'::varchar,
-        'cost_of_sales'::varchar, v_cos_parent_id,
-        'credit'::varchar, false, v_closing_inventory, true
-
-    ORDER BY account_code;
+    AND je.entry_date >= p_start_date
+    AND je.entry_date <= p_end_date
+WHERE coa.account_class IN (
+        'income',
+        'cost_of_sales',
+        'expense',
+        'finance_cost',
+        'admin_cost',
+        'operating_cost'
+    )
+    AND coa.active = true
+GROUP BY coa.id,
+    coa.code,
+    coa.name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account
+HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
+    OR coa.parent_id IS NULL
+    OR coa.is_control_account = true
+UNION ALL
+SELECT '00000000-0000-0000-0000-000000000001'::uuid,
+    '5001'::varchar,
+    'Opening Inventory'::varchar,
+    'cost_of_sales'::varchar,
+    v_cos_parent_id,
+    'debit'::varchar,
+    false,
+    v_opening_inventory,
+    true
+UNION ALL
+SELECT '00000000-0000-0000-0000-000000000002'::uuid,
+    '5099'::varchar,
+    'Closing Inventory'::varchar,
+    'cost_of_sales'::varchar,
+    v_cos_parent_id,
+    'credit'::varchar,
+    false,
+    v_closing_inventory,
+    true
+ORDER BY account_code;
 END;
 $function$;
-
 /*
  ============================================================================
  CASH FLOW STATEMENT RPC
@@ -2492,23 +2589,19 @@ $function$;
  Created: 02/03/2026 - einbulinda
  ============================================================================
  */
-CREATE OR REPLACE FUNCTION public.rpc_cash_flow_data(
-    p_start_date date,
-    p_end_date date
-) RETURNS TABLE (
-    account_id uuid,
-    account_code varchar,
-    account_name varchar,
-    account_class varchar,
-    parent_id uuid,
-    normal_balance varchar,
-    is_control_account boolean,
-    opening_balance numeric,
-    closing_balance numeric,
-    net_change numeric
-) LANGUAGE sql STABLE AS $function$
-SELECT
-    coa.id AS account_id,
+CREATE OR REPLACE FUNCTION public.rpc_cash_flow_data(p_start_date date, p_end_date date) RETURNS TABLE (
+        account_id uuid,
+        account_code varchar,
+        account_name varchar,
+        account_class varchar,
+        parent_id uuid,
+        normal_balance varchar,
+        is_control_account boolean,
+        opening_balance numeric,
+        closing_balance numeric,
+        net_change numeric
+    ) LANGUAGE sql STABLE AS $function$
+SELECT coa.id AS account_id,
     coa.code AS account_code,
     coa.name AS account_name,
     coa.account_class,
@@ -2516,31 +2609,88 @@ SELECT
     coa.normal_balance,
     coa.is_control_account,
     CASE
-        WHEN coa.normal_balance = 'credit'
-            THEN COALESCE(SUM(CASE WHEN je.entry_date < p_start_date THEN jl.credit - jl.debit ELSE 0 END), 0)
-        ELSE COALESCE(SUM(CASE WHEN je.entry_date < p_start_date THEN jl.debit - jl.credit ELSE 0 END), 0)
+        WHEN coa.normal_balance = 'credit' THEN COALESCE(
+            SUM(
+                CASE
+                    WHEN je.entry_date < p_start_date THEN jl.credit - jl.debit
+                    ELSE 0
+                END
+            ),
+            0
+        )
+        ELSE COALESCE(
+            SUM(
+                CASE
+                    WHEN je.entry_date < p_start_date THEN jl.debit - jl.credit
+                    ELSE 0
+                END
+            ),
+            0
+        )
     END AS opening_balance,
     CASE
-        WHEN coa.normal_balance = 'credit'
-            THEN COALESCE(SUM(CASE WHEN je.entry_date <= p_end_date THEN jl.credit - jl.debit ELSE 0 END), 0)
-        ELSE COALESCE(SUM(CASE WHEN je.entry_date <= p_end_date THEN jl.debit - jl.credit ELSE 0 END), 0)
+        WHEN coa.normal_balance = 'credit' THEN COALESCE(
+            SUM(
+                CASE
+                    WHEN je.entry_date <= p_end_date THEN jl.credit - jl.debit
+                    ELSE 0
+                END
+            ),
+            0
+        )
+        ELSE COALESCE(
+            SUM(
+                CASE
+                    WHEN je.entry_date <= p_end_date THEN jl.debit - jl.credit
+                    ELSE 0
+                END
+            ),
+            0
+        )
     END AS closing_balance,
     CASE
-        WHEN coa.normal_balance = 'credit'
-            THEN COALESCE(SUM(CASE WHEN je.entry_date >= p_start_date AND je.entry_date <= p_end_date THEN jl.credit - jl.debit ELSE 0 END), 0)
-        ELSE COALESCE(SUM(CASE WHEN je.entry_date >= p_start_date AND je.entry_date <= p_end_date THEN jl.debit - jl.credit ELSE 0 END), 0)
+        WHEN coa.normal_balance = 'credit' THEN COALESCE(
+            SUM(
+                CASE
+                    WHEN je.entry_date >= p_start_date
+                    AND je.entry_date <= p_end_date THEN jl.credit - jl.debit
+                    ELSE 0
+                END
+            ),
+            0
+        )
+        ELSE COALESCE(
+            SUM(
+                CASE
+                    WHEN je.entry_date >= p_start_date
+                    AND je.entry_date <= p_end_date THEN jl.debit - jl.credit
+                    ELSE 0
+                END
+            ),
+            0
+        )
     END AS net_change
 FROM chart_of_accounts coa
     LEFT JOIN journal_lines jl ON jl.account_id = coa.id
     LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
 WHERE coa.account_class IN (
-        'asset', 'current_asset', 'non_current_asset', 'bank',
-        'liability', 'current_liability', 'non_current_liability',
+        'asset',
+        'current_asset',
+        'non_current_asset',
+        'bank',
+        'liability',
+        'current_liability',
+        'non_current_liability',
         'equity'
     )
     AND coa.active = true
-GROUP BY coa.id, coa.code, coa.name, coa.account_class,
-    coa.parent_id, coa.normal_balance, coa.is_control_account
+GROUP BY coa.id,
+    coa.code,
+    coa.name,
+    coa.account_class,
+    coa.parent_id,
+    coa.normal_balance,
+    coa.is_control_account
 HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
 ORDER BY coa.code;
 $function$;
@@ -2552,36 +2702,70 @@ $function$;
  (credits) and drawings (debits) for the given date range.
  ============================================================================
  */
-CREATE OR REPLACE FUNCTION public.rpc_equity_changes(
-    p_start_date date,
-    p_end_date date
-) RETURNS TABLE (
-    account_id uuid,
-    account_code varchar,
-    account_name varchar,
-    parent_id uuid,
-    normal_balance varchar,
-    opening_balance numeric,
-    closing_balance numeric,
-    contributions numeric,
-    drawings numeric
-) LANGUAGE sql STABLE AS $function$
-SELECT
-    coa.id AS account_id,
+CREATE OR REPLACE FUNCTION public.rpc_equity_changes(p_start_date date, p_end_date date) RETURNS TABLE (
+        account_id uuid,
+        account_code varchar,
+        account_name varchar,
+        parent_id uuid,
+        normal_balance varchar,
+        opening_balance numeric,
+        closing_balance numeric,
+        contributions numeric,
+        drawings numeric
+    ) LANGUAGE sql STABLE AS $function$
+SELECT coa.id AS account_id,
     coa.code AS account_code,
     coa.name AS account_name,
     coa.parent_id,
     coa.normal_balance,
-    COALESCE(SUM(CASE WHEN je.entry_date < p_start_date THEN jl.credit - jl.debit ELSE 0 END), 0) AS opening_balance,
-    COALESCE(SUM(CASE WHEN je.entry_date <= p_end_date THEN jl.credit - jl.debit ELSE 0 END), 0) AS closing_balance,
-    COALESCE(SUM(CASE WHEN je.entry_date >= p_start_date AND je.entry_date <= p_end_date THEN jl.credit ELSE 0 END), 0) AS contributions,
-    COALESCE(SUM(CASE WHEN je.entry_date >= p_start_date AND je.entry_date <= p_end_date THEN jl.debit ELSE 0 END), 0) AS drawings
+    COALESCE(
+        SUM(
+            CASE
+                WHEN je.entry_date < p_start_date THEN jl.credit - jl.debit
+                ELSE 0
+            END
+        ),
+        0
+    ) AS opening_balance,
+    COALESCE(
+        SUM(
+            CASE
+                WHEN je.entry_date <= p_end_date THEN jl.credit - jl.debit
+                ELSE 0
+            END
+        ),
+        0
+    ) AS closing_balance,
+    COALESCE(
+        SUM(
+            CASE
+                WHEN je.entry_date >= p_start_date
+                AND je.entry_date <= p_end_date THEN jl.credit
+                ELSE 0
+            END
+        ),
+        0
+    ) AS contributions,
+    COALESCE(
+        SUM(
+            CASE
+                WHEN je.entry_date >= p_start_date
+                AND je.entry_date <= p_end_date THEN jl.debit
+                ELSE 0
+            END
+        ),
+        0
+    ) AS drawings
 FROM chart_of_accounts coa
     LEFT JOIN journal_lines jl ON jl.account_id = coa.id
     LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
 WHERE coa.account_class = 'equity'
     AND coa.active = true
-GROUP BY coa.id, coa.code, coa.name, coa.parent_id, coa.normal_balance
+GROUP BY coa.id,
+    coa.code,
+    coa.name,
+    coa.parent_id,
+    coa.normal_balance
 HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
 ORDER BY coa.code;
 $function$;

@@ -1,9 +1,8 @@
--- Refactor process_payment to accept a JSONB array of payment lines
--- instead of single amount/type. All lines are inserted atomically
--- in one transaction, preventing partial failures on split payments.
-
--- Drop old signature (amount, type as separate params)
-DROP FUNCTION IF EXISTS public.process_payment(uuid, numeric, text, uuid, jsonb);
+-- Fix: Remove pending_amount > 0 guard from confirm branch
+-- When a bill is awaiting_confirmation, the approver should always be able
+-- to confirm it — even if pending_amount is 0 (e.g. payments were already
+-- confirmed through another path). The branch now recalculates totals and
+-- resolves the bill status regardless.
 
 CREATE OR REPLACE FUNCTION public.process_payment(
         p_bill_id uuid,

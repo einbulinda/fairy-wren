@@ -8,7 +8,11 @@ const { respond } = require("../../utils/common");
 exports.getBusinessTarget = async (req, res, next) => {
   try {
     const { year, month } = req.params;
-    const data = await service.getBusinessTarget(parseInt(year), parseInt(month));
+
+    const data = await service.getBusinessTarget(
+      parseInt(year),
+      parseInt(month),
+    );
     respond(res, 200, data);
   } catch (err) {
     next(err);
@@ -41,7 +45,7 @@ exports.bulkUpdateBusinessTargets = async (req, res, next) => {
     const data = await service.bulkUpdateBusinessTargets(
       parseInt(year),
       targets,
-      req.user.id
+      req.user.id,
     );
     respond(res, 200, data);
   } catch (err) {
@@ -56,7 +60,11 @@ exports.bulkUpdateBusinessTargets = async (req, res, next) => {
 exports.getUserTarget = async (req, res, next) => {
   try {
     const { userId, year, month } = req.params;
-    const data = await service.getUserTarget(userId, parseInt(year), parseInt(month));
+    const data = await service.getUserTarget(
+      userId,
+      parseInt(year),
+      parseInt(month),
+    );
     respond(res, 200, data);
   } catch (err) {
     next(err);
@@ -66,7 +74,10 @@ exports.getUserTarget = async (req, res, next) => {
 exports.getAllUserTargets = async (req, res, next) => {
   try {
     const { year, month } = req.params;
-    const data = await service.getAllUserTargets(parseInt(year), parseInt(month));
+    const data = await service.getAllUserTargets(
+      parseInt(year),
+      parseInt(month),
+    );
     respond(res, 200, data);
   } catch (err) {
     next(err);
@@ -90,7 +101,7 @@ exports.bulkUpdateUserTargets = async (req, res, next) => {
       parseInt(year),
       parseInt(month),
       targets,
-      req.user.id
+      req.user.id,
     );
     respond(res, 200, data);
   } catch (err) {
@@ -105,7 +116,10 @@ exports.bulkUpdateUserTargets = async (req, res, next) => {
 exports.getCategoryTargets = async (req, res, next) => {
   try {
     const { year, month } = req.params;
-    const data = await service.getCategoryTargets(parseInt(year), parseInt(month));
+    const data = await service.getCategoryTargets(
+      parseInt(year),
+      parseInt(month),
+    );
     respond(res, 200, data);
   } catch (err) {
     next(err);
@@ -129,16 +143,16 @@ exports.getDashboardTargets = async (req, res, next) => {
   try {
     const { year, month } = req.params;
     const { totalRevenue, grossMargin } = req.query;
-    
+
     const data = await service.getDashboardTargets(
       parseInt(year),
       parseInt(month),
       {
         totalRevenue: parseFloat(totalRevenue) || 0,
         grossMargin: parseFloat(grossMargin) || 0,
-      }
+      },
     );
-    
+
     respond(res, 200, data);
   } catch (err) {
     next(err);
