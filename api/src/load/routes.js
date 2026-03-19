@@ -21,6 +21,7 @@ const payrollRoutes = require("../modules/payroll/payroll.routes");
 const settingsRoutes = require("../modules/settings/settings.routes");
 const accountClassRoutes = require("../modules/account-classes/account-classes.routes");
 const systemRoleRoutes = require("../modules/system-roles/system-roles.routes");
+const targetsRoutes = require("../modules/targets/targets.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
@@ -44,5 +45,6 @@ router.use("/payroll", authMiddleware, payrollRoutes);
 router.use("/settings", authMiddleware, settingsRoutes);
 router.use("/account-classes", authMiddleware, accountClassRoutes);
 router.use("/system-roles", authMiddleware, systemRoleRoutes);
+router.use("/targets", authMiddleware, targetsRoutes);
 
 module.exports = router;
