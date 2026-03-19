@@ -341,6 +341,21 @@ const ERROR_MAP = {
   FAILED_TO_UPDATE_SYSTEM_ROLE: { status: 500, message: "Failed to update system role" },
   FAILED_TO_DELETE_SYSTEM_ROLE: { status: 500, message: "Failed to delete system role" },
 
+  // ===== TARGETS =====
+  FAILED_TO_FETCH_BUSINESS_TARGET: { status: 500, message: "Failed to fetch business target" },
+  FAILED_TO_FETCH_YEARLY_TARGETS: { status: 500, message: "Failed to fetch yearly targets" },
+  YEAR_AND_MONTH_REQUIRED: { status: 400, message: "Year and month are required" },
+  FAILED_TO_UPDATE_BUSINESS_TARGET: { status: 500, message: "Failed to update business target" },
+  FAILED_TO_CREATE_BUSINESS_TARGET: { status: 500, message: "Failed to create business target" },
+  FAILED_TO_FETCH_USER_TARGET: { status: 500, message: "Failed to fetch user target" },
+  FAILED_TO_FETCH_USER_TARGETS: { status: 500, message: "Failed to fetch user targets" },
+  USER_YEAR_MONTH_REQUIRED: { status: 400, message: "User ID, year and month are required" },
+  FAILED_TO_SAVE_USER_TARGET: { status: 500, message: "Failed to save user target" },
+  FAILED_TO_FETCH_CATEGORY_TARGETS: { status: 500, message: "Failed to fetch category targets" },
+  CATEGORY_YEAR_MONTH_REQUIRED: { status: 400, message: "Category ID, year and month are required" },
+  FAILED_TO_SAVE_CATEGORY_TARGET: { status: 500, message: "Failed to save category target" },
+  INVALID_TARGETS_ARRAY: { status: 400, message: "Invalid targets array provided" },
+
   // ===== CHEQUES =====
   INVALID_TRANSACTION_TYPE: { status: 400, message: "Invalid transaction type" },
   CHEQUE_NUMBER_REQUIRED: { status: 400, message: "Cheque/reference number is required" },
