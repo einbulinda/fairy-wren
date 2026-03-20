@@ -4,6 +4,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronRight as ArrowRight,
+  Search,
+  X,
 } from "lucide-react";
 import { useStockTakeReports } from "@/hooks/useInventory";
 import { PAGE_SIZE, inputCls } from "./inventoryUtils";
@@ -47,6 +49,7 @@ const ReportsTab = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
 
   const params = useMemo(() => {
@@ -58,10 +61,20 @@ const ReportsTab = () => {
 
   const { data: reports = [], isLoading } = useStockTakeReports(params);
 
-  const filtered = useMemo(
-    () => reports.filter((r) => matchesStatus(r, statusFilter)),
-    [reports, statusFilter],
-  );
+  const filtered = useMemo(() => {
+    let result = reports.filter((r) => matchesStatus(r, statusFilter));
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (r) =>
+          (r.stock_take_name || "").toLowerCase().includes(term) ||
+          (r.profiles?.name || "").toLowerCase().includes(term) ||
+          (r.stock_take_type || "").toLowerCase().includes(term) ||
+          (r.location || "").toLowerCase().includes(term),
+      );
+    }
+    return result;
+  }, [reports, statusFilter, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -86,6 +99,29 @@ const ReportsTab = () => {
     <div className="space-y-4">
       {/* Filters row */}
       <div className="flex flex-wrap items-end gap-3">
+        {/* Search */}
+        <div className="relative">
+          <label className="block text-xs text-surface-400 mb-1">Search</label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Name, performed by, type…"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+              className={inputCls + " w-56 pl-8 pr-8"}
+            />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500" />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div>
           <label className="block text-xs text-surface-400 mb-1">From</label>
           <input

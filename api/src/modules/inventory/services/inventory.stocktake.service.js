@@ -174,6 +174,7 @@ exports.getStockTakeDetail = async (id) => {
   const { data, error } = await stockTakeReadRepo.getStockTakeById(id);
 
   if (error) {
+    console.log("Error stock take", error);
     throw new Error("FAILED_TO_FETCH_STOCK_TAKE_DETAIL");
   }
 

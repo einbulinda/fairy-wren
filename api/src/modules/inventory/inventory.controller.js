@@ -2,6 +2,8 @@ const stockService = require("./services/inventory.stock.service");
 const restockService = require("./services/inventory.restock.service");
 const receivingService = require("./services/inventory.receiving.service");
 const stockTakeService = require("./services/inventory.stocktake.service");
+const policiesService = require("./services/inventory.policies.service");
+const conversionsService = require("./services/inventory.conversions.service");
 const ledgerService = require("../ledger/ledger.service");
 const { buildContext, respond } = require("../../utils/common");
 
@@ -221,7 +223,133 @@ exports.getInventoryLedger = async (req, res, next) => {
   }
 };
 
-//TODO: TO CHECK IF THE BELOW ARE DUPLICATES
+/* ======================================================
+   REORDER LEVEL POLICIES
+   ====================================================== */
 
-/* ---------- STOCK VISIBILITY (DUPLICATE - REMOVED) ---------- */
-// Duplicate of getInventoryItems (line 11) - removed to avoid shadowing
+exports.getReorderPolicies = async (req, res, next) => {
+  try {
+    const data = await policiesService.getPolicies();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getReorderPolicy = async (req, res, next) => {
+  try {
+    const data = await policiesService.getPolicy(req.params.productId);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.setManualReorderLevel = async (req, res, next) => {
+  try {
+    const data = await policiesService.setManualOverride(
+      req.params.productId,
+      req.body.reorder_level,
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.clearReorderOverride = async (req, res, next) => {
+  try {
+    const data = await policiesService.clearOverride(req.params.productId);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getReorderSettings = async (req, res, next) => {
+  try {
+    const data = await policiesService.getSettings();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateReorderSettings = async (req, res, next) => {
+  try {
+    const data = await policiesService.updateSettings(req.body);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.triggerReorderRefresh = async (req, res, next) => {
+  try {
+    const data = await policiesService.triggerRefresh(req.body?.product_ids);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getMovementAnalysis = async (req, res, next) => {
+  try {
+    const data = await policiesService.getMovementAnalysis();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getReorderAlerts = async (req, res, next) => {
+  try {
+    const data = await policiesService.getReorderAlerts();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ======================================================
+   PRODUCT CONVERSIONS
+   ====================================================== */
+
+exports.executeConversion = async (req, res, next) => {
+  try {
+    const data = await conversionsService.executeConversion(
+      req.body,
+      buildContext(req),
+    );
+    respond(res, 201, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getConversionHistory = async (req, res, next) => {
+  try {
+    const data = await conversionsService.getConversionHistory();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getConvertibleProducts = async (req, res, next) => {
+  try {
+    const data = await conversionsService.getConvertibleProducts();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getTotSize = async (req, res, next) => {
+  try {
+    const data = await conversionsService.getTotSize();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};

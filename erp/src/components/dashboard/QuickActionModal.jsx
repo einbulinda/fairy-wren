@@ -11,7 +11,7 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
 
   const renderEmergencyReorder = () => {
     const lowStock = data?.stockItems?.filter(
-      (s) => s.current_stock <= (s.reorder_point || 10)
+      (s) => s.reorder_level > 0 && s.current_stock > 0 && s.current_stock <= s.reorder_level
     ) || [];
     const outOfStock = data?.stockItems?.filter((s) => s.current_stock <= 0) || [];
 
@@ -26,14 +26,14 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
             </h4>
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {outOfStock.map((item) => (
-                <div key={item.product_id} className="flex items-center justify-between p-2 bg-surface-800 rounded">
+                <div key={item.id} className="flex items-center justify-between p-2 bg-surface-800 rounded">
                   <div>
-                    <p className="text-sm text-white">{item.product_name}</p>
-                    <p className="text-xs text-surface-500">{item.category_name}</p>
+                    <p className="text-sm text-white">{item.name}</p>
+                    <p className="text-xs text-surface-500">{item.categories?.name || "Uncategorized"}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-surface-400">Last Cost</p>
-                    <p className="text-sm text-white">{formatCurrency(item.average_cost || item.cost_price)}</p>
+                    <p className="text-sm text-white">{formatCurrency(item.cost_price || 0)}</p>
                   </div>
                 </div>
               ))}
@@ -50,24 +50,24 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
             </h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {lowStock.map((item) => (
-                <div key={item.product_id} className="flex items-center justify-between p-2 bg-surface-800 rounded">
+                <div key={item.id} className="flex items-center justify-between p-2 bg-surface-800 rounded">
                   <div className="flex-1">
-                    <p className="text-sm text-white">{item.product_name}</p>
+                    <p className="text-sm text-white">{item.name}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="w-20 h-1.5 bg-surface-700 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-orange-400 rounded-full"
-                          style={{ width: `${Math.min((item.current_stock / (item.reorder_point || 1)) * 100, 100)}%` }}
+                          style={{ width: `${Math.min((item.current_stock / (item.reorder_level || 1)) * 100, 100)}%` }}
                         />
                       </div>
                       <span className="text-xs text-surface-400">
-                        {item.current_stock} / {item.reorder_point || 10}
+                        {item.current_stock} / {item.reorder_level}
                       </span>
                     </div>
                   </div>
                   <div className="text-right ml-4">
                     <p className="text-xs text-surface-400">Suggested Qty</p>
-                    <p className="text-sm text-white">{(item.reorder_point || 10) * 3 - item.current_stock}</p>
+                    <p className="text-sm text-white">{(item.reorder_level) * 3 - item.current_stock}</p>
                   </div>
                 </div>
               ))}
@@ -91,54 +91,82 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
   };
 
   const renderDeadStock = () => {
-    // Calculate dead stock candidates
-    const topSellingIds = (data?.topSellingProducts || []).map((p) => p.product_id);
-    const deadStock = (data?.stockItems || [])
-      .filter((s) => s.current_stock > 20 && !topSellingIds.includes(s.product_id))
-      .map((s) => ({
-        ...s,
-        stockValue: s.current_stock * (s.average_cost || s.cost_price || 0),
-      }))
-      .sort((a, b) => b.stockValue - a.stockValue)
-      .slice(0, 10);
+    const movement = data?.movementAnalysis || [];
+    const slowItems = movement.filter((m) => m.movement_category === "SLOW" && m.current_stock > 0);
+    const nonMovingItems = movement.filter((m) => m.movement_category === "NON_MOVING" && m.current_stock > 0);
 
-    const totalDeadValue = deadStock.reduce((sum, s) => sum + s.stockValue, 0);
+    const slowValue = slowItems.reduce((sum, s) => sum + Number(s.stock_value || 0), 0);
+    const nonMovingValue = nonMovingItems.reduce((sum, s) => sum + Number(s.stock_value || 0), 0);
+    const totalDeadValue = slowValue + nonMovingValue;
+    const totalItems = slowItems.length + nonMovingItems.length;
+
+    const getCategoryBadge = (cat) => {
+      if (cat === "NON_MOVING") return { label: "Non-Moving", cls: "bg-red-500/20 text-red-400" };
+      return { label: "Slow", cls: "bg-orange-500/20 text-orange-400" };
+    };
+
+    const renderItemList = (items, max = 10) =>
+      items.slice(0, max).map((item) => {
+        const badge = getCategoryBadge(item.movement_category);
+        return (
+          <div key={item.product_id} className="flex items-center justify-between p-3 bg-surface-800 rounded-lg">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-white truncate">{item.product_name}</p>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${badge.cls}`}>
+                  {badge.label}
+                </span>
+              </div>
+              <p className="text-xs text-surface-500">{item.category_name || "Uncategorized"}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-xs text-surface-400">Stock: {item.current_stock} {item.unit || "units"}</span>
+                <span className="text-xs text-surface-400">
+                  {item.days_since_last_sale >= 9999
+                    ? "Never sold"
+                    : `Last sale: ${item.days_since_last_sale} days ago`}
+                </span>
+              </div>
+            </div>
+            <div className="text-right ml-3 shrink-0">
+              <p className="text-sm font-semibold text-orange-400">{formatCurrency(Number(item.stock_value || 0))}</p>
+              <p className="text-[10px] text-surface-500 mt-0.5">locked value</p>
+            </div>
+          </div>
+        );
+      });
 
     return (
       <div className="space-y-4">
-        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-surface-400">Total Capital Trapped</p>
-              <p className="text-2xl font-bold text-orange-400">{formatCurrency(totalDeadValue)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-surface-400">Items Affected</p>
-              <p className="text-2xl font-bold text-white">{deadStock.length}</p>
-            </div>
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Non-Moving</p>
+            <p className="text-lg font-bold text-red-400">{nonMovingItems.length}</p>
+            <p className="text-[10px] text-surface-500">{formatCurrency(nonMovingValue)}</p>
+          </div>
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Slow Moving</p>
+            <p className="text-lg font-bold text-orange-400">{slowItems.length}</p>
+            <p className="text-[10px] text-surface-500">{formatCurrency(slowValue)}</p>
+          </div>
+          <div className="bg-surface-800 border border-surface-700 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Total Trapped</p>
+            <p className="text-lg font-bold text-white">{formatCurrency(totalDeadValue)}</p>
+            <p className="text-[10px] text-surface-500">{totalItems} items</p>
           </div>
         </div>
 
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {deadStock.map((item) => (
-            <div key={item.product_id} className="flex items-center justify-between p-3 bg-surface-800 rounded-lg">
-              <div>
-                <p className="text-sm text-white">{item.product_name}</p>
-                <p className="text-xs text-surface-500">{item.category_name}</p>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-xs text-surface-400">Stock: {item.current_stock}</span>
-                  <span className="text-xs text-surface-400">Days held: {Math.floor(Math.random() * 60) + 30}</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-orange-400">{formatCurrency(item.stockValue)}</p>
-                <button className="text-xs text-primary-400 hover:text-primary-300 mt-1">
-                  Mark for Clearance
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* Item list — non-moving first, then slow */}
+        {totalItems === 0 ? (
+          <div className="py-8 text-center text-surface-400 text-sm">
+            <Package size={24} className="mx-auto mb-2 text-surface-600" />
+            No slow or non-moving stock detected.
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {renderItemList([...nonMovingItems, ...slowItems])}
+          </div>
+        )}
 
         <div className="flex gap-3 pt-4 border-t border-surface-700">
           <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">

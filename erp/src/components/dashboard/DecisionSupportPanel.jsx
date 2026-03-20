@@ -1,10 +1,10 @@
-import { useMemo } from "react";
-import { 
-  AlertTriangle, 
-  AlertCircle, 
-  Info, 
-  CheckCircle, 
-  TrendingDown, 
+import { useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  CheckCircle,
+  TrendingDown,
   TrendingUp,
   DollarSign,
   Package,
@@ -14,7 +14,7 @@ import {
   Bell,
   X
 } from "lucide-react";
-import { useState } from "react";
+import { formatCurrency } from "@/utils/formatters";
 
 const DecisionSupportPanel = ({ data }) => {
   const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
@@ -169,7 +169,7 @@ const DecisionSupportPanel = ({ data }) => {
     // === INVENTORY ANALYSIS ===
     const stockItems = data.stockItems || [];
     const outOfStock = stockItems.filter((s) => s.current_stock <= 0).length;
-    const lowStock = stockItems.filter((s) => s.current_stock > 0 && s.current_stock <= (s.reorder_point || 10)).length;
+    const lowStock = stockItems.filter((s) => s.current_stock > 0 && s.reorder_level > 0 && s.current_stock <= s.reorder_level).length;
 
     if (outOfStock > 0) {
       alerts.push({
@@ -196,23 +196,24 @@ const DecisionSupportPanel = ({ data }) => {
       });
     }
 
-    // Dead stock detection
-    const topSellingIds = (data.topSellingProducts || []).map((p) => p.product_id);
-    const potentialDeadStock = stockItems
-      .filter((s) => s.current_stock > 20 && !topSellingIds.includes(s.product_id))
-      .slice(0, 3);
-    const deadStockValue = potentialDeadStock.reduce((sum, s) => sum + s.current_stock * (s.average_cost || 0), 0);
-    
-    if (deadStockValue > 10000) {
+    // Dead stock detection — from server-computed movement analysis
+    const movement = data.movementAnalysis || [];
+    const deadStockItems = movement.filter(
+      (m) => (m.movement_category === "NON_MOVING" || m.movement_category === "SLOW") && m.current_stock > 0,
+    );
+    const deadStockValue = deadStockItems.reduce((sum, s) => sum + Number(s.stock_value || 0), 0);
+    const nonMovingCount = deadStockItems.filter((m) => m.movement_category === "NON_MOVING").length;
+
+    if (deadStockItems.length > 0) {
       alerts.push({
         id: "dead-stock",
         category: "inventory",
-        severity: "info",
+        severity: nonMovingCount > 3 ? "warning" : "info",
         icon: Package,
         title: "Dead Stock Risk",
-        message: `${formatCurrency(deadStockValue)} tied in slow-moving inventory. Consider clearance sale.`,
+        message: `${formatCurrency(deadStockValue)} tied in ${deadStockItems.length} slow/non-moving items (${nonMovingCount} never sold or stale). Consider clearance sale.`,
         actions: ["Run Promotion", "Bundle Products"],
-        metric: formatCurrency(deadStockValue),
+        metric: `${deadStockItems.length} items`,
       });
     }
 

@@ -85,3 +85,70 @@ export const fetchStockTakeAdjustments = async (params = {}) => {
   const { data } = await api.get("/inventory/stock-take-adjustments", { params });
   return data.data ?? data;
 };
+
+// Reorder Level Policies
+export const fetchReorderPolicies = async () => {
+  const { data } = await api.get("/inventory/reorder-policies");
+  return data.data ?? data;
+};
+
+export const fetchReorderAlerts = async () => {
+  const { data } = await api.get("/inventory/reorder-alerts");
+  return data.data ?? data;
+};
+
+export const fetchReorderSettings = async () => {
+  const { data } = await api.get("/inventory/reorder-settings");
+  return data.data ?? data;
+};
+
+export const updateReorderSettings = async (payload) => {
+  const { data } = await api.patch("/inventory/reorder-settings", payload);
+  return data.data ?? data;
+};
+
+export const triggerReorderRefresh = async () => {
+  const { data } = await api.post("/inventory/reorder-refresh");
+  return data.data ?? data;
+};
+
+export const setManualReorderLevel = async ({ productId, reorder_level }) => {
+  const { data } = await api.post(
+    `/inventory/reorder-policies/${productId}/override`,
+    { reorder_level },
+  );
+  return data.data ?? data;
+};
+
+export const fetchMovementAnalysis = async () => {
+  const { data } = await api.get("/inventory/movement-analysis");
+  return data.data ?? data;
+};
+
+export const clearReorderOverride = async (productId) => {
+  const { data } = await api.delete(
+    `/inventory/reorder-policies/${productId}/override`,
+  );
+  return data.data ?? data;
+};
+
+// Product Conversions
+export const fetchConvertibleProducts = async () => {
+  const { data } = await api.get("/inventory/conversions/products");
+  return data.data ?? data;
+};
+
+export const fetchConversionHistory = async () => {
+  const { data } = await api.get("/inventory/conversions/history");
+  return data.data ?? data;
+};
+
+export const fetchTotSize = async () => {
+  const { data } = await api.get("/inventory/conversions/tot-size");
+  return data.data ?? data;
+};
+
+export const executeConversion = async (payload) => {
+  const { data } = await api.post("/inventory/conversions", payload);
+  return data.data ?? data;
+};

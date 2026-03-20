@@ -105,27 +105,13 @@ const POSScreen = () => {
   // Permission checks
   const canAccessConfirm = user?.permissions?.includes("approve_payments");
 
-  // 🔒 CRITICAL: Helper to calculate TOTAL quantity across ENTIRE bill + current round
-  const getTotalQuantityInBill = useCallback(
+  // 🔒 Helper to get quantity of a product in the current round
+  // Previous rounds already deducted from current_stock, so only check current round
+  const getCurrentRoundQuantity = useCallback(
     (productId) => {
-      if (!activeBill) return 0;
-
-      // Sum quantities from ALL rounds in bill (including optimistic updates)
-      const fromRounds = (activeBill.rounds || []).reduce((sum, round) => {
-        if (!round.items) return sum;
-        const item = round.items.find(
-          (i) => i.product_id === productId || i.id === productId,
-        );
-        return sum + (item?.quantity || 0);
-      }, 0);
-
-      // Add current round items
-      const fromCurrentRound =
-        currentRoundItems.find((i) => i.id === productId)?.quantity || 0;
-
-      return fromRounds + fromCurrentRound;
+      return currentRoundItems.find((i) => i.id === productId)?.quantity || 0;
     },
-    [activeBill, currentRoundItems],
+    [currentRoundItems],
   );
 
   // 🔒 Compute stock warnings for current round items
@@ -137,21 +123,21 @@ const POSScreen = () => {
       if (!product || typeof product.current_stock !== "number")
         return warnings;
 
-      const totalInBill = getTotalQuantityInBill(item.id);
-      if (totalInBill > product.current_stock) {
+      const quantityInRound = getCurrentRoundQuantity(item.id);
+      if (quantityInRound > product.current_stock) {
         warnings[item.id] = {
           message: `⚠️ Exceeds available stock (${product.current_stock})`,
           severity: "error",
         };
-      } else if (product.current_stock <= 3) {
+      } else if (product.reorder_level > 0 && product.current_stock <= product.reorder_level) {
         warnings[item.id] = {
-          message: `⚠️ Low stock (${product.current_stock} left)`,
+          message: `⚠️ Low stock (${product.current_stock} left, ROL: ${product.reorder_level})`,
           severity: "warning",
         };
       }
       return warnings;
     }, {});
-  }, [currentRoundItems, activeBill, products, getTotalQuantityInBill]);
+  }, [currentRoundItems, activeBill, products, getCurrentRoundQuantity]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -244,22 +230,17 @@ const POSScreen = () => {
         return;
       }
 
-      // 🔒 VALIDATE AGAINST ENTIRE BILL + CURRENT ROUND
+      // 🔒 VALIDATE AGAINST CURRENT STOCK (previous rounds already deducted)
       if (
         typeof product.current_stock === "number" &&
         product.current_stock >= 0
       ) {
-        const totalInBill = getTotalQuantityInBill(product.id);
-        const newTotal = totalInBill + 1;
+        const inCurrentRound = getCurrentRoundQuantity(product.id);
+        const newTotal = inCurrentRound + 1;
 
         if (newTotal > product.current_stock) {
-          const alreadyText =
-            totalInBill > 0
-              ? `\nBill already contains ${totalInBill} unit${totalInBill === 1 ? "" : "s"}`
-              : "";
-
           toast.error(
-            `Only ${product.current_stock} unit${product.current_stock === 1 ? "" : "s"} of "${product.name}" available.${alreadyText}\nCannot add more to this bill.`,
+            `Only ${product.current_stock} unit${product.current_stock === 1 ? "" : "s"} of "${product.name}" available.\nCannot add more to this round.`,
             { duration: 4000 },
           );
           return;
@@ -287,12 +268,12 @@ const POSScreen = () => {
         ]);
       }
     },
-    [activeBill, currentRoundItems, getTotalQuantityInBill],
+    [activeBill, currentRoundItems, getCurrentRoundQuantity],
   );
 
   const handleUpdateQuantity = useCallback(
     (itemId, delta) => {
-      // 🔒 VALIDATE INCREASES AGAINST ENTIRE BILL
+      // 🔒 VALIDATE INCREASES AGAINST CURRENT STOCK (previous rounds already deducted)
       if (delta > 0) {
         const product = products.find((p) => p.id === itemId);
         if (
@@ -300,12 +281,10 @@ const POSScreen = () => {
           typeof product.current_stock === "number" &&
           product.current_stock >= 0
         ) {
-          const totalInBill = getTotalQuantityInBill(itemId);
-          // Current round quantity is already included in totalInBill
-          // New total would be: totalInBill (current state) + delta
-          if (totalInBill + delta > product.current_stock) {
+          const inCurrentRound = getCurrentRoundQuantity(itemId);
+          if (inCurrentRound + delta > product.current_stock) {
             toast.error(
-              `Insufficient stock for "${product.name}".\nAvailable: ${product.current_stock} | Already in bill: ${totalInBill}`,
+              `Insufficient stock for "${product.name}".\nAvailable: ${product.current_stock}`,
               { duration: 4000 },
             );
             return;
@@ -323,7 +302,7 @@ const POSScreen = () => {
           .filter((item) => item.quantity > 0),
       );
     },
-    [products, getTotalQuantityInBill],
+    [products, getCurrentRoundQuantity],
   );
 
   const handleRemoveItem = useCallback((itemId) => {
@@ -346,8 +325,7 @@ const POSScreen = () => {
       const product = products.find((p) => p.id === item.id);
       if (!product || typeof product.current_stock !== "number") return false;
 
-      const totalInBill = getTotalQuantityInBill(item.id);
-      return totalInBill > product.current_stock;
+      return item.quantity > product.current_stock;
     });
 
     if (invalidItem) {
@@ -429,7 +407,6 @@ const POSScreen = () => {
     addRoundService,
     setBills,
     reloadBills,
-    getTotalQuantityInBill,
   ]);
 
   const handleCloseView = () => {

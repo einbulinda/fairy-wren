@@ -11,24 +11,24 @@ const InventoryAlerts = ({ data }) => {
     const stockItems = data.stockItems;
     const totalProducts = stockItems.length;
     
-    // Low stock items (below reorder point)
+    // Low stock items (below reorder level, only if ROL is set)
     const lowStockItems = stockItems
-      .filter((item) => item.current_stock <= (item.reorder_point || 10) && item.current_stock > 0)
-      .sort((a, b) => (a.current_stock / (a.reorder_point || 1)) - (b.current_stock / (b.reorder_point || 1)))
+      .filter((item) => item.reorder_level > 0 && item.current_stock <= item.reorder_level && item.current_stock > 0)
+      .sort((a, b) => (a.current_stock / a.reorder_level) - (b.current_stock / b.reorder_level))
       .slice(0, 5);
 
     // Out of stock items
     const outOfStockItems = stockItems.filter((item) => item.current_stock <= 0).slice(0, 5);
 
-    // Overstock items (excess inventory)
+    // Overstock items (excess inventory, only if ROL is set)
     const overstockItems = stockItems
-      .filter((item) => item.current_stock > (item.reorder_point || 10) * 3)
+      .filter((item) => item.reorder_level > 0 && item.current_stock > item.reorder_level * 3)
       .sort((a, b) => b.current_stock - a.current_stock)
       .slice(0, 3);
 
     // Inventory value
     const totalInventoryValue = stockItems.reduce(
-      (sum, item) => sum + item.current_stock * (item.average_cost || item.cost_price || 0),
+      (sum, item) => sum + item.current_stock * (item.cost_price || 0),
       0
     );
 
@@ -36,14 +36,14 @@ const InventoryAlerts = ({ data }) => {
     const topSellingWithTurnover = (data.topSellingProducts || [])
       .slice(0, 5)
       .map((product) => {
-        const stockItem = stockItems.find((s) => s.product_id === product.product_id);
+        const stockItem = stockItems.find((s) => s.id === product.product_id);
         const currentStock = stockItem?.current_stock || 0;
-        const avgCost = stockItem?.average_cost || stockItem?.cost_price || product.cost_price || 0;
+        const avgCost = stockItem?.cost_price || 0;
         const monthlySales = Number(product.total_quantity) || 0;
         const stockValue = currentStock * avgCost;
         const turnoverRatio = stockValue > 0 ? (monthlySales * avgCost) / stockValue : 0;
         const daysOfInventory = monthlySales > 0 ? (currentStock / monthlySales) * 30 : 0;
-        
+
         return {
           ...product,
           currentStock,
@@ -59,18 +59,15 @@ const InventoryAlerts = ({ data }) => {
       ? topSellingWithTurnover.reduce((sum, p) => sum + p.turnoverRatio, 0) / topSellingWithTurnover.length
       : 0;
 
-    // Dead stock identification (high stock, low sales)
-    const deadStockCandidates = stockItems
-      .filter((item) => item.current_stock > 20)
-      .map((item) => {
-        const sales = (data.topSellingProducts || []).find((p) => p.product_id === item.product_id);
-        return {
-          ...item,
-          monthlySales: sales ? Number(sales.total_quantity) : 0,
-          stockValue: item.current_stock * (item.average_cost || item.cost_price || 0),
-        };
-      })
-      .filter((item) => item.monthlySales < 5 && item.stockValue > 5000)
+    // Dead stock from movement analysis (server-computed)
+    const movement = data.movementAnalysis || [];
+    const deadStockCandidates = movement
+      .filter((m) => (m.movement_category === "NON_MOVING" || m.movement_category === "SLOW") && m.current_stock > 0)
+      .map((m) => ({
+        ...m,
+        name: m.product_name,
+        stockValue: Number(m.stock_value || 0),
+      }))
       .sort((a, b) => b.stockValue - a.stockValue)
       .slice(0, 3);
 
@@ -181,7 +178,7 @@ const InventoryAlerts = ({ data }) => {
             <div key={`oos-${index}`} className="flex items-center justify-between p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
               <div className="flex items-center gap-2 min-w-0">
                 <AlertTriangle size={14} className="text-red-400 shrink-0" />
-                <span className="text-xs text-surface-300 truncate">{item.product_name}</span>
+                <span className="text-xs text-surface-300 truncate">{item.name}</span>
               </div>
               <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full shrink-0">OUT</span>
             </div>
@@ -192,16 +189,16 @@ const InventoryAlerts = ({ data }) => {
             <div key={`low-${index}`} className="flex items-center justify-between p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg">
               <div className="flex items-center gap-2 min-w-0">
                 <Package size={14} className="text-orange-400 shrink-0" />
-                <span className="text-xs text-surface-300 truncate">{item.product_name}</span>
+                <span className="text-xs text-surface-300 truncate">{item.name}</span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-[10px] text-surface-500">
-                  {item.current_stock} / {item.reorder_point || 10}
+                  {item.current_stock} / {item.reorder_level}
                 </span>
                 <div className="w-12 h-1.5 bg-surface-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-orange-400 rounded-full"
-                    style={{ width: `${Math.min((item.current_stock / (item.reorder_point || 10)) * 100, 100)}%` }}
+                    style={{ width: `${Math.min((item.current_stock / item.reorder_level) * 100, 100)}%` }}
                   />
                 </div>
               </div>
@@ -282,13 +279,20 @@ const InventoryAlerts = ({ data }) => {
             <span className="text-xs font-medium text-surface-400">Dead Stock Alert</span>
           </div>
           <p className="text-xs text-surface-500 mb-2">
-            {inventory.deadStockCandidates.length} items with high stock but low sales
+            {inventory.deadStockCandidates.length} slow/non-moving items with stock on hand
           </p>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {inventory.deadStockCandidates.map((item, index) => (
-              <div key={index} className="flex items-center justify-between text-xs">
-                <span className="text-surface-400 truncate">{item.product_name}</span>
-                <span className="text-orange-400">{formatCurrency(item.stockValue)}</span>
+              <div key={index} className="flex items-center justify-between text-xs gap-2">
+                <span className="text-surface-400 truncate flex-1">{item.name}</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                  item.movement_category === "NON_MOVING"
+                    ? "bg-red-500/20 text-red-400"
+                    : "bg-orange-500/20 text-orange-400"
+                }`}>
+                  {item.days_since_last_sale >= 9999 ? "Never" : `${item.days_since_last_sale}d`}
+                </span>
+                <span className="text-orange-400 shrink-0">{formatCurrency(item.stockValue)}</span>
               </div>
             ))}
           </div>

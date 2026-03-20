@@ -53,9 +53,7 @@ const ApprovalsTab = () => {
   const pending = useMemo(
     () =>
       (all || []).filter(
-        (r) =>
-          r.approval_status === "pending" ||
-          r.approval_status === "under_review",
+        (r) => r.approval_status === "under_review",
       ),
     [all],
   );

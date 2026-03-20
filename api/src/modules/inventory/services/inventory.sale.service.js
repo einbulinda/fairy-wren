@@ -58,84 +58,14 @@ exports.assertStockAvailable = async (items) => {
 };
 
 /**
- * Validate stock availability considering items already in the bill
- * This is important when adding multiple rounds to the same bill
+ * Validate stock availability for new items being added to a bill.
+ * Only checks the NEW items against current_stock, because previous rounds
+ * have already been posted and their quantities already deducted from current_stock.
  */
 exports.assertStockAvailableForBill = async (billId, newItems) => {
-  const supabase = getSupabase();
-
-  // Get round IDs for this bill
-  const { data: rounds, error: roundsError } = await supabase
-    .from("rounds")
-    .select("id")
-    .eq("bill_id", billId);
-
-  if (roundsError) {
-    throw new Error(`FAILED_TO_CHECK_BILL_STOCK: ${roundsError.message}`);
-  }
-
-  const roundIds = (rounds || []).map((r) => r.id);
-
-  // Get all existing items in the bill
-  const { data: existingItems, error: billError } = roundIds.length > 0
-    ? await supabase
-        .from("round_items")
-        .select("product_id, quantity, products!inner(name, current_stock, track_inventory)")
-        .in("round_id", roundIds)
-    : { data: [], error: null };
-
-  if (billError) {
-    throw new Error(`FAILED_TO_CHECK_BILL_STOCK: ${billError.message}`);
-  }
-
-  // Aggregate quantities by product
-  const stockNeeded = new Map();
-
-  // Add existing items
-  for (const item of existingItems || []) {
-    const current = stockNeeded.get(item.product_id) || 0;
-    stockNeeded.set(item.product_id, current + item.quantity);
-  }
-
-  // Add new items
-  for (const item of newItems) {
-    const current = stockNeeded.get(item.id) || 0;
-    stockNeeded.set(item.id, current + item.quantity);
-  }
-
-  // Check stock for all products
-  const errors = [];
-
-  for (const [productId, totalQuantity] of stockNeeded.entries()) {
-    // Get current stock
-    const { data: product, error } = await supabase
-      .from("products")
-      .select("name, current_stock, track_inventory")
-      .eq("id", productId)
-      .single();
-
-    if (error) {
-      errors.push(`Failed to check stock for product: ${productId}`);
-      continue;
-    }
-
-    // Skip non-inventory products
-    if (!product.track_inventory) {
-      continue;
-    }
-
-    if (product.current_stock < totalQuantity) {
-      errors.push(
-        `Insufficient stock for "${product.name}": Available ${product.current_stock}, Total needed ${totalQuantity} (including items already in bill)`
-      );
-    }
-  }
-
-  if (errors.length > 0) {
-    const error = new Error("INSUFFICIENT_STOCK");
-    error.details = errors;
-    throw error;
-  }
+  // Previous rounds already deducted from current_stock via post_round_sale,
+  // so we only need to validate the new items against current stock.
+  await exports.assertStockAvailable(newItems);
 };
 
 /**

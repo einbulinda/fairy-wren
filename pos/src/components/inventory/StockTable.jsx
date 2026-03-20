@@ -11,6 +11,9 @@ import {
   ArrowDown,
 } from "lucide-react";
 
+const isLowStock = (item) =>
+  item.current_stock > 0 && item.reorder_level > 0 && item.current_stock <= item.reorder_level;
+
 const StockTable = ({ stock, loading }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({
@@ -77,14 +80,13 @@ const StockTable = ({ stock, loading }) => {
           bValue = (b.cost_price || 0) * (b.current_stock || 0);
           break;
         case "status": {
-          // Custom sorting for status
-          const getStatusValue = (stock) => {
-            if (stock === 0) return 0; // Out of stock first
-            if (stock <= 5) return 1; // Low stock second
-            return 2; // In stock last
+          const getStatusValue = (item) => {
+            if (item.current_stock <= 0) return 0;
+            if (isLowStock(item)) return 1;
+            return 2;
           };
-          aValue = getStatusValue(a.current_stock);
-          bValue = getStatusValue(b.current_stock);
+          aValue = getStatusValue(a);
+          bValue = getStatusValue(b);
           break;
         }
         default:
@@ -100,8 +102,8 @@ const StockTable = ({ stock, loading }) => {
   }, [stock, searchTerm, sortConfig]);
 
   // Get stock status
-  const getStockStatus = (currentStock) => {
-    if (currentStock === 0) {
+  const getStockStatus = (item) => {
+    if (item.current_stock <= 0) {
       return {
         icon: <XCircle size={16} />,
         text: "Out of Stock",
@@ -109,7 +111,7 @@ const StockTable = ({ stock, loading }) => {
         bgColor: "bg-red-500/10",
         borderColor: "border-red-500/30",
       };
-    } else if (currentStock <= 5) {
+    } else if (isLowStock(item)) {
       return {
         icon: <AlertTriangle size={16} />,
         text: "Low Stock",
@@ -245,7 +247,7 @@ const StockTable = ({ stock, loading }) => {
             <tbody className="divide-y divide-purple-500/10">
               {filteredAndSortedStock.length > 0 ? (
                 filteredAndSortedStock.map((item) => {
-                  const status = getStockStatus(item.current_stock);
+                  const status = getStockStatus(item);
                   const totalValue =
                     (item.cost_price || 0) * (item.current_stock || 0);
 
@@ -274,9 +276,9 @@ const StockTable = ({ stock, loading }) => {
                       <td className="px-4 py-4 text-right">
                         <span
                           className={`text-lg font-bold ${
-                            item.current_stock === 0
+                            item.current_stock <= 0
                               ? "text-red-400"
-                              : item.current_stock <= 5
+                              : isLowStock(item)
                               ? "text-orange-400"
                               : "text-green-400"
                           }`}
@@ -331,7 +333,7 @@ const StockTable = ({ stock, loading }) => {
         <div className="md:hidden divide-y divide-purple-500/10">
           {filteredAndSortedStock.length > 0 ? (
             filteredAndSortedStock.map((item) => {
-              const status = getStockStatus(item.current_stock);
+              const status = getStockStatus(item);
               const totalValue =
                 (item.cost_price || 0) * (item.current_stock || 0);
 
@@ -371,7 +373,7 @@ const StockTable = ({ stock, loading }) => {
                         className={`text-lg font-bold ${
                           item.current_stock === 0
                             ? "text-red-400"
-                            : item.current_stock <= 5
+                            : isLowStock(item)
                             ? "text-orange-400"
                             : "text-green-400"
                         }`}

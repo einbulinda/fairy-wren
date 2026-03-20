@@ -123,7 +123,7 @@ const OverviewTab = ({ product, metrics }) => {
           color={
             metrics?.current_stock === 0
               ? "red"
-              : metrics?.current_stock <= 5
+              : product?.reorder_level > 0 && metrics?.current_stock <= product.reorder_level
                 ? "yellow"
                 : "green"
           }

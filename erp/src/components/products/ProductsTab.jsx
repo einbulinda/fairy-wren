@@ -31,6 +31,8 @@ const EMPTY_PRODUCT = {
   category_id: "",
   unit: "bottle",
   track_inventory: true,
+  reorder_level: "",
+  volume_ml: "",
 };
 
 const PAGE_SIZE = 10;
@@ -127,6 +129,8 @@ const ProductsTab = () => {
       category_id: p.category_id,
       unit: p.unit || "bottle",
       track_inventory: p.track_inventory ?? true,
+      reorder_level: p.reorder_level ?? "",
+      volume_ml: p.volume_ml ?? "",
     });
     setFormOpen(true);
   };
@@ -137,6 +141,9 @@ const ProductsTab = () => {
       ...form,
       price: parseFloat(form.price),
       cost_price: form.cost_price ? parseFloat(form.cost_price) : null,
+      reorder_level:
+        form.reorder_level !== "" ? parseFloat(form.reorder_level) : 0,
+      volume_ml: form.volume_ml !== "" ? parseFloat(form.volume_ml) : null,
     };
     try {
       if (editTarget) {
@@ -528,6 +535,41 @@ const ProductsTab = () => {
                   ))}
                 </select>
               </div>
+              {["bottle", "can", "glass", "tot"].includes(form.unit) && (
+                <div>
+                  <label className="block text-xs text-surface-400 mb-1">
+                    Volume (ml)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={form.volume_ml}
+                    onChange={(e) =>
+                      setForm({ ...form, volume_ml: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="e.g. 750 for a bottle"
+                  />
+                </div>
+              )}
+              {form.track_inventory && (
+                <div>
+                  <label className="block text-xs text-surface-400 mb-1">
+                    Reorder Level
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.reorder_level}
+                    onChange={(e) =>
+                      setForm({ ...form, reorder_level: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="Min stock before low alert"
+                  />
+                </div>
+              )}
               <label className="flex items-center gap-2 text-sm text-surface-300 cursor-pointer">
                 <input
                   type="checkbox"

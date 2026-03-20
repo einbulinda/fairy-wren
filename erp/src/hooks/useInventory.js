@@ -15,6 +15,18 @@ import {
   fetchStockTakeAdjustments,
   fetchReceiptDetail,
   markReceiptPaid,
+  fetchReorderPolicies,
+  fetchReorderAlerts,
+  fetchReorderSettings,
+  updateReorderSettings,
+  triggerReorderRefresh,
+  setManualReorderLevel,
+  clearReorderOverride,
+  fetchMovementAnalysis,
+  fetchConvertibleProducts,
+  fetchConversionHistory,
+  fetchTotSize,
+  executeConversion,
 } from "@/services/inventory.service";
 
 export const useStockItems = (params = {}) => {
@@ -182,6 +194,145 @@ export const useMarkReceiptPaid = () => {
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to mark as paid");
+    },
+  });
+};
+
+/* ======================================================
+   REORDER LEVEL POLICIES
+   ====================================================== */
+
+export const useReorderPolicies = () => {
+  return useQuery({
+    queryKey: ["reorder-policies"],
+    queryFn: fetchReorderPolicies,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useMovementAnalysis = () => {
+  return useQuery({
+    queryKey: ["movement-analysis"],
+    queryFn: fetchMovementAnalysis,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useReorderAlerts = () => {
+  return useQuery({
+    queryKey: ["reorder-alerts"],
+    queryFn: fetchReorderAlerts,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useReorderSettings = () => {
+  return useQuery({
+    queryKey: ["reorder-settings"],
+    queryFn: fetchReorderSettings,
+    staleTime: 10 * 60 * 1000,
+  });
+};
+
+export const useUpdateReorderSettings = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateReorderSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reorder-settings"] });
+      toast.success("Reorder settings saved");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to update settings");
+    },
+  });
+};
+
+export const useRefreshReorderLevels = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: triggerReorderRefresh,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["reorder-policies"] });
+      queryClient.invalidateQueries({ queryKey: ["reorder-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-items"] });
+      toast.success(`Reorder levels recalculated for ${data} products`);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to refresh reorder levels");
+    },
+  });
+};
+
+export const useSetManualReorderLevel = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: setManualReorderLevel,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reorder-policies"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-items"] });
+      toast.success("Manual reorder level set");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to set reorder level");
+    },
+  });
+};
+
+export const useClearReorderOverride = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: clearReorderOverride,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reorder-policies"] });
+      toast.success("Override cleared — will recalculate on next refresh");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to clear override");
+    },
+  });
+};
+
+/* ======================================================
+   PRODUCT CONVERSIONS
+   ====================================================== */
+
+export const useConvertibleProducts = () => {
+  return useQuery({
+    queryKey: ["convertible-products"],
+    queryFn: fetchConvertibleProducts,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useConversionHistory = () => {
+  return useQuery({
+    queryKey: ["conversion-history"],
+    queryFn: fetchConversionHistory,
+    staleTime: 60 * 1000,
+  });
+};
+
+export const useTotSize = () => {
+  return useQuery({
+    queryKey: ["tot-size"],
+    queryFn: fetchTotSize,
+    staleTime: 10 * 60 * 1000,
+  });
+};
+
+export const useExecuteConversion = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: executeConversion,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stock-items"] });
+      queryClient.invalidateQueries({ queryKey: ["convertible-products"] });
+      queryClient.invalidateQueries({ queryKey: ["conversion-history"] });
+      toast.success("Product converted successfully");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to convert product");
     },
   });
 };

@@ -21,6 +21,7 @@ import {
   Clock,
   PanelLeftClose,
   PanelLeftOpen,
+  Repeat,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -41,6 +42,7 @@ const navSections = [
         label: "Inventory",
         children: [
           { to: "/inventory", end: true, icon: Package, label: "Stock Levels" },
+          { to: "/inventory/conversions", icon: Repeat, label: "Conversions" },
           { to: "/inventory/reports", icon: BarChart2, label: "Reports" },
           { to: "/inventory/approvals", icon: ClipboardCheck, label: "Approvals" },
         ],

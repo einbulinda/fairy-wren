@@ -64,4 +64,45 @@ router.get("/reports/stock-take/:id", controller.getStockTakeDetail);
    ====================================================== */
 router.get("/ledger", controller.getInventoryLedger);
 
+/* ======================================================
+   REORDER LEVEL POLICIES
+   ====================================================== */
+router.get("/reorder-policies", controller.getReorderPolicies);
+router.get("/movement-analysis", controller.getMovementAnalysis);
+router.get("/reorder-alerts", controller.getReorderAlerts);
+router.get("/reorder-settings", controller.getReorderSettings);
+router.patch(
+  "/reorder-settings",
+  requireRole("director", "owner"),
+  controller.updateReorderSettings,
+);
+router.post(
+  "/reorder-refresh",
+  requireRole("director", "owner"),
+  controller.triggerReorderRefresh,
+);
+router.get("/reorder-policies/:productId", controller.getReorderPolicy);
+router.post(
+  "/reorder-policies/:productId/override",
+  requireRole("director", "owner"),
+  controller.setManualReorderLevel,
+);
+router.delete(
+  "/reorder-policies/:productId/override",
+  requireRole("director", "owner"),
+  controller.clearReorderOverride,
+);
+
+/* ======================================================
+   PRODUCT CONVERSIONS
+   ====================================================== */
+router.get("/conversions/products", controller.getConvertibleProducts);
+router.get("/conversions/tot-size", controller.getTotSize);
+router.get("/conversions/history", controller.getConversionHistory);
+router.post(
+  "/conversions",
+  requireRole("director", "owner"),
+  controller.executeConversion,
+);
+
 module.exports = router;

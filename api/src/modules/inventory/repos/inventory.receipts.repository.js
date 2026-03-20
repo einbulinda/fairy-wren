@@ -20,9 +20,10 @@ exports.receiveInventory = async (payload, userId) => {
   });
 
   if (error) {
+    console.error("receive_inventory RPC error:", error);
     throw new Error("FAILED_TO_RECEIVE_INVENTORY");
   }
-  return data;
+  return { data, error: null };
 };
 
 /* ---------- RECEIPT DETAIL (READ) ---------- */

@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Search,
+  X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useStockTakeDetail } from "@/hooks/useInventory";
@@ -83,6 +85,7 @@ const ReportDetailView = ({ id }) => {
   const [sortCol, setSortCol] = useState("variance_abs");
   const [sortDir, setSortDir] = useState("desc");
   const [itemPage, setItemPage] = useState(1);
+  const [itemSearch, setItemSearch] = useState("");
 
   const items = useMemo(
     () => report?.stock_take_items || [],
@@ -173,8 +176,18 @@ const ReportDetailView = ({ id }) => {
     setItemPage(1);
   };
 
+  const filteredItems = useMemo(() => {
+    if (!itemSearch) return items;
+    const term = itemSearch.toLowerCase();
+    return items.filter(
+      (i) =>
+        (i.products?.name || "").toLowerCase().includes(term) ||
+        (i.reason || "").replace(/_/g, " ").toLowerCase().includes(term),
+    );
+  }, [items, itemSearch]);
+
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
+    return [...filteredItems].sort((a, b) => {
       let av, bv;
       switch (sortCol) {
         case "name":
@@ -210,7 +223,7 @@ const ReportDetailView = ({ id }) => {
         return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
       return sortDir === "asc" ? av - bv : bv - av;
     });
-  }, [items, sortCol, sortDir]);
+  }, [filteredItems, sortCol, sortDir]);
 
   const totalItemPages = Math.max(1, Math.ceil(sortedItems.length / PAGE_SIZE));
   const safeItemPage = Math.min(itemPage, totalItemPages);
@@ -357,11 +370,31 @@ const ReportDetailView = ({ id }) => {
 
       {/* Items Table */}
       <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
-        <div className="px-5 py-4 border-b border-surface-700">
-          <h3 className="font-semibold text-white text-sm">Item Breakdown</h3>
-          <p className="text-xs text-surface-500 mt-0.5">
-            {total} items · click a column header to sort
-          </p>
+        <div className="px-5 py-4 border-b border-surface-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-white text-sm">Item Breakdown</h3>
+            <p className="text-xs text-surface-500 mt-0.5">
+              {itemSearch ? `${sortedItems.length} of ${total}` : total} items · click a column header to sort
+            </p>
+          </div>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search products…"
+              value={itemSearch}
+              onChange={(e) => { setItemSearch(e.target.value); setItemPage(1); }}
+              className="w-full sm:w-56 pl-8 pr-8 py-2 rounded-lg bg-surface-900 border border-surface-600 text-white placeholder-surface-500 text-sm focus:outline-none focus:border-primary-500 transition-colors"
+            />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500" />
+            {itemSearch && (
+              <button
+                onClick={() => setItemSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         {sortedItems.length === 0 ? (

@@ -25,6 +25,7 @@ import {
   Shield,
   BarChart3,
   UserCircle,
+  Package,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -48,6 +49,14 @@ import {
   useUpdateSystemRole,
   useDeleteSystemRole,
 } from "@/hooks/useSystemRoles";
+import {
+  useReorderPolicies,
+  useReorderSettings,
+  useUpdateReorderSettings,
+  useRefreshReorderLevels,
+  useSetManualReorderLevel,
+  useClearReorderOverride,
+} from "@/hooks/useInventory";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { inputCls } from "@/utils/constants";
 
@@ -1281,6 +1290,7 @@ const TABS = [
   { key: "staff-targets", label: "Staff Targets", icon: UserCircle },
   { key: "account-classes", label: "Account Classes", icon: BookOpen },
   { key: "system-roles", label: "System Roles", icon: Shield },
+  { key: "inventory-policies", label: "Inventory Policies", icon: Package },
 ];
 
 const SettingsPage = () => {
@@ -1327,6 +1337,447 @@ const SettingsPage = () => {
         {activeTab === "staff-targets" && <StaffTargetsTab />}
         {activeTab === "account-classes" && <AccountClassesTab />}
         {activeTab === "system-roles" && <SystemRolesTab />}
+        {activeTab === "inventory-policies" && <InventoryPoliciesTab />}
+      </div>
+    </div>
+  );
+};
+
+/* ======================================================
+   INVENTORY POLICIES TAB
+   ====================================================== */
+
+const SERVICE_LEVEL_OPTIONS = [
+  { value: 0.90, label: "90% — Basic" },
+  { value: 0.95, label: "95% — Standard" },
+  { value: 0.975, label: "97.5% — High" },
+  { value: 0.99, label: "99% — Premium" },
+];
+
+const formatNum = (v, decimals = 1) => {
+  if (v == null || isNaN(v)) return "—";
+  return Number(v).toFixed(decimals);
+};
+
+const InventoryPoliciesTab = () => {
+  const { data: policies = [], isLoading: policiesLoading } = useReorderPolicies();
+  const { data: settings, isLoading: settingsLoading } = useReorderSettings();
+  const updateSettings = useUpdateReorderSettings();
+  const refreshLevels = useRefreshReorderLevels();
+  const setManual = useSetManualReorderLevel();
+  const clearOverride = useClearReorderOverride();
+
+  const [form, setForm] = useState({});
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState("");
+
+  // Sync settings form
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        default_service_level: settings.default_service_level ?? 0.95,
+        default_lookback_days: settings.default_lookback_days ?? 90,
+        default_lead_time_days: settings.default_lead_time_days ?? 3,
+        default_reorder_level: settings.default_reorder_level ?? 5,
+        auto_refresh_enabled: settings.auto_refresh_enabled ?? true,
+        fast_moving_days: settings.fast_moving_days ?? 30,
+        slow_moving_days: settings.slow_moving_days ?? 90,
+        default_tot_size_ml: settings.default_tot_size_ml ?? 30,
+      });
+    }
+  }, [settings]);
+
+  const handleSaveSettings = () => {
+    updateSettings.mutate(form);
+  };
+
+  const handleStartOverride = (policy) => {
+    setEditingId(policy.product_id);
+    setEditValue(String(policy.reorder_level || 0));
+  };
+
+  const handleSaveOverride = (productId) => {
+    setManual.mutate(
+      { productId, reorder_level: Number(editValue) },
+      { onSuccess: () => setEditingId(null) },
+    );
+  };
+
+  const handleClearOverride = (productId) => {
+    clearOverride.mutate(productId);
+  };
+
+  if (settingsLoading || policiesLoading) return <LoadingSpinner />;
+
+  return (
+    <div className="space-y-6">
+      {/* Global Configuration */}
+      <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-primary-500/15 rounded-lg">
+              <Target size={16} className="text-primary-400" />
+            </div>
+            <h2 className="font-semibold text-white">ROL Configuration</h2>
+          </div>
+          <button
+            onClick={() => refreshLevels.mutate()}
+            disabled={refreshLevels.isPending}
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={refreshLevels.isPending ? "animate-spin" : ""} />
+            {refreshLevels.isPending ? "Calculating..." : "Recalculate All"}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs text-surface-400 font-medium">Service Level</label>
+            <select
+              className={inputCls}
+              value={form.default_service_level ?? 0.95}
+              onChange={(e) => setForm((f) => ({ ...f, default_service_level: Number(e.target.value) }))}
+            >
+              {SERVICE_LEVEL_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-surface-500">Higher = more safety stock</p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-surface-400 font-medium">Lookback Period (days)</label>
+            <input
+              type="number"
+              min="7"
+              max="365"
+              className={inputCls}
+              value={form.default_lookback_days ?? 90}
+              onChange={(e) => setForm((f) => ({ ...f, default_lookback_days: Number(e.target.value) }))}
+            />
+            <p className="text-[10px] text-surface-500">Days of sales history to analyse</p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-surface-400 font-medium">Default Lead Time (days)</label>
+            <input
+              type="number"
+              min="1"
+              max="90"
+              className={inputCls}
+              value={form.default_lead_time_days ?? 3}
+              onChange={(e) => setForm((f) => ({ ...f, default_lead_time_days: Number(e.target.value) }))}
+            />
+            <p className="text-[10px] text-surface-500">Used when supplier has no lead time set</p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-surface-400 font-medium">Default ROL (new products)</label>
+            <input
+              type="number"
+              min="0"
+              className={inputCls}
+              value={form.default_reorder_level ?? 5}
+              onChange={(e) => setForm((f) => ({ ...f, default_reorder_level: Number(e.target.value) }))}
+            />
+            <p className="text-[10px] text-surface-500">Fallback for products with no sales data</p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-surface-400 font-medium">Auto-Refresh</label>
+            <label className="flex items-center gap-2 mt-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.auto_refresh_enabled ?? true}
+                onChange={(e) => setForm((f) => ({ ...f, auto_refresh_enabled: e.target.checked }))}
+                className="accent-primary-500"
+              />
+              <span className="text-sm text-surface-300">Daily at 2:00 AM</span>
+            </label>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={handleSaveSettings}
+              disabled={updateSettings.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              <Save size={14} />
+              {updateSettings.isPending ? "Saving..." : "Save Settings"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Movement Classification */}
+      <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-1.5 bg-orange-500/15 rounded-lg">
+            <Package size={16} className="text-orange-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">Stock Movement Classification</h2>
+            <p className="text-[10px] text-surface-500 mt-0.5">
+              Products are classified based on days since last sale
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs text-surface-400 font-medium">Fast Moving (≤ days)</label>
+            <input
+              type="number"
+              min="1"
+              max="365"
+              className={inputCls}
+              value={form.fast_moving_days ?? 30}
+              onChange={(e) => setForm((f) => ({ ...f, fast_moving_days: Number(e.target.value) }))}
+            />
+            <p className="text-[10px] text-surface-500">Last sale within this many days → <span className="text-green-400">FAST</span></p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-surface-400 font-medium">Slow Moving (≤ days)</label>
+            <input
+              type="number"
+              min="1"
+              max="730"
+              className={inputCls}
+              value={form.slow_moving_days ?? 90}
+              onChange={(e) => setForm((f) => ({ ...f, slow_moving_days: Number(e.target.value) }))}
+            />
+            <p className="text-[10px] text-surface-500">Last sale within this many days → <span className="text-orange-400">SLOW</span></p>
+          </div>
+
+          <div className="bg-surface-800/30 rounded-lg p-3 border border-surface-700">
+            <p className="text-xs text-surface-400 font-medium mb-2">Classification Rules</p>
+            <div className="space-y-1.5 text-[10px]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                <span className="text-surface-300">FAST — last sale ≤ {form.fast_moving_days ?? 30} days</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+                <span className="text-surface-300">SLOW — last sale ≤ {form.slow_moving_days ?? 90} days</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
+                <span className="text-surface-300">NON_MOVING — last sale &gt; {form.slow_moving_days ?? 90} days or never</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <button
+            onClick={handleSaveSettings}
+            disabled={updateSettings.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            <Save size={14} />
+            {updateSettings.isPending ? "Saving..." : "Save Settings"}
+          </button>
+        </div>
+      </div>
+
+      {/* Tot Size Setting */}
+      <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-1.5 bg-blue-500/15 rounded-lg">
+            <Package size={16} className="text-blue-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">Product Conversions</h2>
+            <p className="text-[10px] text-surface-500 mt-0.5">
+              Settings for converting bulk products into smaller units (e.g. bottles → tots)
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs text-surface-400 font-medium">Default Tot Size (ml)</label>
+            <select
+              className={inputCls}
+              value={form.default_tot_size_ml ?? 30}
+              onChange={(e) => setForm((f) => ({ ...f, default_tot_size_ml: Number(e.target.value) }))}
+            >
+              <option value={25}>25ml</option>
+              <option value={30}>30ml</option>
+            </select>
+            <p className="text-[10px] text-surface-500">Standard tot measure used for spirit conversions</p>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={handleSaveSettings}
+              disabled={updateSettings.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              <Save size={14} />
+              {updateSettings.isPending ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Policies Table */}
+      <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-surface-700 flex items-center justify-between">
+          <h2 className="font-semibold text-white">Product Reorder Policies</h2>
+          <span className="text-xs text-surface-400">{policies.length} products</span>
+        </div>
+
+        {policies.length === 0 ? (
+          <div className="py-12 text-center text-surface-500">
+            <Package size={32} className="mx-auto mb-2 text-surface-700" />
+            <p>No policies calculated yet. Click &quot;Recalculate All&quot; to generate.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-700 bg-surface-800/30">
+                  <th className="text-left px-4 py-3 text-surface-400 font-medium">Product</th>
+                  <th className="text-right px-4 py-3 text-surface-400 font-medium">Avg Demand/day</th>
+                  <th className="text-right px-4 py-3 text-surface-400 font-medium">Lead Time</th>
+                  <th className="text-right px-4 py-3 text-surface-400 font-medium">Safety Stock</th>
+                  <th className="text-right px-4 py-3 text-surface-400 font-medium">ROL</th>
+                  <th className="text-right px-4 py-3 text-surface-400 font-medium">Current Stock</th>
+                  <th className="text-center px-4 py-3 text-surface-400 font-medium">Source</th>
+                  <th className="text-center px-4 py-3 text-surface-400 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-700/40">
+                {policies.map((p) => {
+                  const product = p.products;
+                  const supplier = p.suppliers;
+                  const stock = product?.current_stock ?? 0;
+                  const isLow = stock > 0 && stock <= p.reorder_level;
+                  const isOut = stock <= 0;
+
+                  return (
+                    <tr key={p.id} className="hover:bg-surface-700/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-white">{product?.name || "Unknown"}</p>
+                        {supplier && (
+                          <p className="text-[10px] text-surface-500">Supplier: {supplier.name}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-surface-300">
+                        {formatNum(p.avg_daily_demand)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-surface-300">
+                        {formatNum(p.lead_time_days, 0)}d
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-surface-300">
+                        {formatNum(p.safety_stock)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {editingId === p.product_id ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              className="w-16 px-1.5 py-1 bg-surface-900 border border-surface-600 rounded text-white text-xs text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleSaveOverride(p.product_id)}
+                              disabled={setManual.isPending}
+                              className="p-1 text-green-400 hover:bg-surface-700 rounded"
+                            >
+                              <Check size={12} />
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="p-1 text-surface-400 hover:bg-surface-700 rounded"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="font-mono font-semibold text-white">
+                            {formatNum(p.reorder_level, 0)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span
+                          className={`font-mono font-semibold ${
+                            isOut ? "text-red-400" : isLow ? "text-orange-400" : "text-green-400"
+                          }`}
+                        >
+                          {stock}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            p.source === "manual"
+                              ? "bg-blue-500/15 text-blue-400"
+                              : p.source === "default"
+                                ? "bg-surface-700 text-surface-400"
+                                : "bg-green-500/15 text-green-400"
+                          }`}
+                        >
+                          {p.source}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {editingId !== p.product_id && (
+                            <button
+                              onClick={() => handleStartOverride(p)}
+                              className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors"
+                              title="Set manual override"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          )}
+                          {p.manual_override && (
+                            <button
+                              onClick={() => handleClearOverride(p.product_id)}
+                              disabled={clearOverride.isPending}
+                              className="p-1.5 text-orange-400 hover:text-orange-300 hover:bg-surface-700 rounded-lg transition-colors"
+                              title="Clear override (return to auto-calculated)"
+                            >
+                              <RefreshCw size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Formula explanation */}
+      <div className="bg-surface-800/30 border border-surface-700 rounded-xl p-4">
+        <div className="flex items-start gap-2">
+          <Info size={14} className="text-primary-400 mt-0.5 shrink-0" />
+          <div className="text-xs text-surface-400 space-y-1">
+            <p className="font-medium text-surface-300">How Reorder Levels are Calculated</p>
+            <p>
+              <strong>ROL</strong> = (Avg Daily Demand x Lead Time) + Safety Stock
+            </p>
+            <p>
+              <strong>Safety Stock</strong> = Z-score x Demand Std Dev x sqrt(Lead Time)
+            </p>
+            <p>
+              Demand is calculated from completed sales over the lookback period.
+              Lead time comes from the supplier&apos;s configured lead time.
+              Products with no sales history use the default ROL.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

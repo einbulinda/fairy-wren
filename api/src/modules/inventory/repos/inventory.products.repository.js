@@ -14,7 +14,8 @@ exports.getTrackedStock = async () => {
           cost_price,
           category_id,
           categories!products_category_id_fkey(name),
-          current_stock
+          current_stock,
+          reorder_level
         `,
     )
     .eq("track_inventory", true)

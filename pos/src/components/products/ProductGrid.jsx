@@ -2,7 +2,9 @@ import React from "react";
 import { Package, AlertTriangle } from "lucide-react";
 
 const ProductGrid = ({ products, onProductClick, disabled }) => {
-  const getStockStatus = (stock) => {
+  const getStockStatus = (product) => {
+    const stock = product.current_stock;
+    const isLow = product.reorder_level > 0 && stock > 0 && stock <= product.reorder_level;
     if (stock === 0)
       return {
         color: "text-red-500",
@@ -10,19 +12,12 @@ const ProductGrid = ({ products, onProductClick, disabled }) => {
         label: "Out of stock",
         icon: true,
       };
-    if (stock <= 5)
+    if (isLow)
       return {
         color: "text-orange-500",
         bg: "bg-orange-500/10",
         label: `Low: ${stock}`,
         icon: true,
-      };
-    if (stock <= 20)
-      return {
-        color: "text-yellow-500",
-        bg: "bg-yellow-500/10",
-        label: `Stock: ${stock}`,
-        icon: false,
       };
     return {
       color: "text-green-500",
@@ -35,7 +30,7 @@ const ProductGrid = ({ products, onProductClick, disabled }) => {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
       {products.map((product) => {
-        const stockStatus = getStockStatus(product.current_stock);
+        const stockStatus = getStockStatus(product);
         const isOutOfStock = product.current_stock === 0;
 
         return (

@@ -5,7 +5,6 @@ const repo = require("./targets.repository");
 // ==========================================
 
 exports.getBusinessTarget = async (year, month) => {
-  console.log("Fetching business target for year:", year, "month:", month);
   const { data, error } = await repo.getBusinessTarget(year, month);
 
   if (error && error.code !== "PGRST116") {

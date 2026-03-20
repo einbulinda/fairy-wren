@@ -58,9 +58,14 @@ const StockTab = ({ items, isLoading, onRefresh }) => {
         av = (a.cost_price ?? 0) * (a.current_stock ?? 0);
         bv = (b.cost_price ?? 0) * (b.current_stock ?? 0);
       } else if (sortCol === "status") {
-        const rank = (s) => (s === 0 ? 0 : s <= 5 ? 1 : 2);
-        av = rank(a.current_stock ?? 0);
-        bv = rank(b.current_stock ?? 0);
+        const rank = (item) => {
+          const stock = item.current_stock ?? 0;
+          if (stock <= 0) return 0;
+          if (stock <= (item.reorder_level || 0)) return 1;
+          return 2;
+        };
+        av = rank(a);
+        bv = rank(b);
       } else {
         return 0;
       }
@@ -74,9 +79,9 @@ const StockTab = ({ items, isLoading, onRefresh }) => {
   const paginated = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const low = items?.filter(
-    (i) => i.current_stock > 0 && i.current_stock <= 5,
+    (i) => i.current_stock > 0 && i.reorder_level > 0 && i.current_stock <= i.reorder_level,
   ).length;
-  const out = items?.filter((i) => i.current_stock === 0).length;
+  const out = items?.filter((i) => i.current_stock <= 0).length;
 
   const thCls =
     "px-4 py-3 text-left cursor-pointer select-none hover:text-white transition-colors";
@@ -87,7 +92,7 @@ const StockTab = ({ items, isLoading, onRefresh }) => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "Total SKUs", value: items.length, color: "primary" },
-          { label: "Low Stock (≤5)", value: low, color: "yellow" },
+          { label: "Low Stock", value: low, color: "yellow" },
           { label: "Out of Stock", value: out, color: "red" },
           {
             label: "Total Value",
@@ -178,6 +183,9 @@ const StockTab = ({ items, isLoading, onRefresh }) => {
                   Value <SortIcon col="value" sortCol={sortCol} sortDir={sortDir} />
                 </span>
               </th>
+              <th className={thCls + " text-right"}>
+                <span className="flex items-center justify-end gap-1">ROL</span>
+              </th>
               <th
                 className={thCls + " text-center"}
                 onClick={() => handleSort("status")}
@@ -191,22 +199,23 @@ const StockTab = ({ items, isLoading, onRefresh }) => {
           <tbody className="divide-y divide-surface-700">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-surface-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-surface-400">
                   Loading…
                 </td>
               </tr>
             ) : paginated.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-surface-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-surface-400">
                   No items found
                 </td>
               </tr>
             ) : (
               paginated.map((item) => {
+                const reorderLevel = item.reorder_level || 0;
                 const stockStatus =
-                  item.current_stock === 0
+                  item.current_stock <= 0
                     ? "out"
-                    : item.current_stock <= 5
+                    : item.current_stock <= reorderLevel
                       ? "low"
                       : "ok";
                 return (
@@ -231,6 +240,9 @@ const StockTab = ({ items, isLoading, onRefresh }) => {
                       {(
                         (item.cost_price || 0) * item.current_stock
                       ).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-surface-400">
+                      {item.reorder_level > 0 ? item.reorder_level : "—"}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span

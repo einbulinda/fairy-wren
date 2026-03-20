@@ -88,8 +88,14 @@ const DashboardPage = () => {
   // Inventory alerts count
   const stockItems = metrics.stockItems || [];
   const outOfStock = stockItems.filter((s) => s.current_stock <= 0).length;
-  const lowStock = stockItems.filter((s) => s.current_stock > 0 && s.current_stock <= (s.reorder_point || 10)).length;
+  const lowStock = stockItems.filter((s) => s.current_stock > 0 && s.reorder_level > 0 && s.current_stock <= s.reorder_level).length;
   
+  // Dead / slow stock from movement analysis
+  const movementData = metrics.movementAnalysis || [];
+  const deadStockCount = movementData.filter(
+    (m) => (m.movement_category === "NON_MOVING" || m.movement_category === "SLOW") && m.current_stock > 0,
+  ).length;
+
   // Critical bills
   const criticalBills = (metrics.outstandingBills || []).filter((b) => {
     const days = Math.ceil((new Date() - new Date(b.created_at)) / (1000 * 60 * 60 * 24));
@@ -301,17 +307,23 @@ const DashboardPage = () => {
           </button>
         )}
 
-        {/* Dead Stock - Always show if inventory exists */}
-        <button 
+        {/* Dead Stock - Show with count from movement analysis */}
+        <button
           onClick={() => openModal("dead-stock")}
-          className="flex items-center justify-center gap-2 p-3 bg-surface-800/50 border border-surface-700 rounded-xl hover:bg-surface-700/50 transition-colors group"
+          className={`flex items-center justify-center gap-2 p-3 rounded-xl transition-colors group border ${
+            deadStockCount > 0
+              ? "bg-orange-500/20 border-orange-500/40 hover:bg-orange-500/30"
+              : "bg-surface-800/50 border-surface-700 hover:bg-surface-700/50"
+          }`}
         >
           <Package size={16} className="text-orange-400" />
           <div className="text-left">
-            <p className="text-xs font-semibold text-white">Dead Stock</p>
-            <p className="text-[10px] text-surface-500">View clearance list</p>
+            <p className={`text-xs font-semibold ${deadStockCount > 0 ? "text-orange-400" : "text-white"}`}>Dead Stock</p>
+            <p className="text-[10px] text-surface-500">
+              {deadStockCount > 0 ? `${deadStockCount} slow/non-moving` : "All stock healthy"}
+            </p>
           </div>
-          <ArrowUpRight size={14} className="text-surface-400 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
+          <ArrowUpRight size={14} className={`${deadStockCount > 0 ? "text-orange-400" : "text-surface-400"} opacity-0 group-hover:opacity-100 transition-opacity ml-auto`} />
         </button>
       </div>
 
@@ -455,7 +467,7 @@ const DashboardPage = () => {
         </div>
         <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-emerald-400">
-            {stockItems.length > 0 ? ((stockItems.filter(s => s.current_stock > (s.reorder_point || 10) * 2).length / stockItems.length) * 100).toFixed(0) : 0}%
+            {stockItems.length > 0 ? ((stockItems.filter(s => s.reorder_level > 0 && s.current_stock > s.reorder_level * 2).length / stockItems.length) * 100).toFixed(0) : 0}%
           </p>
           <p className="text-[10px] text-surface-500">Well Stocked</p>
         </div>

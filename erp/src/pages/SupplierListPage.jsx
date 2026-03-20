@@ -29,6 +29,7 @@ const EMPTY_FORM = {
   phone: "",
   email: "",
   address: "",
+  lead_time_days: "",
 };
 
 const SupplierListPage = () => {
@@ -82,6 +83,7 @@ const SupplierListPage = () => {
       phone: supplier.phone || "",
       email: supplier.email || "",
       address: supplier.address || "",
+      lead_time_days: supplier.lead_time_days ?? "",
     });
     setFormOpen(true);
   };
@@ -396,6 +398,25 @@ const SupplierListPage = () => {
                   placeholder="Physical address"
                   rows={2}
                   className="w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-surface-400 font-medium">
+                  Lead Time (days)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="90"
+                  value={form.lead_time_days}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      lead_time_days: e.target.value,
+                    }))
+                  }
+                  placeholder="Avg days from order to delivery"
+                  className={inputCls}
                 />
               </div>
               <div className="flex gap-3 pt-1">

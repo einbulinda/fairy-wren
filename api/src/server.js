@@ -21,4 +21,8 @@ process.on("uncaughtException", (err) => {
 
 app.listen(PORT, () => {
   logger.info(`Server running on PORT ${PORT}`);
+
+  // Start reorder level scheduler
+  const reorderScheduler = require("./modules/inventory/services/inventory.scheduler");
+  reorderScheduler.start();
 });

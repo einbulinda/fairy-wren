@@ -301,6 +301,88 @@ const ERROR_MAP = {
     message: "Failed to fetch inventory ledger",
   },
 
+  /* ---------------- REORDER LEVEL POLICIES ---------------- */
+
+  FAILED_TO_FETCH_REORDER_POLICIES: {
+    status: 500,
+    message: "Failed to fetch reorder policies",
+  },
+  FAILED_TO_SET_MANUAL_OVERRIDE: {
+    status: 500,
+    message: "Failed to set manual reorder level",
+  },
+  FAILED_TO_CLEAR_OVERRIDE: {
+    status: 500,
+    message: "Failed to clear reorder override",
+  },
+  FAILED_TO_FETCH_REORDER_SETTINGS: {
+    status: 500,
+    message: "Failed to fetch reorder settings",
+  },
+  FAILED_TO_UPDATE_REORDER_SETTINGS: {
+    status: 500,
+    message: "Failed to update reorder settings",
+  },
+  FAILED_TO_REFRESH_REORDER_LEVELS: {
+    status: 500,
+    message: "Failed to refresh reorder levels",
+  },
+  FAILED_TO_FETCH_REORDER_ALERTS: {
+    status: 500,
+    message: "Failed to fetch reorder alerts",
+  },
+  FAILED_TO_FETCH_MOVEMENT_ANALYSIS: {
+    status: 500,
+    message: "Failed to fetch product movement analysis",
+  },
+  INVALID_MOVEMENT_DAYS: {
+    status: 400,
+    message: "Movement threshold days must be a positive number",
+  },
+  /* ---------------- PRODUCT CONVERSIONS ---------------- */
+
+  CONVERSION_PRODUCTS_REQUIRED: {
+    status: 400,
+    message: "Source and target products are required",
+  },
+  CONVERSION_SAME_PRODUCT: {
+    status: 400,
+    message: "Source and target must be different products",
+  },
+  INVALID_CONVERSION_QTY: {
+    status: 400,
+    message: "Conversion quantities must be greater than zero",
+  },
+  FAILED_TO_EXECUTE_CONVERSION: {
+    status: 500,
+    message: "Failed to execute product conversion",
+  },
+  FAILED_TO_FETCH_CONVERSIONS: {
+    status: 500,
+    message: "Failed to fetch conversion history",
+  },
+  FAILED_TO_FETCH_CONVERTIBLE_PRODUCTS: {
+    status: 500,
+    message: "Failed to fetch convertible products",
+  },
+
+  INVALID_REORDER_LEVEL: {
+    status: 400,
+    message: "Reorder level must be a non-negative number",
+  },
+  INVALID_SERVICE_LEVEL: {
+    status: 400,
+    message: "Service level must be between 0.5 and 0.999",
+  },
+  INVALID_LOOKBACK_DAYS: {
+    status: 400,
+    message: "Lookback days must be between 7 and 365",
+  },
+  INVALID_LEAD_TIME: {
+    status: 400,
+    message: "Lead time must be between 1 and 90 days",
+  },
+
   // ===== ACCOUNTS =====
   ACCOUNT_NAME_REQUIRED: { status: 400, message: "Account name is required" },
   ACCOUNT_CODE_REQUIRED: { status: 400, message: "Account code is required" },

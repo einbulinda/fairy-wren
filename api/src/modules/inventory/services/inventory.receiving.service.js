@@ -123,14 +123,10 @@ exports.receiveInventory = async (payload, context) => {
     throw new Error("RECEIPT_ITEMS_REQUIRED");
   }
 
-  const { data, error } = await receiptsRepo.receiveInventory(
+  const { data } = await receiptsRepo.receiveInventory(
     payload,
     context.userId,
   );
-
-  if (error) {
-    throw new Error("FAILED_TO_CREATE_RECEIPT");
-  }
 
   await auditRepo.log({
     entity: "inventory_receipts",

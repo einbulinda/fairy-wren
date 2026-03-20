@@ -5,6 +5,7 @@ import ReceiveTab from "@/components/inventory/ReceiveTab";
 import ReportsTab from "@/components/inventory/ReportsTab";
 import ReportDetailView from "@/components/inventory/ReportDetailView";
 import ApprovalsTab from "@/components/inventory/ApprovalsTab";
+import ConversionTab from "@/components/inventory/ConversionTab";
 
 const InventoryPage = () => {
   const { pathname } = useLocation();
@@ -19,6 +20,7 @@ const InventoryPage = () => {
     return <ReceiveTab onSuccess={() => navigate("/inventory")} />;
   if (pathname.endsWith("/reports")) return <ReportsTab />;
   if (pathname.endsWith("/approvals")) return <ApprovalsTab />;
+  if (pathname.endsWith("/conversions")) return <ConversionTab />;
 
   return (
     <StockTab items={stockItems} isLoading={isLoading} onRefresh={refetch} />
