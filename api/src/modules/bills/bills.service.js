@@ -72,7 +72,6 @@ exports.voidBill = async (id, context) => {
    * then mark bill as void.
    */
   const { error: reversalError } = await repo.reverseBillSale(id);
-  console.log("Reversal error:", reversalError);
   if (reversalError) throw new Error("FAILED_TO_REVERSE_BILL_SALE");
 
   const { error } = await repo.updateBillStatus(id, "void", context.userId);
@@ -214,7 +213,9 @@ exports.addRound = async (billId, payload, context) => {
     created_by: context.userId,
   });
 
-  if (roundError) throw new Error("FAILED_TO_CREATE_ROUND");
+  if (roundError) {
+    throw new Error("FAILED_TO_CREATE_ROUND");
+  }
 
   /**
    * 4. Insert round items
@@ -236,7 +237,6 @@ exports.addRound = async (billId, payload, context) => {
    */
   const { error: saleError } = await repo.postRoundSale(round.id);
   if (saleError) {
-    console.log("Sale posting error:", saleError);
     throw new Error("FAILED_TO_POST_ROUND_SALE");
   }
 

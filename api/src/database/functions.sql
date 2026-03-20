@@ -1371,9 +1371,8 @@ VALUES (
         v_inventory_account,
         NEW.line_total,
         0
-    );
-INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
-VALUES (
+    ),
+    (
         v_journal_id,
         v_credit_account,
         0,
