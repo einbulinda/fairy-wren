@@ -56,6 +56,14 @@ exports.createPayment = async (payload) => {
   return supabase.from("supplier_payments").insert(payload).select().single();
 };
 
+exports.deletePaymentByJournalId = async (journalEntryId) => {
+  const supabase = getSupabase();
+  return supabase
+    .from("supplier_payments")
+    .delete()
+    .eq("journal_entry_id", journalEntryId);
+};
+
 exports.findPendingInvoices = async () => {
   const supabase = getSupabase();
   return supabase

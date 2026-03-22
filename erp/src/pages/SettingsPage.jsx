@@ -26,6 +26,7 @@ import {
   BarChart3,
   UserCircle,
   Package,
+  Search,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -57,6 +58,7 @@ import {
   useSetManualReorderLevel,
   useClearReorderOverride,
 } from "@/hooks/useInventory";
+import { useCategories } from "@/hooks/useCategories";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { inputCls } from "@/utils/constants";
 
@@ -1362,6 +1364,7 @@ const formatNum = (v, decimals = 1) => {
 const InventoryPoliciesTab = () => {
   const { data: policies = [], isLoading: policiesLoading } = useReorderPolicies();
   const { data: settings, isLoading: settingsLoading } = useReorderSettings();
+  const { data: categories = [] } = useCategories({ active: true });
   const updateSettings = useUpdateReorderSettings();
   const refreshLevels = useRefreshReorderLevels();
   const setManual = useSetManualReorderLevel();
@@ -1370,6 +1373,9 @@ const InventoryPoliciesTab = () => {
   const [form, setForm] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState("");
+  const [policySearch, setPolicySearch] = useState("");
+  const [policyPage, setPolicyPage] = useState(1);
+  const policiesPerPage = 10;
 
   // Sync settings form
   useEffect(() => {
@@ -1383,6 +1389,7 @@ const InventoryPoliciesTab = () => {
         fast_moving_days: settings.fast_moving_days ?? 30,
         slow_moving_days: settings.slow_moving_days ?? 90,
         default_tot_size_ml: settings.default_tot_size_ml ?? 30,
+        conversion_allowed_categories: settings.conversion_allowed_categories ?? [],
       });
     }
   }, [settings]);
@@ -1406,6 +1413,27 @@ const InventoryPoliciesTab = () => {
   const handleClearOverride = (productId) => {
     clearOverride.mutate(productId);
   };
+
+  const filteredPolicies = useMemo(() => {
+    if (!policySearch.trim()) return policies;
+    const q = policySearch.toLowerCase();
+    return policies.filter((p) => {
+      const name = p.products?.name?.toLowerCase() ?? "";
+      const supplier = p.suppliers?.name?.toLowerCase() ?? "";
+      return name.includes(q) || supplier.includes(q);
+    });
+  }, [policies, policySearch]);
+
+  const totalPolicyPages = Math.max(1, Math.ceil(filteredPolicies.length / policiesPerPage));
+  const paginatedPolicies = filteredPolicies.slice(
+    (policyPage - 1) * policiesPerPage,
+    policyPage * policiesPerPage,
+  );
+
+  // Reset page when search changes
+  useEffect(() => {
+    setPolicyPage(1);
+  }, [policySearch]);
 
   if (settingsLoading || policiesLoading) return <LoadingSpinner />;
 
@@ -1595,7 +1623,7 @@ const InventoryPoliciesTab = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs text-surface-400 font-medium">Default Tot Size (ml)</label>
             <select
@@ -1609,24 +1637,82 @@ const InventoryPoliciesTab = () => {
             <p className="text-[10px] text-surface-500">Standard tot measure used for spirit conversions</p>
           </div>
 
-          <div className="flex items-end">
-            <button
-              onClick={handleSaveSettings}
-              disabled={updateSettings.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              <Save size={14} />
-              {updateSettings.isPending ? "Saving..." : "Save"}
-            </button>
+          <div className="space-y-1">
+            <label className="text-xs text-surface-400 font-medium">Allowed Categories for Bulk Breaking</label>
+            <div className="bg-surface-900 border border-surface-600 rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
+              {categories.length === 0 ? (
+                <p className="text-xs text-surface-500 py-1">No categories found</p>
+              ) : (
+                categories.map((cat) => {
+                  const selected = (form.conversion_allowed_categories ?? []).includes(cat.id);
+                  return (
+                    <label
+                      key={cat.id}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-xs transition-colors ${
+                        selected
+                          ? "bg-primary-500/15 text-white"
+                          : "text-surface-400 hover:bg-surface-800"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() =>
+                          setForm((f) => {
+                            const prev = f.conversion_allowed_categories ?? [];
+                            return {
+                              ...f,
+                              conversion_allowed_categories: selected
+                                ? prev.filter((id) => id !== cat.id)
+                                : [...prev, cat.id],
+                            };
+                          })
+                        }
+                        className="rounded border-surface-600 text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
+                      />
+                      {cat.name}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            <p className="text-[10px] text-surface-500">
+              {(form.conversion_allowed_categories ?? []).length === 0
+                ? "All categories allowed (none selected)"
+                : `${(form.conversion_allowed_categories ?? []).length} selected — only these categories can be bulk-broken`}
+            </p>
           </div>
+        </div>
+
+        <div className="mt-4">
+          <button
+            onClick={handleSaveSettings}
+            disabled={updateSettings.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            <Save size={14} />
+            {updateSettings.isPending ? "Saving..." : "Save"}
+          </button>
         </div>
       </div>
 
       {/* Policies Table */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-surface-700 flex items-center justify-between">
-          <h2 className="font-semibold text-white">Product Reorder Policies</h2>
-          <span className="text-xs text-surface-400">{policies.length} products</span>
+        <div className="p-4 border-b border-surface-700 flex items-center justify-between gap-4">
+          <h2 className="font-semibold text-white shrink-0">Product Reorder Policies</h2>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500" />
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={policySearch}
+                onChange={(e) => setPolicySearch(e.target.value)}
+                className="pl-8 pr-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-xs text-white placeholder:text-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500 w-48"
+              />
+            </div>
+            <span className="text-xs text-surface-400 shrink-0">{filteredPolicies.length} products</span>
+          </div>
         </div>
 
         {policies.length === 0 ? (
@@ -1650,7 +1736,7 @@ const InventoryPoliciesTab = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-700/40">
-                {policies.map((p) => {
+                {paginatedPolicies.map((p) => {
                   const product = p.products;
                   const supplier = p.suppliers;
                   const stock = product?.current_stock ?? 0;
@@ -1755,6 +1841,44 @@ const InventoryPoliciesTab = () => {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPolicyPages > 1 && (
+          <div className="px-4 py-3 border-t border-surface-700 flex items-center justify-between">
+            <p className="text-xs text-surface-500">
+              Showing {(policyPage - 1) * policiesPerPage + 1}–{Math.min(policyPage * policiesPerPage, filteredPolicies.length)} of {filteredPolicies.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPolicyPage((p) => Math.max(1, p - 1))}
+                disabled={policyPage === 1}
+                className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              {Array.from({ length: totalPolicyPages }, (_, i) => i + 1).map((pg) => (
+                <button
+                  key={pg}
+                  onClick={() => setPolicyPage(pg)}
+                  className={`min-w-[28px] h-7 rounded-lg text-xs font-medium transition-colors ${
+                    pg === policyPage
+                      ? "bg-primary-600 text-white"
+                      : "text-surface-400 hover:text-white hover:bg-surface-700"
+                  }`}
+                >
+                  {pg}
+                </button>
+              ))}
+              <button
+                onClick={() => setPolicyPage((p) => Math.min(totalPolicyPages, p + 1))}
+                disabled={policyPage === totalPolicyPages}
+                className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
         )}
       </div>

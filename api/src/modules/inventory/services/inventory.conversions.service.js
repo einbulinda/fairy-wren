@@ -29,6 +29,8 @@ exports.executeConversion = async (payload, context) => {
   if (error) {
     if (error.message?.includes("Insufficient stock"))
       throw new Error("INSUFFICIENT_STOCK");
+
+    console.log("Conversion error", error);
     throw new Error("FAILED_TO_EXECUTE_CONVERSION");
   }
 
@@ -37,12 +39,19 @@ exports.executeConversion = async (payload, context) => {
 
 exports.getConversionHistory = async () => {
   const { data, error } = await conversionsRepo.getConversionHistory();
-  if (error) throw new Error("FAILED_TO_FETCH_CONVERSIONS");
+  if (error) {
+    console.log("Conversion Fetch Error:", error);
+    throw new Error("FAILED_TO_FETCH_CONVERSIONS");
+  }
   return data;
 };
 
 exports.getConvertibleProducts = async () => {
-  const { data, error } = await conversionsRepo.getConvertibleProducts();
+  const { data: settings } = await policiesRepo.getSettings();
+  const allowedCategories = settings?.conversion_allowed_categories ?? [];
+
+  const { data, error } =
+    await conversionsRepo.getConvertibleProducts(allowedCategories);
   if (error) throw new Error("FAILED_TO_FETCH_CONVERTIBLE_PRODUCTS");
   return data;
 };

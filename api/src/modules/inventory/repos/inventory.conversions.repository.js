@@ -35,14 +35,19 @@ exports.getConversionHistory = async () => {
     .limit(50);
 };
 
-exports.getConvertibleProducts = async () => {
+exports.getConvertibleProducts = async (allowedCategoryIds = []) => {
   const supabase = getSupabase();
-  return supabase
+  let query = supabase
     .from("products")
-    .select("id, name, unit, volume_ml, cost_price, current_stock, categories(name)")
+    .select("id, name, unit, volume_ml, cost_price, current_stock, category_id, categories(name)")
     .eq("active", true)
     .eq("track_inventory", true)
     .not("volume_ml", "is", null)
-    .gt("volume_ml", 0)
-    .order("name");
+    .gt("volume_ml", 0);
+
+  if (allowedCategoryIds.length > 0) {
+    query = query.in("category_id", allowedCategoryIds);
+  }
+
+  return query.order("name");
 };

@@ -156,7 +156,7 @@ const ChequeWritingPage = () => {
   // Journal preview accounts
   const previewDebit  = isTransfer
     ? allCashBankAccounts.find((a) => a.id === form.debit_account_id)
-    : debitAccounts.find((a) => a.id === form.debit_account_id);
+    : accounts.find((a) => a.id === form.debit_account_id);
   const previewCredit = accounts.find((a) => a.id === form.bank_account_id);
 
   return (
@@ -294,13 +294,29 @@ const ChequeWritingPage = () => {
             {/* Charge account / To account */}
             <div className="space-y-1">
               <label className="text-xs text-surface-400 font-medium">{debitLabel} *</label>
-              <select className={inputCls} value={form.debit_account_id}
-                onChange={(e) => setForm({ ...form, debit_account_id: e.target.value })}>
-                <option value="">Select account…</option>
-                {(isTransfer ? toAccounts : debitAccounts).map((a) =>
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                )}
-              </select>
+              {!isTransfer && form.payee_type === "supplier" && form.payee_id ? (
+                <>
+                  <input
+                    className={inputCls}
+                    value={(() => {
+                      const acc = accounts.find((a) => a.id === form.debit_account_id);
+                      return acc ? acc.name : "—";
+                    })()}
+                    disabled
+                  />
+                  <p className="text-[10px] text-surface-500">
+                    Auto-set to supplier&apos;s Trade Payables account
+                  </p>
+                </>
+              ) : (
+                <select className={inputCls} value={form.debit_account_id}
+                  onChange={(e) => setForm({ ...form, debit_account_id: e.target.value })}>
+                  <option value="">Select account…</option>
+                  {(isTransfer ? toAccounts : debitAccounts).map((a) =>
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  )}
+                </select>
+              )}
             </div>
 
             {/* Memo */}

@@ -2768,325 +2768,379 @@ GROUP BY coa.id,
 HAVING COALESCE(SUM(ABS(jl.debit) + ABS(jl.credit)), 0) != 0
 ORDER BY coa.code;
 $function$;
-
 -- ============================================================
 -- REORDER LEVEL (ROL) CALCULATION SYSTEM
 -- ROL = (Avg Daily Demand × Lead Time) + Safety Stock
 -- Safety Stock = Z × σ × √Lead Time
 -- ============================================================
-
 CREATE OR REPLACE FUNCTION public.calculate_reorder_levels(
-  p_product_ids UUID[] DEFAULT NULL,
-  p_lookback_days INTEGER DEFAULT 90,
-  p_service_level NUMERIC DEFAULT 0.95
-)
-RETURNS TABLE (
-  product_id UUID,
-  avg_daily_demand NUMERIC,
-  demand_std_dev NUMERIC,
-  lead_time_days NUMERIC,
-  safety_stock NUMERIC,
-  reorder_level NUMERIC,
-  primary_supplier_id UUID,
-  source TEXT
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  v_z_score NUMERIC;
-  v_default_lead_time INTEGER;
-  v_default_rol NUMERIC;
-BEGIN
-  v_z_score := CASE
-    WHEN p_service_level >= 0.99  THEN 2.33
+        p_product_ids UUID [] DEFAULT NULL,
+        p_lookback_days INTEGER DEFAULT 90,
+        p_service_level NUMERIC DEFAULT 0.95
+    ) RETURNS TABLE (
+        product_id UUID,
+        avg_daily_demand NUMERIC,
+        demand_std_dev NUMERIC,
+        lead_time_days NUMERIC,
+        safety_stock NUMERIC,
+        reorder_level NUMERIC,
+        primary_supplier_id UUID,
+        source TEXT
+    ) LANGUAGE plpgsql AS $$
+DECLARE v_z_score NUMERIC;
+v_default_lead_time INTEGER;
+v_default_rol NUMERIC;
+BEGIN v_z_score := CASE
+    WHEN p_service_level >= 0.99 THEN 2.33
     WHEN p_service_level >= 0.975 THEN 1.96
-    WHEN p_service_level >= 0.95  THEN 1.65
-    WHEN p_service_level >= 0.90  THEN 1.28
+    WHEN p_service_level >= 0.95 THEN 1.65
+    WHEN p_service_level >= 0.90 THEN 1.28
     ELSE 1.04
-  END;
-
-  SELECT rls.default_lead_time_days, rls.default_reorder_level
-  INTO v_default_lead_time, v_default_rol
-  FROM reorder_level_settings rls
-  LIMIT 1;
-
-  v_default_lead_time := COALESCE(v_default_lead_time, 3);
-  v_default_rol := COALESCE(v_default_rol, 5);
-
-  RETURN QUERY
-  WITH target_products AS (
+END;
+SELECT rls.default_lead_time_days,
+    rls.default_reorder_level INTO v_default_lead_time,
+    v_default_rol
+FROM reorder_level_settings rls
+LIMIT 1;
+v_default_lead_time := COALESCE(v_default_lead_time, 3);
+v_default_rol := COALESCE(v_default_rol, 5);
+RETURN QUERY WITH target_products AS (
     SELECT p.id AS pid
     FROM products p
     WHERE p.track_inventory = true
-      AND p.active = true
-      AND (p_product_ids IS NULL OR p.id = ANY(p_product_ids))
-  ),
-  daily_sales AS (
-    SELECT
-      ri.product_id AS pid,
-      DATE(r.created_at) AS sale_date,
-      SUM(ri.quantity) AS daily_qty
+        AND p.active = true
+        AND (
+            p_product_ids IS NULL
+            OR p.id = ANY(p_product_ids)
+        )
+),
+daily_sales AS (
+    SELECT ri.product_id AS pid,
+        DATE(r.created_at) AS sale_date,
+        SUM(ri.quantity) AS daily_qty
     FROM round_items ri
-    JOIN rounds r ON r.id = ri.round_id
-    JOIN bills b ON b.id = r.bill_id
+        JOIN rounds r ON r.id = ri.round_id
+        JOIN bills b ON b.id = r.bill_id
     WHERE b.status = 'completed'
-      AND r.created_at >= (CURRENT_DATE - p_lookback_days)
-      AND ri.product_id IN (SELECT tp.pid FROM target_products tp)
-    GROUP BY ri.product_id, DATE(r.created_at)
-  ),
-  demand_stats AS (
-    SELECT
-      ds.pid,
-      COALESCE(AVG(ds.daily_qty), 0) AS avg_demand,
-      COALESCE(STDDEV_POP(ds.daily_qty), 0) AS std_demand,
-      COUNT(DISTINCT ds.sale_date) AS days_with_sales
+        AND r.created_at >= (CURRENT_DATE - p_lookback_days)
+        AND ri.product_id IN (
+            SELECT tp.pid
+            FROM target_products tp
+        )
+    GROUP BY ri.product_id,
+        DATE(r.created_at)
+),
+demand_stats AS (
+    SELECT ds.pid,
+        COALESCE(AVG(ds.daily_qty), 0) AS avg_demand,
+        COALESCE(STDDEV_POP(ds.daily_qty), 0) AS std_demand,
+        COUNT(DISTINCT ds.sale_date) AS days_with_sales
     FROM daily_sales ds
     GROUP BY ds.pid
-  ),
-  supplier_lookup AS (
-    SELECT DISTINCT ON (iri.product_id)
-      iri.product_id AS pid,
-      ir.supplier_id,
-      s.lead_time_days AS supplier_lead_time
+),
+supplier_lookup AS (
+    SELECT DISTINCT ON (iri.product_id) iri.product_id AS pid,
+        ir.supplier_id,
+        s.lead_time_days AS supplier_lead_time
     FROM inventory_receipt_items iri
-    JOIN inventory_receipts ir ON ir.id = iri.receipt_id
-    JOIN suppliers s ON s.id = ir.supplier_id
-    WHERE iri.product_id IN (SELECT tp.pid FROM target_products tp)
-    ORDER BY iri.product_id, ir.purchase_date DESC
-  )
-  SELECT
-    tp.pid AS product_id,
+        JOIN inventory_receipts ir ON ir.id = iri.receipt_id
+        JOIN suppliers s ON s.id = ir.supplier_id
+    WHERE iri.product_id IN (
+            SELECT tp.pid
+            FROM target_products tp
+        )
+    ORDER BY iri.product_id,
+        ir.purchase_date DESC
+)
+SELECT tp.pid AS product_id,
     ROUND(COALESCE(dms.avg_demand, 0)::NUMERIC, 4) AS avg_daily_demand,
     ROUND(COALESCE(dms.std_demand, 0)::NUMERIC, 4) AS demand_std_dev,
     COALESCE(sl.supplier_lead_time, v_default_lead_time)::NUMERIC AS lead_time_days,
     ROUND(
-      (v_z_score * COALESCE(dms.std_demand, 0)
-        * SQRT(COALESCE(sl.supplier_lead_time, v_default_lead_time)::NUMERIC))::NUMERIC,
-      2
+        (
+            v_z_score * COALESCE(dms.std_demand, 0) * SQRT(
+                COALESCE(sl.supplier_lead_time, v_default_lead_time)::NUMERIC
+            )
+        )::NUMERIC,
+        2
     ) AS safety_stock,
     GREATEST(
-      ROUND(
-        ((COALESCE(dms.avg_demand, 0)
-          * COALESCE(sl.supplier_lead_time, v_default_lead_time))
-        + (v_z_score * COALESCE(dms.std_demand, 0)
-          * SQRT(COALESCE(sl.supplier_lead_time, v_default_lead_time)::NUMERIC)))::NUMERIC,
-        2
-      ),
-      CASE WHEN COALESCE(dms.days_with_sales, 0) = 0
-        THEN v_default_rol ELSE 0 END
+        ROUND(
+            (
+                (
+                    COALESCE(dms.avg_demand, 0) * COALESCE(sl.supplier_lead_time, v_default_lead_time)
+                ) + (
+                    v_z_score * COALESCE(dms.std_demand, 0) * SQRT(
+                        COALESCE(sl.supplier_lead_time, v_default_lead_time)::NUMERIC
+                    )
+                )
+            )::NUMERIC,
+            2
+        ),
+        CASE
+            WHEN COALESCE(dms.days_with_sales, 0) = 0 THEN v_default_rol
+            ELSE 0
+        END
     ) AS reorder_level,
     sl.supplier_id AS primary_supplier_id,
     CASE
-      WHEN COALESCE(dms.days_with_sales, 0) = 0 THEN 'default'
-      ELSE 'calculated'
+        WHEN COALESCE(dms.days_with_sales, 0) = 0 THEN 'default'
+        ELSE 'calculated'
     END AS source
-  FROM target_products tp
-  LEFT JOIN demand_stats dms ON dms.pid = tp.pid
-  LEFT JOIN supplier_lookup sl ON sl.pid = tp.pid;
+FROM target_products tp
+    LEFT JOIN demand_stats dms ON dms.pid = tp.pid
+    LEFT JOIN supplier_lookup sl ON sl.pid = tp.pid;
 END;
 $$;
-
-CREATE OR REPLACE FUNCTION public.refresh_reorder_levels(
-  p_product_ids UUID[] DEFAULT NULL
-)
-RETURNS INTEGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  v_count INTEGER := 0;
-  v_lookback INTEGER;
-  v_service_level NUMERIC;
-  v_rec RECORD;
+CREATE OR REPLACE FUNCTION public.refresh_reorder_levels(p_product_ids UUID [] DEFAULT NULL) RETURNS INTEGER LANGUAGE plpgsql AS $$
+DECLARE v_count INTEGER := 0;
+v_lookback INTEGER;
+v_service_level NUMERIC;
+v_rec RECORD;
 BEGIN
-  SELECT default_lookback_days, default_service_level
-  INTO v_lookback, v_service_level
-  FROM reorder_level_settings
-  LIMIT 1;
-
-  v_lookback := COALESCE(v_lookback, 90);
-  v_service_level := COALESCE(v_service_level, 0.95);
-
-  FOR v_rec IN
-    SELECT * FROM calculate_reorder_levels(p_product_ids, v_lookback, v_service_level)
-  LOOP
-    INSERT INTO product_inventory_policies (
-      product_id, avg_daily_demand, demand_std_dev, lead_time_days,
-      safety_stock, reorder_level, service_level, lookback_days,
-      primary_supplier_id, source, last_calculated_at
-    ) VALUES (
-      v_rec.product_id, v_rec.avg_daily_demand, v_rec.demand_std_dev,
-      v_rec.lead_time_days, v_rec.safety_stock, v_rec.reorder_level,
-      v_service_level, v_lookback,
-      v_rec.primary_supplier_id, v_rec.source, now()
+SELECT default_lookback_days,
+    default_service_level INTO v_lookback,
+    v_service_level
+FROM reorder_level_settings
+LIMIT 1;
+v_lookback := COALESCE(v_lookback, 90);
+v_service_level := COALESCE(v_service_level, 0.95);
+FOR v_rec IN
+SELECT *
+FROM calculate_reorder_levels(p_product_ids, v_lookback, v_service_level) LOOP
+INSERT INTO product_inventory_policies (
+        product_id,
+        avg_daily_demand,
+        demand_std_dev,
+        lead_time_days,
+        safety_stock,
+        reorder_level,
+        service_level,
+        lookback_days,
+        primary_supplier_id,
+        source,
+        last_calculated_at
     )
-    ON CONFLICT (product_id) DO UPDATE SET
-      avg_daily_demand = EXCLUDED.avg_daily_demand,
-      demand_std_dev = EXCLUDED.demand_std_dev,
-      lead_time_days = EXCLUDED.lead_time_days,
-      safety_stock = EXCLUDED.safety_stock,
-      reorder_level = EXCLUDED.reorder_level,
-      service_level = EXCLUDED.service_level,
-      lookback_days = EXCLUDED.lookback_days,
-      primary_supplier_id = EXCLUDED.primary_supplier_id,
-      source = EXCLUDED.source,
-      last_calculated_at = now(),
-      updated_at = now()
-    WHERE product_inventory_policies.manual_override = false;
-
-    UPDATE products
-    SET reorder_level = v_rec.reorder_level
-    WHERE id = v_rec.product_id
-      AND NOT EXISTS (
-        SELECT 1 FROM product_inventory_policies pip
+VALUES (
+        v_rec.product_id,
+        v_rec.avg_daily_demand,
+        v_rec.demand_std_dev,
+        v_rec.lead_time_days,
+        v_rec.safety_stock,
+        v_rec.reorder_level,
+        v_service_level,
+        v_lookback,
+        v_rec.primary_supplier_id,
+        v_rec.source,
+        now()
+    ) ON CONFLICT (product_id) DO
+UPDATE
+SET avg_daily_demand = EXCLUDED.avg_daily_demand,
+    demand_std_dev = EXCLUDED.demand_std_dev,
+    lead_time_days = EXCLUDED.lead_time_days,
+    safety_stock = EXCLUDED.safety_stock,
+    reorder_level = EXCLUDED.reorder_level,
+    service_level = EXCLUDED.service_level,
+    lookback_days = EXCLUDED.lookback_days,
+    primary_supplier_id = EXCLUDED.primary_supplier_id,
+    source = EXCLUDED.source,
+    last_calculated_at = now(),
+    updated_at = now()
+WHERE product_inventory_policies.manual_override = false;
+UPDATE products
+SET reorder_level = v_rec.reorder_level
+WHERE id = v_rec.product_id
+    AND NOT EXISTS (
+        SELECT 1
+        FROM product_inventory_policies pip
         WHERE pip.product_id = v_rec.product_id
-          AND pip.manual_override = true
-      );
-
-    v_count := v_count + 1;
-  END LOOP;
-
-  RETURN v_count;
+            AND pip.manual_override = true
+    );
+v_count := v_count + 1;
+END LOOP;
+RETURN v_count;
 END;
 $$;
-
 /*=======================================================================
  PRODUCT MOVEMENT ANALYSIS
  Classifies every tracked product as FAST / SLOW / NON_MOVING based on
  days since the last completed sale.
  ========================================================================*/
 CREATE OR REPLACE FUNCTION get_product_movement_analysis(
-  p_fast_days INTEGER DEFAULT 30,
-  p_slow_days INTEGER DEFAULT 90
-)
-RETURNS TABLE(
-  product_id       UUID,
-  product_name     VARCHAR,
-  category_name    VARCHAR,
-  unit             VARCHAR,
-  current_stock    INTEGER,
-  cost_price       NUMERIC,
-  reorder_level    INTEGER,
-  stock_value      NUMERIC,
-  last_sale_date   TIMESTAMPTZ,
-  days_since_last_sale INTEGER,
-  movement_category VARCHAR
-)
-LANGUAGE sql STABLE
-AS $$
-  SELECT
-    p.id                                       AS product_id,
-    p.name                                     AS product_name,
-    c.name                                     AS category_name,
-    p.unit                                     AS unit,
-    COALESCE(p.current_stock, 0)::INTEGER      AS current_stock,
-    COALESCE(p.cost_price, 0)                  AS cost_price,
-    COALESCE(p.reorder_level, 0)::INTEGER      AS reorder_level,
-    (COALESCE(p.current_stock, 0) * COALESCE(p.cost_price, 0))::NUMERIC AS stock_value,
+        p_fast_days INTEGER DEFAULT 30,
+        p_slow_days INTEGER DEFAULT 90
+    ) RETURNS TABLE(
+        product_id UUID,
+        product_name VARCHAR,
+        category_name VARCHAR,
+        unit VARCHAR,
+        current_stock INTEGER,
+        cost_price NUMERIC,
+        reorder_level INTEGER,
+        stock_value NUMERIC,
+        last_sale_date TIMESTAMPTZ,
+        days_since_last_sale INTEGER,
+        movement_category VARCHAR
+    ) LANGUAGE sql STABLE AS $$
+SELECT p.id AS product_id,
+    p.name AS product_name,
+    c.name AS category_name,
+    p.unit AS unit,
+    COALESCE(p.current_stock, 0)::INTEGER AS current_stock,
+    COALESCE(p.cost_price, 0) AS cost_price,
+    COALESCE(p.reorder_level, 0)::INTEGER AS reorder_level,
+    (
+        COALESCE(p.current_stock, 0) * COALESCE(p.cost_price, 0)
+    )::NUMERIC AS stock_value,
     ls.last_sale_date,
     COALESCE(
-      EXTRACT(DAY FROM (NOW() - ls.last_sale_date))::INTEGER,
-      9999
-    )                                          AS days_since_last_sale,
+        EXTRACT(
+            DAY
+            FROM (NOW() - ls.last_sale_date)
+        )::INTEGER,
+        9999
+    ) AS days_since_last_sale,
     CASE
-      WHEN ls.last_sale_date IS NULL THEN 'NON_MOVING'
-      WHEN EXTRACT(DAY FROM (NOW() - ls.last_sale_date))::INTEGER <= p_fast_days THEN 'FAST'
-      WHEN EXTRACT(DAY FROM (NOW() - ls.last_sale_date))::INTEGER <= p_slow_days THEN 'SLOW'
-      ELSE 'NON_MOVING'
-    END                                        AS movement_category
-  FROM products p
-  LEFT JOIN categories c ON c.id = p.category_id
-  LEFT JOIN LATERAL (
-    SELECT MAX(b.created_at) AS last_sale_date
-    FROM round_items ri
-    JOIN rounds r  ON r.id  = ri.round_id
-    JOIN bills  b  ON b.id  = r.bill_id
-    WHERE ri.product_id = p.id
-      AND b.status = 'completed'
-  ) ls ON TRUE
-  WHERE p.track_inventory = TRUE
+        WHEN ls.last_sale_date IS NULL THEN 'NON_MOVING'
+        WHEN EXTRACT(
+            DAY
+            FROM (NOW() - ls.last_sale_date)
+        )::INTEGER <= p_fast_days THEN 'FAST'
+        WHEN EXTRACT(
+            DAY
+            FROM (NOW() - ls.last_sale_date)
+        )::INTEGER <= p_slow_days THEN 'SLOW'
+        ELSE 'NON_MOVING'
+    END AS movement_category
+FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN LATERAL (
+        SELECT MAX(b.created_at) AS last_sale_date
+        FROM round_items ri
+            JOIN rounds r ON r.id = ri.round_id
+            JOIN bills b ON b.id = r.bill_id
+        WHERE ri.product_id = p.id
+            AND b.status = 'completed'
+    ) ls ON TRUE
+WHERE p.track_inventory = TRUE
     AND p.active = TRUE
-  ORDER BY days_since_last_sale DESC;
+ORDER BY days_since_last_sale DESC;
 $$;
-
 /*=======================================================================
  PRODUCT CONVERSION
  Atomically converts source product stock into target product stock,
  creating paired inventory movements and a conversion log entry.
  ========================================================================*/
 CREATE OR REPLACE FUNCTION public.execute_product_conversion(
-  p_source_product_id UUID,
-  p_target_product_id UUID,
-  p_source_qty        NUMERIC,
-  p_target_qty        NUMERIC,
-  p_notes             TEXT DEFAULT NULL,
-  p_user_id           UUID DEFAULT NULL
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  v_source_stock  NUMERIC;
-  v_source_cost   NUMERIC;
-  v_target_cost   NUMERIC;
-  v_out_id        UUID;
-  v_in_id         UUID;
-  v_conv_id       UUID;
+        p_source_product_id UUID,
+        p_target_product_id UUID,
+        p_source_qty NUMERIC,
+        p_target_qty NUMERIC,
+        p_notes TEXT DEFAULT NULL,
+        p_user_id UUID DEFAULT NULL
+    ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE v_source_stock NUMERIC;
+v_source_cost NUMERIC;
+v_target_cost NUMERIC;
+v_out_id UUID;
+v_in_id UUID;
+v_conv_id UUID;
 BEGIN
-  SELECT cost_price INTO v_source_cost
-    FROM public.products WHERE id = p_source_product_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Source product not found';
-  END IF;
-
-  SELECT cost_price INTO v_target_cost
-    FROM public.products WHERE id = p_target_product_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Target product not found';
-  END IF;
-
-  SELECT COALESCE(SUM(
-    CASE WHEN movement_type IN ('purchase','adjustment_in','opening_balance','conversion_in')
-         THEN quantity
-         ELSE -quantity
-    END
-  ), 0)
-  INTO v_source_stock
-  FROM public.inventory_movements
-  WHERE product_id = p_source_product_id;
-
-  IF v_source_stock < p_source_qty THEN
-    RAISE EXCEPTION 'Insufficient stock. Available: %, Requested: %', v_source_stock, p_source_qty;
-  END IF;
-
-  IF v_source_cost IS NOT NULL AND v_source_cost > 0 THEN
-    v_target_cost := (p_source_qty * v_source_cost) / p_target_qty;
-  END IF;
-
-  INSERT INTO public.inventory_movements (product_id, quantity, movement_type, reference, created_by)
-  VALUES (p_source_product_id, p_source_qty, 'conversion_out',
-          'CONV-' || LEFT(gen_random_uuid()::text, 8), p_user_id)
-  RETURNING id INTO v_out_id;
-
-  INSERT INTO public.inventory_movements (product_id, quantity, movement_type, reference, created_by)
-  VALUES (p_target_product_id, p_target_qty, 'conversion_in',
-          'CONV-' || LEFT(gen_random_uuid()::text, 8), p_user_id)
-  RETURNING id INTO v_in_id;
-
-  INSERT INTO public.product_conversions
-    (source_product_id, target_product_id, source_qty, target_qty,
-     notes, created_by, source_movement_id, target_movement_id)
-  VALUES
-    (p_source_product_id, p_target_product_id, p_source_qty, p_target_qty,
-     p_notes, p_user_id, v_out_id, v_in_id)
-  RETURNING id INTO v_conv_id;
-
-  RETURN jsonb_build_object(
-    'conversion_id', v_conv_id,
-    'source_movement_id', v_out_id,
-    'target_movement_id', v_in_id,
-    'source_qty', p_source_qty,
-    'target_qty', p_target_qty
-  );
+SELECT cost_price INTO v_source_cost
+FROM public.products
+WHERE id = p_source_product_id;
+IF NOT FOUND THEN RAISE EXCEPTION 'Source product not found';
+END IF;
+SELECT cost_price INTO v_target_cost
+FROM public.products
+WHERE id = p_target_product_id;
+IF NOT FOUND THEN RAISE EXCEPTION 'Target product not found';
+END IF;
+-- quantity is already signed: positive=in, negative=out
+SELECT COALESCE(SUM(quantity), 0) INTO v_source_stock
+FROM public.inventory_movements
+WHERE product_id = p_source_product_id;
+IF v_source_stock < p_source_qty THEN RAISE EXCEPTION 'Insufficient stock. Available: %, Requested: %',
+v_source_stock,
+p_source_qty;
+END IF;
+IF v_source_cost IS NOT NULL
+AND v_source_cost > 0 THEN v_target_cost := (p_source_qty * v_source_cost) / p_target_qty;
+END IF;
+INSERT INTO public.inventory_movements (
+        product_id,
+        movement_date,
+        quantity,
+        movement_type,
+        reference_type,
+        reference_id,
+        notes,
+        created_by
+    )
+VALUES (
+        p_source_product_id,
+        CURRENT_DATE,
+        -p_source_qty,
+        'conversion_out',
+        'conversion',
+        gen_random_uuid(),
+        p_notes,
+        p_user_id
+    )
+RETURNING id INTO v_out_id;
+INSERT INTO public.inventory_movements (
+        product_id,
+        movement_date,
+        quantity,
+        movement_type,
+        reference_type,
+        reference_id,
+        notes,
+        created_by
+    )
+VALUES (
+        p_target_product_id,
+        CURRENT_DATE,
+        p_target_qty,
+        'conversion_in',
+        'conversion',
+        gen_random_uuid(),
+        p_notes,
+        p_user_id
+    )
+RETURNING id INTO v_in_id;
+INSERT INTO public.product_conversions (
+        source_product_id,
+        target_product_id,
+        source_qty,
+        target_qty,
+        notes,
+        created_by,
+        source_movement_id,
+        target_movement_id
+    )
+VALUES (
+        p_source_product_id,
+        p_target_product_id,
+        p_source_qty,
+        p_target_qty,
+        p_notes,
+        p_user_id,
+        v_out_id,
+        v_in_id
+    )
+RETURNING id INTO v_conv_id;
+RETURN jsonb_build_object(
+    'conversion_id',
+    v_conv_id,
+    'source_movement_id',
+    v_out_id,
+    'target_movement_id',
+    v_in_id,
+    'source_qty',
+    p_source_qty,
+    'target_qty',
+    p_target_qty
+);
 END;
 $$;

@@ -9,7 +9,10 @@ exports.login = async (req, res, next) => {
       app: req.body.app,
     };
 
-    const { token, user, lastSessionEndedAt } = await service.login(req.body, context);
+    const { token, user, lastSessionEndedAt } = await service.login(
+      req.body,
+      context,
+    );
 
     respond(res, 200, {
       success: true,
@@ -18,7 +21,6 @@ exports.login = async (req, res, next) => {
       lastSessionEndedAt,
     });
   } catch (err) {
-    console.log("Login error:", err);
     next(err);
   }
 };

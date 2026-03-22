@@ -1,5 +1,6 @@
 const repo = require("./cheques.repository");
 const journalRepo = require("../journals/journals.repository");
+const supplierRepo = require("../suppliers/suppliers.repository");
 const { CreateChequeDTO } = require("./cheques.dto");
 const auditRepo = require("../audit/audit.repository");
 
@@ -65,6 +66,21 @@ exports.create = async (payload, context) => {
 
   // Link journal back to cheque
   await repo.linkJournal(cheque.id, entry.id);
+
+  // Record supplier payment so it appears in supplier payments & statement
+  if (dto.payee_type === "supplier" && dto.payee_id) {
+    await supplierRepo.createPayment({
+      supplier_id: dto.payee_id,
+      payment_date: dto.cheque_date,
+      amount: dto.amount,
+      payment_method: "cheque",
+      reference: dto.cheque_number,
+      bank_account_id: dto.bank_account_id,
+      notes: dto.memo || `Cheque ${dto.cheque_number}`,
+      journal_entry_id: entry.id,
+      created_by: context.userId,
+    });
+  }
 
   await auditRepo.log({
     entity: "cheques",
@@ -142,6 +158,11 @@ exports.void = async (id, context) => {
         );
       }
     }
+  }
+
+  // Remove linked supplier payment if this was a supplier cheque
+  if (cheque.payee_type === "supplier" && cheque.journal_entry_id) {
+    await supplierRepo.deletePaymentByJournalId(cheque.journal_entry_id);
   }
 
   const { data, error } = await repo.updateStatus(id, "voided", {
