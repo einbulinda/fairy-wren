@@ -10,4 +10,13 @@ export const ReportsService = {
       throw normalizeError(error, "Error fetching Z-Report.");
     }
   },
+
+  async generateZReport(date) {
+    try {
+      const { data } = await api.post("/reports/z-report/generate", { date });
+      return data.data;
+    } catch (error) {
+      throw normalizeError(error, "Error generating Z-Report.");
+    }
+  },
 };

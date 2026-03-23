@@ -1,18 +1,35 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import fwLogo from "/fairy-wren-logo-removebg.png";
 import toast from "react-hot-toast";
 
+const UI_VERSION_KEY = "pos_ui_version";
+
 const LoginScreen = () => {
   const [pinInput, setPinInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uiVersion, setUiVersion] = useState("classic");
+  const [showVersionSelector, setShowVersionSelector] = useState(false);
   const { login } = useAuth();
+
+  // Load saved UI version preference
+  useEffect(() => {
+    const savedVersion = localStorage.getItem(UI_VERSION_KEY);
+    if (savedVersion) {
+      setUiVersion(savedVersion);
+    }
+  }, []);
+
+  const handleUiVersionChange = (version) => {
+    setUiVersion(version);
+    localStorage.setItem(UI_VERSION_KEY, version);
+  };
 
   const handlePinSubmit = async (e) => {
     e.preventDefault();
 
     if (pinInput.length < 4) {
-      TransformStream.error("PIN must be at least 4 digits");
+      toast.error("PIN must be at least 4 digits");
       return;
     }
     setLoading(true);
@@ -30,7 +47,7 @@ const LoginScreen = () => {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       {/* Background decorative elements */}
 
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -49,9 +66,87 @@ const LoginScreen = () => {
             />
           </a>
           <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-yellow-400 text-center mb-2 tracking-wide">
-            {/* {new Date().toLocaleDateString()} */}Hasher's Club
+            Hasher's Club
+          </p>
+          <p className="text-sm text-gray-400 text-center">
+            Nightclub Point of Sale
           </p>
         </div>
+
+        {/* UI Version Selector Toggle */}
+        <div className="mb-4 flex justify-center">
+          <button
+            onClick={() => setShowVersionSelector(!showVersionSelector)}
+            className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+          >
+            <span>Interface Version</span>
+            <svg
+              className={`w-4 h-4 transition-transform ${showVersionSelector ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* UI Version Selection Cards */}
+        {showVersionSelector && (
+          <div className="mb-6 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleUiVersionChange("classic")}
+              className={`p-3 rounded-xl border-2 transition-all text-left ${
+                uiVersion === "classic"
+                  ? "border-yellow-400 bg-yellow-400/10"
+                  : "border-gray-600 hover:border-gray-500"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-3 h-3 rounded-full ${uiVersion === "classic" ? "bg-yellow-400" : "bg-gray-500"}`} />
+                <span className={`text-sm font-semibold ${uiVersion === "classic" ? "text-yellow-400" : "text-gray-300"}`}>
+                  Classic
+                </span>
+              </div>
+              <p className="text-xs text-gray-400">Original interface</p>
+            </button>
+
+            <button
+              onClick={() => handleUiVersionChange("beta")}
+              className={`p-3 rounded-xl border-2 transition-all text-left relative ${
+                uiVersion === "beta"
+                  ? "border-pink-500 bg-pink-500/10"
+                  : "border-gray-600 hover:border-gray-500"
+              }`}
+            >
+              <div className="absolute -top-2 -right-2 bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                NEW
+              </div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-3 h-3 rounded-full ${uiVersion === "beta" ? "bg-pink-500" : "bg-gray-500"}`} />
+                <span className={`text-sm font-semibold ${uiVersion === "beta" ? "text-pink-400" : "text-gray-300"}`}>
+                  Beta
+                </span>
+              </div>
+              <p className="text-xs text-gray-400">Nightclub optimized</p>
+            </button>
+          </div>
+        )}
+
+        {/* Selected Version Indicator */}
+        {!showVersionSelector && (
+          <div className="mb-6 text-center">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs bg-gray-700/50 text-gray-300">
+              Using: 
+              <span className={uiVersion === "beta" ? "text-pink-400 font-semibold" : "text-yellow-400 font-semibold"}>
+                {uiVersion === "beta" ? "Beta (Nightclub)" : "Classic"}
+              </span>
+              {uiVersion === "beta" && (
+                <span className="bg-pink-500/20 text-pink-400 px-1.5 py-0.5 rounded text-[10px]">NEW</span>
+              )}
+            </span>
+          </div>
+        )}
 
         {/* Login Form */}
         <form onSubmit={handlePinSubmit} className="space-y-4 sm:space-y-5">
@@ -59,6 +154,7 @@ const LoginScreen = () => {
             type="password"
             maxLength="8"
             pattern="[0-9]*"
+            inputMode="numeric"
             value={pinInput}
             onChange={(e) => setPinInput(e.target.value)}
             placeholder="Enter PIN"
@@ -69,7 +165,7 @@ const LoginScreen = () => {
           <button
             type="submit"
             disabled={loading || pinInput.length < 4}
-            className="w-full sm:py-4 py-3 bg-linear-to-r from-pink-500 to-purple-500 text-white rounded-lg 
+            className="w-full sm:py-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg 
             font-semibold text-base sm:text-lg hover:from-pink-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed 
             transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-yellow-400/50"
           >

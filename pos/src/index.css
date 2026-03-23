@@ -13,7 +13,7 @@ code {
     font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - Dark mode (default) */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -30,6 +30,19 @@ code {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #c44569;
+}
+
+/* Light mode scrollbar */
+.light-theme ::-webkit-scrollbar-track {
+    background: #e5e7eb;
+}
+
+.light-theme ::-webkit-scrollbar-thumb {
+    background: #9ca3af;
+}
+
+.light-theme ::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
 }
 
 /* Animation utilities */

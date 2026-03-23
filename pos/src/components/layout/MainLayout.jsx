@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import {
   User,
   LogOut,
@@ -7,9 +8,14 @@ import {
   FileText,
   ClipboardCheck,
   Receipt,
+  Settings,
+  Sparkles,
+  Sun,
+  Moon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
+import ConfirmModal from "@/components/shared/ConfirmModal";
 
 // View components
 import POSScreen from "@/pages/POSScreen";
@@ -21,8 +27,12 @@ import { formatCurrency } from "@/utils/common";
 
 const getStorageKey = (role) => `fw_lastSeen_${role}`;
 
+const UI_VERSION_KEY = "pos_ui_version";
+
 const MainLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, uiVersion, switchUiVersion } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const [showSwitchUiConfirm, setShowSwitchUiConfirm] = useState(false);
 
   const [currentView, setCurrentView] = useState("pos");
   const [openBillsCount, setOpenBillsCount] = useState(0);
@@ -227,6 +237,25 @@ const MainLayout = () => {
                 </div>
               </div>
 
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-all font-medium text-sm"
+                title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                {theme === "dark" ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} className="text-purple-400" />}
+                <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
+              </button>
+
+              {/* Switch to Beta UI */}
+              <button
+                onClick={() => setShowSwitchUiConfirm(true)}
+                className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-lg transition-all font-medium text-sm"
+              >
+                <Sparkles size={18} />
+                <span className="hidden sm:inline">Beta</span>
+              </button>
+
               {/* Logout Button */}
               <button
                 onClick={handleLogout}
@@ -239,6 +268,23 @@ const MainLayout = () => {
           </div>
         </div>
       </header>
+
+      {/* UI Switch Confirmation Modal */}
+      {showSwitchUiConfirm && (
+        <ConfirmModal
+          title="Switch to Beta UI?"
+          message="Try the new nightclub-optimized interface with improved mobile experience."
+          confirmLabel="Switch to Beta"
+          cancelLabel="Stay on Classic"
+          variant="primary"
+          onConfirm={() => {
+            switchUiVersion("beta");
+            setShowSwitchUiConfirm(false);
+            toast.success("Switched to Beta UI");
+          }}
+          onCancel={() => setShowSwitchUiConfirm(false)}
+        />
+      )}
 
       {/* Navigation tabs — shown when user has multiple views */}
       {navigationTabs.length > 1 && (

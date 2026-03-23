@@ -1,0 +1,591 @@
+import React, { useState, useMemo, useCallback } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useZReport } from "@/hooks/useZReport";
+import { ReportsService } from "@/services/reports.service";
+import {
+  FileText,
+  Calendar,
+  DollarSign,
+  Smartphone,
+  Banknote,
+  RefreshCw,
+  Lock,
+  Receipt,
+  Users,
+  Package,
+  XCircle,
+  Printer,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+} from "lucide-react";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { formatCurrency } from "@/utils/common";
+import toast from "react-hot-toast";
+import ConfirmModal from "@/components/shared/ConfirmModal";
+
+// Default to today (current day)
+const getDefaultDate = () => {
+  const today = new Date();
+  return today.toISOString().split("T")[0];
+};
+
+// Format date nicely
+const formatDate = (d) => {
+  if (!d) return "";
+  return new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+// Check if date is today
+const isToday = (d) => {
+  const date = new Date(d);
+  const today = new Date();
+  return date.toDateString() === today.toDateString();
+};
+
+const BetaZReportScreen = () => {
+  const { user } = useAuth();
+  const [date, setDate] = useState(getDefaultDate());
+  const { data: report, loading, refetch } = useZReport(date);
+  const [generating, setGenerating] = useState(false);
+  const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    overview: true,
+    payments: true,
+    categories: false,
+    products: false,
+    staff: false,
+  });
+
+  const hasPermission = user?.permissions?.includes("pos_access");
+
+  const handleGenerateZReport = async () => {
+    setGenerating(true);
+    try {
+      await ReportsService.generateZReport(date);
+      toast.success("Z-Report generated successfully");
+      await refetch();
+    } catch (error) {
+      toast.error("Failed to generate Z-Report");
+    } finally {
+      setGenerating(false);
+      setShowGenerateConfirm(false);
+    }
+  };
+
+  const toggleSection = (section) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  // Payment method icons
+  const methodIcons = {
+    Cash: Banknote,
+    "M-Pesa": Smartphone,
+  };
+
+  // Extract data
+  const bills = report?.bills || {};
+  const payments = report?.payments || [];
+  const categories = report?.categories || [];
+  const products = report?.products || [];
+  const servers = report?.servers || [];
+  const hourly = report?.hourly || [];
+  const voids = report?.voids || [];
+
+  // Calculate totals
+  const totalRevenue = useMemo(() => {
+    return payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [payments]);
+
+  // Calculate totals by payment method
+  const paymentMethodTotals = useMemo(() => {
+    const totals = {};
+    payments.forEach((p) => {
+      totals[p.method] = (totals[p.method] || 0) + (p.amount || 0);
+    });
+    return totals;
+  }, [payments]);
+
+  // Total bills count
+  const totalBills = (bills.completed || 0) + (bills.open || 0);
+
+  if (!hasPermission) {
+    return (
+      <div className="h-[calc(100vh-60px)] flex items-center justify-center p-4">
+        <div className="text-center">
+          <Lock size={48} className="text-gray-600 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
+          <p className="text-gray-400">You need POS access to view Z-Reports</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <div className="h-[calc(100vh-60px)] flex flex-col overflow-hidden bg-slate-950">
+      {/* Header */}
+      <div className="p-4 border-b border-slate-800 bg-slate-900/50">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-white">Z-Report</h1>
+              {isToday(date) && (
+                <span className="px-2 py-0.5 bg-pink-500/20 text-pink-400 text-xs font-medium rounded-full">
+                  Today
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-400 mt-0.5">{formatDate(date)}</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={refetch}
+              className="p-2.5 hover:bg-slate-800 rounded-xl transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw size={20} className="text-gray-400" />
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="p-2.5 hover:bg-slate-800 rounded-xl transition-colors"
+              title="Print"
+            >
+              <Printer size={20} className="text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* Date Selector */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              const d = new Date(date);
+              d.setDate(d.getDate() - 1);
+              setDate(d.toISOString().split("T")[0]);
+            }}
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+          >
+            <ChevronDown className="rotate-90" size={18} />
+          </button>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-pink-500/50"
+          />
+          <button
+            onClick={() => {
+              const d = new Date(date);
+              d.setDate(d.getDate() + 1);
+              const today = new Date();
+              if (d <= today) {
+                setDate(d.toISOString().split("T")[0]);
+              }
+            }}
+            disabled={isToday(date)}
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 rounded-xl transition-colors"
+          >
+            <ChevronDown className="-rotate-90" size={18} />
+          </button>
+          <button
+            onClick={() => setShowGenerateConfirm(true)}
+            disabled={generating}
+            className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 rounded-xl font-semibold transition-all flex items-center gap-2"
+          >
+            {generating ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <FileText size={18} />
+            )}
+            <span className="hidden sm:inline">Generate</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {!report ? (
+          <EmptyState 
+            icon={Receipt}
+            title="No Report Data"
+            message={`No transactions found for ${formatDate(date)}`}
+          />
+        ) : (
+          <div className="max-w-4xl mx-auto space-y-4">
+            {/* Revenue Overview Cards */}
+            <Section title="Overview" icon={DollarSign} defaultExpanded>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <MetricCard
+                  label="Total Revenue"
+                  value={formatCurrency(totalRevenue)}
+                  trend={totalRevenue > 0 ? "up" : "neutral"}
+                  icon={DollarSign}
+                  highlight
+                />
+                <MetricCard
+                  label="Total Bills"
+                  value={totalBills}
+                  subvalue={`${bills.completed || 0} paid`}
+                  icon={Receipt}
+                />
+                <MetricCard
+                  label="Cash"
+                  value={formatCurrency(paymentMethodTotals["Cash"] || 0)}
+                  icon={Banknote}
+                />
+                <MetricCard
+                  label="M-Pesa"
+                  value={formatCurrency(paymentMethodTotals["M-Pesa"] || 0)}
+                  icon={Smartphone}
+                />
+              </div>
+
+              {/* Bills Breakdown */}
+              <div className="mt-4 pt-4 border-t border-slate-700/50">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-emerald-400">
+                      {bills.completed || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 uppercase">Completed</p>
+                  </div>
+                  <div className="text-center border-x border-slate-700/50">
+                    <p className="text-2xl font-bold text-amber-400">
+                      {bills.open || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 uppercase">Open</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-red-400">
+                      {bills.void || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 uppercase">Void</p>
+                  </div>
+                </div>
+              </div>
+            </Section>
+
+            {/* Payment Methods */}
+            {payments.length > 0 && (
+              <Section
+                title="Payment Methods"
+                icon={Banknote}
+                badge={payments.length}
+              >
+                <div className="space-y-2">
+                  {payments.map((payment) => {
+                    const Icon = methodIcons[payment.method] || DollarSign;
+                    const percentage = totalRevenue > 0 
+                      ? ((payment.amount / totalRevenue) * 100).toFixed(1)
+                      : 0;
+                    return (
+                      <div key={payment.id} className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
+                          <Icon size={18} className="text-pink-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-white">
+                              {payment.method}
+                            </span>
+                            <span className="font-bold text-white">
+                              {formatCurrency(payment.amount)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-pink-500 to-purple-600"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 w-12 text-right">
+                              {percentage}%
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {payment.bill_count || 0} transactions
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
+
+            {/* Sales by Category */}
+            {categories.length > 0 && (
+              <Section
+                title="Sales by Category"
+                icon={Package}
+                badge={categories.length}
+              >
+                <div className="space-y-3">
+                  {categories
+                    .sort((a, b) => b.revenue - a.revenue)
+                    .map((cat, idx) => {
+                      const categoryName = cat.category_name || cat.category || cat.name || `Category ${idx + 1}`;
+                      const percentage = totalRevenue > 0
+                        ? ((cat.revenue / totalRevenue) * 100).toFixed(1)
+                        : 0;
+                      return (
+                        <div key={idx}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-white">
+                              {categoryName}
+                            </span>
+                            <span className="font-bold text-white">
+                              {formatCurrency(cat.revenue)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-600"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 w-12 text-right">
+                              {percentage}%
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {cat.quantity_sold} items sold
+                          </p>
+                        </div>
+                      );
+                    })}
+                </div>
+              </Section>
+            )}
+
+            {/* Top Products */}
+            {products.length > 0 && (
+              <Section
+                title="Top Products"
+                icon={TrendingUp}
+                badge={products.length}
+              >
+                <div className="space-y-2">
+                  {products
+                    .sort((a, b) => b.revenue - a.revenue)
+                    .slice(0, 10)
+                    .map((prod, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl"
+                      >
+                        <span className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                          {idx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white truncate">
+                            {prod.product_name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {prod.quantity_sold} sold
+                          </p>
+                        </div>
+                        <p className="font-bold text-white">
+                          {formatCurrency(prod.revenue)}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              </Section>
+            )}
+
+            {/* Staff Performance */}
+            {servers.length > 0 && (
+              <Section
+                title="Staff Performance"
+                icon={Users}
+                badge={servers.length}
+              >
+                <div className="space-y-2">
+                  {servers
+                    .sort((a, b) => b.total_sales - a.total_sales)
+                    .map((server) => (
+                      <div
+                        key={server.server_name}
+                        className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-600/20 flex items-center justify-center">
+                          <span className="text-sm font-bold text-emerald-400">
+                            {server.server_name?.charAt(0) || "?"}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-white">
+                            {server.server_name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {server.bills_served} bills
+                          </p>
+                        </div>
+                        <p className="font-bold text-white">
+                          {formatCurrency(server.total_sales)}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              </Section>
+            )}
+
+            {/* Voided Items */}
+            {voids.length > 0 && (
+              <Section
+                title="Voided Items"
+                icon={XCircle}
+                badge={voids.length}
+                variant="danger"
+              >
+                <div className="space-y-2">
+                  {voids.map((v, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-white truncate">
+                          {v.product_name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {v.quantity} @ {formatCurrency(v.unit_price)}
+                        </p>
+                      </div>
+                      <p className="font-bold text-red-400">
+                        -{formatCurrency(v.total)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-red-500/20">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-400">Total Voided</span>
+                    <span className="font-bold text-red-400">
+                      {formatCurrency(voids.reduce((s, v) => s + v.total, 0))}
+                    </span>
+                  </div>
+                </div>
+              </Section>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Generate Confirmation */}
+      {showGenerateConfirm && (
+        <ConfirmModal
+          title="Generate Z-Report?"
+          message={`Generate Z-Report for ${formatDate(date)}? This will finalize the day's transactions.`}
+          confirmLabel="Generate"
+          cancelLabel="Cancel"
+          variant="primary"
+          onConfirm={handleGenerateZReport}
+          onCancel={() => setShowGenerateConfirm(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+// Section Component
+const Section = ({ 
+  title, 
+  icon: Icon, 
+  children, 
+  badge,
+  variant = "default",
+  defaultExpanded = false 
+}) => {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  
+  const variants = {
+    default: "border-slate-700/30 bg-slate-800/30",
+    danger: "border-red-500/30 bg-red-500/5",
+  };
+
+  return (
+    <div className={`rounded-xl border ${variants[variant]} overflow-hidden`}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Icon size={18} className={variant === "danger" ? "text-red-400" : "text-pink-400"} />
+          <h3 className="font-semibold text-white">{title}</h3>
+          {badge && (
+            <span className="px-2 py-0.5 bg-slate-700 text-gray-300 text-xs rounded-full">
+              {badge}
+            </span>
+          )}
+        </div>
+        {expanded ? (
+          <ChevronUp size={18} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={18} className="text-gray-400" />
+        )}
+      </button>
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-slate-700/30">{children}</div>
+      )}
+    </div>
+  );
+};
+
+// Metric Card Component
+const MetricCard = ({ label, value, subvalue, icon: Icon, trend, highlight }) => (
+  <div className={`p-4 rounded-xl ${highlight ? "bg-gradient-to-br from-pink-500/20 to-purple-600/20 border border-pink-500/30" : "bg-slate-800/50 border border-slate-700/30"}`}>
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-xs text-gray-400 uppercase mb-1">{label}</p>
+        <p className={`text-xl font-bold ${highlight ? "text-white" : "text-white"}`}>
+          {value}
+        </p>
+        {subvalue && (
+          <p className="text-xs text-gray-500 mt-0.5">{subvalue}</p>
+        )}
+      </div>
+      <div className={`p-2 rounded-lg ${highlight ? "bg-pink-500/20" : "bg-slate-700/50"}`}>
+        <Icon size={18} className={highlight ? "text-pink-400" : "text-gray-400"} />
+      </div>
+    </div>
+    {trend && (
+      <div className="mt-2">
+        {trend === "up" && <TrendingUp size={14} className="text-emerald-400" />}
+        {trend === "down" && <TrendingDown size={14} className="text-red-400" />}
+        {trend === "neutral" && <Minus size={14} className="text-gray-500" />}
+      </div>
+    )}
+  </div>
+);
+
+// Empty State Component
+const EmptyState = ({ icon: Icon, title, message }) => (
+  <div className="flex flex-col items-center justify-center h-64 text-center p-4">
+    <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4">
+      <Icon size={32} className="text-gray-600" />
+    </div>
+    <h2 className="text-lg font-bold text-white mb-2">{title}</h2>
+    <p className="text-gray-400">{message}</p>
+  </div>
+);
+
+export default BetaZReportScreen;

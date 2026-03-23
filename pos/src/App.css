@@ -1,0 +1,31 @@
+/* Theme Variables and Base Styles */
+
+/* Dark theme (default) */
+.theme-dark {
+  --bg-primary: #1f2937;
+  --bg-secondary: #374151;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --border-color: #4b5563;
+  --accent-color: #ff6b9d;
+}
+
+/* Light theme */
+.theme-light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f4f6;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+  --accent-color: #ec4899;
+}
+
+/* Smooth theme transitions */
+* {
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+/* Prevent transition on page load */
+.no-transition * {
+  transition: none !important;
+}

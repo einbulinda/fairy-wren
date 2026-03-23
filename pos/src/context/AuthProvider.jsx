@@ -10,16 +10,21 @@ const hasPosAccess = (u) =>
   u.permissions?.includes("pos_access") || u.permissions?.includes("stock_take");
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const UI_VERSION_KEY = "pos_ui_version";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showDisciplineReminder, setShowDisciplineReminder] = useState(false);
+  const [uiVersion, setUiVersion] = useState("classic");
 
   // Restore session on refresh
   useEffect(() => {
     const storedUser = TokenService.getUser();
     const token = TokenService.getToken();
+    const savedUiVersion = localStorage.getItem(UI_VERSION_KEY) || "classic";
+    
+    setUiVersion(savedUiVersion);
 
     if (storedUser && token && !TokenService.isExpired() && hasPosAccess(storedUser)) {
       setUser(storedUser);
@@ -29,6 +34,17 @@ export const AuthProvider = ({ children }) => {
       }
     }
     setLoading(false);
+  }, []);
+
+  // Listen for UI version changes from other tabs/components
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === UI_VERSION_KEY) {
+        setUiVersion(e.newValue || "classic");
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   // Login Handler
@@ -70,6 +86,11 @@ export const AuthProvider = ({ children }) => {
 
   useInactivityTimeout(logout);
 
+  const switchUiVersion = useCallback((version) => {
+    setUiVersion(version);
+    localStorage.setItem(UI_VERSION_KEY, version);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -78,6 +99,8 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         loading,
+        uiVersion,
+        switchUiVersion,
       }}
     >
       {!loading && children}

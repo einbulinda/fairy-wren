@@ -1,33 +1,48 @@
 import "./App.css";
 import { useAuth } from "./hooks/useAuth";
+import { useTheme } from "./hooks/useTheme";
 import LoginScreen from "./pages/LoginScreen";
 import MainLayout from "./components/layout/MainLayout";
+import BetaMainLayout from "./beta/layout/BetaMainLayout";
 import { Toaster } from "react-hot-toast";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
+import { ThemeProvider } from "./context/ThemeProvider";
 
 const AppContent = () => {
-  const { user } = useAuth();
+  const { user, uiVersion } = useAuth();
 
   if (!user) {
     return <LoginScreen />;
   }
 
-  return <MainLayout />;
+  // Render appropriate UI version based on user selection
+  return uiVersion === "beta" ? <BetaMainLayout /> : <MainLayout />;
 };
 
-function App() {
+const ThemedContent = () => {
+  const { theme } = useTheme();
+  
+  // Update toast theme based on current theme
+  const toastStyle = theme === "light" 
+    ? {
+        background: "#ffffff",
+        color: "#1F2937",
+        border: "1px solid #e5e7eb",
+      }
+    : {
+        background: "#1F2937",
+        color: "#fff",
+        border: "1px solid #FF6B9D",
+      };
+  
   return (
-    <ErrorBoundary>
+    <div className={`theme-${theme}`}>
       <AppContent />
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 3000,
-          style: {
-            background: "#1F2937",
-            color: "#fff",
-            border: "1px solid #FF6B9D",
-          },
+          style: toastStyle,
           success: {
             iconTheme: {
               primary: "#10B981",
@@ -42,6 +57,16 @@ function App() {
           },
         }}
       />
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ThemedContent />
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
