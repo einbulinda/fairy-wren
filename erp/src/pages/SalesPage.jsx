@@ -142,7 +142,8 @@ const SalesPage = () => {
     return p;
   }, [startDate, endDate, statusFilter]);
 
-  const { data: bills = [], isLoading } = useBills(params);
+  const { data, isLoading } = useBills(params);
+  const bills = data?.bills ?? [];
 
   // Filter by search
   const filtered = useMemo(() => {

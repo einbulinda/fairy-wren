@@ -59,6 +59,12 @@ exports.findBillById = async (id) => {
 
 exports.listBills = async (filters = {}) => {
   const supabase = getSupabase();
+
+  const page = Math.max(1, parseInt(filters.page) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(filters.limit) || 50));
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
   let query = supabase.from("bills").select(
     `
       id,
@@ -88,14 +94,35 @@ exports.listBills = async (filters = {}) => {
         created_at
       )
     `,
+    { count: "exact" },
   );
 
-  if (filters.status) query = query.eq("status", filters.status);
+  // Filter by active (open + awaiting_confirmation) or by specific status(es)
+  if (filters.active === "true" || filters.active === true) {
+    query = query.in("status", ["open", "awaiting_confirmation"]);
+  } else if (filters.status) {
+    const statuses = filters.status.split(",").map((s) => s.trim());
+    if (statuses.length === 1) {
+      query = query.eq("status", statuses[0]);
+    } else {
+      query = query.in("status", statuses);
+    }
+  }
+
   if (filters.startDate) query = query.gte("created_at", filters.startDate);
   if (filters.endDate)
     query = query.lte("created_at", filters.endDate + "T23:59:59");
 
-  return query.order("created_at", { ascending: false });
+  query = query.order("created_at", { ascending: false }).range(from, to);
+
+  const { data, error, count } = await query;
+
+  return {
+    data,
+    error,
+    count,
+    pagination: { page, limit, total: count, totalPages: Math.ceil((count || 0) / limit) },
+  };
 };
 
 exports.updateBillStatus = async (id, status, userId) => {

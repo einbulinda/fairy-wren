@@ -6,20 +6,21 @@ import { useAppStore } from "@/store/app.store";
  * Hook to manage bills with request cancellation support
  * Uses Zustand store for shared state across components
  * Prevents race conditions when params change rapidly
- * @param {Object} params - Filter parameters for listing bills
- * @returns {Object} { bills, loading, error, reload, createBill, addRound, payBill, voidBill, setBills }
+ * @param {Object} params - Filter parameters for listing bills (defaults to active bills)
+ * @returns {Object} { bills, pagination, loading, error, reload, createBill, addRound, payBill, voidBill, setBills }
  */
-export const useBills = (params = {}) => {
+export const useBills = (params = { active: true }) => {
   // Get store state and actions - ensure bills is always an array
   const storeBills = useAppStore((state) => state.bills || []);
   const storeSetBills = useAppStore((state) => state.setBills);
   const storeSetLoading = useAppStore((state) => state.setBillsLoading);
   const storeSetError = useAppStore((state) => state.setBillsError);
   const billsReloadTrigger = useAppStore((state) => state.billsReloadTrigger);
-  
+
   // Local loading state for this hook instance
   const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState(null);
 
   // Use ref to track the current abort controller
   const abortControllerRef = useRef(null);
@@ -46,11 +47,12 @@ export const useBills = (params = {}) => {
     storeSetError(null);
 
     try {
-      const data = await BillsService.list(params, controller.signal);
-      
+      const { bills, pagination: pg } = await BillsService.list(params, controller.signal);
+
       // Only update state if this request wasn't aborted
       if (!controller.signal.aborted) {
-        storeSetBills(data);
+        storeSetBills(bills);
+        setPagination(pg);
       }
     } catch (err) {
       // Don't update error state if request was intentionally aborted
@@ -173,6 +175,7 @@ export const useBills = (params = {}) => {
   return {
     // state - from store for shared access - ensure bills is always an array
     bills: storeBills || [],
+    pagination,
     loading: localLoading,
     error,
 

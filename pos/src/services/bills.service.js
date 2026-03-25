@@ -19,13 +19,15 @@ const generateCacheKey = (method, path, params = {}) => {
 
 export const BillsService = {
   // GET /bills - with request deduplication
+  // Returns { bills: [], pagination: { page, limit, total, totalPages } }
   async list(params = {}, signal) {
     const cacheKey = generateCacheKey("GET", BASE_PATH, params);
 
     return dedupeRequest(cacheKey, async () => {
       try {
         const { data } = await api.get(BASE_PATH, { params, signal });
-        return data?.data ?? data;
+        const body = data?.data !== undefined ? data : { data: data };
+        return { bills: body.data ?? [], pagination: body.pagination ?? null };
       } catch (error) {
         throw normalizeError(error, "Error fetching bills.");
       }

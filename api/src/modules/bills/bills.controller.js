@@ -14,6 +14,7 @@ exports.createBill = async (req, res, next) => {
 exports.getBill = async (req, res, next) => {
   try {
     const data = await service.getBill(req.params.id);
+    res.set("Cache-Control", "private, max-age=5");
     respond(res, 200, data);
   } catch (err) {
     next(err);
@@ -22,8 +23,15 @@ exports.getBill = async (req, res, next) => {
 
 exports.listBills = async (req, res, next) => {
   try {
-    const data = await service.listBills(req.query);
-    respond(res, 200, data);
+    const { bills, pagination } = await service.listBills(req.query);
+
+    // Bills change frequently — short private cache to absorb rapid re-fetches
+    res.set("Cache-Control", "private, max-age=5");
+
+    if (res.locals.correlationId)
+      res.setHeader("X-Request-ID", res.locals.correlationId);
+
+    return res.status(200).json({ success: true, data: bills, pagination });
   } catch (err) {
     next(err);
   }
@@ -55,6 +63,7 @@ exports.voidBill = async (req, res, next) => {
 exports.getMyStats = async (req, res, next) => {
   try {
     const data = await service.getMyStats(req.user.id, req.query.period);
+    res.set("Cache-Control", "private, max-age=15");
     respond(res, 200, data);
   } catch (err) {
     next(err);

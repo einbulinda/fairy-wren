@@ -8,6 +8,15 @@ const {
   VoidBillDTO,
 } = require("./bills.dto");
 
+// Lazy load broadcast to ensure socket server is initialized first
+let broadcast;
+function getBroadcast() {
+  if (!broadcast) {
+    broadcast = require("../../websocket/socket.server").broadcast;
+  }
+  return broadcast;
+}
+
 /* ---------- Bills ---------- */
 exports.createBill = async (payload, context) => {
   const dto = CreateBillDTO(payload);
@@ -18,6 +27,17 @@ exports.createBill = async (payload, context) => {
   });
 
   if (error) throw new Error("FAILED_TO_CREATE_BILL");
+
+  // Broadcast bill creation to all connected clients
+  try {
+    getBroadcast()("bill:created", {
+      bill: data,
+      createdBy: context.userId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[BillsService] Failed to broadcast bill:created:", err.message);
+  }
 
   await auditRepo.log({
     entity: "bills",
@@ -37,9 +57,9 @@ exports.getBill = async (id) => {
 };
 
 exports.listBills = async (filters) => {
-  const { data, error } = await repo.listBills(filters);
+  const { data, error, pagination } = await repo.listBills(filters);
   if (error) throw new Error("FAILED_TO_FETCH_BILLS");
-  return data;
+  return { bills: data, pagination };
 };
 
 exports.updateStatus = async (id, payload, context) => {
@@ -77,6 +97,17 @@ exports.voidBill = async (id, context) => {
   const { error } = await repo.updateBillStatus(id, "void", context.userId);
 
   if (error) throw new Error("FAILED_TO_VOID_BILL");
+
+  // Broadcast bill void to all connected clients
+  try {
+    getBroadcast()("bill:voided", {
+      billId: id,
+      voidedBy: context.userId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[BillsService] Failed to broadcast bill:voided:", err.message);
+  }
 
   await auditRepo.log({
     entity: "bills",
@@ -238,6 +269,19 @@ exports.addRound = async (billId, payload, context) => {
   const { error: saleError } = await repo.postRoundSale(round.id);
   if (saleError) {
     throw new Error("FAILED_TO_POST_ROUND_SALE");
+  }
+
+  // Broadcast round creation to all connected clients
+  try {
+    getBroadcast()("round:created", {
+      billId,
+      round,
+      items,
+      createdBy: context.userId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[BillsService] Failed to broadcast round:created:", err.message);
   }
 
   await auditRepo.log({
