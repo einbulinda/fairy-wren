@@ -1,15 +1,24 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BillsService } from "@/services/bills.service";
+import { useAppStore } from "@/store/app.store";
 
 /**
  * Hook to manage bills with request cancellation support
+ * Uses Zustand store for shared state across components
  * Prevents race conditions when params change rapidly
  * @param {Object} params - Filter parameters for listing bills
  * @returns {Object} { bills, loading, error, reload, createBill, addRound, payBill, voidBill, setBills }
  */
 export const useBills = (params = {}) => {
-  const [bills, setBills] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // Get store state and actions - ensure bills is always an array
+  const storeBills = useAppStore((state) => state.bills || []);
+  const storeSetBills = useAppStore((state) => state.setBills);
+  const storeSetLoading = useAppStore((state) => state.setBillsLoading);
+  const storeSetError = useAppStore((state) => state.setBillsError);
+  const billsReloadTrigger = useAppStore((state) => state.billsReloadTrigger);
+  
+  // Local loading state for this hook instance
+  const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Use ref to track the current abort controller
@@ -31,15 +40,17 @@ export const useBills = (params = {}) => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    setLoading(true);
+    setLocalLoading(true);
+    storeSetLoading(true);
     setError(null);
+    storeSetError(null);
 
     try {
-      const { data } = await BillsService.list(params, controller.signal);
+      const data = await BillsService.list(params, controller.signal);
       
       // Only update state if this request wasn't aborted
       if (!controller.signal.aborted) {
-        setBills(data);
+        storeSetBills(data);
       }
     } catch (err) {
       // Don't update error state if request was intentionally aborted
@@ -48,20 +59,22 @@ export const useBills = (params = {}) => {
       }
       if (!controller.signal.aborted) {
         setError(err);
+        storeSetError(err);
       }
     } finally {
       if (!controller.signal.aborted) {
-        setLoading(false);
+        setLocalLoading(false);
+        storeSetLoading(false);
       }
       // Clean up ref if this was the current controller
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
     }
-  }, [paramsKey]);
+  }, [paramsKey, storeSetBills, storeSetLoading, storeSetError]);
 
   /**
-   * Initial load + params change
+   * Initial load + params change + reload trigger from store
    */
   useEffect(() => {
     loadBills();
@@ -72,16 +85,16 @@ export const useBills = (params = {}) => {
         abortControllerRef.current.abort();
       }
     };
-  }, [loadBills]);
+  }, [loadBills, billsReloadTrigger]); // Added billsReloadTrigger as dependency
 
   /**
    * Optimistically replace a bill in state
    */
   const replaceBill = useCallback((updatedBill) => {
-    setBills((prev) =>
-      prev.map((b) => (b.id === updatedBill.id ? updatedBill : b)),
+    storeSetBills(
+      storeBills.map((b) => (b.id === updatedBill.id ? updatedBill : b))
     );
-  }, []);
+  }, [storeBills, storeSetBills]);
 
   /**
    * Create a new bill (optimistic insert)
@@ -90,14 +103,14 @@ export const useBills = (params = {}) => {
     setError(null);
 
     try {
-      const { data } = await BillsService.create(payload);
-      setBills((prev) => [data, ...prev]);
-      return data;
+      const newBill = await BillsService.create(payload);
+      storeSetBills([newBill, ...storeBills]);
+      return newBill;
     } catch (err) {
       setError(err);
       throw err;
     }
-  }, []);
+  }, [storeBills, storeSetBills]);
 
   /**
    * Add a round to a bill
@@ -158,9 +171,9 @@ export const useBills = (params = {}) => {
   );
 
   return {
-    // state
-    bills,
-    loading,
+    // state - from store for shared access - ensure bills is always an array
+    bills: storeBills || [],
+    loading: localLoading,
     error,
 
     // core actions
@@ -168,7 +181,7 @@ export const useBills = (params = {}) => {
     createBill,
 
     // mutations
-    setBills, // exposed intentionally (POS optimistic updates)
+    setBills: storeSetBills,
     addRound,
     payBill,
     voidBill,

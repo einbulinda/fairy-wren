@@ -8,8 +8,8 @@ export const useMyBillStats = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const { data } = await BillsService.getMyStats(period);
-      setStats(data);
+      const stats = await BillsService.getMyStats(period);
+      setStats(stats);
     } catch {
       console.error("Failed to fetch bill stats");
     } finally {

@@ -90,6 +90,13 @@ const BetaPOSScreen = () => {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
 
+  // Show error toast only once when billsError changes
+  useEffect(() => {
+    if (billsError?.message) {
+      toast.error(billsError.message);
+    }
+  }, [billsError]);
+
   // Permission checks
   const canAccessConfirm = user?.permissions?.includes("approve_payments");
 
@@ -436,8 +443,6 @@ const BetaPOSScreen = () => {
   if (productsLoading || categoriesLoading || billsLoading) {
     return <LoadingSpinner />;
   }
-
-  if (billsError) toast.error(billsError.message);
 
   return (
     <div className="h-[calc(100vh-60px)] flex flex-col lg:flex-row overflow-hidden">

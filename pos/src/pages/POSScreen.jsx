@@ -90,6 +90,13 @@ const POSScreen = () => {
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Show error toast only once when billsError changes
+  useEffect(() => {
+    if (billsError?.message) {
+      toast.error(billsError.message);
+    }
+  }, [billsError]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -129,7 +136,10 @@ const POSScreen = () => {
           message: `⚠️ Exceeds available stock (${product.current_stock})`,
           severity: "error",
         };
-      } else if (product.reorder_level > 0 && product.current_stock <= product.reorder_level) {
+      } else if (
+        product.reorder_level > 0 &&
+        product.current_stock <= product.reorder_level
+      ) {
         warnings[item.id] = {
           message: `⚠️ Low stock (${product.current_stock} left, ROL: ${product.reorder_level})`,
           severity: "warning",
@@ -531,8 +541,6 @@ const POSScreen = () => {
     return <LoadingSpinner />;
   }
 
-  if (billsError) toast.error(billsError.message);
-
   return (
     <div className="h-full flex flex-col">
       {/* Desktop Navigation Bar */}
@@ -554,7 +562,6 @@ const POSScreen = () => {
               <ShoppingCart size={18} />
               <span>SALE</span>
             </button>
-
 
             {canAccessConfirm && (
               <button
@@ -630,7 +637,10 @@ const POSScreen = () => {
                   className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                   title="Refresh bills & products"
                 >
-                  <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+                  <RefreshCw
+                    size={18}
+                    className={refreshing ? "animate-spin" : ""}
+                  />
                 </button>
               </div>
             </>
@@ -678,7 +688,10 @@ const POSScreen = () => {
               disabled={refreshing}
               className="px-3 py-2.5 bg-gray-700 active:bg-gray-600 rounded-lg transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <RefreshCw size={20} className={refreshing ? "animate-spin" : ""} />
+              <RefreshCw
+                size={20}
+                className={refreshing ? "animate-spin" : ""}
+              />
             </button>
           </div>
         </div>
@@ -944,23 +957,25 @@ const POSScreen = () => {
         />
       )}
 
-      {showPaymentModal && activeBill && (() => {
-        const paymentInfo = calculateBillPaymentInfo(activeBill);
-        return (
-          <PaymentModal
-            isOpen={showPaymentModal}
-            onClose={() => setShowPaymentModal(false)}
-            onSubmitPayments={(lines) =>
-              handleProcessPayment(activeBill, lines)
-            }
-            billTotal={paymentInfo.total}
-            balanceDue={paymentInfo.balanceDue}
-            amountPaid={paymentInfo.amountPaid}
-            canAccessConfirm={canAccessConfirm}
-            loading={paymentLoading}
-          />
-        );
-      })()}
+      {showPaymentModal &&
+        activeBill &&
+        (() => {
+          const paymentInfo = calculateBillPaymentInfo(activeBill);
+          return (
+            <PaymentModal
+              isOpen={showPaymentModal}
+              onClose={() => setShowPaymentModal(false)}
+              onSubmitPayments={(lines) =>
+                handleProcessPayment(activeBill, lines)
+              }
+              billTotal={paymentInfo.total}
+              balanceDue={paymentInfo.balanceDue}
+              amountPaid={paymentInfo.amountPaid}
+              canAccessConfirm={canAccessConfirm}
+              loading={paymentLoading}
+            />
+          );
+        })()}
 
       {showReceiptModal && activeBill && (
         <ReceiptModal
