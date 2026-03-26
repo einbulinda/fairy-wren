@@ -4,6 +4,15 @@ const stockTakeReadRepo = require("../repos/inventory.stocktake.read.repository"
 const adjustmentsRepo = require("../repos/inventory.adjustments.repository");
 const auditRepo = require("../../audit/audit.repository");
 
+// Lazy load broadcast to ensure socket server is initialized first
+let broadcast;
+function getBroadcast() {
+  if (!broadcast) {
+    broadcast = require("../../../websocket/socket.server").broadcast;
+  }
+  return broadcast;
+}
+
 exports.createSession = async (payload, context) => {
   const { stockTakeName, stockTakeType = "full", location } = payload;
 
@@ -84,6 +93,22 @@ exports.completeSession = async (stockTakeId, context) => {
     correlation_id: context.correlationId,
   });
 
+  // Broadcast stock take submission for manager notification
+  try {
+    getBroadcast()(
+      "stocktake:awaiting_approval",
+      {
+        stockTakeId,
+        stockTakeName: data?.stock_take_name || "Stock Take",
+        submittedBy: context.userId,
+        timestamp: new Date().toISOString(),
+      },
+      { permissions: ["approve_stock_take"] }
+    );
+  } catch (err) {
+    console.error("[StockTakeService] Failed to broadcast stocktake:awaiting_approval:", err.message);
+  }
+
   return data;
 };
 
@@ -112,6 +137,18 @@ exports.approve = async (stockTakeId, { notes } = {}, context) => {
     metadata: { notes },
   });
 
+  // Broadcast stock take approval
+  try {
+    getBroadcast()("stocktake:approved", {
+      stockTakeId,
+      stockTakeName: data?.stock_take_name || "Stock Take",
+      approvedBy: context.userId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[StockTakeService] Failed to broadcast stocktake:approved:", err.message);
+  }
+
   return data;
 };
 
@@ -138,6 +175,19 @@ exports.reject = async (stockTakeId, { reason } = {}, context) => {
     correlation_id: context.correlationId,
     metadata: { reason },
   });
+
+  // Broadcast stock take rejection
+  try {
+    getBroadcast()("stocktake:rejected", {
+      stockTakeId,
+      stockTakeName: data?.stock_take_name || "Stock Take",
+      rejectedBy: context.userId,
+      reason: reason || "",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[StockTakeService] Failed to broadcast stocktake:rejected:", err.message);
+  }
 
   return data;
 };

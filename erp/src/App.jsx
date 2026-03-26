@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthProvider";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import LoginPage from "@/pages/LoginPage";
 import AppShell from "@/components/layout/AppShell";
 import DashboardPage from "@/pages/DashboardPage";
@@ -40,8 +41,14 @@ const queryClient = new QueryClient({
   },
 });
 
-const AppRoutes = () => {
+// Inner component that has access to auth and real-time sync
+const AuthenticatedRoutes = () => {
   const { user } = useAuth();
+  
+  // Enable real-time sync for authenticated users
+  const { isConnected } = useRealtimeSync();
+
+  console.log("[ERP] Real-time sync status:", isConnected ? "connected" : "disconnected");
 
   if (!user) {
     return <LoginPage />;
@@ -85,7 +92,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <AuthenticatedRoutes />
           <Toaster
             position="top-right"
             toastOptions={{

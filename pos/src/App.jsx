@@ -1,12 +1,42 @@
 import "./App.css";
+import { useCallback } from "react";
 import { useAuth } from "./hooks/useAuth";
 import { useTheme } from "./hooks/useTheme";
+import { useRealtimeSync } from "./hooks/useRealtimeSync";
+import { useAppStore } from "./store/app.store";
 import LoginScreen from "./pages/LoginScreen";
 import MainLayout from "./components/layout/MainLayout";
 import BetaMainLayout from "./beta/layout/BetaMainLayout";
 import { Toaster } from "react-hot-toast";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeProvider";
+
+const AuthenticatedContent = ({ uiVersion }) => {
+  // Get the trigger function from the store
+  const triggerBillsReload = useAppStore((state) => state.triggerBillsReload);
+
+  // Callback for bill changes - trigger reload via store
+  const handleBillsChange = useCallback(() => {
+    console.log("[App] Bills changed, triggering reload...");
+    triggerBillsReload();
+  }, [triggerBillsReload]);
+
+  // Callback for inventory changes
+  const handleInventoryChange = useCallback(() => {
+    console.log("[App] Inventory changed");
+  }, []);
+
+  // Enable real-time sync with callbacks
+  const { isConnected } = useRealtimeSync({
+    onBillsChange: handleBillsChange,
+    onInventoryChange: handleInventoryChange,
+  });
+
+  console.log("[App] Real-time sync status:", isConnected ? "connected" : "disconnected");
+
+  // Render appropriate UI version based on user selection
+  return uiVersion === "beta" ? <BetaMainLayout /> : <MainLayout />;
+};
 
 const AppContent = () => {
   const { user, uiVersion } = useAuth();
@@ -15,8 +45,8 @@ const AppContent = () => {
     return <LoginScreen />;
   }
 
-  // Render appropriate UI version based on user selection
-  return uiVersion === "beta" ? <BetaMainLayout /> : <MainLayout />;
+  // Only render authenticated content (with hooks) when logged in
+  return <AuthenticatedContent uiVersion={uiVersion} />;
 };
 
 const ThemedContent = () => {

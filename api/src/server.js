@@ -1,7 +1,10 @@
 require("dotenv").config();
+const { createServer } = require("http");
 const { validateEnv } = require("./config/env");
 const app = require("./app");
 const logger = require("pino")();
+const { initializeSocketServer } = require("./websocket/socket.server");
+const { initializeSupabaseSubscriber, cleanupSubscriptions } = require("./websocket/supabase.subscriber");
 
 console.log("Bootstrapping FairyWren API...");
 
@@ -19,10 +22,39 @@ process.on("uncaughtException", (err) => {
   process.exit(1);
 });
 
-app.listen(PORT, () => {
-  logger.info(`Server running on PORT ${PORT}`);
+// Create HTTP server (required for Socket.io)
+const httpServer = createServer(app);
 
-  // Start reorder level scheduler
-  const reorderScheduler = require("./modules/inventory/services/inventory.scheduler");
-  reorderScheduler.start();
+// Initialize WebSocket server
+initializeSocketServer(httpServer);
+
+// Initialize Supabase real-time subscriber
+initializeSupabaseSubscriber();
+
+// Start reorder level scheduler
+const reorderScheduler = require("./modules/inventory/services/inventory.scheduler");
+reorderScheduler.start();
+
+// Handle graceful shutdown
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received, shutting down gracefully");
+  cleanupSubscriptions();
+  httpServer.close(() => {
+    console.log("HTTP server closed");
+    process.exit(0);
+  });
+});
+
+process.on("SIGINT", () => {
+  console.log("SIGINT received, shutting down gracefully");
+  cleanupSubscriptions();
+  httpServer.close(() => {
+    console.log("HTTP server closed");
+    process.exit(0);
+  });
+});
+
+httpServer.listen(PORT, () => {
+  logger.info(`Server running on PORT ${PORT}`);
+  logger.info(`WebSocket server ready`);
 });
