@@ -8,12 +8,11 @@ import {
   X,
   Users,
   Shield,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { useUsers, useCreateUser, useUpdateUser, useToggleUserStatus } from "@/hooks/useUsers";
 import { useSystemRoles } from "@/hooks/useSystemRoles";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
+import PaginatedTable from "@/components/shared/PaginatedTable";
 import { fmtDate } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
 
@@ -23,8 +22,6 @@ const ROLE_STYLES = {
   bartender: "bg-yellow-500/20 text-yellow-400",
   waitress: "bg-green-500/20 text-green-400",
 };
-
-const PAGE_SIZE = 10;
 
 const EMPTY_FORM = { name: "", role: "", pin: "", confirmPin: "" };
 
@@ -40,7 +37,6 @@ const UsersPage = () => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState(null);
   const [showInactive, setShowInactive] = useState(false);
-  const [page, setPage] = useState(1);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -70,14 +66,6 @@ const UsersPage = () => {
     }
     return list;
   }, [users, showInactive, roleFilter, search]);
-
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageItems = filtered.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
 
   const openCreate = () => {
     setEditTarget(null);
@@ -109,7 +97,6 @@ const UsersPage = () => {
 
     const isCreate = !editTarget;
 
-    // PIN validation
     if (isCreate && !form.pin) {
       setPinError("PIN is required");
       return;
@@ -140,6 +127,85 @@ const UsersPage = () => {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  const columns = [
+    {
+      key: "name",
+      label: "Name",
+      sortable: true,
+      render: (_val, user) => (
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 text-xs font-bold shrink-0">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+          <span className="font-medium text-white">{user.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: "role",
+      label: "Role",
+      sortable: true,
+      render: (_val, user) => <RoleBadge role={user.role} />,
+    },
+    {
+      key: "active",
+      label: "Status",
+      align: "center",
+      sortable: true,
+      sortFn: (a, b) => Number(a.active) - Number(b.active),
+      render: (_val, user) =>
+        user.active ? (
+          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
+            Active
+          </span>
+        ) : (
+          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-700 text-surface-400">
+            Inactive
+          </span>
+        ),
+    },
+    {
+      key: "created_at",
+      label: "Member Since",
+      sortable: true,
+      cellClassName: "text-surface-400 text-xs",
+      render: (_val, user) => fmtDate(user.created_at),
+    },
+    {
+      key: "_actions",
+      label: "Actions",
+      align: "right",
+      render: (_val, user) => (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); openEdit(user); }}
+            className="p-1.5 rounded-lg text-surface-400 hover:text-white hover:bg-surface-700 transition-colors"
+            title="Edit user"
+          >
+            <Edit2 size={14} />
+          </button>
+          {user.role !== "owner" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleMutation.mutate({ id: user.id, active: !user.active });
+              }}
+              disabled={toggleMutation.isPending}
+              className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
+                user.active
+                  ? "text-surface-400 hover:text-red-400 hover:bg-red-500/10"
+                  : "text-surface-400 hover:text-green-400 hover:bg-green-500/10"
+              }`}
+              title={user.active ? "Deactivate user" : "Activate user"}
+            >
+              {user.active ? <UserX size={14} /> : <UserCheck size={14} />}
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
@@ -150,7 +216,7 @@ const UsersPage = () => {
             type="text"
             placeholder="Search users…"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => setSearch(e.target.value)}
             className={`${inputCls} pl-8`}
           />
         </div>
@@ -158,7 +224,7 @@ const UsersPage = () => {
         {/* Role filter pills */}
         <div className="flex flex-wrap gap-1.5">
           <button
-            onClick={() => { setRoleFilter(null); setPage(1); }}
+            onClick={() => setRoleFilter(null)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               roleFilter === null
                 ? "bg-primary-600 text-white"
@@ -170,7 +236,7 @@ const UsersPage = () => {
           {ROLES.map(({ value, label }) => (
             <button
               key={value}
-              onClick={() => { setRoleFilter(roleFilter === value ? null : value); setPage(1); }}
+              onClick={() => setRoleFilter(roleFilter === value ? null : value)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 roleFilter === value
                   ? "bg-primary-600 text-white"
@@ -184,7 +250,7 @@ const UsersPage = () => {
 
         {/* Show inactive toggle */}
         <button
-          onClick={() => { setShowInactive((v) => !v); setPage(1); }}
+          onClick={() => setShowInactive((v) => !v)}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
             showInactive
               ? "bg-surface-600 border-surface-500 text-white"
@@ -206,92 +272,18 @@ const UsersPage = () => {
       <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
         {/* Desktop table */}
         <div className="hidden md:block">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
-              <tr>
-                <th className="px-4 py-3 text-left">Name</th>
-                <th className="px-4 py-3 text-left">Role</th>
-                <th className="px-4 py-3 text-center">Status</th>
-                <th className="px-4 py-3 text-left">Member Since</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-700">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-surface-400">
-                    Loading…
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-surface-400">
-                    No users found.
-                  </td>
-                </tr>
-              ) : (
-                pageItems.map((user) => (
-                  <tr
-                    key={user.id}
-                    className={`transition-colors hover:bg-surface-700/30 ${!user.active ? "opacity-50" : ""}`}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 text-xs font-bold shrink-0">
-                          {user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="font-medium text-white">{user.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <RoleBadge role={user.role} />
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {user.active ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-700 text-surface-400">
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-surface-400 text-xs">
-                      {fmtDate(user.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(user)}
-                          className="p-1.5 rounded-lg text-surface-400 hover:text-white hover:bg-surface-700 transition-colors"
-                          title="Edit user"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        {user.role !== "owner" && (
-                          <button
-                            onClick={() =>
-                              toggleMutation.mutate({ id: user.id, active: !user.active })
-                            }
-                            disabled={toggleMutation.isPending}
-                            className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
-                              user.active
-                                ? "text-surface-400 hover:text-red-400 hover:bg-red-500/10"
-                                : "text-surface-400 hover:text-green-400 hover:bg-green-500/10"
-                            }`}
-                            title={user.active ? "Deactivate user" : "Activate user"}
-                          >
-                            {user.active ? <UserX size={14} /> : <UserCheck size={14} />}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-surface-400">Loading…</div>
+          ) : (
+            <PaginatedTable
+              columns={columns}
+              data={filtered}
+              rowKey="id"
+              defaultSort={{ key: "name", dir: "asc" }}
+              defaultPageSize={10}
+              emptyMessage="No users found."
+            />
+          )}
         </div>
 
         {/* Mobile cards */}
@@ -302,7 +294,7 @@ const UsersPage = () => {
             <div className="px-4 py-8 text-center text-surface-400">No users found.</div>
           ) : (
             <div className="p-3 space-y-3">
-              {pageItems.map((user) => (
+              {filtered.map((user) => (
                 <MobileCard key={user.id} className={!user.active ? "opacity-50" : ""}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -349,33 +341,6 @@ const UsersPage = () => {
             </div>
           )}
         </div>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
-            <span className="text-sm text-surface-400">
-              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={safePage === 1}
-                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <span className="px-3 text-xs text-surface-400">
-                {safePage} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage === totalPages}
-                className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Stats footer */}

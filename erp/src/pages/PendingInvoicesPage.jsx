@@ -4,19 +4,16 @@ import {
   Clock,
   FileText,
   Building2,
-  ChevronLeft,
-  ChevronRight,
   CreditCard,
   X,
 } from "lucide-react";
 import { usePendingInvoices } from "@/hooks/useSuppliers";
 import { useMarkReceiptPaid } from "@/hooks/useInventory";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
+import PaginatedTable from "@/components/shared/PaginatedTable";
 import toast from "react-hot-toast";
 import { fmt, fmtDate } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
-
-const PAGE_SIZE = 15;
 
 const daysOutstanding = (purchaseDate) => {
   if (!purchaseDate) return 0;
@@ -41,9 +38,6 @@ const PendingInvoicesPage = () => {
   const navigate = useNavigate();
   const { data: invoices = [], isLoading } = usePendingInvoices();
   const markPaid = useMarkReceiptPaid();
-  const [page, setPage] = useState(1);
-  const [sortField, setSortField] = useState("purchase_date");
-  const [sortDir, setSortDir] = useState("asc");
   const [payingId, setPayingId] = useState(null);
   const [payForm, setPayForm] = useState({
     payment_method: "bank",
@@ -52,33 +46,6 @@ const PendingInvoicesPage = () => {
     notes: "",
   });
 
-  const sorted = useMemo(() => {
-    const list = [...invoices];
-    list.sort((a, b) => {
-      let va, vb;
-      if (sortField === "days") {
-        va = daysOutstanding(a.purchase_date);
-        vb = daysOutstanding(b.purchase_date);
-      } else if (sortField === "total_amount") {
-        va = Number(a.total_amount);
-        vb = Number(b.total_amount);
-      } else if (sortField === "supplier") {
-        va = a.suppliers?.name?.toLowerCase() || "";
-        vb = b.suppliers?.name?.toLowerCase() || "";
-      } else {
-        va = a[sortField] || "";
-        vb = b[sortField] || "";
-      }
-      if (va < vb) return sortDir === "asc" ? -1 : 1;
-      if (va > vb) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-    return list;
-  }, [invoices, sortField, sortDir]);
-
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageItems = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const totalOutstanding = invoices.reduce((s, i) => s + Number(i.total_amount ?? 0), 0);
 
   // Aging summary
@@ -94,27 +61,6 @@ const PendingInvoicesPage = () => {
     });
     return buckets;
   }, [invoices]);
-
-  const toggleSort = (field) => {
-    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else {
-      setSortField(field);
-      setSortDir("asc");
-    }
-    setPage(1);
-  };
-
-  const SortHeader = ({ field, children, className = "" }) => (
-    <th
-      onClick={() => toggleSort(field)}
-      className={`px-4 py-3 text-surface-400 font-medium cursor-pointer hover:text-white transition-colors select-none ${className}`}
-    >
-      {children}
-      {sortField === field && (
-        <span className="ml-1 text-primary-400">{sortDir === "asc" ? "↑" : "↓"}</span>
-      )}
-    </th>
-  );
 
   const handlePay = (e) => {
     e.preventDefault();
@@ -132,6 +78,88 @@ const PendingInvoicesPage = () => {
       },
     );
   };
+
+  const columns = [
+    {
+      key: "purchase_date",
+      label: "Date",
+      sortable: true,
+      cellClassName: "text-surface-300",
+      render: (_val, inv) => fmtDate(inv.purchase_date),
+    },
+    {
+      key: "invoice_number",
+      label: "Invoice #",
+      sortable: true,
+      render: (_val, inv) => (
+        <button
+          onClick={(e) => { e.stopPropagation(); navigate(`/inventory/receipts/${inv.id}`); }}
+          className="font-mono text-xs text-primary-400 hover:text-primary-300 transition-colors"
+        >
+          {inv.invoice_number}
+        </button>
+      ),
+    },
+    {
+      key: "supplier",
+      label: "Supplier",
+      sortable: true,
+      sortFn: (a, b) =>
+        (a.suppliers?.name || "").localeCompare(b.suppliers?.name || ""),
+      render: (_val, inv) => (
+        <button
+          onClick={(e) => { e.stopPropagation(); navigate(`/suppliers/${inv.supplier_id}`); }}
+          className="flex items-center gap-1.5 text-surface-300 hover:text-white transition-colors"
+        >
+          <Building2 size={12} className="text-surface-500" />
+          {inv.suppliers?.name || "—"}
+        </button>
+      ),
+    },
+    {
+      key: "days",
+      label: "Aging",
+      align: "center",
+      sortable: true,
+      sortFn: (a, b) => daysOutstanding(a.purchase_date) - daysOutstanding(b.purchase_date),
+      render: (_val, inv) => {
+        const days = daysOutstanding(inv.purchase_date);
+        const bucket = agingBucket(days);
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${bucket.color}`}>
+            <Clock size={10} />
+            {days}d
+          </span>
+        );
+      },
+    },
+    {
+      key: "total_amount",
+      label: "Amount",
+      align: "right",
+      sortable: true,
+      cellClassName: "font-medium text-white tabular-nums",
+      sortFn: (a, b) => Number(a.total_amount) - Number(b.total_amount),
+      render: (val) => fmt(val),
+    },
+    {
+      key: "_action",
+      label: "Action",
+      align: "center",
+      render: (_val, inv) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setPayingId(inv.id);
+            setPayForm({ payment_method: "bank", reference: "", amount: "", notes: "" });
+          }}
+          className="px-3 py-1 bg-green-600/20 text-green-400 hover:bg-green-600/40 rounded-lg text-xs font-medium transition-colors"
+        >
+          Pay
+        </button>
+      ),
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -178,7 +206,7 @@ const PendingInvoicesPage = () => {
               </div>
               <h3 className="font-semibold text-white">Process Payment</h3>
               <span className="text-xs text-surface-400">
-                — {sorted.find((i) => i.id === payingId)?.invoice_number} ({fmt(sorted.find((i) => i.id === payingId)?.total_amount)})
+                — {invoices.find((i) => i.id === payingId)?.invoice_number} ({fmt(invoices.find((i) => i.id === payingId)?.total_amount)})
               </span>
             </div>
             <button onClick={() => setPayingId(null)} className="p-1 text-surface-400 hover:text-white">
@@ -206,7 +234,7 @@ const PendingInvoicesPage = () => {
                 min="0.01"
                 value={payForm.amount}
                 onChange={(e) => setPayForm((f) => ({ ...f, amount: e.target.value }))}
-                placeholder={fmt(sorted.find((i) => i.id === payingId)?.total_amount)}
+                placeholder={fmt(invoices.find((i) => i.id === payingId)?.total_amount)}
                 className={inputCls}
               />
             </div>
@@ -259,72 +287,20 @@ const PendingInvoicesPage = () => {
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-surface-700 bg-surface-800/30">
-                    <SortHeader field="purchase_date" className="text-left">Date</SortHeader>
-                    <SortHeader field="invoice_number" className="text-left">Invoice #</SortHeader>
-                    <SortHeader field="supplier" className="text-left">Supplier</SortHeader>
-                    <SortHeader field="days" className="text-center">Aging</SortHeader>
-                    <SortHeader field="total_amount" className="text-right">Amount</SortHeader>
-                    <th className="px-4 py-3 text-center text-surface-400 font-medium">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-700/40">
-                  {pageItems.map((inv) => {
-                    const days = daysOutstanding(inv.purchase_date);
-                    const bucket = agingBucket(days);
-                    return (
-                      <tr key={inv.id} className="hover:bg-surface-700/30 transition-colors">
-                        <td className="px-4 py-3 text-surface-300">{fmtDate(inv.purchase_date)}</td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => navigate(`/inventory/receipts/${inv.id}`)}
-                            className="font-mono text-xs text-primary-400 hover:text-primary-300 transition-colors"
-                          >
-                            {inv.invoice_number}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-surface-300">
-                          <button
-                            onClick={() => navigate(`/suppliers/${inv.supplier_id}`)}
-                            className="flex items-center gap-1.5 text-surface-300 hover:text-white transition-colors"
-                          >
-                            <Building2 size={12} className="text-surface-500" />
-                            {inv.suppliers?.name || "—"}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${bucket.color}`}>
-                            <Clock size={10} />
-                            {days}d
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-white tabular-nums">
-                          {fmt(inv.total_amount)}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => {
-                              setPayingId(inv.id);
-                              setPayForm({ payment_method: "bank", reference: "", amount: "", notes: "" });
-                            }}
-                            className="px-3 py-1 bg-green-600/20 text-green-400 hover:bg-green-600/40 rounded-lg text-xs font-medium transition-colors"
-                          >
-                            Pay
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="hidden md:block">
+              <PaginatedTable
+                columns={columns}
+                data={invoices}
+                rowKey="id"
+                defaultSort={{ key: "purchase_date", dir: "asc" }}
+                defaultPageSize={20}
+                emptyMessage="No pending invoices."
+              />
             </div>
 
             {/* Mobile cards */}
             <MobileCardList>
-              {pageItems.map((inv) => {
+              {invoices.map((inv) => {
                 const days = daysOutstanding(inv.purchase_date);
                 const bucket = agingBucket(days);
                 return (
@@ -366,34 +342,6 @@ const PendingInvoicesPage = () => {
                 );
               })}
             </MobileCardList>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
-                <span className="text-sm text-surface-400">
-                  Total: <span className="text-white font-bold">{fmt(totalOutstanding)}</span>
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage === 1}
-                    className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
-                  <span className="px-3 text-xs text-surface-400">
-                    {safePage} / {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={safePage === totalPages}
-                    className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>

@@ -7,7 +7,6 @@ import {
   ToggleLeft,
   ToggleRight,
   Building2,
-  ChevronLeft,
   ChevronRight,
   X,
   Truck,
@@ -19,9 +18,8 @@ import {
 } from "@/hooks/useSuppliers";
 import toast from "react-hot-toast";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
+import PaginatedTable from "@/components/shared/PaginatedTable";
 import { inputCls } from "@/utils/constants";
-
-const PAGE_SIZE = 10;
 
 const EMPTY_FORM = {
   name: "",
@@ -36,7 +34,6 @@ const SupplierListPage = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
-  const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -60,14 +57,6 @@ const SupplierListPage = () => {
     }
     return list;
   }, [suppliers, search, showInactive]);
-
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageItems = filtered.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
 
   const openCreate = () => {
     setEditTarget(null);
@@ -108,6 +97,79 @@ const SupplierListPage = () => {
   const handleToggleStatus = (supplier) => {
     updateMutation.mutate({ id: supplier.id, active: !supplier.active });
   };
+
+  const columns = [
+    {
+      key: "name",
+      label: "Supplier",
+      sortable: true,
+      render: (_val, supplier) => (
+        <button
+          onClick={(e) => { e.stopPropagation(); navigate(`/suppliers/${supplier.id}`); }}
+          className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium group/link"
+        >
+          <Building2 size={15} className="text-surface-500 shrink-0" />
+          {supplier.name}
+          <ChevronRight size={13} className="text-surface-600 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+        </button>
+      ),
+    },
+    {
+      key: "contact_person",
+      label: "Contact",
+      sortable: true,
+      cellClassName: "text-surface-400",
+      render: (val) => val || "—",
+    },
+    {
+      key: "phone",
+      label: "Phone",
+      headerClassName: "hidden lg:table-cell",
+      cellClassName: "text-surface-400 hidden lg:table-cell",
+      render: (val) => val || "—",
+    },
+    {
+      key: "email",
+      label: "Email",
+      headerClassName: "hidden xl:table-cell",
+      cellClassName: "text-surface-400 hidden xl:table-cell",
+      render: (val) => val || "—",
+    },
+    {
+      key: "active",
+      label: "Status",
+      sortable: true,
+      sortFn: (a, b) => Number(a.active) - Number(b.active),
+      render: (_val, supplier) => (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${supplier.active ? "bg-green-500/15 text-green-400" : "bg-surface-700 text-surface-400"}`}>
+          {supplier.active ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+    {
+      key: "_actions",
+      label: "Actions",
+      align: "right",
+      render: (_val, supplier) => (
+        <div className="flex items-center justify-end gap-1">
+          <button
+            onClick={(e) => { e.stopPropagation(); openEdit(supplier); }}
+            className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors"
+            title="Edit"
+          >
+            <Edit2 size={14} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleToggleStatus(supplier); }}
+            className={`p-1.5 hover:bg-surface-700 rounded-lg transition-colors ${supplier.active ? "text-green-400 hover:text-red-400" : "text-surface-500 hover:text-green-400"}`}
+            title={supplier.active ? "Deactivate" : "Activate"}
+          >
+            {supplier.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   if (isLoading)
     return (
@@ -151,7 +213,7 @@ const SupplierListPage = () => {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search suppliers..."
                 className="w-full pl-9 pr-8 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
@@ -168,7 +230,7 @@ const SupplierListPage = () => {
               <input
                 type="checkbox"
                 checked={showInactive}
-                onChange={(e) => { setShowInactive(e.target.checked); setPage(1); }}
+                onChange={(e) => setShowInactive(e.target.checked)}
                 className="accent-primary-500"
               />
               Show inactive
@@ -202,104 +264,45 @@ const SupplierListPage = () => {
               </div>
             ) : (
               <>
-              {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-surface-700 bg-surface-800/30">
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">Supplier</th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">Contact</th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden lg:table-cell">Phone</th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden xl:table-cell">Email</th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">Status</th>
-                      <th className="text-right px-4 py-3 text-surface-400 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-700/40">
-                    {pageItems.map((supplier) => (
-                      <tr key={supplier.id} className="hover:bg-surface-700/30 transition-colors group">
-                        <td className="px-4 py-3">
-                          <button onClick={() => navigate(`/suppliers/${supplier.id}`)} className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium">
-                            <Building2 size={15} className="text-surface-500 shrink-0" />
-                            {supplier.name}
-                            <ChevronRight size={13} className="text-surface-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-surface-400">{supplier.contact_person || "—"}</td>
-                        <td className="px-4 py-3 text-surface-400 hidden lg:table-cell">{supplier.phone || "—"}</td>
-                        <td className="px-4 py-3 text-surface-400 hidden xl:table-cell">{supplier.email || "—"}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${supplier.active ? "bg-green-500/15 text-green-400" : "bg-surface-700 text-surface-400"}`}>
-                            {supplier.active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => openEdit(supplier)} className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors" title="Edit"><Edit2 size={14} /></button>
-                            <button onClick={() => handleToggleStatus(supplier)} className={`p-1.5 hover:bg-surface-700 rounded-lg transition-colors ${supplier.active ? "text-green-400 hover:text-red-400" : "text-surface-500 hover:text-green-400"}`} title={supplier.active ? "Deactivate" : "Activate"}>
-                              {supplier.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile cards */}
-              <MobileCardList>
-                {pageItems.map((supplier) => (
-                  <MobileCard key={supplier.id}>
-                    <div className="flex items-center justify-between">
-                      <button onClick={() => navigate(`/suppliers/${supplier.id}`)} className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium text-sm">
-                        <Building2 size={15} className="text-surface-500 shrink-0" />
-                        {supplier.name}
-                      </button>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(supplier)} className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors"><Edit2 size={14} /></button>
-                        <button onClick={() => handleToggleStatus(supplier)} className={`p-1.5 hover:bg-surface-700 rounded-lg transition-colors ${supplier.active ? "text-green-400 hover:text-red-400" : "text-surface-500 hover:text-green-400"}`}>
-                          {supplier.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                        </button>
-                      </div>
-                    </div>
-                    <MobileField label="Contact">{supplier.contact_person || "—"}</MobileField>
-                    <MobileField label="Phone">{supplier.phone || "—"}</MobileField>
-                    <MobileField label="Email">{supplier.email || "—"}</MobileField>
-                    <MobileField label="Status">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${supplier.active ? "bg-green-500/15 text-green-400" : "bg-surface-700 text-surface-400"}`}>
-                        {supplier.active ? "Active" : "Inactive"}
-                      </span>
-                    </MobileField>
-                  </MobileCard>
-                ))}
-              </MobileCardList>
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
-                  <span className="text-sm text-surface-400">
-                    Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={safePage === 1}
-                      className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-                    <span className="px-3 text-xs text-surface-400">
-                      {safePage} / {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={safePage === totalPages}
-                      className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-                    >
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
+                {/* Desktop table */}
+                <div className="hidden md:block">
+                  <PaginatedTable
+                    columns={columns}
+                    data={filtered}
+                    rowKey="id"
+                    defaultSort={{ key: "name", dir: "asc" }}
+                    defaultPageSize={10}
+                    emptyMessage="No suppliers found."
+                  />
                 </div>
-              )}
+
+                {/* Mobile cards */}
+                <MobileCardList>
+                  {filtered.map((supplier) => (
+                    <MobileCard key={supplier.id}>
+                      <div className="flex items-center justify-between">
+                        <button onClick={() => navigate(`/suppliers/${supplier.id}`)} className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium text-sm">
+                          <Building2 size={15} className="text-surface-500 shrink-0" />
+                          {supplier.name}
+                        </button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openEdit(supplier)} className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-700 rounded-lg transition-colors"><Edit2 size={14} /></button>
+                          <button onClick={() => handleToggleStatus(supplier)} className={`p-1.5 hover:bg-surface-700 rounded-lg transition-colors ${supplier.active ? "text-green-400 hover:text-red-400" : "text-surface-500 hover:text-green-400"}`}>
+                            {supplier.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                      <MobileField label="Contact">{supplier.contact_person || "—"}</MobileField>
+                      <MobileField label="Phone">{supplier.phone || "—"}</MobileField>
+                      <MobileField label="Email">{supplier.email || "—"}</MobileField>
+                      <MobileField label="Status">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${supplier.active ? "bg-green-500/15 text-green-400" : "bg-surface-700 text-surface-400"}`}>
+                          {supplier.active ? "Active" : "Inactive"}
+                        </span>
+                      </MobileField>
+                    </MobileCard>
+                  ))}
+                </MobileCardList>
               </>
             )}
           </div>
