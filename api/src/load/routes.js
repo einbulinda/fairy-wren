@@ -22,10 +22,16 @@ const settingsRoutes = require("../modules/settings/settings.routes");
 const accountClassRoutes = require("../modules/account-classes/account-classes.routes");
 const systemRoleRoutes = require("../modules/system-roles/system-roles.routes");
 const targetsRoutes = require("../modules/targets/targets.routes");
+const bankReconciliationRoutes = require("../modules/bank-reconciliation/bank-reconciliation.routes");
+const eventsRoutes = require("../modules/events/events.routes");
+const feedbackRoutes = require("../modules/feedback/feedback.routes");
+const galleryRoutes = require("../modules/gallery/gallery.routes");
+const publicRoutes = require("../modules/public/public.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
 router.use("/auth", authRoutes);
+router.use("/public", publicRoutes);
 
 // Protected Routes
 router.use("/bills", authMiddleware, billRoutes);
@@ -46,5 +52,9 @@ router.use("/settings", authMiddleware, settingsRoutes);
 router.use("/account-classes", authMiddleware, accountClassRoutes);
 router.use("/system-roles", authMiddleware, systemRoleRoutes);
 router.use("/targets", authMiddleware, targetsRoutes);
+router.use("/bank-reconciliation", authMiddleware, bankReconciliationRoutes);
+router.use("/events", authMiddleware, eventsRoutes);
+router.use("/feedback", authMiddleware, feedbackRoutes);
+router.use("/gallery", authMiddleware, galleryRoutes);
 
 module.exports = router;

@@ -28,9 +28,14 @@ import ReceiptDetailPage from "@/pages/ReceiptDetailPage";
 import UsersPage from "@/pages/UsersPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 import SettingsPage from "@/pages/SettingsPage";
+import BankReconciliationListPage from "@/pages/BankReconciliationListPage";
+import BankReconciliationDetailPage from "@/pages/BankReconciliationDetailPage";
 import SalesPage from "@/pages/SalesPage";
 import PendingInvoicesPage from "@/pages/PendingInvoicesPage";
 import ProfilePage from "@/pages/ProfilePage";
+import WebEventsPage from "@/pages/WebEventsPage";
+import WebFeedbackPage from "@/pages/WebFeedbackPage";
+import WebGalleryPage from "@/pages/WebGalleryPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,6 +75,8 @@ const AuthenticatedRoutes = () => {
         <Route path="ledger" element={<LedgerPage />} />
         <Route path="journals" element={<JournalEntryPage />} />
         <Route path="cheques" element={<ChequeWritingPage />} />
+        <Route path="bank-reconciliation" element={<BankReconciliationListPage />} />
+        <Route path="bank-reconciliation/:id" element={<BankReconciliationDetailPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="payroll" element={<PayrollPage />} />
         <Route path="reports" element={<FinancialReportsPage />} />
@@ -78,6 +85,9 @@ const AuthenticatedRoutes = () => {
         <Route path="reports/trial-balance" element={<TrialBalancePage />} />
         <Route path="reports/cash-flow" element={<CashFlowStatementPage />} />
         <Route path="reports/equity-changes" element={<EquityChangesPage />} />
+        <Route path="web/events" element={<WebEventsPage />} />
+        <Route path="web/gallery" element={<WebGalleryPage />} />
+        <Route path="web/feedback" element={<WebFeedbackPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="approvals" element={<PlaceholderPage />} />
         <Route path="profile" element={<ProfilePage />} />

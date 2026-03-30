@@ -11,6 +11,7 @@ import {
   XCircle,
   Package,
   Printer,
+  X,
 } from "lucide-react";
 import { useBills } from "@/hooks/useBills";
 import * as XLSX from "xlsx";
@@ -442,7 +443,7 @@ const SalesPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-5">
+      <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row sm:items-end gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary-600/20 rounded-lg">
@@ -456,9 +457,9 @@ const SalesPage = () => {
             </div>
           </div>
           {statusFilter !== "z-report" && (
-            <div className="flex items-center gap-3 sm:ml-auto">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-surface-400 uppercase tracking-wider mr-2">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 sm:ml-auto">
+              <div className="col-span-2 space-y-1">
+                <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
                   Quick Select
                 </label>
                 <select
@@ -520,88 +521,129 @@ const SalesPage = () => {
 
       {/* Summary Strip */}
       {statusFilter === "z-report" ? null : (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <FileText size={16} className="text-primary-400" />
-              <span className="text-xs font-medium text-surface-400 uppercase">
-                Total Bills
-              </span>
+        <>
+          {/* Mobile: compact 2-row summary */}
+          <div className="sm:hidden space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <DollarSign size={14} className="text-emerald-400" />
+                  <span className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">Revenue</span>
+                </div>
+                <p className="text-lg font-bold text-emerald-400 tabular-nums">KES {fmt(stats.revenue)}</p>
+              </div>
+              <div className="bg-surface-800/30 border border-amber-500/30 rounded-xl p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Receipt size={14} className="text-amber-400" />
+                  <span className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">Outstanding</span>
+                </div>
+                <p className="text-lg font-bold text-amber-400 tabular-nums">KES {fmt(stats.outstandingAmount)}</p>
+                <p className="text-[10px] text-surface-500">{stats.outstandingCount} unpaid</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-white">{stats.total}</p>
-          </div>
-          <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign size={16} className="text-emerald-400" />
-              <span className="text-xs font-medium text-surface-400 uppercase">
-                Revenue
-              </span>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-3 text-center">
+                <p className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider mb-0.5">Bills</p>
+                <p className="text-lg font-bold text-white">{stats.total}</p>
+              </div>
+              <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-3 text-center">
+                <p className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider mb-0.5">Closed</p>
+                <p className="text-lg font-bold text-blue-400">{stats.completionRate}%</p>
+              </div>
+              <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-3 text-center">
+                <p className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider mb-0.5">Void</p>
+                <p className="text-lg font-bold text-red-400">{stats.voidRate}%</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-emerald-400">
-              KES {fmt(stats.revenue)}
-            </p>
           </div>
-          <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <PercentCircle size={16} className="text-blue-400" />
-              <span className="text-xs font-medium text-surface-400 uppercase">
-                Completion Rate
-              </span>
+
+          {/* Desktop: 5-column strip */}
+          <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText size={16} className="text-primary-400" />
+                <span className="text-xs font-medium text-surface-400 uppercase">
+                  Total Bills
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-white">{stats.total}</p>
             </div>
-            <p className="text-2xl font-bold text-blue-400">
-              {stats.completionRate}%
-            </p>
-          </div>
-          <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <XCircle size={16} className="text-red-400" />
-              <span className="text-xs font-medium text-surface-400 uppercase">
-                Void Rate
-              </span>
+            <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign size={16} className="text-emerald-400" />
+                <span className="text-xs font-medium text-surface-400 uppercase">
+                  Revenue
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-emerald-400">
+                KES {fmt(stats.revenue)}
+              </p>
             </div>
-            <p className="text-2xl font-bold text-red-400">{stats.voidRate}%</p>
-          </div>
-          <div className="bg-surface-800/30 border border-amber-500/30 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Receipt size={16} className="text-amber-400" />
-              <span className="text-xs font-medium text-surface-400 uppercase">
-                Outstanding
-              </span>
+            <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <PercentCircle size={16} className="text-blue-400" />
+                <span className="text-xs font-medium text-surface-400 uppercase">
+                  Completion Rate
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-blue-400">
+                {stats.completionRate}%
+              </p>
             </div>
-            <p className="text-2xl font-bold text-amber-400">
-              KES {fmt(stats.outstandingAmount)}
-            </p>
-            <p className="text-xs text-surface-500 mt-1">
-              {stats.outstandingCount} bill
-              {stats.outstandingCount !== 1 ? "s" : ""} unpaid
-            </p>
+            <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <XCircle size={16} className="text-red-400" />
+                <span className="text-xs font-medium text-surface-400 uppercase">
+                  Void Rate
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-red-400">{stats.voidRate}%</p>
+            </div>
+            <div className="bg-surface-800/30 border border-amber-500/30 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Receipt size={16} className="text-amber-400" />
+                <span className="text-xs font-medium text-surface-400 uppercase">
+                  Outstanding
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-amber-400">
+                KES {fmt(stats.outstandingAmount)}
+              </p>
+              <p className="text-xs text-surface-500 mt-1">
+                {stats.outstandingCount} bill
+                {stats.outstandingCount !== 1 ? "s" : ""} unpaid
+              </p>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Bills Table */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
         {/* Table header */}
-        <div className="p-4 border-b border-surface-700 flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex gap-1">
-            {STATUS_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => handleStatusChange(tab.key)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                  statusFilter === tab.key
-                    ? "bg-primary-600/20 text-primary-400"
-                    : "text-surface-400 hover:text-white hover:bg-surface-700/50"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+        <div className="p-3 sm:p-4 border-b border-surface-700 space-y-3">
+          {/* Status tabs — horizontally scrollable on mobile */}
+          <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-hide">
+            <div className="flex gap-1 min-w-max">
+              {STATUS_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => handleStatusChange(tab.key)}
+                  className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                    statusFilter === tab.key
+                      ? "bg-primary-600/20 text-primary-400"
+                      : "text-surface-400 hover:text-white hover:bg-surface-700/50"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {statusFilter !== "z-report" && (
-            <div className="flex items-center gap-2 sm:ml-auto">
-              <div className="relative">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative flex-1 sm:flex-none">
                 <Search
                   size={14}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500"
@@ -609,41 +651,51 @@ const SalesPage = () => {
                 <input
                   type="text"
                   placeholder="Search customer..."
-                  className="pl-8 pr-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-48"
+                  className="w-full sm:w-48 pl-8 pr-8 sm:pr-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white sm:hidden"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
 
-              {statusFilter === "products" ? (
-                <>
+              <div className="flex items-center gap-2 sm:ml-auto">
+                {statusFilter === "products" ? (
+                  <>
+                    <button
+                      onClick={exportProductsToExcel}
+                      disabled={productSales.items.length === 0}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      <Download size={14} />
+                      Excel
+                    </button>
+                    <button
+                      onClick={() => window.print()}
+                      disabled={productSales.items.length === 0}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-surface-700 text-surface-300 hover:bg-surface-600 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      <Printer size={14} />
+                      PDF
+                    </button>
+                  </>
+                ) : (
                   <button
-                    onClick={exportProductsToExcel}
-                    disabled={productSales.items.length === 0}
+                    onClick={exportToExcel}
+                    disabled={filtered.length === 0}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
                   >
                     <Download size={14} />
-                    Excel
+                    Export
                   </button>
-                  <button
-                    onClick={() => window.print()}
-                    disabled={productSales.items.length === 0}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 text-surface-300 hover:bg-surface-600 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
-                  >
-                    <Printer size={14} />
-                    PDF
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={exportToExcel}
-                  disabled={filtered.length === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
-                >
-                  <Download size={14} />
-                  Export
-                </button>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -664,15 +716,66 @@ const SalesPage = () => {
               <p>No product sales for this period</p>
             </div>
           ) : (
-            <PaginatedTable
-              columns={productColumns}
-              data={productSales.items}
-              rowKey="name"
-              defaultSort={{ key: "value", dir: "desc" }}
-              defaultPageSize={10}
-              emptyMessage="No product sales for this period"
-              footer={productFooter}
-            />
+            <>
+              {/* Desktop product table */}
+              <div className="hidden md:block">
+                <PaginatedTable
+                  columns={productColumns}
+                  data={productSales.items}
+                  rowKey="name"
+                  defaultSort={{ key: "value", dir: "desc" }}
+                  defaultPageSize={10}
+                  emptyMessage="No product sales for this period"
+                  footer={productFooter}
+                />
+              </div>
+
+              {/* Mobile product cards */}
+              <MobileCardList>
+                {/* Totals bar */}
+                <div className="bg-surface-900/60 border border-surface-600 rounded-xl p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">Total Sales</p>
+                    <p className="text-base font-bold text-emerald-400 tabular-nums">{fmt(productSales.grandTotal)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">Products</p>
+                    <p className="text-base font-bold text-white">{productSales.items.length}</p>
+                  </div>
+                </div>
+                {productSales.items.map((p, idx) => {
+                  const pct = productSales.grandTotal > 0 ? ((p.value / productSales.grandTotal) * 100) : 0;
+                  return (
+                    <MobileCard key={p.name}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xs text-surface-500 tabular-nums shrink-0 w-5 text-right">
+                            {idx + 1}.
+                          </span>
+                          <span className="text-sm font-medium text-white truncate">{p.name}</span>
+                        </div>
+                        <span className="text-sm font-semibold text-white tabular-nums shrink-0">
+                          {fmt(p.value)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-surface-400">
+                          {p.quantity.toLocaleString()} sold
+                        </span>
+                        <span className="text-xs text-primary-400 tabular-nums font-medium">{pct.toFixed(1)}%</span>
+                      </div>
+                      {/* Contribution bar */}
+                      <div className="mt-1.5 h-1 bg-surface-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary-500/60 rounded-full"
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
+                      </div>
+                    </MobileCard>
+                  );
+                })}
+              </MobileCardList>
+            </>
           )
         ) : (
           <>
@@ -717,6 +820,7 @@ const SalesPage = () => {
                             roundNumber: r.round_number,
                           })) || [],
                       ) || [];
+                    const billTotal = computeBillTotal(bill);
 
                     return (
                       <MobileCard
@@ -725,46 +829,67 @@ const SalesPage = () => {
                           setExpandedBill(isExpanded ? null : bill.id)
                         }
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-white font-medium text-sm">
-                            {bill.customer_name || "Walk-in"}
-                          </span>
+                        {/* Row 1: Customer + Status badge */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <ChevronRight
+                              size={12}
+                              className={`text-surface-500 shrink-0 transition-transform duration-150 ${isExpanded ? "rotate-90" : ""}`}
+                            />
+                            <span className="text-white font-medium text-sm truncate">
+                              {bill.customer_name || "Walk-in"}
+                            </span>
+                          </div>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[bill.status] || "bg-surface-600/30 text-surface-400"}`}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${STATUS_BADGE[bill.status] || "bg-surface-600/30 text-surface-400"}`}
                           >
                             {STATUS_LABEL[bill.status] || bill.status}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-white font-semibold tabular-nums">
-                            KES {fmt(computeBillTotal(bill))}
+
+                        {/* Row 2: Amount + Item count */}
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-base font-bold text-white tabular-nums">
+                            KES {fmt(billTotal)}
                           </span>
-                          <span className="text-surface-400 text-xs">
-                            {computeItemCount(bill)} items
+                          <span className="text-xs text-surface-400">
+                            {computeItemCount(bill)} item{computeItemCount(bill) !== 1 ? "s" : ""}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-xs text-surface-400">
+
+                        {/* Row 3: Meta info */}
+                        <div className="flex items-center justify-between text-[11px] text-surface-500">
                           <span>{bill.created_by_user?.name || "—"}</span>
                           <span>{fmtDate(bill.created_at)}</span>
                         </div>
+
+                        {/* Expanded: line items */}
                         {isExpanded && allItems.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-surface-700/50 space-y-1.5">
-                            {allItems.map((item) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center justify-between text-xs"
-                              >
-                                <span className="text-surface-300 truncate mr-2">
-                                  {item.product?.name || "—"}
-                                </span>
-                                <span className="text-surface-400 tabular-nums shrink-0">
-                                  {item.quantity} × {fmt(item.price)} ={" "}
-                                  <span className="text-white font-medium">
-                                    {fmt(item.quantity * item.price)}
+                          <div className="mt-2 pt-2 border-t border-surface-700/50">
+                            <div className="space-y-1.5">
+                              {allItems.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between text-xs"
+                                >
+                                  <span className="text-surface-300 truncate mr-3">
+                                    {item.product?.name || "—"}
                                   </span>
-                                </span>
-                              </div>
-                            ))}
+                                  <div className="flex items-center gap-2 shrink-0 tabular-nums">
+                                    <span className="text-surface-500">
+                                      {item.quantity} × {fmt(item.price)}
+                                    </span>
+                                    <span className="text-white font-medium w-16 text-right">
+                                      {fmt(item.quantity * item.price)}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-2 pt-1.5 border-t border-surface-700/30 flex items-center justify-between text-xs">
+                              <span className="text-surface-400 font-medium">Total</span>
+                              <span className="text-white font-bold tabular-nums">{fmt(billTotal)}</span>
+                            </div>
                           </div>
                         )}
                       </MobileCard>

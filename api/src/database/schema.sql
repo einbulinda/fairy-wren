@@ -607,6 +607,59 @@ CREATE TABLE IF NOT EXISTS public.payroll_run_lines (
     created_at timestamptz DEFAULT now()
 );
 /*=======================================================================
+ BANK_STATEMENTS TABLE
+ Tracks imported bank statements for reconciliation against the GL.
+ Each statement belongs to an existing GL bank account (chart_of_accounts).
+ Created: 30/03/2026 - einbulinda
+ ============================================================================
+ */
+CREATE TABLE IF NOT EXISTS public.bank_statements (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    bank_account_id uuid NOT NULL REFERENCES public.chart_of_accounts(id),
+    statement_date date NOT NULL,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
+    opening_balance numeric(15, 2) NOT NULL DEFAULT 0,
+    closing_balance numeric(15, 2) NOT NULL DEFAULT 0,
+    description text,
+    status varchar(20) DEFAULT 'draft' CHECK (status IN ('draft', 'reconciled', 'cancelled')),
+    imported_by uuid REFERENCES public.profiles(id),
+    reconciled_by uuid REFERENCES public.profiles(id),
+    reconciled_at timestamptz,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX idx_bank_statements_account_date ON public.bank_statements(bank_account_id, statement_date DESC);
+
+/*=======================================================================
+ BANK_STATEMENT_LINES TABLE
+ Individual transactions from an imported bank statement.
+ Created: 30/03/2026 - einbulinda
+ ============================================================================
+ */
+CREATE TABLE IF NOT EXISTS public.bank_statement_lines (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    statement_id uuid NOT NULL REFERENCES public.bank_statements(id) ON DELETE CASCADE,
+    transaction_date date NOT NULL,
+    description text,
+    reference varchar(100),
+    deposit numeric(15, 2) DEFAULT 0,
+    withdrawal numeric(15, 2) DEFAULT 0,
+    match_status varchar(20) DEFAULT 'unmatched' CHECK (match_status IN ('unmatched', 'matched', 'adjusted')),
+    matched_transaction_id uuid,
+    matched_transaction_type varchar(50),
+    matched_by uuid REFERENCES public.profiles(id),
+    matched_at timestamptz,
+    match_notes text,
+    created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX idx_bank_statement_lines_statement_id ON public.bank_statement_lines(statement_id);
+CREATE INDEX idx_bank_statement_lines_match_status ON public.bank_statement_lines(match_status);
+CREATE INDEX idx_bank_statement_lines_matched_txn ON public.bank_statement_lines(matched_transaction_id);
+
+/*=======================================================================
  LOGIN_SESSIONS TABLE
  Tracks user login/logout sessions for audit and discipline reminders.
  Each login creates a new row; logout/timeout/new_login closes it.

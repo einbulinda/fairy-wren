@@ -324,3 +324,45 @@ FROM pg_stat_statements(true) pg_stat_statements(
         stats_since,
         minmax_stats_since
     );
+
+/*=======================================================================
+ BANK RECONCILIATION VIEWS
+ ============================================================================
+ */
+
+CREATE OR REPLACE VIEW public.v_unreconciled_bank_transactions AS
+SELECT
+    jl.id AS journal_line_id,
+    je.id AS journal_entry_id,
+    je.entry_date,
+    je.reference,
+    je.description AS entry_description,
+    jl.account_id,
+    jl.debit,
+    jl.credit,
+    COALESCE(jl.debit, 0) - COALESCE(jl.credit, 0) AS net_amount,
+    je.source_type,
+    je.source_id
+FROM journal_lines jl
+JOIN journal_entries je ON je.id = jl.journal_entry_id
+LEFT JOIN bank_statement_lines bsl ON bsl.matched_transaction_id = je.id
+    AND bsl.matched_transaction_type = 'journal_entry'
+    AND bsl.match_status = 'matched'
+WHERE bsl.id IS NULL;
+
+CREATE OR REPLACE VIEW public.v_bank_reconciliation_summary AS
+SELECT
+    bs.id AS statement_id,
+    bs.bank_account_id,
+    bs.statement_date,
+    bs.opening_balance,
+    bs.closing_balance,
+    bs.status,
+    COALESCE(SUM(bsl.deposit), 0) AS total_deposits,
+    COALESCE(SUM(bsl.withdrawal), 0) AS total_withdrawals,
+    COUNT(*) FILTER (WHERE bsl.match_status = 'matched') AS matched_count,
+    COUNT(*) FILTER (WHERE bsl.match_status = 'unmatched') AS unmatched_count,
+    COUNT(*) FILTER (WHERE bsl.match_status = 'adjusted') AS adjusted_count
+FROM bank_statements bs
+LEFT JOIN bank_statement_lines bsl ON bsl.statement_id = bs.id
+GROUP BY bs.id, bs.bank_account_id, bs.statement_date, bs.opening_balance, bs.closing_balance, bs.status;

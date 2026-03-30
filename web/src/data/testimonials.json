@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "Amara N.",
+    "rating": 5,
+    "text": "Absolutely the best night out in the city. The music selection is impeccable and the vibe is unmatched. We will definitely be back!"
+  },
+  {
+    "id": 2,
+    "name": "Kelvin O.",
+    "rating": 5,
+    "text": "Fairy Wren never disappoints. The atmosphere is electric every single time. Amazing staff and incredible DJs."
+  },
+  {
+    "id": 3,
+    "name": "Zara M.",
+    "rating": 4,
+    "text": "One of my favourite spots in town. Great drinks, great music and the crowd is always on point. Highly recommend!"
+  },
+  {
+    "id": 4,
+    "name": "Brian K.",
+    "rating": 5,
+    "text": "The sound system here is phenomenal. You can feel the bass in your chest. Perfect for a big night out with friends."
+  },
+  {
+    "id": 5,
+    "name": "Lucia W.",
+    "rating": 5,
+    "text": "Came for a birthday celebration and the team made it so special. Excellent service, beautiful venue, unforgettable night."
+  }
+]

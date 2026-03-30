@@ -22,6 +22,10 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Repeat,
+  Globe,
+  CalendarDays,
+  MessageSquare,
+  Images,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -68,6 +72,7 @@ const navSections = [
       { to: "/ledger", icon: BookOpen, label: "General Ledger" },
       { to: "/journals", icon: PenLine, label: "Journal Entries" },
       { to: "/cheques", icon: FileCheck, label: "Cheques" },
+      { to: "/bank-reconciliation", icon: Landmark, label: "Bank Reconciliation" },
       { to: "/expenses", icon: DollarSign, label: "Expenses" },
     ],
   },
@@ -87,6 +92,21 @@ const navSections = [
         children: [
           { to: "/reports", end: true, icon: LineChart, label: "Overview" },
           { to: "/reports/balance-sheet", icon: FileText, label: "Balance Sheet" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Web Management",
+    items: [
+      {
+        to: "/web",
+        icon: Globe,
+        label: "Web Management",
+        children: [
+          { to: "/web/events", icon: CalendarDays, label: "Events" },
+          { to: "/web/gallery", icon: Images, label: "Gallery" },
+          { to: "/web/feedback", icon: MessageSquare, label: "Customer Feedback" },
         ],
       },
     ],

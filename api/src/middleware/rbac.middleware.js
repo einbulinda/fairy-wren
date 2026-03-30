@@ -24,4 +24,26 @@ const requireRole =
     next();
   };
 
-module.exports = { requireRole };
+const requirePermission = (permission) => (req, res, next) => {
+  const userPermissions = req.user?.permissions || [];
+  const userRole = req.user?.role;
+
+  // Allow admins to bypass permission checks
+  if (userRole === 'admin' || userRole === 'owner') {
+    return next();
+  }
+
+  if (!userPermissions.includes(permission)) {
+    return res.status(403).json({
+      success: false,
+      error: {
+        code: "FORBIDDEN",
+        message: "You do not have permission to perform this action.",
+      },
+    });
+  }
+
+  next();
+};
+
+module.exports = { requireRole, requirePermission };
