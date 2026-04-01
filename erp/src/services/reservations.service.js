@@ -1,6 +1,11 @@
-import api from "@/services/api";
+import api from "@/api";
 
-export const fetchReservations = ({ status, date, limit = 50, offset = 0 } = {}) => {
+export const fetchReservations = ({
+  status,
+  date,
+  limit = 50,
+  offset = 0,
+} = {}) => {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (date) params.set("date", date);

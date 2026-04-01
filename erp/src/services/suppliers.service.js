@@ -5,6 +5,11 @@ export const fetchSuppliers = async (params = {}) => {
   return data.data ?? data;
 };
 
+export const fetchSupplierBalances = async () => {
+  const { data } = await api.get("/suppliers/balances");
+  return data.data ?? data;
+};
+
 export const fetchSupplier = async (id) => {
   const { data } = await api.get(`/suppliers/${id}`);
   return data.data;

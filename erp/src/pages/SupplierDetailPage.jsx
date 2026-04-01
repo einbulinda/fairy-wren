@@ -39,10 +39,9 @@ import {
   MobileField,
   MobileCardList,
 } from "@/components/shared/MobileCard";
+import PaginatedTable from "@/components/shared/PaginatedTable";
 import { fmt, fmtDate } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
-
-const PAGE_SIZE = 10;
 
 const dateInputCls =
   "px-2 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 w-36";
@@ -55,11 +54,6 @@ const TABS = [
   { id: "pay", label: "Pay", icon: Banknote },
 ];
 
-const PAYMENT_METHODS = [
-  { value: "cash", label: "Cash" },
-  { value: "mpesa", label: "M-Pesa" },
-  { value: "cheque", label: "Cheque" },
-];
 
 const EMPTY_PAYMENT = {
   payment_date: new Date().toISOString().split("T")[0],
@@ -166,18 +160,15 @@ const SupplierDetailPage = () => {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentForm, setPaymentForm] = useState(EMPTY_PAYMENT);
 
-  // Date filters + pages per tab
+  // Date filters per tab
   const [purchasesFrom, setPurchasesFrom] = useState("");
   const [purchasesTo, setPurchasesTo] = useState("");
-  const [purchasesPage, setPurchasesPage] = useState(1);
 
   const [paymentsFrom, setPaymentsFrom] = useState("");
   const [paymentsTo, setPaymentsTo] = useState("");
-  const [paymentsPage, setPaymentsPage] = useState(1);
 
   const [stmtFrom, setStmtFrom] = useState("");
   const [stmtTo, setStmtTo] = useState("");
-  const [stmtPage, setStmtPage] = useState(1);
 
   // Pay tab state
   const [payBankAccountId, setPayBankAccountId] = useState("");
@@ -242,42 +233,13 @@ const SupplierDetailPage = () => {
     [payments, paymentsFrom, paymentsTo],
   );
 
-  // Purchases pagination
-  const pTotalPages = Math.max(
-    1,
-    Math.ceil(filteredPurchases.length / PAGE_SIZE),
-  );
-  const pSafePage = Math.min(purchasesPage, pTotalPages);
-  const pPageItems = filteredPurchases.slice(
-    (pSafePage - 1) * PAGE_SIZE,
-    pSafePage * PAGE_SIZE,
-  );
   const pFilteredTotal = filteredPurchases.reduce(
     (s, p) => s + Number(p.total_amount ?? 0),
     0,
   );
-
-  // Payments pagination
-  const pmTotalPages = Math.max(
-    1,
-    Math.ceil(filteredPayments.length / PAGE_SIZE),
-  );
-  const pmSafePage = Math.min(paymentsPage, pmTotalPages);
-  const pmPageItems = filteredPayments.slice(
-    (pmSafePage - 1) * PAGE_SIZE,
-    pmSafePage * PAGE_SIZE,
-  );
   const pmFilteredTotal = filteredPayments.reduce(
     (s, p) => s + Number(p.amount ?? 0),
     0,
-  );
-
-  // Statement pagination
-  const stmtTotalPages = Math.max(1, Math.ceil(statement.length / PAGE_SIZE));
-  const stmtSafePage = Math.min(stmtPage, stmtTotalPages);
-  const stmtPageItems = statement.slice(
-    (stmtSafePage - 1) * PAGE_SIZE,
-    stmtSafePage * PAGE_SIZE,
   );
 
   const handlePaymentSubmit = (e) => {
@@ -508,7 +470,6 @@ const SupplierDetailPage = () => {
             onClear={() => {
               setPurchasesFrom("");
               setPurchasesTo("");
-              setPurchasesPage(1);
             }}
           />
 
@@ -525,111 +486,86 @@ const SupplierDetailPage = () => {
             </div>
           ) : (
             <>
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-surface-700 bg-surface-800/30">
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">
-                        Date
-                      </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">
-                        Invoice #
-                      </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden md:table-cell">
-                        Notes
-                      </th>
-                      <th className="text-center px-4 py-3 text-surface-400 font-medium">
-                        Payment
-                      </th>
-                      <th className="text-right px-4 py-3 text-surface-400 font-medium">
-                        Amount
-                      </th>
+              <div className="hidden md:block">
+                <PaginatedTable
+                  columns={[
+                    {
+                      key: "purchase_date",
+                      label: "Date",
+                      sortable: true,
+                      cellClassName: "text-surface-300",
+                      render: (val) => fmtDate(val),
+                    },
+                    {
+                      key: "invoice_number",
+                      label: "Invoice #",
+                      render: (_val, p) => (
+                        <button
+                          onClick={() => navigate(`/inventory/receipts/${p.id}`)}
+                          className="inline-flex items-center gap-1.5 font-mono text-xs text-primary-400 hover:text-primary-300 transition-colors group"
+                        >
+                          {p.invoice_number}
+                          <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      ),
+                    },
+                    {
+                      key: "notes",
+                      label: "Notes",
+                      headerClassName: "hidden md:table-cell",
+                      cellClassName: "text-surface-400 hidden md:table-cell",
+                      render: (val) => val || "—",
+                    },
+                    {
+                      key: "paid_at",
+                      label: "Payment",
+                      align: "center",
+                      render: (_val, p) => (
+                        <PaymentBadge paidAt={p.paid_at} purchaseDate={p.purchase_date} />
+                      ),
+                    },
+                    {
+                      key: "total_amount",
+                      label: "Amount",
+                      align: "right",
+                      sortable: true,
+                      cellClassName: "text-white font-medium tabular-nums",
+                      render: (val) => fmt(val),
+                    },
+                  ]}
+                  data={filteredPurchases}
+                  rowKey="id"
+                  defaultSort={{ key: "purchase_date", dir: "desc" }}
+                  defaultPageSize={10}
+                  emptyMessage="No receipts found."
+                  footer={
+                    <tr>
+                      <td colSpan={4} className="px-4 py-3 text-right text-xs text-surface-400 uppercase tracking-wide">
+                        {purchasesFrom || purchasesTo ? "Period" : "Total"}
+                      </td>
+                      <td className="px-4 py-3 text-right text-white font-bold tabular-nums">
+                        {fmt(pFilteredTotal)}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-700/40">
-                    {pPageItems.map((p) => (
-                      <tr
-                        key={p.id}
-                        className="hover:bg-surface-700/30 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-surface-300">
-                          {fmtDate(p.purchase_date)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() =>
-                              navigate(`/inventory/receipts/${p.id}`)
-                            }
-                            className="inline-flex items-center gap-1.5 font-mono text-xs text-primary-400 hover:text-primary-300 transition-colors group"
-                          >
-                            {p.invoice_number}
-                            <ExternalLink
-                              size={10}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            />
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-surface-400 hidden md:table-cell">
-                          {p.notes || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <PaymentBadge
-                            paidAt={p.paid_at}
-                            purchaseDate={p.purchase_date}
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-white">
-                          {fmt(p.total_amount)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  }
+                />
               </div>
 
               <MobileCardList>
-                {pPageItems.map((p) => (
-                  <MobileCard
-                    key={p.id}
-                    onClick={() => navigate(`/inventory/receipts/${p.id}`)}
-                  >
+                {filteredPurchases.map((p) => (
+                  <MobileCard key={p.id} onClick={() => navigate(`/inventory/receipts/${p.id}`)}>
                     <div className="flex items-center justify-between">
-                      <span className="text-surface-300 text-sm">
-                        {fmtDate(p.purchase_date)}
-                      </span>
-                      <PaymentBadge
-                        paidAt={p.paid_at}
-                        purchaseDate={p.purchase_date}
-                      />
+                      <span className="text-surface-300 text-sm">{fmtDate(p.purchase_date)}</span>
+                      <PaymentBadge paidAt={p.paid_at} purchaseDate={p.purchase_date} />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs text-primary-400">
-                        {p.invoice_number}
-                      </span>
-                      <span className="text-white font-medium text-sm">
-                        {fmt(p.total_amount)}
-                      </span>
+                      <span className="font-mono text-xs text-primary-400">{p.invoice_number}</span>
+                      <span className="text-white font-medium text-sm">{fmt(p.total_amount)}</span>
                     </div>
-                    {p.notes && (
-                      <div className="text-xs text-surface-400">{p.notes}</div>
-                    )}
+                    {p.notes && <div className="text-xs text-surface-400">{p.notes}</div>}
                   </MobileCard>
                 ))}
               </MobileCardList>
-
-              <PaginationBar
-                page={pSafePage}
-                totalPages={pTotalPages}
-                setPage={setPurchasesPage}
-                left={
-                  <span>
-                    {purchasesFrom || purchasesTo ? "Period" : "Total"}:{" "}
-                    <span className="text-white font-bold">
-                      {fmt(pFilteredTotal)}
-                    </span>
-                  </span>
-                }
-              />
             </>
           )}
         </div>
@@ -707,7 +643,7 @@ const SupplierDetailPage = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-surface-400 font-medium">
-                    Method
+                    Payment Account *
                   </label>
                   <select
                     value={paymentForm.payment_method}
@@ -718,10 +654,12 @@ const SupplierDetailPage = () => {
                       }))
                     }
                     className={inputCls}
+                    required
                   >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
+                    <option value="">Select account…</option>
+                    {bankAccounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
                       </option>
                     ))}
                   </select>
@@ -792,20 +730,14 @@ const SupplierDetailPage = () => {
               onClear={() => {
                 setPaymentsFrom("");
                 setPaymentsTo("");
-                setPaymentsPage(1);
               }}
             />
 
             {paymentsLoading ? (
-              <div className="py-12 text-center text-surface-400">
-                Loading...
-              </div>
+              <div className="py-12 text-center text-surface-400">Loading...</div>
             ) : filteredPayments.length === 0 ? (
               <div className="py-12 text-center text-surface-500">
-                <CreditCard
-                  size={32}
-                  className="mx-auto mb-2 text-surface-700"
-                />
+                <CreditCard size={32} className="mx-auto mb-2 text-surface-700" />
                 <p>
                   {payments.length === 0
                     ? "No payments recorded yet."
@@ -814,97 +746,84 @@ const SupplierDetailPage = () => {
               </div>
             ) : (
               <>
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-surface-700 bg-surface-800/30">
-                        <th className="text-left px-4 py-3 text-surface-400 font-medium">
-                          Date
-                        </th>
-                        <th className="text-left px-4 py-3 text-surface-400 font-medium">
-                          Method
-                        </th>
-                        <th className="text-left px-4 py-3 text-surface-400 font-medium hidden md:table-cell">
-                          Reference
-                        </th>
-                        <th className="text-left px-4 py-3 text-surface-400 font-medium hidden lg:table-cell">
-                          Notes
-                        </th>
-                        <th className="text-right px-4 py-3 text-surface-400 font-medium">
-                          Amount
-                        </th>
+                <div className="hidden md:block">
+                  <PaginatedTable
+                    columns={[
+                      {
+                        key: "payment_date",
+                        label: "Date",
+                        sortable: true,
+                        cellClassName: "text-surface-300",
+                        render: (val) => fmtDate(val),
+                      },
+                      {
+                        key: "payment_method",
+                        label: "Method",
+                        sortable: true,
+                        cellClassName: "text-surface-300 capitalize",
+                        render: (val, row) => row.chart_of_accounts?.name
+                          ? `${val} — ${row.chart_of_accounts.name}`
+                          : val,
+                      },
+                      {
+                        key: "reference",
+                        label: "Reference",
+                        headerClassName: "hidden md:table-cell",
+                        cellClassName: "text-surface-400 font-mono text-xs hidden md:table-cell",
+                        render: (val) => val || "—",
+                      },
+                      {
+                        key: "notes",
+                        label: "Notes",
+                        headerClassName: "hidden lg:table-cell",
+                        cellClassName: "text-surface-400 hidden lg:table-cell",
+                        render: (val) => val || "—",
+                      },
+                      {
+                        key: "amount",
+                        label: "Amount",
+                        align: "right",
+                        sortable: true,
+                        cellClassName: "text-green-400 font-medium tabular-nums",
+                        render: (val) => fmt(val),
+                      },
+                    ]}
+                    data={filteredPayments}
+                    rowKey="id"
+                    defaultSort={{ key: "payment_date", dir: "desc" }}
+                    defaultPageSize={10}
+                    emptyMessage="No payments found."
+                    footer={
+                      <tr>
+                        <td colSpan={4} className="px-4 py-3 text-right text-xs text-surface-400 uppercase tracking-wide">
+                          {paymentsFrom || paymentsTo ? "Period" : "Total"} Paid
+                        </td>
+                        <td className="px-4 py-3 text-right text-green-400 font-bold tabular-nums">
+                          {fmt(pmFilteredTotal)}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-surface-700/40">
-                      {pmPageItems.map((p) => (
-                        <tr
-                          key={p.id}
-                          className="hover:bg-surface-700/30 transition-colors"
-                        >
-                          <td className="px-4 py-3 text-surface-300">
-                            {fmtDate(p.payment_date)}
-                          </td>
-                          <td className="px-4 py-3 text-surface-300 capitalize">
-                            {p.payment_method}
-                          </td>
-                          <td className="px-4 py-3 text-surface-400 font-mono text-xs hidden md:table-cell">
-                            {p.reference || "—"}
-                          </td>
-                          <td className="px-4 py-3 text-surface-400 hidden lg:table-cell">
-                            {p.notes || "—"}
-                          </td>
-                          <td className="px-4 py-3 text-right font-medium text-green-400">
-                            {fmt(p.amount)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                    }
+                  />
                 </div>
 
                 <MobileCardList>
-                  {pmPageItems.map((p) => (
+                  {filteredPayments.map((p) => (
                     <MobileCard key={p.id}>
                       <div className="flex items-center justify-between">
-                        <span className="text-surface-300 text-sm">
-                          {fmtDate(p.payment_date)}
-                        </span>
-                        <span className="text-green-400 font-medium text-sm">
-                          {fmt(p.amount)}
-                        </span>
+                        <span className="text-surface-300 text-sm">{fmtDate(p.payment_date)}</span>
+                        <span className="text-green-400 font-medium text-sm">{fmt(p.amount)}</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs">
-                        <span className="text-surface-300 capitalize">
-                          {p.payment_method}
-                        </span>
-                        {p.reference && (
-                          <span className="font-mono text-surface-400">
-                            {p.reference}
-                          </span>
+                        <span className="text-surface-300 capitalize">{p.payment_method}</span>
+                        {p.chart_of_accounts?.name && (
+                          <span className="text-surface-400">— {p.chart_of_accounts.name}</span>
                         )}
+                        {p.reference && <span className="font-mono text-surface-400">{p.reference}</span>}
                       </div>
-                      {p.notes && (
-                        <div className="text-xs text-surface-400">
-                          {p.notes}
-                        </div>
-                      )}
+                      {p.notes && <div className="text-xs text-surface-400">{p.notes}</div>}
                     </MobileCard>
                   ))}
                 </MobileCardList>
-
-                <PaginationBar
-                  page={pmSafePage}
-                  totalPages={pmTotalPages}
-                  setPage={setPaymentsPage}
-                  left={
-                    <span>
-                      {paymentsFrom || paymentsTo ? "Period" : "Total"} Paid:{" "}
-                      <span className="text-green-400 font-bold">
-                        {fmt(pmFilteredTotal)}
-                      </span>
-                    </span>
-                  }
-                />
               </>
             )}
           </div>
@@ -956,14 +875,11 @@ const SupplierDetailPage = () => {
             onClear={() => {
               setStmtFrom("");
               setStmtTo("");
-              setStmtPage(1);
             }}
           />
 
           {statementLoading ? (
-            <div className="py-12 text-center text-surface-400">
-              Loading statement...
-            </div>
+            <div className="py-12 text-center text-surface-400">Loading statement...</div>
           ) : statement.length === 0 ? (
             <div className="py-12 text-center text-surface-500">
               <FileText size={32} className="mx-auto mb-2 text-surface-700" />
@@ -975,200 +891,126 @@ const SupplierDetailPage = () => {
             </div>
           ) : (
             <>
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-surface-700 bg-surface-800/30">
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">
-                        Date
-                      </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium">
-                        Type
-                      </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden sm:table-cell">
-                        Reference
-                      </th>
-                      <th className="text-left px-4 py-3 text-surface-400 font-medium hidden md:table-cell">
-                        Description
-                      </th>
-                      <th className="text-right px-4 py-3 text-surface-400 font-medium">
-                        Debit
-                      </th>
-                      <th className="text-right px-4 py-3 text-surface-400 font-medium">
-                        Credit
-                      </th>
-                      <th className="text-right px-4 py-3 text-surface-400 font-medium">
-                        Balance
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-700/40">
-                    {stmtPageItems.map((row, i) => (
-                      <tr
-                        key={i}
-                        className="hover:bg-surface-700/30 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-surface-300">
-                          {fmtDate(row.txn_date)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
-                              TXN_TYPE_STYLES[row.txn_type] ||
-                              "bg-surface-700 text-surface-400"
-                            }`}
-                          >
-                            {row.txn_type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-surface-400 font-mono text-xs hidden sm:table-cell">
-                          {row.reference}
-                        </td>
-                        <td className="px-4 py-3 text-surface-400 hidden md:table-cell">
-                          {row.description}
-                        </td>
-                        <td className="px-4 py-3 text-right text-red-400">
-                          {Number(row.debit) > 0 ? fmt(row.debit) : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right text-green-400">
-                          {Number(row.credit) > 0 ? fmt(row.credit) : "—"}
-                        </td>
-                        <td
-                          className={`px-4 py-3 text-right font-medium ${
-                            Number(row.running_balance) > 0
-                              ? "text-red-400"
-                              : Number(row.running_balance) < 0
-                                ? "text-green-400"
-                                : "text-surface-300"
-                          }`}
-                        >
-                          {fmt(Math.abs(row.running_balance))}
-                          {Number(row.running_balance) > 0
-                            ? " DR"
-                            : Number(row.running_balance) < 0
-                              ? " CR"
-                              : ""}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-surface-800/50 font-semibold border-t border-surface-600">
-                      <td
-                        colSpan={4}
-                        className="px-4 py-3 text-right text-xs text-surface-400 uppercase tracking-wide"
-                      >
+              <div className="hidden md:block">
+                <PaginatedTable
+                  columns={[
+                    {
+                      key: "txn_date",
+                      label: "Date",
+                      sortable: true,
+                      cellClassName: "text-surface-300",
+                      render: (val) => fmtDate(val),
+                    },
+                    {
+                      key: "txn_type",
+                      label: "Type",
+                      sortable: true,
+                      render: (val) => (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${TXN_TYPE_STYLES[val] || "bg-surface-700 text-surface-400"}`}>
+                          {val}
+                        </span>
+                      ),
+                    },
+                    {
+                      key: "reference",
+                      label: "Reference",
+                      headerClassName: "hidden sm:table-cell",
+                      cellClassName: "text-surface-400 font-mono text-xs hidden sm:table-cell",
+                      render: (val) => val || "—",
+                    },
+                    {
+                      key: "description",
+                      label: "Description",
+                      headerClassName: "hidden md:table-cell",
+                      cellClassName: "text-surface-400 hidden md:table-cell",
+                      render: (val) => val || "—",
+                    },
+                    {
+                      key: "debit",
+                      label: "Debit",
+                      align: "right",
+                      sortable: true,
+                      cellClassName: "text-red-400 tabular-nums",
+                      render: (val) => Number(val) > 0 ? fmt(val) : "—",
+                    },
+                    {
+                      key: "credit",
+                      label: "Credit",
+                      align: "right",
+                      sortable: true,
+                      cellClassName: "text-green-400 tabular-nums",
+                      render: (val) => Number(val) > 0 ? fmt(val) : "—",
+                    },
+                    {
+                      key: "running_balance",
+                      label: "Balance",
+                      align: "right",
+                      sortable: true,
+                      render: (val) => {
+                        const n = Number(val);
+                        const cls = n > 0 ? "text-red-400" : n < 0 ? "text-green-400" : "text-surface-300";
+                        return <span className={`font-medium tabular-nums ${cls}`}>{fmt(Math.abs(n))}{n > 0 ? " DR" : n < 0 ? " CR" : ""}</span>;
+                      },
+                    },
+                  ]}
+                  data={statement}
+                  rowKey={(_, i) => i}
+                  defaultSort={{ key: "txn_date", dir: "asc" }}
+                  defaultPageSize={10}
+                  emptyMessage="No transactions found."
+                  footer={
+                    <tr>
+                      <td colSpan={4} className="px-4 py-3 text-right text-xs text-surface-400 uppercase tracking-wide">
                         {stmtFrom || stmtTo ? "Period" : "Closing"} Balance
                       </td>
-                      <td className="px-4 py-3 text-right text-white">
-                        {fmt(
-                          statement.reduce(
-                            (s, r) => s + Number(r.debit ?? 0),
-                            0,
-                          ),
-                        )}
+                      <td className="px-4 py-3 text-right text-white font-bold tabular-nums">
+                        {fmt(statement.reduce((s, r) => s + Number(r.debit ?? 0), 0))}
                       </td>
-                      <td className="px-4 py-3 text-right text-white">
-                        {fmt(
-                          statement.reduce(
-                            (s, r) => s + Number(r.credit ?? 0),
-                            0,
-                          ),
-                        )}
+                      <td className="px-4 py-3 text-right text-white font-bold tabular-nums">
+                        {fmt(statement.reduce((s, r) => s + Number(r.credit ?? 0), 0))}
                       </td>
-                      <td
-                        className={`px-4 py-3 text-right ${
-                          balance > 0
-                            ? "text-red-400"
-                            : balance < 0
-                              ? "text-green-400"
-                              : "text-surface-300"
-                        }`}
-                      >
-                        {fmt(Math.abs(balance))}{" "}
-                        {balance > 0 ? "DR" : balance < 0 ? "CR" : ""}
+                      <td className={`px-4 py-3 text-right font-bold tabular-nums ${balance > 0 ? "text-red-400" : balance < 0 ? "text-green-400" : "text-surface-300"}`}>
+                        {fmt(Math.abs(balance))} {balance > 0 ? "DR" : balance < 0 ? "CR" : ""}
                       </td>
                     </tr>
-                  </tfoot>
-                </table>
+                  }
+                />
               </div>
 
               <MobileCardList>
-                {stmtPageItems.map((row, i) => (
+                {statement.map((row, i) => (
                   <MobileCard key={i}>
                     <div className="flex items-center justify-between">
-                      <span className="text-surface-300 text-sm">
-                        {fmtDate(row.txn_date)}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${TXN_TYPE_STYLES[row.txn_type] || "bg-surface-700 text-surface-400"}`}
-                      >
+                      <span className="text-surface-300 text-sm">{fmtDate(row.txn_date)}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${TXN_TYPE_STYLES[row.txn_type] || "bg-surface-700 text-surface-400"}`}>
                         {row.txn_type}
                       </span>
                     </div>
-                    {row.reference && (
-                      <div className="font-mono text-xs text-surface-400">
-                        {row.reference}
-                      </div>
-                    )}
-                    {row.description && (
-                      <div className="text-xs text-surface-400">
-                        {row.description}
-                      </div>
-                    )}
+                    {row.reference && <div className="font-mono text-xs text-surface-400">{row.reference}</div>}
+                    {row.description && <div className="text-xs text-surface-400">{row.description}</div>}
                     <div className="flex items-center justify-between text-sm">
                       <div className="space-x-3">
-                        {Number(row.debit) > 0 && (
-                          <span className="text-red-400">
-                            Dr {fmt(row.debit)}
-                          </span>
-                        )}
-                        {Number(row.credit) > 0 && (
-                          <span className="text-green-400">
-                            Cr {fmt(row.credit)}
-                          </span>
-                        )}
+                        {Number(row.debit) > 0 && <span className="text-red-400">Dr {fmt(row.debit)}</span>}
+                        {Number(row.credit) > 0 && <span className="text-green-400">Cr {fmt(row.credit)}</span>}
                       </div>
-                      <span
-                        className={`font-medium ${Number(row.running_balance) > 0 ? "text-red-400" : Number(row.running_balance) < 0 ? "text-green-400" : "text-surface-300"}`}
-                      >
-                        {fmt(Math.abs(row.running_balance))}
-                        {Number(row.running_balance) > 0
-                          ? " DR"
-                          : Number(row.running_balance) < 0
-                            ? " CR"
-                            : ""}
+                      <span className={`font-medium ${Number(row.running_balance) > 0 ? "text-red-400" : Number(row.running_balance) < 0 ? "text-green-400" : "text-surface-300"}`}>
+                        {fmt(Math.abs(Number(row.running_balance)))}
+                        {Number(row.running_balance) > 0 ? " DR" : Number(row.running_balance) < 0 ? " CR" : ""}
                       </span>
                     </div>
                   </MobileCard>
                 ))}
-                <MobileCard className="bg-surface-900/50!">
+                <MobileCard>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-surface-400 uppercase tracking-wide">
                       {stmtFrom || stmtTo ? "Period" : "Closing"} Balance
                     </span>
-                    <span
-                      className={`font-semibold ${balance > 0 ? "text-red-400" : balance < 0 ? "text-green-400" : "text-surface-300"}`}
-                    >
-                      {fmt(Math.abs(balance))}{" "}
-                      {balance > 0 ? "DR" : balance < 0 ? "CR" : ""}
+                    <span className={`font-semibold ${balance > 0 ? "text-red-400" : balance < 0 ? "text-green-400" : "text-surface-300"}`}>
+                      {fmt(Math.abs(balance))} {balance > 0 ? "DR" : balance < 0 ? "CR" : ""}
                     </span>
                   </div>
                 </MobileCard>
               </MobileCardList>
-
-              <PaginationBar
-                page={stmtSafePage}
-                totalPages={stmtTotalPages}
-                setPage={setStmtPage}
-                left={
-                  <span className="text-xs text-surface-400">
-                    {(stmtSafePage - 1) * PAGE_SIZE + 1}–
-                    {Math.min(stmtSafePage * PAGE_SIZE, statement.length)} of{" "}
-                    {statement.length} transactions
-                  </span>
-                }
-              />
             </>
           )}
         </div>

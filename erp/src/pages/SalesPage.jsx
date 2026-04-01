@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Receipt,
   Download,
@@ -401,39 +401,47 @@ const SalesPage = () => {
             roundNumber: r.round_number,
           })) || [],
       ) || [];
-    if (allItems.length === 0) return null;
+    const payments = bill.payments || [];
+    if (allItems.length === 0 && payments.length === 0) return null;
     return (
       <tr key={`${bill.id}-expanded`}>
         <td colSpan={billColumns.length} className="px-0 py-0">
-          <div className="bg-surface-900/60 border-y border-surface-700/50 px-6 py-3">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-surface-500 uppercase tracking-wider">
-                  <th className="text-left pb-2 font-medium">Product</th>
-                  <th className="text-right pb-2 font-medium">Qty</th>
-                  <th className="text-right pb-2 font-medium">Price</th>
-                  <th className="text-right pb-2 font-medium">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-700/20">
-                {allItems.map((item) => (
-                  <tr key={item.id}>
-                    <td className="py-1.5 text-surface-300">
-                      {item.product?.name || "—"}
-                    </td>
-                    <td className="py-1.5 text-right text-surface-400 tabular-nums">
-                      {item.quantity}
-                    </td>
-                    <td className="py-1.5 text-right text-surface-400 tabular-nums">
-                      {fmt(item.price)}
-                    </td>
-                    <td className="py-1.5 text-right text-white font-medium tabular-nums">
-                      {fmt(item.quantity * item.price)}
-                    </td>
+          <div className="bg-surface-900/60 border-y border-surface-700/50 px-6 py-3 space-y-3">
+            {allItems.length > 0 && (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-surface-500 uppercase tracking-wider">
+                    <th className="text-left pb-2 font-medium">Product</th>
+                    <th className="text-right pb-2 font-medium">Qty</th>
+                    <th className="text-right pb-2 font-medium">Price</th>
+                    <th className="text-right pb-2 font-medium">Subtotal</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-surface-700/20">
+                  {allItems.map((item) => (
+                    <tr key={item.id}>
+                      <td className="py-1.5 text-surface-300">{item.product?.name || "—"}</td>
+                      <td className="py-1.5 text-right text-surface-400 tabular-nums">{item.quantity}</td>
+                      <td className="py-1.5 text-right text-surface-400 tabular-nums">{fmt(item.price)}</td>
+                      <td className="py-1.5 text-right text-white font-medium tabular-nums">{fmt(item.quantity * item.price)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {payments.length > 0 && (
+              <div className="border-t border-surface-700/40 pt-2">
+                <p className="text-xs text-surface-500 uppercase tracking-wider mb-1.5 font-medium">Payments</p>
+                <div className="flex flex-wrap gap-2">
+                  {payments.map((p) => (
+                    <span key={p.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-800 border border-surface-700 text-xs">
+                      <span className="text-surface-400 capitalize">{p.payment_type}</span>
+                      <span className="text-white font-medium tabular-nums">{fmt(p.amount)}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </td>
       </tr>
@@ -863,33 +871,41 @@ const SalesPage = () => {
                           <span>{fmtDate(bill.created_at)}</span>
                         </div>
 
-                        {/* Expanded: line items */}
-                        {isExpanded && allItems.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-surface-700/50">
-                            <div className="space-y-1.5">
-                              {allItems.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-center justify-between text-xs"
-                                >
-                                  <span className="text-surface-300 truncate mr-3">
-                                    {item.product?.name || "—"}
-                                  </span>
-                                  <div className="flex items-center gap-2 shrink-0 tabular-nums">
-                                    <span className="text-surface-500">
-                                      {item.quantity} × {fmt(item.price)}
-                                    </span>
-                                    <span className="text-white font-medium w-16 text-right">
-                                      {fmt(item.quantity * item.price)}
-                                    </span>
-                                  </div>
+                        {/* Expanded: line items + payments */}
+                        {isExpanded && (allItems.length > 0 || (bill.payments || []).length > 0) && (
+                          <div className="mt-2 pt-2 border-t border-surface-700/50 space-y-2">
+                            {allItems.length > 0 && (
+                              <>
+                                <div className="space-y-1.5">
+                                  {allItems.map((item) => (
+                                    <div key={item.id} className="flex items-center justify-between text-xs">
+                                      <span className="text-surface-300 truncate mr-3">{item.product?.name || "—"}</span>
+                                      <div className="flex items-center gap-2 shrink-0 tabular-nums">
+                                        <span className="text-surface-500">{item.quantity} × {fmt(item.price)}</span>
+                                        <span className="text-white font-medium w-16 text-right">{fmt(item.quantity * item.price)}</span>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
-                            </div>
-                            <div className="mt-2 pt-1.5 border-t border-surface-700/30 flex items-center justify-between text-xs">
-                              <span className="text-surface-400 font-medium">Total</span>
-                              <span className="text-white font-bold tabular-nums">{fmt(billTotal)}</span>
-                            </div>
+                                <div className="pt-1 border-t border-surface-700/30 flex items-center justify-between text-xs">
+                                  <span className="text-surface-400 font-medium">Total</span>
+                                  <span className="text-white font-bold tabular-nums">{fmt(billTotal)}</span>
+                                </div>
+                              </>
+                            )}
+                            {(bill.payments || []).length > 0 && (
+                              <div className="pt-1 border-t border-surface-700/30">
+                                <p className="text-[10px] text-surface-500 uppercase tracking-wider mb-1">Payments</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {bill.payments.map((p) => (
+                                    <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-800 border border-surface-700 text-xs">
+                                      <span className="text-surface-400 capitalize">{p.payment_type}</span>
+                                      <span className="text-white font-medium tabular-nums">{fmt(p.amount)}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </MobileCard>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Loader2,
   Receipt,
@@ -9,8 +9,11 @@ import {
   BarChart3,
   XCircle,
   Printer,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useZReport } from "@/hooks/useZReport";
+import { useZReportBills } from "@/hooks/useZReportBills";
 import { formatCurrency } from "@/utils/common";
 
 const yesterday = new Date();
@@ -33,7 +36,11 @@ const Section = ({ title, icon: Icon, children }) => (
 
 const ZReportView = () => {
   const [date, setDate] = useState(defaultDate);
+  const [expandedPaymentType, setExpandedPaymentType] = useState(null);
+  const [expandedBill, setExpandedBill] = useState(null);
+
   const { data, loading } = useZReport(date);
+  const { bills: billsList, loading: billsLoading } = useZReportBills(date);
 
   const bills = data?.bills || {};
   const payments = data?.payments || [];
@@ -42,6 +49,20 @@ const ZReportView = () => {
   const servers = data?.servers || [];
   const hourly = data?.hourly || [];
   const voids = data?.voids || [];
+
+  const billsByPaymentType = useMemo(() => {
+    const map = {};
+    for (const bill of billsList) {
+      for (const pmt of bill.payments || []) {
+        const key = pmt.payment_type;
+        if (!map[key]) map[key] = [];
+        if (!map[key].find((b) => b.id === bill.id)) {
+          map[key].push(bill);
+        }
+      }
+    }
+    return map;
+  }, [billsList]);
 
   const fmtDate = (d) => {
     if (!d) return "";
@@ -74,7 +95,7 @@ const ZReportView = () => {
             type="date"
             className="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => { setDate(e.target.value); setExpandedPaymentType(null); setExpandedBill(null); }}
           />
           <button
             onClick={() => window.print()}
@@ -131,13 +152,103 @@ const ZReportView = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700/30">
-                {payments.map((p) => (
-                  <tr key={p.payment_type} className="hover:bg-gray-700/20">
-                    <td className="px-4 py-2 text-white capitalize">{p.payment_type}</td>
-                    <td className="px-4 py-2 text-right text-gray-300 tabular-nums">{p.count}</td>
-                    <td className="px-4 py-2 text-right text-white font-medium tabular-nums">{fmt(p.total_amount)}</td>
-                  </tr>
-                ))}
+                {payments.map((p) => {
+                  const isExpanded = expandedPaymentType === p.payment_type;
+                  const typeBills = billsByPaymentType[p.payment_type] || [];
+                  return (
+                    <>
+                      <tr
+                        key={p.payment_type}
+                        className="hover:bg-gray-700/20 cursor-pointer select-none"
+                        onClick={() => {
+                          setExpandedPaymentType(isExpanded ? null : p.payment_type);
+                          setExpandedBill(null);
+                        }}
+                      >
+                        <td className="px-4 py-2 text-white capitalize flex items-center gap-1.5">
+                          {isExpanded ? <ChevronDown size={14} className="text-gray-400 shrink-0" /> : <ChevronRight size={14} className="text-gray-400 shrink-0" />}
+                          {p.payment_type}
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-300 tabular-nums">{p.count}</td>
+                        <td className="px-4 py-2 text-right text-white font-medium tabular-nums">{fmt(p.total_amount)}</td>
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${p.payment_type}-expanded`}>
+                          <td colSpan={3} className="bg-gray-900/60 px-0 py-0">
+                            {billsLoading ? (
+                              <div className="flex items-center gap-2 px-6 py-3 text-gray-400 text-xs">
+                                <Loader2 size={12} className="animate-spin" /> Loading bills…
+                              </div>
+                            ) : typeBills.length === 0 ? (
+                              <p className="px-6 py-3 text-gray-500 text-xs">No bill detail available</p>
+                            ) : (
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b border-gray-700/40">
+                                    <th className="px-6 py-2 text-left text-xs font-semibold text-gray-500 uppercase w-4"></th>
+                                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
+                                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Server</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-700/20">
+                                  {typeBills.map((bill) => {
+                                    const isBillExpanded = expandedBill === bill.id;
+                                    const billItems = (bill.rounds || []).flatMap((r) => r.round_items || []);
+                                    const billTotal = (bill.rounds || []).reduce(
+                                      (sum, r) => sum + (r.round_items || []).reduce((rs, i) => rs + i.quantity * i.price, 0),
+                                      0,
+                                    );
+                                    return (
+                                      <>
+                                        <tr
+                                          key={bill.id}
+                                          className="hover:bg-gray-800/60 cursor-pointer"
+                                          onClick={() => setExpandedBill(isBillExpanded ? null : bill.id)}
+                                        >
+                                          <td className="px-6 py-2 text-gray-500">
+                                            {isBillExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-200">{bill.customer_name || "—"}</td>
+                                          <td className="px-3 py-2 text-gray-400">{bill.created_by_user?.name || "—"}</td>
+                                          <td className="px-3 py-2 text-right text-white font-medium tabular-nums">{fmt(billTotal)}</td>
+                                        </tr>
+                                        {isBillExpanded && billItems.length > 0 && (
+                                          <tr key={`${bill.id}-items`}>
+                                            <td colSpan={4} className="px-10 py-2 bg-gray-900/80">
+                                              <table className="w-full text-xs">
+                                                <thead>
+                                                  <tr className="border-b border-gray-700/30">
+                                                    <th className="py-1 text-left text-gray-500 uppercase font-semibold">Item</th>
+                                                    <th className="py-1 text-right text-gray-500 uppercase font-semibold">Qty</th>
+                                                    <th className="py-1 text-right text-gray-500 uppercase font-semibold">Amount</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-700/20">
+                                                  {billItems.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                      <td className="py-1 text-gray-300">{item.product?.name || "—"}</td>
+                                                      <td className="py-1 text-right text-gray-400 tabular-nums">{item.quantity}</td>
+                                                      <td className="py-1 text-right text-white tabular-nums">{fmt(item.quantity * item.price)}</td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </table>
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           )}

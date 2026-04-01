@@ -1,6 +1,15 @@
 const service = require("./suppliers.service");
 const { respond, buildContext } = require("../../utils/common");
 
+exports.getBalances = async (req, res, next) => {
+  try {
+    const data = await require("./suppliers.repository").findAllBalances();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.listSuppliers = async (req, res, next) => {
   try {
     const data = await service.list();

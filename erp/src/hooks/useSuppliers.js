@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import {
   fetchSuppliers,
   fetchSupplier,
+  fetchSupplierBalances,
   createSupplier,
   updateSupplier,
   fetchSupplierPurchases,
@@ -18,6 +19,14 @@ export const useSuppliers = (params = {}) => {
     queryKey: ["suppliers", params],
     queryFn: () => fetchSuppliers(params),
     staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useSupplierBalances = () => {
+  return useQuery({
+    queryKey: ["supplier-balances"],
+    queryFn: fetchSupplierBalances,
+    staleTime: 2 * 60 * 1000,
   });
 };
 

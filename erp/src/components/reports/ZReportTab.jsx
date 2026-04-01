@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Loader2,
   Receipt,
@@ -9,8 +9,11 @@ import {
   BarChart3,
   XCircle,
   Printer,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useZReport } from "@/hooks/useZReport";
+import { useBills } from "@/hooks/useBills";
 import { fmtNumber as fmt, fmtDate } from "@/utils/formatters";
 import { dateInputCls } from "@/utils/constants";
 
@@ -32,7 +35,11 @@ const Section = ({ title, icon: Icon, children }) => (
 
 const ZReportTab = () => {
   const [date, setDate] = useState(defaultDate);
+  const [expandedPaymentType, setExpandedPaymentType] = useState(null);
+  const [expandedBill, setExpandedBill] = useState(null);
+
   const { data, isLoading } = useZReport(date);
+  const { data: billsData, isLoading: billsLoading } = useBills({ startDate: date, endDate: date });
 
   const bills = data?.bills || {};
   const payments = data?.payments || [];
@@ -41,6 +48,21 @@ const ZReportTab = () => {
   const servers = data?.servers || [];
   const hourly = data?.hourly || [];
   const voids = data?.voids || [];
+
+  const billsByPaymentType = useMemo(() => {
+    const allBills = billsData?.bills || [];
+    const map = {};
+    for (const bill of allBills) {
+      for (const pmt of bill.payments || []) {
+        const key = pmt.payment_type;
+        if (!map[key]) map[key] = [];
+        if (!map[key].find((b) => b.id === bill.id)) {
+          map[key].push(bill);
+        }
+      }
+    }
+    return map;
+  }, [billsData]);
 
   const handlePrint = () => window.print();
 
@@ -64,7 +86,7 @@ const ZReportTab = () => {
             type="date"
             className={dateInputCls}
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => { setDate(e.target.value); setExpandedPaymentType(null); setExpandedBill(null); }}
           />
         </div>
         <div className="text-sm text-surface-400">
@@ -124,13 +146,105 @@ const ZReportTab = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-700/30">
-                {payments.map((p) => (
-                  <tr key={p.payment_type} className="hover:bg-surface-700/20">
-                    <td className="px-4 py-2 text-white capitalize">{p.payment_type}</td>
-                    <td className="px-4 py-2 text-right text-surface-300 tabular-nums">{p.count}</td>
-                    <td className="px-4 py-2 text-right text-white font-medium tabular-nums">{fmt(p.total_amount)}</td>
-                  </tr>
-                ))}
+                {payments.map((p) => {
+                  const isExpanded = expandedPaymentType === p.payment_type;
+                  const typeBills = billsByPaymentType[p.payment_type] || [];
+                  return (
+                    <>
+                      <tr
+                        key={p.payment_type}
+                        className="hover:bg-surface-700/20 cursor-pointer select-none"
+                        onClick={() => {
+                          setExpandedPaymentType(isExpanded ? null : p.payment_type);
+                          setExpandedBill(null);
+                        }}
+                      >
+                        <td className="px-4 py-2 text-white capitalize flex items-center gap-1.5">
+                          {isExpanded ? <ChevronDown size={14} className="text-surface-400 shrink-0" /> : <ChevronRight size={14} className="text-surface-400 shrink-0" />}
+                          {p.payment_type}
+                        </td>
+                        <td className="px-4 py-2 text-right text-surface-300 tabular-nums">{p.count}</td>
+                        <td className="px-4 py-2 text-right text-white font-medium tabular-nums">{fmt(p.total_amount)}</td>
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${p.payment_type}-expanded`}>
+                          <td colSpan={3} className="bg-surface-900/60 px-0 py-0">
+                            {billsLoading ? (
+                              <div className="flex items-center gap-2 px-6 py-3 text-surface-400 text-xs">
+                                <Loader2 size={12} className="animate-spin" /> Loading bills…
+                              </div>
+                            ) : typeBills.length === 0 ? (
+                              <p className="px-6 py-3 text-surface-500 text-xs">No bill detail available</p>
+                            ) : (
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b border-surface-700/40">
+                                    <th className="px-6 py-2 text-left text-xs font-semibold text-surface-500 uppercase w-4"></th>
+                                    <th className="px-3 py-2 text-left text-xs font-semibold text-surface-500 uppercase">Customer</th>
+                                    <th className="px-3 py-2 text-left text-xs font-semibold text-surface-500 uppercase">Date</th>
+                                    <th className="px-3 py-2 text-left text-xs font-semibold text-surface-500 uppercase">Server</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold text-surface-500 uppercase">Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-surface-700/20">
+                                  {typeBills.map((bill) => {
+                                    const isBillExpanded = expandedBill === bill.id;
+                                    const billItems = (bill.rounds || []).flatMap((r) => r.round_items || []);
+                                    const billTotal = (bill.rounds || []).reduce(
+                                      (sum, r) => sum + (r.round_items || []).reduce((rs, i) => rs + i.quantity * i.price, 0),
+                                      0,
+                                    );
+                                    return (
+                                      <>
+                                        <tr
+                                          key={bill.id}
+                                          className="hover:bg-surface-800/60 cursor-pointer"
+                                          onClick={() => setExpandedBill(isBillExpanded ? null : bill.id)}
+                                        >
+                                          <td className="px-6 py-2 text-surface-500">
+                                            {isBillExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                          </td>
+                                          <td className="px-3 py-2 text-surface-200">{bill.customer_name || "—"}</td>
+                                          <td className="px-3 py-2 text-surface-400 tabular-nums">{fmtDate(bill.created_at?.split("T")[0])}</td>
+                                          <td className="px-3 py-2 text-surface-400">{bill.created_by_user?.name || "—"}</td>
+                                          <td className="px-3 py-2 text-right text-white font-medium tabular-nums">{fmt(billTotal)}</td>
+                                        </tr>
+                                        {isBillExpanded && billItems.length > 0 && (
+                                          <tr key={`${bill.id}-items`}>
+                                            <td colSpan={5} className="px-10 py-2 bg-surface-900/80">
+                                              <table className="w-full text-xs">
+                                                <thead>
+                                                  <tr className="border-b border-surface-700/30">
+                                                    <th className="py-1 text-left text-surface-500 uppercase font-semibold">Item</th>
+                                                    <th className="py-1 text-right text-surface-500 uppercase font-semibold">Qty</th>
+                                                    <th className="py-1 text-right text-surface-500 uppercase font-semibold">Amount</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-surface-700/20">
+                                                  {billItems.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                      <td className="py-1 text-surface-300">{item.product?.name || "—"}</td>
+                                                      <td className="py-1 text-right text-surface-400 tabular-nums">{item.quantity}</td>
+                                                      <td className="py-1 text-right text-white tabular-nums">{fmt(item.quantity * item.price)}</td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </table>
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           )}

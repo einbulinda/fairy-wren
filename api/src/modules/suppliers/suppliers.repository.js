@@ -97,6 +97,29 @@ exports.updateInvoiceAmountPaid = async (invoiceId, amountPaid, totalAmount) => 
   return supabase.from("inventory_receipts").update(update).eq("id", invoiceId);
 };
 
+exports.findAllBalances = async () => {
+  const supabase = getSupabase();
+  const [{ data: purchases }, { data: payments }] = await Promise.all([
+    supabase.from("inventory_receipts").select("supplier_id, total_amount"),
+    supabase.from("supplier_payments").select("supplier_id, amount"),
+  ]);
+  const map = {};
+  for (const p of purchases || []) {
+    if (!map[p.supplier_id]) map[p.supplier_id] = { total_purchased: 0, total_paid: 0 };
+    map[p.supplier_id].total_purchased += Number(p.total_amount || 0);
+  }
+  for (const p of payments || []) {
+    if (!map[p.supplier_id]) map[p.supplier_id] = { total_purchased: 0, total_paid: 0 };
+    map[p.supplier_id].total_paid += Number(p.amount || 0);
+  }
+  return Object.entries(map).map(([supplier_id, { total_purchased, total_paid }]) => ({
+    supplier_id,
+    total_purchased,
+    total_paid,
+    balance_due: total_purchased - total_paid,
+  }));
+};
+
 exports.findInvoiceById = async (invoiceId) => {
   const supabase = getSupabase();
   return supabase

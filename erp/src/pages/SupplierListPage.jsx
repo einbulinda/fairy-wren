@@ -13,9 +13,11 @@ import {
 } from "lucide-react";
 import {
   useSuppliers,
+  useSupplierBalances,
   useCreateSupplier,
   useUpdateSupplier,
 } from "@/hooks/useSuppliers";
+import { fmt } from "@/utils/formatters";
 import toast from "react-hot-toast";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import PaginatedTable from "@/components/shared/PaginatedTable";
@@ -39,6 +41,11 @@ const SupplierListPage = () => {
   const [form, setForm] = useState(EMPTY_FORM);
 
   const { data: suppliers = [], isLoading } = useSuppliers();
+  const { data: balances = [] } = useSupplierBalances();
+  const balanceMap = useMemo(
+    () => Object.fromEntries(balances.map((b) => [b.supplier_id, b])),
+    [balances],
+  );
   const createMutation = useCreateSupplier();
   const updateMutation = useUpdateSupplier();
 
@@ -145,6 +152,27 @@ const SupplierListPage = () => {
           {supplier.active ? "Active" : "Inactive"}
         </span>
       ),
+    },
+    {
+      key: "balance_due",
+      label: "Balance Due",
+      align: "right",
+      sortable: true,
+      sortFn: (a, b) => {
+        const ba = balanceMap[a.id]?.balance_due ?? 0;
+        const bb = balanceMap[b.id]?.balance_due ?? 0;
+        return ba - bb;
+      },
+      render: (_val, supplier) => {
+        const b = balanceMap[supplier.id];
+        if (!b || b.balance_due === 0) return <span className="text-surface-500 tabular-nums">—</span>;
+        return (
+          <span className={`tabular-nums font-medium ${b.balance_due > 0 ? "text-red-400" : "text-green-400"}`}>
+            {fmt(Math.abs(b.balance_due))}
+            {b.balance_due > 0 ? " DR" : " CR"}
+          </span>
+        );
+      },
     },
     {
       key: "_actions",
