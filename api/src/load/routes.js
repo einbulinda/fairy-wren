@@ -26,6 +26,7 @@ const bankReconciliationRoutes = require("../modules/bank-reconciliation/bank-re
 const eventsRoutes = require("../modules/events/events.routes");
 const feedbackRoutes = require("../modules/feedback/feedback.routes");
 const galleryRoutes = require("../modules/gallery/gallery.routes");
+const reservationsRoutes = require("../modules/reservations/reservations.routes");
 const publicRoutes = require("../modules/public/public.routes");
 
 // Public Routes
@@ -56,5 +57,6 @@ router.use("/bank-reconciliation", authMiddleware, bankReconciliationRoutes);
 router.use("/events", authMiddleware, eventsRoutes);
 router.use("/feedback", authMiddleware, feedbackRoutes);
 router.use("/gallery", authMiddleware, galleryRoutes);
+router.use("/reservations", authMiddleware, reservationsRoutes);
 
 module.exports = router;

@@ -17,6 +17,11 @@ const STATUS_BADGE = {
   archived: "bg-surface-800 text-surface-500 border border-surface-700",
 };
 
+const TYPE_BADGE = {
+  complaint: "bg-red-500/15 text-red-400 border border-red-500/30",
+  feedback: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+};
+
 const Stars = ({ rating }) => {
   if (!rating) return <span className="text-surface-500 text-[12px]">No rating</span>;
   return (
@@ -138,6 +143,11 @@ export default function WebFeedbackPage() {
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${STATUS_BADGE[item.status]}`}>
                         {item.status}
                       </span>
+                      {item.type && (
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TYPE_BADGE[item.type] || TYPE_BADGE.feedback}`}>
+                          {item.type}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5">
                       <Stars rating={item.rating} />

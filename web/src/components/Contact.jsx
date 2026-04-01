@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Mail, Phone, MapPin, Send, Star } from "./icons";
 import api from "../api";
-const INITIAL = { name: "", email: "", message: "", rating: "" };
+const INITIAL = { name: "", email: "", message: "", rating: "", type: "feedback" };
 
 export default function Contact() {
   const [form, setForm] = useState(INITIAL);
@@ -18,6 +18,7 @@ export default function Contact() {
         email: form.email || undefined,
         message: form.message,
         rating: form.rating ? parseInt(form.rating, 10) : undefined,
+        type: form.type,
       });
       setStatus("success");
       setForm(INITIAL);
@@ -42,13 +43,13 @@ export default function Contact() {
               Get in Touch
             </p>
             <h2 className="font-display text-4xl md:text-5xl font-bold mb-6">
-              <span className="text-white">Reserve, Inquire</span>
+              <span className="text-white">Inquire,</span>
               <br />
               <span className="italic text-gradient-purple">or Just Say Hi</span>
             </h2>
             <p className="text-[15px] text-white/50 leading-relaxed mb-10">
-              Want to book a table, enquire about events, or share your
-              experience? Send us a message and we'll get back to you.
+              Enquire about events, share your experience, or leave us feedback.
+              We'd love to hear from you.
             </p>
 
             <div className="space-y-5">
@@ -152,6 +153,34 @@ export default function Contact() {
                       placeholder="your@email.com"
                       className={inputCls}
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-white/70 uppercase tracking-wider mb-2">
+                    Type
+                  </label>
+                  <div className="flex gap-3">
+                    {["feedback", "complaint"].map((t) => (
+                      <label
+                        key={t}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border cursor-pointer transition-all text-[13px] font-medium capitalize ${
+                          form.type === t
+                            ? "border-accent/60 bg-accent/10 text-white"
+                            : "border-white/10 bg-night-950/30 text-white/50 hover:border-white/20 hover:text-white/70"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="type"
+                          value={t}
+                          checked={form.type === t}
+                          onChange={set("type")}
+                          className="sr-only"
+                        />
+                        {t === "feedback" ? "💬" : "⚠️"} {t}
+                      </label>
+                    ))}
                   </div>
                 </div>
 

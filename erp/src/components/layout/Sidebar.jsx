@@ -26,6 +26,7 @@ import {
   CalendarDays,
   MessageSquare,
   Images,
+  CalendarCheck,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -107,6 +108,7 @@ const navSections = [
           { to: "/web/events", icon: CalendarDays, label: "Events" },
           { to: "/web/gallery", icon: Images, label: "Gallery" },
           { to: "/web/feedback", icon: MessageSquare, label: "Customer Feedback" },
+          { to: "/web/reservations", icon: CalendarCheck, label: "Reservations" },
         ],
       },
     ],

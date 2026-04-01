@@ -34,7 +34,11 @@ import {
 import { exportSupplierStatementCsv } from "@/services/suppliers.service";
 import ReceiveTab from "@/components/inventory/ReceiveTab";
 import toast from "react-hot-toast";
-import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
+import {
+  MobileCard,
+  MobileField,
+  MobileCardList,
+} from "@/components/shared/MobileCard";
 import { fmt, fmtDate } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
 
@@ -52,7 +56,6 @@ const TABS = [
 ];
 
 const PAYMENT_METHODS = [
-  { value: "bank", label: "Bank Transfer" },
   { value: "cash", label: "Cash" },
   { value: "mpesa", label: "M-Pesa" },
   { value: "cheque", label: "Cheque" },
@@ -180,7 +183,9 @@ const SupplierDetailPage = () => {
   const [payBankAccountId, setPayBankAccountId] = useState("");
   const [payAllocations, setPayAllocations] = useState({}); // { invoiceId: amount }
   const [payReference, setPayReference] = useState("");
-  const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
+  const [payDate, setPayDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
   const [paySubmitting, setPaySubmitting] = useState(false);
 
   const { data: supplier, isLoading: supplierLoading } = useSupplier(id);
@@ -238,7 +243,10 @@ const SupplierDetailPage = () => {
   );
 
   // Purchases pagination
-  const pTotalPages = Math.max(1, Math.ceil(filteredPurchases.length / PAGE_SIZE));
+  const pTotalPages = Math.max(
+    1,
+    Math.ceil(filteredPurchases.length / PAGE_SIZE),
+  );
   const pSafePage = Math.min(purchasesPage, pTotalPages);
   const pPageItems = filteredPurchases.slice(
     (pSafePage - 1) * PAGE_SIZE,
@@ -250,7 +258,10 @@ const SupplierDetailPage = () => {
   );
 
   // Payments pagination
-  const pmTotalPages = Math.max(1, Math.ceil(filteredPayments.length / PAGE_SIZE));
+  const pmTotalPages = Math.max(
+    1,
+    Math.ceil(filteredPayments.length / PAGE_SIZE),
+  );
   const pmSafePage = Math.min(paymentsPage, pmTotalPages);
   const pmPageItems = filteredPayments.slice(
     (pmSafePage - 1) * PAGE_SIZE,
@@ -288,7 +299,11 @@ const SupplierDetailPage = () => {
 
   // Pay tab helpers
   const payTotal = useMemo(
-    () => Object.values(payAllocations).reduce((s, v) => s + (parseFloat(v) || 0), 0),
+    () =>
+      Object.values(payAllocations).reduce(
+        (s, v) => s + (parseFloat(v) || 0),
+        0,
+      ),
     [payAllocations],
   );
 
@@ -303,7 +318,10 @@ const SupplierDetailPage = () => {
     }
     const allocations = Object.entries(payAllocations)
       .filter(([, v]) => parseFloat(v) > 0)
-      .map(([invoice_id, amount]) => ({ invoice_id, amount: parseFloat(amount) }));
+      .map(([invoice_id, amount]) => ({
+        invoice_id,
+        amount: parseFloat(amount),
+      }));
     if (allocations.length === 0) {
       toast.error("Enter amounts for at least one invoice");
       return;
@@ -312,7 +330,8 @@ const SupplierDetailPage = () => {
     for (const alloc of allocations) {
       const inv = unpaidInvoices.find((i) => i.id === alloc.invoice_id);
       if (inv) {
-        const outstanding = Number(inv.total_amount) - Number(inv.amount_paid || 0);
+        const outstanding =
+          Number(inv.total_amount) - Number(inv.amount_paid || 0);
         if (alloc.amount > outstanding + 0.01) {
           toast.error(`Amount exceeds outstanding for ${inv.invoice_number}`);
           return;
@@ -570,16 +589,30 @@ const SupplierDetailPage = () => {
 
               <MobileCardList>
                 {pPageItems.map((p) => (
-                  <MobileCard key={p.id} onClick={() => navigate(`/inventory/receipts/${p.id}`)}>
+                  <MobileCard
+                    key={p.id}
+                    onClick={() => navigate(`/inventory/receipts/${p.id}`)}
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-surface-300 text-sm">{fmtDate(p.purchase_date)}</span>
-                      <PaymentBadge paidAt={p.paid_at} purchaseDate={p.purchase_date} />
+                      <span className="text-surface-300 text-sm">
+                        {fmtDate(p.purchase_date)}
+                      </span>
+                      <PaymentBadge
+                        paidAt={p.paid_at}
+                        purchaseDate={p.purchase_date}
+                      />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs text-primary-400">{p.invoice_number}</span>
-                      <span className="text-white font-medium text-sm">{fmt(p.total_amount)}</span>
+                      <span className="font-mono text-xs text-primary-400">
+                        {p.invoice_number}
+                      </span>
+                      <span className="text-white font-medium text-sm">
+                        {fmt(p.total_amount)}
+                      </span>
                     </div>
-                    {p.notes && <div className="text-xs text-surface-400">{p.notes}</div>}
+                    {p.notes && (
+                      <div className="text-xs text-surface-400">{p.notes}</div>
+                    )}
                   </MobileCard>
                 ))}
               </MobileCardList>
@@ -833,14 +866,28 @@ const SupplierDetailPage = () => {
                   {pmPageItems.map((p) => (
                     <MobileCard key={p.id}>
                       <div className="flex items-center justify-between">
-                        <span className="text-surface-300 text-sm">{fmtDate(p.payment_date)}</span>
-                        <span className="text-green-400 font-medium text-sm">{fmt(p.amount)}</span>
+                        <span className="text-surface-300 text-sm">
+                          {fmtDate(p.payment_date)}
+                        </span>
+                        <span className="text-green-400 font-medium text-sm">
+                          {fmt(p.amount)}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs">
-                        <span className="text-surface-300 capitalize">{p.payment_method}</span>
-                        {p.reference && <span className="font-mono text-surface-400">{p.reference}</span>}
+                        <span className="text-surface-300 capitalize">
+                          {p.payment_method}
+                        </span>
+                        {p.reference && (
+                          <span className="font-mono text-surface-400">
+                            {p.reference}
+                          </span>
+                        )}
                       </div>
-                      {p.notes && <div className="text-xs text-surface-400">{p.notes}</div>}
+                      {p.notes && (
+                        <div className="text-xs text-surface-400">
+                          {p.notes}
+                        </div>
+                      )}
                     </MobileCard>
                   ))}
                 </MobileCardList>
@@ -871,12 +918,19 @@ const SupplierDetailPage = () => {
             <h2 className="font-semibold text-white">Supplier Statement</h2>
             <div className="flex items-center gap-2">
               <span className="text-xs text-surface-400 mr-2">
-                {statement.length} transaction{statement.length !== 1 ? "s" : ""}
+                {statement.length} transaction
+                {statement.length !== 1 ? "s" : ""}
               </span>
               {statement.length > 0 && (
                 <>
                   <button
-                    onClick={() => exportSupplierStatementCsv(id, stmtFrom || undefined, stmtTo || undefined).catch(() => toast.error("Export failed"))}
+                    onClick={() =>
+                      exportSupplierStatementCsv(
+                        id,
+                        stmtFrom || undefined,
+                        stmtTo || undefined,
+                      ).catch(() => toast.error("Export failed"))
+                    }
                     className="flex items-center gap-1 px-2.5 py-1.5 bg-surface-700 hover:bg-surface-600 text-surface-300 text-xs rounded-lg transition-colors"
                     title="Download as Excel/CSV"
                   >
@@ -1043,29 +1097,61 @@ const SupplierDetailPage = () => {
                 {stmtPageItems.map((row, i) => (
                   <MobileCard key={i}>
                     <div className="flex items-center justify-between">
-                      <span className="text-surface-300 text-sm">{fmtDate(row.txn_date)}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${TXN_TYPE_STYLES[row.txn_type] || "bg-surface-700 text-surface-400"}`}>
+                      <span className="text-surface-300 text-sm">
+                        {fmtDate(row.txn_date)}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${TXN_TYPE_STYLES[row.txn_type] || "bg-surface-700 text-surface-400"}`}
+                      >
                         {row.txn_type}
                       </span>
                     </div>
-                    {row.reference && <div className="font-mono text-xs text-surface-400">{row.reference}</div>}
-                    {row.description && <div className="text-xs text-surface-400">{row.description}</div>}
+                    {row.reference && (
+                      <div className="font-mono text-xs text-surface-400">
+                        {row.reference}
+                      </div>
+                    )}
+                    {row.description && (
+                      <div className="text-xs text-surface-400">
+                        {row.description}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-sm">
                       <div className="space-x-3">
-                        {Number(row.debit) > 0 && <span className="text-red-400">Dr {fmt(row.debit)}</span>}
-                        {Number(row.credit) > 0 && <span className="text-green-400">Cr {fmt(row.credit)}</span>}
+                        {Number(row.debit) > 0 && (
+                          <span className="text-red-400">
+                            Dr {fmt(row.debit)}
+                          </span>
+                        )}
+                        {Number(row.credit) > 0 && (
+                          <span className="text-green-400">
+                            Cr {fmt(row.credit)}
+                          </span>
+                        )}
                       </div>
-                      <span className={`font-medium ${Number(row.running_balance) > 0 ? "text-red-400" : Number(row.running_balance) < 0 ? "text-green-400" : "text-surface-300"}`}>
-                        {fmt(Math.abs(row.running_balance))}{Number(row.running_balance) > 0 ? " DR" : Number(row.running_balance) < 0 ? " CR" : ""}
+                      <span
+                        className={`font-medium ${Number(row.running_balance) > 0 ? "text-red-400" : Number(row.running_balance) < 0 ? "text-green-400" : "text-surface-300"}`}
+                      >
+                        {fmt(Math.abs(row.running_balance))}
+                        {Number(row.running_balance) > 0
+                          ? " DR"
+                          : Number(row.running_balance) < 0
+                            ? " CR"
+                            : ""}
                       </span>
                     </div>
                   </MobileCard>
                 ))}
                 <MobileCard className="bg-surface-900/50!">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-surface-400 uppercase tracking-wide">{stmtFrom || stmtTo ? "Period" : "Closing"} Balance</span>
-                    <span className={`font-semibold ${balance > 0 ? "text-red-400" : balance < 0 ? "text-green-400" : "text-surface-300"}`}>
-                      {fmt(Math.abs(balance))} {balance > 0 ? "DR" : balance < 0 ? "CR" : ""}
+                    <span className="text-surface-400 uppercase tracking-wide">
+                      {stmtFrom || stmtTo ? "Period" : "Closing"} Balance
+                    </span>
+                    <span
+                      className={`font-semibold ${balance > 0 ? "text-red-400" : balance < 0 ? "text-green-400" : "text-surface-300"}`}
+                    >
+                      {fmt(Math.abs(balance))}{" "}
+                      {balance > 0 ? "DR" : balance < 0 ? "CR" : ""}
                     </span>
                   </div>
                 </MobileCard>
@@ -1096,13 +1182,17 @@ const SupplierDetailPage = () => {
               <div className="p-1.5 bg-primary-500/15 rounded-lg">
                 <Banknote size={14} className="text-primary-400" />
               </div>
-              <h3 className="font-semibold text-white">Pay Supplier Invoices</h3>
+              <h3 className="font-semibold text-white">
+                Pay Supplier Invoices
+              </h3>
             </div>
 
             {/* Bank account + date + ref */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <label className="text-xs text-surface-400 font-medium">Bank Account *</label>
+                <label className="text-xs text-surface-400 font-medium">
+                  Bank Account *
+                </label>
                 <select
                   className={inputCls}
                   value={payBankAccountId}
@@ -1110,12 +1200,16 @@ const SupplierDetailPage = () => {
                 >
                   <option value="">Select bank account…</option>
                   {bankAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-surface-400 font-medium">Payment Date *</label>
+                <label className="text-xs text-surface-400 font-medium">
+                  Payment Date *
+                </label>
                 <input
                   type="date"
                   className={inputCls}
@@ -1124,7 +1218,9 @@ const SupplierDetailPage = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-surface-400 font-medium">Reference</label>
+                <label className="text-xs text-surface-400 font-medium">
+                  Reference
+                </label>
                 <input
                   type="text"
                   className={inputCls}
@@ -1137,10 +1233,15 @@ const SupplierDetailPage = () => {
 
             {/* Invoices table */}
             {unpaidLoading ? (
-              <div className="py-8 text-center text-surface-400">Loading invoices...</div>
+              <div className="py-8 text-center text-surface-400">
+                Loading invoices...
+              </div>
             ) : unpaidInvoices.length === 0 ? (
               <div className="py-8 text-center text-surface-500">
-                <CheckCircle2 size={32} className="mx-auto mb-2 text-green-500/40" />
+                <CheckCircle2
+                  size={32}
+                  className="mx-auto mb-2 text-green-500/40"
+                />
                 <p>No outstanding invoices for this supplier.</p>
               </div>
             ) : (
@@ -1149,24 +1250,51 @@ const SupplierDetailPage = () => {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-surface-700 bg-surface-800/30">
-                        <th className="text-left px-4 py-3 text-surface-400 font-medium">Invoice #</th>
-                        <th className="text-left px-4 py-3 text-surface-400 font-medium">Date</th>
-                        <th className="text-right px-4 py-3 text-surface-400 font-medium">Invoice Amount</th>
-                        <th className="text-right px-4 py-3 text-surface-400 font-medium">Paid</th>
-                        <th className="text-right px-4 py-3 text-surface-400 font-medium">Outstanding</th>
-                        <th className="text-right px-4 py-3 text-surface-400 font-medium w-36">Pay Amount</th>
+                        <th className="text-left px-4 py-3 text-surface-400 font-medium">
+                          Invoice #
+                        </th>
+                        <th className="text-left px-4 py-3 text-surface-400 font-medium">
+                          Date
+                        </th>
+                        <th className="text-right px-4 py-3 text-surface-400 font-medium">
+                          Invoice Amount
+                        </th>
+                        <th className="text-right px-4 py-3 text-surface-400 font-medium">
+                          Paid
+                        </th>
+                        <th className="text-right px-4 py-3 text-surface-400 font-medium">
+                          Outstanding
+                        </th>
+                        <th className="text-right px-4 py-3 text-surface-400 font-medium w-36">
+                          Pay Amount
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-surface-700/40">
                       {unpaidInvoices.map((inv) => {
-                        const outstanding = Number(inv.total_amount) - Number(inv.amount_paid || 0);
+                        const outstanding =
+                          Number(inv.total_amount) -
+                          Number(inv.amount_paid || 0);
                         return (
-                          <tr key={inv.id} className="hover:bg-surface-700/30 transition-colors">
-                            <td className="px-4 py-3 font-mono text-xs text-primary-400">{inv.invoice_number}</td>
-                            <td className="px-4 py-3 text-surface-300">{fmtDate(inv.purchase_date)}</td>
-                            <td className="px-4 py-3 text-right text-white">{fmt(inv.total_amount)}</td>
-                            <td className="px-4 py-3 text-right text-green-400">{fmt(inv.amount_paid || 0)}</td>
-                            <td className="px-4 py-3 text-right text-red-400 font-medium">{fmt(outstanding)}</td>
+                          <tr
+                            key={inv.id}
+                            className="hover:bg-surface-700/30 transition-colors"
+                          >
+                            <td className="px-4 py-3 font-mono text-xs text-primary-400">
+                              {inv.invoice_number}
+                            </td>
+                            <td className="px-4 py-3 text-surface-300">
+                              {fmtDate(inv.purchase_date)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-white">
+                              {fmt(inv.total_amount)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-green-400">
+                              {fmt(inv.amount_paid || 0)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-red-400 font-medium">
+                              {fmt(outstanding)}
+                            </td>
                             <td className="px-4 py-2 text-right">
                               <input
                                 type="number"
@@ -1176,7 +1304,9 @@ const SupplierDetailPage = () => {
                                 placeholder="0.00"
                                 className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 value={payAllocations[inv.id] || ""}
-                                onChange={(e) => handlePayAllocation(inv.id, e.target.value)}
+                                onChange={(e) =>
+                                  handlePayAllocation(inv.id, e.target.value)
+                                }
                               />
                             </td>
                           </tr>
@@ -1185,7 +1315,10 @@ const SupplierDetailPage = () => {
                     </tbody>
                     <tfoot>
                       <tr className="bg-surface-800/50 border-t border-surface-600">
-                        <td colSpan={5} className="px-4 py-3 text-right text-sm font-semibold text-surface-300">
+                        <td
+                          colSpan={5}
+                          className="px-4 py-3 text-right text-sm font-semibold text-surface-300"
+                        >
                           Total Payment
                         </td>
                         <td className="px-4 py-3 text-right text-lg font-bold text-white">
@@ -1199,14 +1332,24 @@ const SupplierDetailPage = () => {
                 {/* Journal preview */}
                 {payTotal > 0 && payBankAccountId && (
                   <div className="bg-surface-900/50 border border-surface-700 rounded-lg p-3 text-xs">
-                    <p className="text-surface-400 mb-2 font-medium">Journal Entry Preview</p>
+                    <p className="text-surface-400 mb-2 font-medium">
+                      Journal Entry Preview
+                    </p>
                     <div className="space-y-1">
                       <div className="flex justify-between">
-                        <span className="text-white">Dr {supplier?.name || "Accounts Payable"}</span>
-                        <span className="text-emerald-400">{fmt(payTotal)}</span>
+                        <span className="text-white">
+                          Dr {supplier?.name || "Accounts Payable"}
+                        </span>
+                        <span className="text-emerald-400">
+                          {fmt(payTotal)}
+                        </span>
                       </div>
                       <div className="flex justify-between pl-4">
-                        <span className="text-white">Cr {bankAccounts.find((a) => a.id === payBankAccountId)?.name || "Bank"}</span>
+                        <span className="text-white">
+                          Cr{" "}
+                          {bankAccounts.find((a) => a.id === payBankAccountId)
+                            ?.name || "Bank"}
+                        </span>
                         <span className="text-red-400">{fmt(payTotal)}</span>
                       </div>
                     </div>
@@ -1216,7 +1359,9 @@ const SupplierDetailPage = () => {
                 <div className="flex justify-end">
                   <button
                     onClick={handlePaySubmit}
-                    disabled={paySubmitting || payTotal <= 0 || !payBankAccountId}
+                    disabled={
+                      paySubmitting || payTotal <= 0 || !payBankAccountId
+                    }
                     className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     <Banknote size={15} />

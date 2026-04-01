@@ -6,5 +6,6 @@ const controller = require("./public.controller");
 router.get("/events", controller.getEvents);
 router.get("/gallery", controller.getGallery);
 router.post("/feedback", controller.submitFeedback);
+router.post("/reservations", controller.submitReservation);
 
 module.exports = router;

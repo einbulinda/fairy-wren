@@ -1,15 +1,18 @@
 const repo = require("./feedback.repository");
 
-exports.submit = async ({ name, email, message, rating }) => {
+exports.submit = async ({ name, email, message, rating, type }) => {
   if (!name || !name.trim()) throw new Error("FEEDBACK_NAME_REQUIRED");
   if (!message || !message.trim()) throw new Error("FEEDBACK_MESSAGE_REQUIRED");
   if (rating && (rating < 1 || rating > 5)) throw new Error("FEEDBACK_RATING_INVALID");
+
+  const resolvedType = type === "complaint" ? "complaint" : "feedback";
 
   const { data, error } = await repo.create({
     name: name.trim(),
     email: email ? email.trim() : null,
     message: message.trim(),
     rating: rating || null,
+    type: resolvedType,
     status: "new",
   });
   if (error) throw new Error("FAILED_TO_SAVE_FEEDBACK");
@@ -20,6 +23,7 @@ exports.submit = async ({ name, email, message, rating }) => {
     broadcast("feedback:new", {
       id: data.id,
       name: data.name,
+      type: data.type,
       rating: data.rating,
       preview: data.message.substring(0, 80),
       created_at: data.created_at,

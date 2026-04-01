@@ -63,8 +63,8 @@ export default function Navbar() {
 
         {/* CTA */}
         <a
-          href="#contact"
-          onClick={(e) => handleNav(e, "#contact")}
+          href="#reserve"
+          onClick={(e) => handleNav(e, "#reserve")}
           className="hidden md:inline-flex items-center px-5 py-2 rounded-full bg-accent hover:bg-accent-dark text-white text-[13px] font-semibold transition-colors"
         >
           Reserve a Table
@@ -95,8 +95,8 @@ export default function Navbar() {
               </a>
             ))}
             <a
-              href="#contact"
-              onClick={(e) => handleNav(e, "#contact")}
+              href="#reserve"
+              onClick={(e) => handleNav(e, "#reserve")}
               className="mt-3 flex items-center justify-center py-3 rounded-full bg-accent text-white text-[14px] font-semibold"
             >
               Reserve a Table

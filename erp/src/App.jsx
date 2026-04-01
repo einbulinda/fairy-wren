@@ -36,6 +36,7 @@ import ProfilePage from "@/pages/ProfilePage";
 import WebEventsPage from "@/pages/WebEventsPage";
 import WebFeedbackPage from "@/pages/WebFeedbackPage";
 import WebGalleryPage from "@/pages/WebGalleryPage";
+import WebReservationsPage from "@/pages/WebReservationsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,6 +89,7 @@ const AuthenticatedRoutes = () => {
         <Route path="web/events" element={<WebEventsPage />} />
         <Route path="web/gallery" element={<WebGalleryPage />} />
         <Route path="web/feedback" element={<WebFeedbackPage />} />
+        <Route path="web/reservations" element={<WebReservationsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="approvals" element={<PlaceholderPage />} />
         <Route path="profile" element={<ProfilePage />} />
