@@ -23,11 +23,13 @@ exports.create = async (payload, context) => {
   const { data: existing } = await repo.findByNumber(dto.cheque_number);
   if (existing) throw new Error("CHEQUE_NUMBER_ALREADY_EXISTS");
 
-  // Insert cheque record
+  // Insert cheque record (expense_lines is used for journal lines only, not a DB column)
+  const { expense_lines, ...chequeFields } = dto;
   const { data: cheque, error: chequeError } = await repo.create({
-    ...dto,
+    ...chequeFields,
     created_by: context.userId,
   });
+  console.log("FAILED_TO_CREATE_CHEQUE", chequeError);
   if (chequeError) throw new Error("FAILED_TO_CREATE_CHEQUE");
 
   // Auto-create journal entry: Dr debit_account, Cr bank_account

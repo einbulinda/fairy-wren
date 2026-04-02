@@ -82,13 +82,14 @@ const ChequeWritingPage = () => {
     return leaves.length > 0 ? leaves : all; // fallback if flat chart
   }, [accounts]);
 
-  // Expense accounts: leaf accounts whose class has category === "expense"
+  // Expense accounts: all accounts whose class has category === "expense"
+  // Prefer leaf accounts (parent_id !== null) but fall back to all if chart is flat
   const expenseClassCodes = useMemo(
     () => new Set(accountClasses.filter((c) => c.category === "expense").map((c) => c.code)),
     [accountClasses],
   );
   const expenseAccounts = useMemo(
-    () => accounts.filter((a) => expenseClassCodes.has(a.account_class) && a.active && a.parent_id !== null),
+    () => accounts.filter((a) => expenseClassCodes.has(a.account_class) && a.active),
     [accounts, expenseClassCodes],
   );
 
