@@ -48,20 +48,40 @@ exports.create = async (payload, context) => {
   });
   if (entryError) throw new Error("FAILED_TO_CREATE_CHEQUE_JOURNAL");
 
-  const { error: linesError } = await journalRepo.createLines([
-    {
-      journal_entry_id: entry.id,
-      account_id: dto.debit_account_id,
-      debit: dto.amount,
-      credit: 0,
-    },
-    {
-      journal_entry_id: entry.id,
-      account_id: dto.bank_account_id,
-      debit: 0,
-      credit: dto.amount,
-    },
-  ]);
+  const isExpense = dto.payee_type === "expense";
+  const journalLines = isExpense
+    ? [
+        // One debit line per expense account
+        ...dto.expense_lines.map((line) => ({
+          journal_entry_id: entry.id,
+          account_id: line.account_id,
+          debit: line.amount,
+          credit: 0,
+        })),
+        // Single credit to bank
+        {
+          journal_entry_id: entry.id,
+          account_id: dto.bank_account_id,
+          debit: 0,
+          credit: dto.amount,
+        },
+      ]
+    : [
+        {
+          journal_entry_id: entry.id,
+          account_id: dto.debit_account_id,
+          debit: dto.amount,
+          credit: 0,
+        },
+        {
+          journal_entry_id: entry.id,
+          account_id: dto.bank_account_id,
+          debit: 0,
+          credit: dto.amount,
+        },
+      ];
+
+  const { error: linesError } = await journalRepo.createLines(journalLines);
   if (linesError) throw new Error("FAILED_TO_CREATE_CHEQUE_JOURNAL_LINES");
 
   // Link journal back to cheque
@@ -91,7 +111,10 @@ exports.create = async (payload, context) => {
     metadata: {
       cheque_number: dto.cheque_number,
       payee: dto.payee_name,
+      payee_type: dto.payee_type,
       amount: dto.amount,
+      bank_account_id: dto.bank_account_id,
+      ...(isExpense && { expense_lines: dto.expense_lines }),
     },
   });
 
