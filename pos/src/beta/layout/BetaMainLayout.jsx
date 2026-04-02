@@ -28,6 +28,7 @@ const BetaMainLayout = () => {
 
   const hasPosAccess = user?.permissions?.includes("pos_access");
   const hasStockAccess = user?.permissions?.includes("stock_take");
+  const hasZReportAccess = user?.permissions?.includes("z_report");
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -38,7 +39,7 @@ const BetaMainLayout = () => {
         const tabs = ["pos", "stock", "zreport"].filter((tab) => {
           if (tab === "pos") return hasPosAccess;
           if (tab === "stock") return hasStockAccess;
-          if (tab === "zreport") return hasPosAccess;
+          if (tab === "zreport") return hasZReportAccess;
           return true;
         });
         const index = parseInt(e.key) - 1;
@@ -81,10 +82,10 @@ const BetaMainLayout = () => {
           <AccessDenied message="Stock take access required" />
         );
       case "zreport":
-        return hasPosAccess ? (
+        return hasZReportAccess ? (
           <BetaZReportScreen />
         ) : (
-          <AccessDenied message="POS access required" />
+          <AccessDenied message="Z-Report access required" />
         );
       default:
         return <BetaPOSScreen />;
@@ -95,7 +96,7 @@ const BetaMainLayout = () => {
   const tabs = [
     { id: "pos", label: "POS", icon: Home, enabled: hasPosAccess },
     { id: "stock", label: "Stock", icon: Package, enabled: hasStockAccess },
-    { id: "zreport", label: "Report", icon: FileText, enabled: hasPosAccess },
+    { id: "zreport", label: "Report", icon: FileText, enabled: hasZReportAccess },
   ].filter((t) => t.enabled);
 
   return (

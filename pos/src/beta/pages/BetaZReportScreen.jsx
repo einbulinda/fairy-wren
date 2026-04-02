@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useZReport } from "@/hooks/useZReport";
+import { useZReportBills } from "@/hooks/useZReportBills";
 import { ReportsService } from "@/services/reports.service";
 import {
   FileText,
-  Calendar,
   DollarSign,
   Smartphone,
   Banknote,
@@ -18,6 +18,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -55,8 +56,11 @@ const BetaZReportScreen = () => {
   const { user } = useAuth();
   const [date, setDate] = useState(getDefaultDate());
   const { data: report, loading, refetch } = useZReport(date);
+  const { bills: billsList, loading: billsLoading } = useZReportBills(date);
   const [generating, setGenerating] = useState(false);
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
+  const [expandedPaymentType, setExpandedPaymentType] = useState(null);
+  const [expandedBill, setExpandedBill] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
     overview: true,
     payments: true,
@@ -65,7 +69,7 @@ const BetaZReportScreen = () => {
     staff: false,
   });
 
-  const hasPermission = user?.permissions?.includes("pos_access");
+  const hasPermission = user?.permissions?.includes("z_report");
 
   const handleGenerateZReport = async () => {
     setGenerating(true);
@@ -120,13 +124,25 @@ const BetaZReportScreen = () => {
   // Total bills count
   const totalBills = (bills.completed || 0) + (bills.open || 0);
 
+  const billsByPaymentType = useMemo(() => {
+    const map = {};
+    for (const bill of billsList) {
+      for (const pmt of bill.payments || []) {
+        const key = pmt.payment_type;
+        if (!map[key]) map[key] = [];
+        if (!map[key].find((b) => b.id === bill.id)) map[key].push(bill);
+      }
+    }
+    return map;
+  }, [billsList]);
+
   if (!hasPermission) {
     return (
       <div className="h-[calc(100vh-60px)] flex items-center justify-center p-4">
         <div className="text-center">
           <Lock size={48} className="text-gray-600 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
-          <p className="text-gray-400">You need POS access to view Z-Reports</p>
+          <p className="text-gray-400">You need Z-Report access to view this page</p>
         </div>
       </div>
     );
@@ -288,40 +304,95 @@ const BetaZReportScreen = () => {
                 badge={payments.length}
               >
                 <div className="space-y-2">
-                  {payments.map((payment) => {
-                    const Icon = methodIcons[payment.method] || DollarSign;
-                    const percentage = totalRevenue > 0 
-                      ? ((payment.amount / totalRevenue) * 100).toFixed(1)
-                      : 0;
+                  {payments.map((p) => {
+                    const Icon = methodIcons[p.payment_type] || DollarSign;
+                    const amount = p.total_amount || 0;
+                    const totalRev = payments.reduce((s, x) => s + (x.total_amount || 0), 0);
+                    const percentage = totalRev > 0 ? ((amount / totalRev) * 100).toFixed(1) : 0;
+                    const isExpanded = expandedPaymentType === p.payment_type;
+                    const typeBills = billsByPaymentType[p.payment_type] || [];
                     return (
-                      <div key={payment.id} className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
-                          <Icon size={18} className="text-pink-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-white">
-                              {payment.method}
-                            </span>
-                            <span className="font-bold text-white">
-                              {formatCurrency(payment.amount)}
-                            </span>
+                      <div key={p.payment_type}>
+                        <button
+                          className="w-full flex items-center gap-3 text-left hover:bg-slate-800/40 rounded-xl p-1 -mx-1 transition-colors"
+                          onClick={() => { setExpandedPaymentType(isExpanded ? null : p.payment_type); setExpandedBill(null); }}
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
+                            <Icon size={18} className="text-pink-400" />
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-pink-500 to-purple-600"
-                                style={{ width: `${percentage}%` }}
-                              />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-white capitalize">{p.payment_type}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white">{formatCurrency(amount)}</span>
+                                {isExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                              </div>
                             </div>
-                            <span className="text-xs text-gray-500 w-12 text-right">
-                              {percentage}%
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-linear-to-r from-pink-500 to-purple-600" style={{ width: `${percentage}%` }} />
+                              </div>
+                              <span className="text-xs text-gray-500 w-12 text-right">{percentage}%</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{p.count || 0} transactions</p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {payment.bill_count || 0} transactions
-                          </p>
-                        </div>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="mt-2 ml-13 pl-2 border-l border-slate-700/50 space-y-1">
+                            {billsLoading ? (
+                              <div className="flex items-center gap-2 py-2 text-gray-400 text-xs">
+                                <Loader2 size={12} className="animate-spin" /> Loading bills…
+                              </div>
+                            ) : typeBills.length === 0 ? (
+                              <p className="text-gray-500 text-xs py-2">No bill detail available</p>
+                            ) : (
+                              typeBills.map((bill) => {
+                                const isBillExpanded = expandedBill === bill.id;
+                                const billItems = (bill.rounds || []).flatMap((r) => r.round_items || []);
+                                const billTotal = (bill.rounds || []).reduce(
+                                  (sum, r) => sum + (r.round_items || []).reduce((rs, i) => rs + i.quantity * i.price, 0),
+                                  0,
+                                );
+                                return (
+                                  <div key={bill.id}>
+                                    <button
+                                      className="w-full flex items-center gap-2 py-2 px-3 rounded-xl hover:bg-slate-800/60 transition-colors text-left"
+                                      onClick={() => setExpandedBill(isBillExpanded ? null : bill.id)}
+                                    >
+                                      {isBillExpanded ? <ChevronDown size={12} className="text-gray-500 shrink-0" /> : <ChevronRight size={12} className="text-gray-500 shrink-0" />}
+                                      <span className="flex-1 text-sm text-gray-200 truncate">{bill.customer_name || "—"}</span>
+                                      <span className="text-xs text-gray-400 shrink-0">{bill.created_by_user?.name || "—"}</span>
+                                      <span className="text-sm font-medium text-white tabular-nums ml-2 shrink-0">{formatCurrency(billTotal)}</span>
+                                    </button>
+                                    {isBillExpanded && billItems.length > 0 && (
+                                      <div className="mx-3 mb-2 p-2 bg-slate-900/60 rounded-lg">
+                                        <table className="w-full text-xs">
+                                          <thead>
+                                            <tr className="border-b border-slate-700/40">
+                                              <th className="pb-1 text-left text-gray-500 font-medium">Item</th>
+                                              <th className="pb-1 text-right text-gray-500 font-medium">Qty</th>
+                                              <th className="pb-1 text-right text-gray-500 font-medium">Amount</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-slate-700/20">
+                                            {billItems.map((item, idx) => (
+                                              <tr key={idx}>
+                                                <td className="py-1 text-gray-300">{item.product?.name || "—"}</td>
+                                                <td className="py-1 text-right text-gray-400 tabular-nums">{item.quantity}</td>
+                                                <td className="py-1 text-right text-white tabular-nums">{formatCurrency(item.quantity * item.price)}</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

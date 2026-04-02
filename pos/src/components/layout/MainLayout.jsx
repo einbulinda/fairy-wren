@@ -55,7 +55,7 @@ const MainLayout = () => {
         label: "Stock Take",
         icon: ClipboardCheck,
       });
-    if (perms.includes("pos_access"))
+    if (perms.includes("z_report"))
       tabs.push({ id: "z-report", label: "Z-Report", icon: Receipt });
     return tabs;
   }, [user.permissions]);

@@ -105,6 +105,11 @@ const CAPABILITIES = [
     label: "View All Bills",
     description: "Can see all bills, not just own",
   },
+  {
+    key: "z_report",
+    label: "Z-Report",
+    description: "Can view the end-of-day Z-Report on POS",
+  },
 ];
 
 const formatCurrency = (value) =>
