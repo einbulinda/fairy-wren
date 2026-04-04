@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ArrowRight, Repeat, History, Package, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowRight, Repeat, History, Package, AlertTriangle, Loader2, TrendingDown } from "lucide-react";
 import {
   useConvertibleProducts,
   useConversionHistory,
@@ -32,6 +32,30 @@ const ConversionTab = () => {
     const totalMl = Number(sourceQty) * sourceProduct.volume_ml;
     return Math.floor(totalMl / targetProduct.volume_ml);
   }, [sourceProduct, targetProduct, sourceQty]);
+
+  // Cost price breakdown preview
+  const costPreview = useMemo(() => {
+    if (
+      !sourceProduct?.cost_price || !sourceProduct?.volume_ml ||
+      !targetProduct?.volume_ml || !calculatedTargetQty
+    ) return null;
+
+    const newUnitCost = sourceProduct.cost_price * targetProduct.volume_ml / sourceProduct.volume_ml;
+    const existingStock = targetProduct.current_stock ?? 0;
+    const existingCost = targetProduct.cost_price ?? 0;
+
+    let finalCost;
+    let isWeighted = false;
+
+    if (existingStock > 0 && existingCost > 0) {
+      finalCost = (existingStock * existingCost + calculatedTargetQty * newUnitCost) / (existingStock + calculatedTargetQty);
+      isWeighted = true;
+    } else {
+      finalCost = newUnitCost;
+    }
+
+    return { newUnitCost, finalCost, isWeighted, existingStock, existingCost };
+  }, [sourceProduct, targetProduct, calculatedTargetQty]);
 
   const handleConvert = async (e) => {
     e.preventDefault();
@@ -178,16 +202,71 @@ const ConversionTab = () => {
 
                 {/* Calculated output */}
                 {calculatedTargetQty > 0 && (
-                  <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-4">
-                    <p className="text-xs text-surface-400 mb-1">Conversion Result</p>
-                    <p className="text-lg font-bold text-white">
-                      {sourceQty} × {sourceProduct?.name}{" "}
-                      <span className="text-primary-400">→</span>{" "}
-                      {calculatedTargetQty} × {targetProduct?.name}
-                    </p>
-                    <p className="text-xs text-surface-500 mt-1">
-                      {Number(sourceQty) * sourceProduct.volume_ml}ml ÷ {targetProduct.volume_ml}ml = {calculatedTargetQty} units
-                    </p>
+                  <div className="space-y-3">
+                    <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-4">
+                      <p className="text-xs text-surface-400 mb-1">Conversion Result</p>
+                      <p className="text-lg font-bold text-white">
+                        {sourceQty} × {sourceProduct?.name}{" "}
+                        <span className="text-primary-400">→</span>{" "}
+                        {calculatedTargetQty} × {targetProduct?.name}
+                      </p>
+                      <p className="text-xs text-surface-500 mt-1">
+                        {Number(sourceQty) * sourceProduct.volume_ml}ml ÷ {targetProduct.volume_ml}ml = {calculatedTargetQty} units
+                      </p>
+                    </div>
+
+                    {costPreview && (
+                      <div className="bg-surface-900/60 border border-surface-600 rounded-lg p-4 space-y-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <TrendingDown size={13} className="text-emerald-400" />
+                          <p className="text-xs font-medium text-surface-300">Cost Price Breakdown</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                          <span className="text-surface-500">Source cost price</span>
+                          <span className="text-surface-300 tabular-nums text-right">
+                            {formatCurrency(sourceProduct.cost_price)} / {sourceProduct.unit}
+                          </span>
+
+                          <span className="text-surface-500">Volume ratio</span>
+                          <span className="text-surface-300 tabular-nums text-right">
+                            {targetProduct.volume_ml}ml ÷ {sourceProduct.volume_ml}ml
+                          </span>
+
+                          <span className="text-surface-500">New cost / {targetProduct.unit}</span>
+                          <span className="text-emerald-400 tabular-nums font-medium text-right">
+                            {formatCurrency(costPreview.newUnitCost)}
+                          </span>
+                        </div>
+
+                        {costPreview.isWeighted && (
+                          <>
+                            <div className="border-t border-surface-700 pt-2 mt-1 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                              <span className="text-surface-500">Existing stock</span>
+                              <span className="text-surface-300 tabular-nums text-right">
+                                {costPreview.existingStock} × {formatCurrency(costPreview.existingCost)}
+                              </span>
+                              <span className="text-surface-500">Adding</span>
+                              <span className="text-surface-300 tabular-nums text-right">
+                                {calculatedTargetQty} × {formatCurrency(costPreview.newUnitCost)}
+                              </span>
+                            </div>
+                            <div className="border-t border-surface-700 pt-2 flex justify-between text-xs">
+                              <span className="text-surface-400 font-medium">Weighted avg cost</span>
+                              <span className="text-emerald-400 font-bold tabular-nums">
+                                {formatCurrency(costPreview.finalCost)}
+                              </span>
+                            </div>
+                          </>
+                        )}
+
+                        {!costPreview.isWeighted && (
+                          <p className="text-xs text-surface-500 pt-1 border-t border-surface-700">
+                            No existing {targetProduct.name} stock — new cost takes effect directly.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
