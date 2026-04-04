@@ -7,8 +7,10 @@ import {
   CreditCard,
   X,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { usePendingInvoices } from "@/hooks/useSuppliers";
 import { useMarkReceiptPaid } from "@/hooks/useInventory";
+import { fetchAccounts } from "@/services/accounts.service";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
 import PaginatedTable from "@/components/shared/PaginatedTable";
 import toast from "react-hot-toast";
@@ -41,10 +43,22 @@ const PendingInvoicesPage = () => {
   const [payingId, setPayingId] = useState(null);
   const [payForm, setPayForm] = useState({
     payment_method: "bank",
+    bank_account_id: "",
     reference: "",
     amount: "",
     notes: "",
   });
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => fetchAccounts({ active: true }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const leafBankAccounts = useMemo(() => {
+    const all = accounts.filter((a) => a.account_class === "bank" && a.active);
+    const leaves = all.filter((a) => a.parent_id !== null);
+    return leaves.length > 0 ? leaves : all;
+  }, [accounts]);
 
   const totalOutstanding = invoices.reduce((s, i) => s + Number(i.total_amount ?? 0), 0);
 
@@ -73,7 +87,7 @@ const PendingInvoicesPage = () => {
       {
         onSuccess: () => {
           setPayingId(null);
-          setPayForm({ payment_method: "bank", reference: "", amount: "", notes: "" });
+          setPayForm({ payment_method: "bank", bank_account_id: "", reference: "", amount: "", notes: "" });
         },
       },
     );
@@ -151,7 +165,7 @@ const PendingInvoicesPage = () => {
           onClick={(e) => {
             e.stopPropagation();
             setPayingId(inv.id);
-            setPayForm({ payment_method: "bank", reference: "", amount: "", notes: "" });
+            setPayForm({ payment_method: "bank", bank_account_id: "", reference: "", amount: "", notes: "" });
           }}
           className="px-3 py-1 bg-green-600/20 text-green-400 hover:bg-green-600/40 rounded-lg text-xs font-medium transition-colors"
         >
@@ -213,12 +227,12 @@ const PendingInvoicesPage = () => {
               <X size={16} />
             </button>
           </div>
-          <form onSubmit={handlePay} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <form onSubmit={handlePay} className="grid grid-cols-1 sm:grid-cols-5 gap-3">
             <div className="space-y-1">
               <label className="text-xs text-surface-400 font-medium">Payment Method *</label>
               <select
                 value={payForm.payment_method}
-                onChange={(e) => setPayForm((f) => ({ ...f, payment_method: e.target.value }))}
+                onChange={(e) => setPayForm((f) => ({ ...f, payment_method: e.target.value, bank_account_id: "" }))}
                 className={inputCls}
               >
                 {PAYMENT_METHODS.map((m) => (
@@ -226,6 +240,22 @@ const PendingInvoicesPage = () => {
                 ))}
               </select>
             </div>
+            {payForm.payment_method === "bank" && (
+              <div className="space-y-1">
+                <label className="text-xs text-surface-400 font-medium">Bank Account *</label>
+                <select
+                  value={payForm.bank_account_id}
+                  onChange={(e) => setPayForm((f) => ({ ...f, bank_account_id: e.target.value }))}
+                  className={inputCls}
+                  required
+                >
+                  <option value="">Select bank account…</option>
+                  {leafBankAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="space-y-1">
               <label className="text-xs text-surface-400 font-medium">Amount</label>
               <input
@@ -259,7 +289,7 @@ const PendingInvoicesPage = () => {
                 className={inputCls}
               />
             </div>
-            <div className="sm:col-span-4 flex justify-end">
+            <div className="sm:col-span-5 flex justify-end">
               <button
                 type="submit"
                 disabled={markPaid.isPending}
@@ -331,7 +361,7 @@ const PendingInvoicesPage = () => {
                       <button
                         onClick={() => {
                           setPayingId(inv.id);
-                          setPayForm({ payment_method: "bank", reference: "", amount: "", notes: "" });
+                          setPayForm({ payment_method: "bank", bank_account_id: "", reference: "", amount: "", notes: "" });
                         }}
                         className="px-3 py-1 bg-green-600/20 text-green-400 hover:bg-green-600/40 rounded-lg text-xs font-medium transition-colors"
                       >

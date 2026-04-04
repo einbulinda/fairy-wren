@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -8,7 +8,9 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useReceiptDetail, useMarkReceiptPaid } from "@/hooks/useInventory";
+import { fetchAccounts } from "@/services/accounts.service";
 import toast from "react-hot-toast";
 import { fmt, fmtDate } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
@@ -56,9 +58,21 @@ const ReceiptDetailPage = () => {
   const [showPayForm, setShowPayForm] = useState(false);
   const [payForm, setPayForm] = useState({
     payment_method: "bank",
+    bank_account_id: "",
     reference: "",
     notes: "",
   });
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => fetchAccounts({ active: true }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const leafBankAccounts = useMemo(() => {
+    const all = accounts.filter((a) => a.account_class === "bank" && a.active);
+    const leaves = all.filter((a) => a.parent_id !== null);
+    return leaves.length > 0 ? leaves : all;
+  }, [accounts]);
 
   if (isLoading) {
     return (
@@ -171,13 +185,13 @@ const ReceiptDetailPage = () => {
                 },
               );
             }}
-            className="mt-4 pt-4 border-t border-surface-700 grid grid-cols-1 sm:grid-cols-3 gap-3"
+            className="mt-4 pt-4 border-t border-surface-700 grid grid-cols-1 sm:grid-cols-4 gap-3"
           >
             <div className="space-y-1">
               <label className="text-xs text-surface-400 font-medium">Payment Method *</label>
               <select
                 value={payForm.payment_method}
-                onChange={(e) => setPayForm((f) => ({ ...f, payment_method: e.target.value }))}
+                onChange={(e) => setPayForm((f) => ({ ...f, payment_method: e.target.value, bank_account_id: "" }))}
                 className={inputCls}
               >
                 {PAYMENT_METHODS.map((m) => (
@@ -185,6 +199,22 @@ const ReceiptDetailPage = () => {
                 ))}
               </select>
             </div>
+            {payForm.payment_method === "bank" && (
+              <div className="space-y-1">
+                <label className="text-xs text-surface-400 font-medium">Bank Account *</label>
+                <select
+                  value={payForm.bank_account_id}
+                  onChange={(e) => setPayForm((f) => ({ ...f, bank_account_id: e.target.value }))}
+                  className={inputCls}
+                  required
+                >
+                  <option value="">Select bank account…</option>
+                  {leafBankAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="space-y-1">
               <label className="text-xs text-surface-400 font-medium">Reference No. *</label>
               <input
@@ -206,7 +236,7 @@ const ReceiptDetailPage = () => {
                 className={inputCls}
               />
             </div>
-            <div className="sm:col-span-3 flex items-center justify-between">
+            <div className="sm:col-span-4 flex items-center justify-between">
               <span className="text-sm text-surface-400">
                 Amount: <span className="text-white font-bold">{fmt(receipt.total_amount)}</span>
               </span>

@@ -120,6 +120,7 @@ const SalesPage = () => {
   const [quickSelect, setQuickSelect] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
   const [expandedBill, setExpandedBill] = useState(null);
 
   const params = useMemo(() => {
@@ -134,7 +135,7 @@ const SalesPage = () => {
   }, [startDate, endDate, statusFilter]);
 
   const { data, isLoading } = useBills(params);
-  const bills = data?.bills ?? [];
+  const bills = useMemo(() => data?.bills ?? [], [data]);
 
   // Filter by search
   const filtered = useMemo(() => {
@@ -181,21 +182,34 @@ const SalesPage = () => {
       if (bill.status === "void") continue;
       for (const round of bill.rounds || []) {
         for (const item of round.round_items || []) {
+          const key = item.product?.id || item.product_id || item.product?.name || "Unknown";
           const name = item.product?.name || "Unknown";
-          if (!map[name]) map[name] = { name, quantity: 0, value: 0 };
-          map[name].quantity += item.quantity;
-          map[name].value += item.quantity * item.price;
+          if (!map[key]) map[key] = { name, quantity: 0, value: 0, totalCost: 0 };
+          map[key].quantity += item.quantity;
+          map[key].value += item.quantity * item.price;
+          map[key].totalCost += item.quantity * (item.product?.cost_price || 0);
         }
       }
     }
-    const list = Object.values(map).sort((a, b) => b.value - a.value);
+    const list = Object.values(map).map((p) => {
+      const avgUnitPrice = p.quantity > 0 ? p.value / p.quantity : 0;
+      const avgUnitCost = p.quantity > 0 ? p.totalCost / p.quantity : 0;
+      const gpPerUnit = avgUnitPrice - avgUnitCost;
+      const contributionMargin = avgUnitPrice > 0 ? (gpPerUnit / avgUnitPrice) * 100 : 0;
+      const totalGP = gpPerUnit * p.quantity;
+      return { ...p, avgUnitPrice, avgUnitCost, gpPerUnit, contributionMargin, totalGP };
+    }).sort((a, b) => b.value - a.value);
     const grandTotal = list.reduce((s, p) => s + p.value, 0);
-    return {
-      items: list,
-      grandTotal,
-      grandQty: list.reduce((s, p) => s + p.quantity, 0),
-    };
+    const grandQty = list.reduce((s, p) => s + p.quantity, 0);
+    const grandGP = list.reduce((s, p) => s + p.totalGP, 0);
+    return { items: list, grandTotal, grandQty, grandGP };
   }, [bills]);
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch.trim()) return productSales.items;
+    const q = productSearch.toLowerCase();
+    return productSales.items.filter((p) => p.name.toLowerCase().includes(q));
+  }, [productSales.items, productSearch]);
 
   const handleStatusChange = (key) => {
     setStatusFilter(key);
@@ -226,29 +240,38 @@ const SalesPage = () => {
   };
 
   const exportProductsToExcel = () => {
-    const rows = productSales.items.map((p, idx) => ({
+    const rows = filteredProducts.map((p, idx) => ({
       "#": idx + 1,
-      Product: p.name,
+      "Product": p.name,
       "Qty Sold": p.quantity,
-      "Sales Value (KES)": p.value,
-      "Contribution %":
-        productSales.grandTotal > 0
-          ? ((p.value / productSales.grandTotal) * 100).toFixed(2) + "%"
-          : "0.00%",
+      "Unit Sale Price": p.avgUnitPrice,
+      "Unit Avg Cost": p.avgUnitCost,
+      "GP / Unit": p.gpPerUnit,
+      "Margin %": p.contributionMargin.toFixed(2) + "%",
+      "Total Sales": p.value,
+      "Total GP": p.totalGP,
     }));
     rows.push({
       "#": "",
-      Product: "Total",
-      "Qty Sold": productSales.grandQty,
-      "Sales Value (KES)": productSales.grandTotal,
-      "Contribution %": "100.00%",
+      "Product": "TOTALS",
+      "Qty Sold": filteredProducts.reduce((s, p) => s + p.quantity, 0),
+      "Unit Sale Price": "",
+      "Unit Avg Cost": "",
+      "GP / Unit": "",
+      "Margin %": "",
+      "Total Sales": filteredProducts.reduce((s, p) => s + p.value, 0),
+      "Total GP": filteredProducts.reduce((s, p) => s + p.totalGP, 0),
     });
     const ws = XLSX.utils.json_to_sheet(rows);
     ws["!cols"] = [
       { wch: 5 },
       { wch: 30 },
+      { wch: 10 },
+      { wch: 16 },
+      { wch: 16 },
       { wch: 12 },
-      { wch: 18 },
+      { wch: 10 },
+      { wch: 15 },
       { wch: 15 },
     ];
     const wb = XLSX.utils.book_new();
@@ -352,41 +375,84 @@ const SalesPage = () => {
       render: (val) => val.toLocaleString(),
     },
     {
+      key: "avgUnitPrice",
+      label: "Unit Sale Price",
+      align: "right",
+      sortable: true,
+      cellClassName: "text-surface-300 tabular-nums",
+      render: (val) => fmt(val),
+    },
+    {
+      key: "avgUnitCost",
+      label: "Unit Avg Cost",
+      align: "right",
+      sortable: true,
+      cellClassName: "text-surface-300 tabular-nums",
+      render: (val) => fmt(val),
+    },
+    {
+      key: "gpPerUnit",
+      label: "GP / Unit",
+      align: "right",
+      sortable: true,
+      cellClassName: "tabular-nums",
+      render: (val) => (
+        <span className={val >= 0 ? "text-emerald-400" : "text-red-400"}>
+          {fmt(val)}
+        </span>
+      ),
+    },
+    {
+      key: "contributionMargin",
+      label: "Margin %",
+      align: "right",
+      sortable: true,
+      cellClassName: "tabular-nums",
+      render: (val) => (
+        <span className={val >= 0 ? "text-primary-400" : "text-red-400"}>
+          {val.toFixed(1)}%
+        </span>
+      ),
+    },
+    {
       key: "value",
-      label: "Sales Value (KES)",
+      label: "Total Sales",
       align: "right",
       sortable: true,
       cellClassName: "text-white font-medium tabular-nums",
       render: (val) => fmt(val),
     },
     {
-      key: "contribution",
-      label: "Contribution %",
+      key: "totalGP",
+      label: "Total GP",
       align: "right",
       sortable: true,
-      cellClassName: "text-primary-400 tabular-nums",
-      sortFn: (a, b) =>
-        productSales.grandTotal > 0
-          ? a.value / productSales.grandTotal -
-            b.value / productSales.grandTotal
-          : 0,
-      render: (_val, row) =>
-        `${productSales.grandTotal > 0 ? ((row.value / productSales.grandTotal) * 100).toFixed(2) : "0.00"}%`,
+      cellClassName: "tabular-nums",
+      render: (val) => (
+        <span className={val >= 0 ? "text-emerald-400 font-medium" : "text-red-400 font-medium"}>
+          {fmt(val)}
+        </span>
+      ),
     },
   ];
 
   const productFooter = (
-    <tr className="font-bold">
-      <td className="px-4 py-3" />
-      <td className="px-4 py-3 text-white">Total</td>
+    <tr className="font-bold bg-surface-900/60 border-t-2 border-surface-600">
+      <td className="px-4 py-3 text-surface-400 text-xs uppercase tracking-wide" colSpan={2}>
+        Totals
+      </td>
       <td className="px-4 py-3 text-right text-white tabular-nums">
-        {productSales.grandQty.toLocaleString()}
+        {filteredProducts.reduce((s, p) => s + p.quantity, 0).toLocaleString()}
+      </td>
+      <td className="px-4 py-3" />
+      <td className="px-4 py-3" />
+      <td className="px-4 py-3" />
+      <td className="px-4 py-3" />
+      <td className="px-4 py-3 text-right text-white tabular-nums">
+        {fmt(filteredProducts.reduce((s, p) => s + p.value, 0))}
       </td>
       <td className="px-4 py-3 text-right text-emerald-400 tabular-nums">
-        {fmt(productSales.grandTotal)}
-      </td>
-      <td className="px-4 py-3 text-right text-primary-400 tabular-nums">
-        100.00%
+        {fmt(filteredProducts.reduce((s, p) => s + p.totalGP, 0))}
       </td>
     </tr>
   );
@@ -503,8 +569,10 @@ const SalesPage = () => {
                   className={inputCls}
                   value={startDate}
                   onChange={(e) => {
-                    setStartDate(e.target.value);
+                    const newStart = e.target.value;
+                    setStartDate(newStart);
                     setQuickSelect("");
+                    if (endDate && newStart > endDate) setEndDate("");
                   }}
                 />
               </div>
@@ -658,15 +726,21 @@ const SalesPage = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Search customer..."
+                  placeholder={statusFilter === "products" ? "Search product..." : "Search customer..."}
                   className="w-full sm:w-48 pl-8 pr-8 sm:pr-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={statusFilter === "products" ? productSearch : search}
+                  onChange={(e) =>
+                    statusFilter === "products"
+                      ? setProductSearch(e.target.value)
+                      : setSearch(e.target.value)
+                  }
                 />
-                {search && (
+                {(statusFilter === "products" ? productSearch : search) && (
                   <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white sm:hidden"
+                    onClick={() =>
+                      statusFilter === "products" ? setProductSearch("") : setSearch("")
+                    }
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white"
                   >
                     <X size={14} />
                   </button>
@@ -729,11 +803,11 @@ const SalesPage = () => {
               <div className="hidden md:block">
                 <PaginatedTable
                   columns={productColumns}
-                  data={productSales.items}
+                  data={filteredProducts}
                   rowKey="name"
                   defaultSort={{ key: "value", dir: "desc" }}
-                  defaultPageSize={10}
-                  emptyMessage="No product sales for this period"
+                  defaultPageSize={25}
+                  emptyMessage="No products match your search"
                   footer={productFooter}
                 />
               </div>
@@ -744,44 +818,50 @@ const SalesPage = () => {
                 <div className="bg-surface-900/60 border border-surface-600 rounded-xl p-3 flex items-center justify-between">
                   <div>
                     <p className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">Total Sales</p>
-                    <p className="text-base font-bold text-emerald-400 tabular-nums">{fmt(productSales.grandTotal)}</p>
+                    <p className="text-base font-bold text-emerald-400 tabular-nums">{fmt(filteredProducts.reduce((s, p) => s + p.value, 0))}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">Total GP</p>
+                    <p className="text-base font-bold text-emerald-400 tabular-nums">{fmt(filteredProducts.reduce((s, p) => s + p.totalGP, 0))}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">Products</p>
-                    <p className="text-base font-bold text-white">{productSales.items.length}</p>
+                    <p className="text-base font-bold text-white">{filteredProducts.length}</p>
                   </div>
                 </div>
-                {productSales.items.map((p, idx) => {
-                  const pct = productSales.grandTotal > 0 ? ((p.value / productSales.grandTotal) * 100) : 0;
-                  return (
-                    <MobileCard key={p.name}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-xs text-surface-500 tabular-nums shrink-0 w-5 text-right">
-                            {idx + 1}.
-                          </span>
-                          <span className="text-sm font-medium text-white truncate">{p.name}</span>
-                        </div>
-                        <span className="text-sm font-semibold text-white tabular-nums shrink-0">
-                          {fmt(p.value)}
+                {filteredProducts.map((p, idx) => (
+                  <MobileCard key={p.name}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs text-surface-500 tabular-nums shrink-0 w-5 text-right">
+                          {idx + 1}.
                         </span>
+                        <span className="text-sm font-medium text-white truncate">{p.name}</span>
                       </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs text-surface-400">
-                          {p.quantity.toLocaleString()} sold
-                        </span>
-                        <span className="text-xs text-primary-400 tabular-nums font-medium">{pct.toFixed(1)}%</span>
+                      <span className="text-sm font-semibold text-white tabular-nums shrink-0">
+                        {fmt(p.value)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 mt-1.5 text-xs">
+                      <div>
+                        <p className="text-surface-500">Qty</p>
+                        <p className="text-surface-300 tabular-nums">{p.quantity.toLocaleString()}</p>
                       </div>
-                      {/* Contribution bar */}
-                      <div className="mt-1.5 h-1 bg-surface-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary-500/60 rounded-full"
-                          style={{ width: `${Math.min(pct, 100)}%` }}
-                        />
+                      <div>
+                        <p className="text-surface-500">GP/Unit</p>
+                        <p className={`tabular-nums ${p.gpPerUnit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(p.gpPerUnit)}</p>
                       </div>
-                    </MobileCard>
-                  );
-                })}
+                      <div className="text-right">
+                        <p className="text-surface-500">Margin</p>
+                        <p className={`tabular-nums font-medium ${p.contributionMargin >= 0 ? "text-primary-400" : "text-red-400"}`}>{p.contributionMargin.toFixed(1)}%</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between mt-1.5 text-xs">
+                      <span className="text-surface-500">Total GP</span>
+                      <span className={`tabular-nums font-medium ${p.totalGP >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(p.totalGP)}</span>
+                    </div>
+                  </MobileCard>
+                ))}
               </MobileCardList>
             </>
           )

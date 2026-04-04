@@ -193,10 +193,11 @@ const SupplierDetailPage = () => {
     queryFn: () => fetchAccounts({ active: true }),
     staleTime: 5 * 60 * 1000,
   });
-  const bankAccounts = useMemo(
-    () => accounts.filter((a) => a.account_class === "bank" && a.active),
-    [accounts],
-  );
+  const bankAccounts = useMemo(() => {
+    const all = accounts.filter((a) => a.account_class === "bank" && a.active);
+    const leaves = all.filter((a) => a.parent_id !== null);
+    return leaves.length > 0 ? leaves : all;
+  }, [accounts]);
   const createPayment = useCreateSupplierPayment(id);
 
   // All-time totals for the profile card

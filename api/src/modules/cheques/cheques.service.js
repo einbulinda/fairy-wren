@@ -29,7 +29,6 @@ exports.create = async (payload, context) => {
     ...chequeFields,
     created_by: context.userId,
   });
-  console.log("FAILED_TO_CREATE_CHEQUE", chequeError);
   if (chequeError) throw new Error("FAILED_TO_CREATE_CHEQUE");
 
   // Auto-create journal entry: Dr debit_account, Cr bank_account

@@ -48,7 +48,7 @@ exports.findBillById = async (id) => {
         *,
         round_items (
           *,
-          product:products(id, name, price)
+          product:products(id, name, price, cost_price)
         )
       )
     `,
@@ -82,7 +82,7 @@ exports.listBills = async (filters = {}) => {
           id,
           quantity,
           price,
-          product:products(id, name)
+          product:products(id, name, cost_price)
         )
       ),
       payments (

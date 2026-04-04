@@ -25,9 +25,18 @@ exports.markReceiptPaid = async (id, payload, context) => {
 
   const amount = Number(payload.amount || receipt.total_amount);
 
-  // Determine which account to credit (cash or bank)
-  const accountCode = payload.payment_method === "cash" ? "1010" : "1020";
-  const { data: creditAccount } = await accountsRepo.findByCode(accountCode);
+  // Determine which account to credit (cash, specific bank, or default bank 1020)
+  let creditAccount;
+  if (payload.payment_method === "cash") {
+    const { data } = await accountsRepo.findByCode("1010");
+    creditAccount = data;
+  } else if (payload.bank_account_id) {
+    const { data } = await accountsRepo.findById(payload.bank_account_id);
+    creditAccount = data;
+  } else {
+    const { data } = await accountsRepo.findByCode("1020");
+    creditAccount = data;
+  }
 
   // Use supplier-specific AP child account if available, fall back to generic AP
   const { data: supplier } = await supplierPaymentsRepo.findById(receipt.supplier_id);
