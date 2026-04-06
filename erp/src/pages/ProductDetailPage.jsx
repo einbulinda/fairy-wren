@@ -18,6 +18,7 @@ import {
   ChevronRight,
   CheckCircle2,
   ExternalLink,
+  XCircle,
 } from "lucide-react";
 import {
   useProductInsights,
@@ -241,7 +242,15 @@ const daysOutstanding = (purchaseDate) => {
   return Math.floor((Date.now() - new Date(purchaseDate).getTime()) / 86400000);
 };
 
-const PaymentBadge = ({ paidAt, purchaseDate }) => {
+const PaymentBadge = ({ paidAt, status, purchaseDate }) => {
+  if (status === "cancelled") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400">
+        <XCircle size={10} />
+        Cancelled
+      </span>
+    );
+  }
   if (paidAt) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
@@ -449,6 +458,7 @@ const PurchasesTab = ({ productId, dateRange }) => {
                 <td className="px-4 py-3 text-center">
                   <PaymentBadge
                     paidAt={item.inventory_receipts?.paid_at}
+                    status={item.inventory_receipts?.status}
                     purchaseDate={item.inventory_receipts?.purchase_date}
                   />
                 </td>
@@ -458,14 +468,14 @@ const PurchasesTab = ({ productId, dateRange }) => {
           <tfoot className="bg-surface-900 font-semibold">
             <tr>
               <td colSpan={3} className="px-4 py-2 text-surface-400 text-xs">
-                Total ({purchases.length} records)
+                Total ({purchases.filter((p) => p.inventory_receipts?.status !== "cancelled").length} records)
               </td>
               <td className="px-4 py-2 text-right font-mono text-white text-xs">
-                {purchases.reduce((s, p) => s + (p.quantity || 0), 0)}
+                {purchases.filter((p) => p.inventory_receipts?.status !== "cancelled").reduce((s, p) => s + (p.quantity || 0), 0)}
               </td>
               <td />
               <td className="px-4 py-2 text-right font-mono text-primary-400 text-xs">
-                KSh {fmtD(purchases.reduce((s, p) => s + (p.line_total || 0), 0))}
+                KSh {fmtD(purchases.filter((p) => p.inventory_receipts?.status !== "cancelled").reduce((s, p) => s + (p.line_total || 0), 0))}
               </td>
               <td />
             </tr>
@@ -478,7 +488,7 @@ const PurchasesTab = ({ productId, dateRange }) => {
           <MobileCard key={item.id}>
             <div className="flex items-center justify-between">
               <span className="text-surface-300 text-sm">{fmtDate(item.inventory_receipts?.purchase_date)}</span>
-              <PaymentBadge paidAt={item.inventory_receipts?.paid_at} purchaseDate={item.inventory_receipts?.purchase_date} />
+              <PaymentBadge paidAt={item.inventory_receipts?.paid_at} status={item.inventory_receipts?.status} purchaseDate={item.inventory_receipts?.purchase_date} />
             </div>
             <div className="text-white font-medium text-sm">{item.inventory_receipts?.suppliers?.name || "—"}</div>
             {item.inventory_receipts?.invoice_number && (
@@ -492,8 +502,8 @@ const PurchasesTab = ({ productId, dateRange }) => {
         ))}
         <MobileCard className="bg-surface-900/50!">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-surface-400">Total ({purchases.length} records) · Qty: <span className="text-white font-mono">{purchases.reduce((s, p) => s + (p.quantity || 0), 0)}</span></span>
-            <span className="text-primary-400 font-semibold font-mono">KSh {fmtD(purchases.reduce((s, p) => s + (p.line_total || 0), 0))}</span>
+            <span className="text-surface-400">Total ({purchases.filter((p) => p.inventory_receipts?.status !== "cancelled").length} records) · Qty: <span className="text-white font-mono">{purchases.filter((p) => p.inventory_receipts?.status !== "cancelled").reduce((s, p) => s + (p.quantity || 0), 0)}</span></span>
+            <span className="text-primary-400 font-semibold font-mono">KSh {fmtD(purchases.filter((p) => p.inventory_receipts?.status !== "cancelled").reduce((s, p) => s + (p.line_total || 0), 0))}</span>
           </div>
         </MobileCard>
       </MobileCardList>

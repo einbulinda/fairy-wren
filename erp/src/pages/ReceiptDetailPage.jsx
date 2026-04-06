@@ -7,9 +7,11 @@ import {
   FileText,
   CheckCircle2,
   Clock,
+  RotateCcw,
+  XCircle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useReceiptDetail, useMarkReceiptPaid } from "@/hooks/useInventory";
+import { useReceiptDetail, useMarkReceiptPaid, useCancelReceipt } from "@/hooks/useInventory";
 import { fetchAccounts } from "@/services/accounts.service";
 import toast from "react-hot-toast";
 import { fmt, fmtDate } from "@/utils/formatters";
@@ -21,23 +23,27 @@ const daysOutstanding = (purchaseDate) => {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 };
 
-const PaymentBadge = ({ paidAt, purchaseDate, large = false }) => {
+const PaymentBadge = ({ paidAt, status, purchaseDate, large = false }) => {
+  const sz = large ? 14 : 11;
+  const cls = `inline-flex items-center gap-1.5 ${large ? "px-3 py-1 text-sm" : "px-2 py-0.5 text-xs"} rounded-full font-medium`;
+  if (status === "cancelled") {
+    return (
+      <span className={`${cls} bg-red-500/20 text-red-400`}>
+        <XCircle size={sz} /> Cancelled
+      </span>
+    );
+  }
   if (paidAt) {
     return (
-      <span
-        className={`inline-flex items-center gap-1.5 ${large ? "px-3 py-1 text-sm" : "px-2 py-0.5 text-xs"} rounded-full font-medium bg-green-500/20 text-green-400`}
-      >
-        <CheckCircle2 size={large ? 14 : 11} />
-        Paid
+      <span className={`${cls} bg-green-500/20 text-green-400`}>
+        <CheckCircle2 size={sz} /> Paid
       </span>
     );
   }
   const days = daysOutstanding(purchaseDate);
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 ${large ? "px-3 py-1 text-sm" : "px-2 py-0.5 text-xs"} rounded-full font-medium bg-yellow-500/20 text-yellow-400`}
-    >
-      <Clock size={large ? 14 : 11} />
+    <span className={`${cls} bg-yellow-500/20 text-yellow-400`}>
+      <Clock size={sz} />
       Pending{days != null ? ` · ${days}d` : ""}
     </span>
   );
@@ -55,7 +61,10 @@ const ReceiptDetailPage = () => {
   const navigate = useNavigate();
   const { data: receipt, isLoading, isError } = useReceiptDetail(id);
   const markPaid = useMarkReceiptPaid();
+  const cancelMutation = useCancelReceipt();
   const [showPayForm, setShowPayForm] = useState(false);
+  const [showReturnForm, setShowReturnForm] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
   const [payForm, setPayForm] = useState({
     payment_method: "bank",
     bank_account_id: "",
@@ -98,6 +107,7 @@ const ReceiptDetailPage = () => {
 
   const items = receipt.inventory_receipt_items || [];
   const isPaid = !!receipt.paid_at;
+  const isCancelled = receipt.status === "cancelled";
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -149,6 +159,7 @@ const ReceiptDetailPage = () => {
           <div className="flex flex-col items-end gap-3">
             <PaymentBadge
               paidAt={receipt.paid_at}
+              status={receipt.status}
               purchaseDate={receipt.purchase_date}
               large
             />
@@ -157,13 +168,22 @@ const ReceiptDetailPage = () => {
                 Paid {fmtDate(receipt.paid_at)}
               </p>
             )}
-            {!isPaid && (
-              <button
-                onClick={() => setShowPayForm((v) => !v)}
-                className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                {showPayForm ? "Cancel" : "Process Payment"}
-              </button>
+            {!isPaid && !isCancelled && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setShowReturnForm((v) => !v); setShowPayForm(false); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <RotateCcw size={14} />
+                  {showReturnForm ? "Cancel" : "Return Damaged"}
+                </button>
+                <button
+                  onClick={() => { setShowPayForm((v) => !v); setShowReturnForm(false); }}
+                  className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  {showPayForm ? "Cancel" : "Process Payment"}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -249,6 +269,49 @@ const ReceiptDetailPage = () => {
               </button>
             </div>
           </form>
+        )}
+
+        {showReturnForm && !isPaid && !isCancelled && (
+          <div className="mt-4 pt-4 border-t border-surface-700">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="p-1.5 bg-red-500/15 rounded-lg mt-0.5">
+                <RotateCcw size={14} className="text-red-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">Return Damaged Goods</p>
+                <p className="text-xs text-surface-400 mt-0.5">
+                  This will cancel the invoice, reverse all inventory entries, and reverse the AP journal entry. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-surface-400 font-medium">Reason for Return *</label>
+                <input
+                  type="text"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  placeholder="e.g. Damaged on delivery, wrong items received..."
+                  className="w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  disabled={!returnReason.trim() || cancelMutation.isPending}
+                  onClick={() =>
+                    cancelMutation.mutate(
+                      { id, reason: returnReason.trim() },
+                      { onSuccess: () => { setShowReturnForm(false); setReturnReason(""); } }
+                    )
+                  }
+                  className="flex items-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <RotateCcw size={14} />
+                  {cancelMutation.isPending ? "Processing..." : "Confirm Return & Cancel Invoice"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

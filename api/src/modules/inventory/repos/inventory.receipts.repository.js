@@ -45,6 +45,7 @@ exports.getReceiptById = async (id) => {
       supplier_id,
       inventory_receipt_items (
         id,
+        product_id,
         quantity,
         unit_cost,
         line_total,
@@ -67,6 +68,17 @@ exports.getReceiptById = async (id) => {
   }
 
   return { data, error: null };
+};
+
+/* ---------- CANCEL RECEIPT ---------- */
+exports.cancelReceipt = async (id, userId) => {
+  const supabase = getSupabase();
+  return supabase
+    .from("inventory_receipts")
+    .update({ status: "cancelled", updated_at: new Date().toISOString(), updated_by: userId })
+    .eq("id", id)
+    .select()
+    .single();
 };
 
 /* ---------- MARK RECEIPT PAID ---------- */

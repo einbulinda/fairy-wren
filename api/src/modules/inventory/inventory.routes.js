@@ -25,6 +25,11 @@ router.post(
   requireRole("director", "owner"),
   controller.markReceiptPaid,
 );
+router.post(
+  "/receipts/:id/cancel",
+  requireRole("director", "owner"),
+  controller.cancelReceipt,
+);
 
 /* ======================================================
    STOCK TAKE (RPC-BASED)

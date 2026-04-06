@@ -70,6 +70,7 @@ exports.findPendingInvoices = async () => {
     .from("inventory_receipts")
     .select("id, invoice_number, purchase_date, total_amount, amount_paid, status, paid_at, notes, supplier_id, suppliers(id, name)")
     .is("paid_at", null)
+    .neq("status", "cancelled")
     .order("purchase_date", { ascending: true });
 };
 
@@ -80,6 +81,7 @@ exports.findUnpaidInvoices = async (supplierId) => {
     .select("id, invoice_number, purchase_date, total_amount, amount_paid")
     .eq("supplier_id", supplierId)
     .is("paid_at", null)
+    .neq("status", "cancelled")
     .order("purchase_date", { ascending: true });
 };
 

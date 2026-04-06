@@ -20,6 +20,7 @@ import {
   Printer,
   Banknote,
   Truck,
+  XCircle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAccounts } from "@/services/accounts.service";
@@ -74,7 +75,15 @@ const daysOutstanding = (purchaseDate) => {
   return Math.floor((Date.now() - new Date(purchaseDate).getTime()) / 86400000);
 };
 
-const PaymentBadge = ({ paidAt, purchaseDate }) => {
+const PaymentBadge = ({ paidAt, status, purchaseDate }) => {
+  if (status === "cancelled") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-400">
+        <XCircle size={10} />
+        Cancelled
+      </span>
+    );
+  }
   if (paidAt) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-500/15 text-green-400">
@@ -202,7 +211,9 @@ const SupplierDetailPage = () => {
 
   // All-time totals for the profile card
   const totalPurchased = useMemo(
-    () => purchases.reduce((s, p) => s + Number(p.total_amount ?? 0), 0),
+    () => purchases
+      .filter((p) => p.status !== "cancelled")
+      .reduce((s, p) => s + Number(p.total_amount ?? 0), 0),
     [purchases],
   );
   const totalPaid = useMemo(
@@ -522,7 +533,7 @@ const SupplierDetailPage = () => {
                       label: "Payment",
                       align: "center",
                       render: (_val, p) => (
-                        <PaymentBadge paidAt={p.paid_at} purchaseDate={p.purchase_date} />
+                        <PaymentBadge paidAt={p.paid_at} status={p.status} purchaseDate={p.purchase_date} />
                       ),
                     },
                     {
@@ -557,7 +568,7 @@ const SupplierDetailPage = () => {
                   <MobileCard key={p.id} onClick={() => navigate(`/inventory/receipts/${p.id}`)}>
                     <div className="flex items-center justify-between">
                       <span className="text-surface-300 text-sm">{fmtDate(p.purchase_date)}</span>
-                      <PaymentBadge paidAt={p.paid_at} purchaseDate={p.purchase_date} />
+                      <PaymentBadge paidAt={p.paid_at} status={p.status} purchaseDate={p.purchase_date} />
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs text-primary-400">{p.invoice_number}</span>

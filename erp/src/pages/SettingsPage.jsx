@@ -110,6 +110,11 @@ const CAPABILITIES = [
     label: "Z-Report",
     description: "Can view the end-of-day Z-Report on POS",
   },
+  {
+    key: "weekly_sales",
+    label: "Weekly Sales",
+    description: "Can view the weekly sales summary on POS",
+  },
 ];
 
 const formatCurrency = (value) =>

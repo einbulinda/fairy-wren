@@ -57,6 +57,19 @@ exports.markReceiptPaid = async (req, res, next) => {
   }
 };
 
+exports.cancelReceipt = async (req, res, next) => {
+  try {
+    const data = await receivingService.cancelReceipt(
+      req.params.id,
+      req.body,
+      buildContext(req),
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 /* ======================================================
    STOCK TAKE (RPC-BASED)
    ====================================================== */

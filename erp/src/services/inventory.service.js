@@ -70,6 +70,11 @@ export const markReceiptPaid = async ({ id, ...payload }) => {
   return data.data ?? data;
 };
 
+export const cancelReceipt = async ({ id, ...payload }) => {
+  const { data } = await api.post(`/inventory/receipts/${id}/cancel`, payload);
+  return data.data ?? data;
+};
+
 // Reports
 export const fetchStockTakeReports = async (params = {}) => {
   const { data } = await api.get("/inventory/reports/stock-take", { params });

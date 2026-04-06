@@ -58,3 +58,14 @@ exports.updateReversedEntryId = async (originalId, reversalId) => {
     .update({ reversed_entry_id: reversalId })
     .eq("id", originalId);
 };
+
+exports.findBySourceId = async (sourceType, sourceId) => {
+  const supabase = getSupabase();
+  const { data } = await supabase
+    .from("journal_entries")
+    .select("id, journal_lines(id, account_id, debit, credit)")
+    .eq("source_type", sourceType)
+    .eq("source_id", sourceId)
+    .single();
+  return data;
+};

@@ -15,6 +15,7 @@ import {
   fetchStockTakeAdjustments,
   fetchReceiptDetail,
   markReceiptPaid,
+  cancelReceipt,
   fetchReorderPolicies,
   fetchReorderAlerts,
   fetchReorderSettings,
@@ -194,6 +195,24 @@ export const useMarkReceiptPaid = () => {
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to mark as paid");
+    },
+  });
+};
+
+export const useCancelReceipt = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: cancelReceipt,
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["receipt-detail", vars.id] });
+      queryClient.invalidateQueries({ queryKey: ["pending-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-items"] });
+      toast.success("Receipt cancelled and inventory reversed");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to cancel receipt");
     },
   });
 };

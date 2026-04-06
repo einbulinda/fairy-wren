@@ -124,6 +124,78 @@ exports.markReceiptPaid = async (id, payload, context) => {
   return data;
 };
 
+exports.cancelReceipt = async (id, payload, context) => {
+  const { reason } = payload;
+
+  const { data: receipt, error: fetchErr } = await receiptsRepo.getReceiptById(id);
+  if (fetchErr || !receipt) throw new Error("RECEIPT_NOT_FOUND");
+  if (receipt.status === "cancelled") throw new Error("RECEIPT_ALREADY_CANCELLED");
+  if (receipt.paid_at) throw new Error("CANNOT_CANCEL_PAID_RECEIPT");
+
+  const items = receipt.inventory_receipt_items || [];
+  const supabase = require("../../../config/supabase")();
+  const today = new Date().toISOString().split("T")[0];
+
+  // Reverse inventory movement for every line item
+  const reversingMovements = items.map((item) => ({
+    product_id: item.product_id,
+    movement_date: today,
+    quantity: -item.quantity,
+    unit_cost: item.unit_cost,
+    movement_type: "purchase_return",
+    reference_type: "inventory_receipt",
+    reference_id: id,
+    notes: reason || `Cancelled – return of damaged goods (${receipt.invoice_number})`,
+    created_by: context.userId,
+  }));
+
+  if (reversingMovements.length > 0) {
+    const { error: movErr } = await supabase
+      .from("inventory_movements")
+      .insert(reversingMovements);
+    if (movErr) throw new Error("FAILED_TO_REVERSE_INVENTORY");
+  }
+
+  // Reverse the purchase journal entry (DR Inv / CR AP → DR AP / CR Inv)
+  const originalEntry = await journalRepo.findBySourceId("inventory_receipt", id);
+  if (originalEntry?.journal_lines?.length > 0) {
+    const { data: reversalEntry, error: jeErr } = await journalRepo.createEntry({
+      entry_date: today,
+      source_type: "inventory_receipt_return",
+      source_id: id,
+      description: `Purchase return – ${receipt.invoice_number}${reason ? ` (${reason})` : ""}`,
+    });
+    if (jeErr) throw new Error("FAILED_TO_CREATE_REVERSAL_JOURNAL");
+
+    await journalRepo.createLines(
+      originalEntry.journal_lines.map((l) => ({
+        journal_entry_id: reversalEntry.id,
+        account_id: l.account_id,
+        debit: l.credit,
+        credit: l.debit,
+      }))
+    );
+
+    // Link original entry to its reversal
+    await journalRepo.updateReversedEntryId(originalEntry.id, reversalEntry.id);
+  }
+
+  // Mark receipt as cancelled
+  const { data, error } = await receiptsRepo.cancelReceipt(id, context.userId);
+  if (error) throw new Error("FAILED_TO_CANCEL_RECEIPT");
+
+  await auditRepo.log({
+    entity: "inventory_receipts",
+    entity_id: id,
+    action: "INVENTORY_RECEIPT_CANCELLED",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
+    metadata: { invoice_number: receipt.invoice_number, reason },
+  });
+
+  return data;
+};
+
 exports.receiveInventory = async (payload, context) => {
   if (!payload.supplier_id) throw new Error("SUPPLIER_REQUIRED");
   if (!payload.invoice_number) throw new Error("INVOICE_NUMBER_REQUIRED");
