@@ -61,7 +61,7 @@ exports.listBills = async (filters = {}) => {
   const supabase = getSupabase();
 
   const page = Math.max(1, parseInt(filters.page) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(filters.limit) || 50));
+  const limit = Math.min(1000, Math.max(1, parseInt(filters.limit) || 50));
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
