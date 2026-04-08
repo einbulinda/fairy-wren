@@ -107,7 +107,7 @@ const BankReconciliationDetailPage = () => {
     return (
       <div className="py-16 text-center text-surface-500">
         <p>Statement not found</p>
-        <button onClick={() => navigate("/bank-reconciliation")} className="mt-4 text-primary-400 hover:underline">
+        <button onClick={() => navigate("/accounting")} className="mt-4 text-primary-400 hover:underline">
           Back to statements
         </button>
       </div>
@@ -122,7 +122,7 @@ const BankReconciliationDetailPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/bank-reconciliation")} className="p-2 rounded-lg bg-surface-800 hover:bg-surface-700 text-surface-300 transition-colors">
+          <button onClick={() => navigate("/accounting")} className="p-2 rounded-lg bg-surface-800 hover:bg-surface-700 text-surface-300 transition-colors">
             <ArrowLeft size={18} />
           </button>
           <div>

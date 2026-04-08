@@ -12,6 +12,7 @@ import {
   Sparkles,
   Sun,
   Moon,
+  BarChart3,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
@@ -21,6 +22,7 @@ import ConfirmModal from "@/components/shared/ConfirmModal";
 import POSScreen from "@/pages/POSScreen";
 import StockTakeEntry from "../../pages/StockTakeEntry";
 import ZReportView from "@/pages/ZReportView";
+import WeeklySalesView from "@/pages/WeeklySalesView";
 import { useBills } from "@/hooks/useBills";
 import { useMyBillStats } from "@/hooks/useMyBillStats";
 import { formatCurrency } from "@/utils/common";
@@ -57,6 +59,8 @@ const MainLayout = () => {
       });
     if (perms.includes("z_report"))
       tabs.push({ id: "z-report", label: "Z-Report", icon: Receipt });
+    if (perms.includes("weekly_sales"))
+      tabs.push({ id: "weekly-sales", label: "Weekly Sales", icon: BarChart3 });
     return tabs;
   }, [user.permissions]);
 
@@ -129,6 +133,8 @@ const MainLayout = () => {
         return <StockTakeEntry />;
       case "z-report":
         return <ZReportView />;
+      case "weekly-sales":
+        return <WeeklySalesView />;
       default:
         return null;
     }
@@ -250,7 +256,7 @@ const MainLayout = () => {
               {/* Switch to Beta UI */}
               <button
                 onClick={() => setShowSwitchUiConfirm(true)}
-                className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-lg transition-all font-medium text-sm"
+                className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2 bg-linear-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-lg transition-all font-medium text-sm"
               >
                 <Sparkles size={18} />
                 <span className="hidden sm:inline">Beta</span>

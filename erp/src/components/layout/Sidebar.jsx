@@ -1,32 +1,20 @@
-import { NavLink, useLocation } from "react-router";
+import { NavLink } from "react-router";
 import {
   BarChart3,
   Package,
   Grid,
   Truck,
   Landmark,
-  BookOpen,
-  FileCheck,
-  PenLine,
   DollarSign,
   Users,
-  ClipboardCheck,
   ChevronDown,
   X,
   LineChart,
-  BarChart2,
-  FileText,
   Settings,
   Receipt,
-  Clock,
   PanelLeftClose,
   PanelLeftOpen,
-  Repeat,
   Globe,
-  CalendarDays,
-  MessageSquare,
-  Images,
-  CalendarCheck,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -41,155 +29,36 @@ const navSections = [
   {
     label: "Operations",
     items: [
-      {
-        to: "/inventory",
-        icon: Package,
-        label: "Inventory",
-        children: [
-          { to: "/inventory", end: true, icon: Package, label: "Stock Levels" },
-          { to: "/inventory/conversions", icon: Repeat, label: "Conversions" },
-          { to: "/inventory/reports", icon: BarChart2, label: "Reports" },
-          { to: "/inventory/approvals", icon: ClipboardCheck, label: "Approvals" },
-        ],
-      },
+      { to: "/inventory", icon: Package, label: "Inventory" },
       { to: "/sales", icon: Receipt, label: "Sales" },
       { to: "/products", icon: Grid, label: "Products" },
-      {
-        to: "/suppliers",
-        icon: Truck,
-        label: "Suppliers",
-        children: [
-          { to: "/suppliers", end: true, icon: Truck, label: "All Suppliers" },
-          { to: "/suppliers/pending-invoices", icon: Clock, label: "Pending Invoices" },
-          { to: "/inventory/receive", icon: Package, label: "Receive Goods" },
-        ],
-      },
+      { to: "/purchasing", icon: Truck, label: "Purchasing" },
     ],
   },
   {
-    label: "Accounting",
+    label: "Finance",
     items: [
-      { to: "/accounts", icon: Landmark, label: "Chart of Accounts" },
-      { to: "/ledger", icon: BookOpen, label: "General Ledger" },
-      { to: "/journals", icon: PenLine, label: "Journal Entries" },
-      { to: "/cheques", icon: FileCheck, label: "Cheques" },
-      { to: "/bank-reconciliation", icon: Landmark, label: "Bank Reconciliation" },
+      { to: "/accounting", icon: Landmark, label: "Accounting" },
       { to: "/expenses", icon: DollarSign, label: "Expenses" },
-    ],
-  },
-  {
-    label: "Payroll",
-    items: [
       { to: "/payroll", icon: Users, label: "Payroll" },
+      { to: "/reports", icon: LineChart, label: "Financial Reports" },
     ],
   },
   {
-    label: "Reports",
+    label: "Web",
     items: [
-      {
-        to: "/reports",
-        icon: LineChart,
-        label: "Financial Reports",
-        children: [
-          { to: "/reports", end: true, icon: LineChart, label: "Overview" },
-          { to: "/reports/balance-sheet", icon: FileText, label: "Balance Sheet" },
-        ],
-      },
-    ],
-  },
-  {
-    label: "Web Management",
-    items: [
-      {
-        to: "/web",
-        icon: Globe,
-        label: "Web Management",
-        children: [
-          { to: "/web/events", icon: CalendarDays, label: "Events" },
-          { to: "/web/gallery", icon: Images, label: "Gallery" },
-          { to: "/web/feedback", icon: MessageSquare, label: "Customer Feedback" },
-          { to: "/web/reservations", icon: CalendarCheck, label: "Reservations" },
-        ],
-      },
+      { to: "/web", icon: Globe, label: "Web Management" },
     ],
   },
   {
     label: "Administration",
     items: [
       { to: "/users", icon: Users, label: "User Management" },
-      { to: "/approvals", icon: ClipboardCheck, label: "Approvals" },
       { to: "/settings", icon: Settings, label: "Settings" },
     ],
   },
 ];
 
-// Nav item with expandable children (e.g. Inventory sub-pages)
-const NavParent = ({ item, onClose, minimized }) => {
-  const { pathname } = useLocation();
-  const isActive = pathname === item.to || pathname.startsWith(item.to + "/");
-  const [open, setOpen] = useState(isActive);
-
-  // Minimized: just show icon, link to parent route
-  if (minimized) {
-    return (
-      <NavLink
-        to={item.to}
-        onClick={onClose}
-        title={item.label}
-        className={`flex items-center justify-center p-2 rounded-md transition-colors ${
-          isActive
-            ? "bg-primary-600/20 text-primary-400"
-            : "text-surface-300 hover:bg-surface-800 hover:text-white"
-        }`}
-      >
-        <item.icon size={17} strokeWidth={1.8} />
-      </NavLink>
-    );
-  }
-
-  return (
-    <div>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-3 w-full px-3 py-2 rounded-md text-[13px] transition-colors ${
-          isActive
-            ? "bg-primary-600/20 text-primary-400 font-medium"
-            : "text-surface-300 hover:bg-surface-800 hover:text-white"
-        }`}
-      >
-        <item.icon size={17} strokeWidth={1.8} />
-        <span className="flex-1 text-left">{item.label}</span>
-        <ChevronDown
-          size={14}
-          className={`transition-transform ${open ? "" : "-rotate-90"}`}
-        />
-      </button>
-
-      {open && (
-        <div className="ml-4 mt-0.5 border-l border-surface-700 pl-3 space-y-0.5">
-          {item.children.map((child) => (
-            <NavLink
-              key={child.to}
-              to={child.to}
-              end={child.end}
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors ${
-                  isActive
-                    ? "text-primary-400 font-medium"
-                    : "text-surface-400 hover:text-white hover:bg-surface-800"
-                }`
-              }
-            >
-              <child.icon size={14} strokeWidth={1.8} />
-              <span>{child.label}</span>
-            </NavLink>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 const NavItem = ({ item, onClose, minimized }) => {
   if (minimized) {
@@ -299,23 +168,14 @@ const Sidebar = ({ open, onClose, minimized, onToggleMinimized }) => {
 
               {(minimized || !collapsed[section.label]) && (
                 <div className="space-y-0.5">
-                  {section.items.map((item) =>
-                    item.children ? (
-                      <NavParent
-                        key={item.to}
-                        item={item}
-                        onClose={onClose}
-                        minimized={minimized}
-                      />
-                    ) : (
-                      <NavItem
-                        key={item.to}
-                        item={item}
-                        onClose={onClose}
-                        minimized={minimized}
-                      />
-                    )
-                  )}
+                  {section.items.map((item) => (
+                    <NavItem
+                      key={item.to}
+                      item={item}
+                      onClose={onClose}
+                      minimized={minimized}
+                    />
+                  ))}
                 </div>
               )}
             </div>

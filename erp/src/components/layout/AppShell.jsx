@@ -6,25 +6,21 @@ import {
   BarChart3,
   Receipt,
   Package,
-  Landmark,
+  Truck,
   MoreHorizontal,
 } from "lucide-react";
 
 const routeTitles = {
   "/": "Dashboard",
-  "/inventory": "Inventory Management",
+  "/inventory": "Inventory",
   "/products": "Products",
-  "/suppliers": "Suppliers",
-  "/suppliers/pending-invoices": "Pending Invoices",
-  "/accounts": "Chart of Accounts",
-  "/ledger": "General Ledger",
-  "/journals": "Journal Entries",
-  "/cheques": "Cheques",
+  "/purchasing": "Purchasing",
+  "/accounting": "Accounting",
   "/expenses": "Expenses",
   "/payroll": "Payroll",
-  "/reports": "Performance Analytics",
+  "/reports": "Financial Reports",
+  "/web": "Web Management",
   "/users": "User Management",
-  "/approvals": "Approvals",
   "/profile": "My Profile",
 };
 
@@ -32,7 +28,7 @@ const bottomNavItems = [
   { to: "/", icon: BarChart3, label: "Home", end: true },
   { to: "/sales", icon: Receipt, label: "Sales" },
   { to: "/inventory", icon: Package, label: "Inventory" },
-  { to: "/accounts", icon: Landmark, label: "Accounts" },
+  { to: "/purchasing", icon: Truck, label: "Purchasing" },
 ];
 
 const AppShell = () => {
@@ -42,8 +38,9 @@ const AppShell = () => {
 
   const title =
     routeTitles[location.pathname] ||
-    (location.pathname.startsWith("/suppliers/") ? "Supplier Detail" :
-     location.pathname.startsWith("/products/")  ? "Product Detail"  : "Fairy Wren ERP");
+    (location.pathname.startsWith("/purchasing/") ? "Supplier Detail" :
+     location.pathname.startsWith("/products/")   ? "Product Detail"  :
+     location.pathname.startsWith("/bank-reconciliation/") ? "Bank Reconciliation" : "Fairy Wren ERP");
 
   return (
     <div className="h-screen bg-surface-950 text-white flex overflow-hidden">

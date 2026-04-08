@@ -352,11 +352,11 @@ const SupplierDetailPage = () => {
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Back */}
       <button
-        onClick={() => navigate("/suppliers")}
+        onClick={() => navigate("/purchasing")}
         className="flex items-center gap-1 text-surface-400 hover:text-white text-sm transition-colors"
       >
         <ChevronLeft size={16} />
-        Back to Suppliers
+        Back to Purchasing
       </button>
 
       {/* Profile card */}

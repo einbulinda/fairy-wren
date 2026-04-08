@@ -7,7 +7,10 @@
       "Bash(git add:*)",
       "Bash(find /e/projects/fairy-wren -name *.sql -o -name *migration* -o -name *schema*)",
       "Bash(find /e/projects/fairy-wren -path */supabase/* -type f)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(grep -A 2 \"inventory_receipts\" /e/projects/fairy-wren/api/migrations/*.sql)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -rn \"paid_at.*timestamp\\\\|ADD COLUMN.*paid_at\" /e/projects/fairy-wren/api/src/database/migrations/*.sql)"
     ]
   }
 }

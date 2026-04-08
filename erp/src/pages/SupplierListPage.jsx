@@ -112,7 +112,7 @@ const SupplierListPage = () => {
       sortable: true,
       render: (_val, supplier) => (
         <button
-          onClick={(e) => { e.stopPropagation(); navigate(`/suppliers/${supplier.id}`); }}
+          onClick={(e) => { e.stopPropagation(); navigate(`/purchasing/${supplier.id}`); }}
           className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium group/link"
         >
           <Building2 size={15} className="text-surface-500 shrink-0" />
@@ -309,7 +309,7 @@ const SupplierListPage = () => {
                   {filtered.map((supplier) => (
                     <MobileCard key={supplier.id}>
                       <div className="flex items-center justify-between">
-                        <button onClick={() => navigate(`/suppliers/${supplier.id}`)} className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium text-sm">
+                        <button onClick={() => navigate(`/purchasing/${supplier.id}`)} className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium text-sm">
                           <Building2 size={15} className="text-surface-500 shrink-0" />
                           {supplier.name}
                         </button>

@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   RefreshCw,
   User,
-  BarChart3,
 } from "lucide-react";
 import LoadingSpinner from "../components/shared/LoadingSpinner";
 import {
@@ -30,7 +29,6 @@ import PaymentModal from "../components/pos/PaymentModal";
 import CurrentBill from "../components/bills/CurrentBill";
 import ConfirmPaymentsView from "../components/pos/ConfirmPaymentsView";
 import ConfirmModal from "../components/shared/ConfirmModal";
-import WeeklySalesView from "./WeeklySalesView";
 
 const POSScreen = () => {
   const { user } = useAuth();
@@ -113,7 +111,6 @@ const POSScreen = () => {
 
   // Permission checks
   const canAccessConfirm = user?.permissions?.includes("approve_payments");
-  const canAccessWeeklySales = user?.permissions?.includes("weekly_sales");
 
   // 🔒 Helper to get quantity of a product in the current round
   // Previous rounds already deducted from current_stock, so only check current round
@@ -597,22 +594,6 @@ const POSScreen = () => {
               </button>
             )}
 
-            {canAccessWeeklySales && (
-              <button
-                onClick={() => setActiveTab("weekly_sales")}
-                className={`
-                  px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm font-medium
-                  ${
-                    activeTab === "weekly_sales"
-                      ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                      : "bg-gray-800/60 text-gray-400 hover:text-white hover:bg-gray-800"
-                  }
-                `}
-              >
-                <BarChart3 size={18} />
-                <span>Weekly</span>
-              </button>
-            )}
           </div>
 
           {/* Action Buttons - Only visible in POS tab */}
@@ -904,15 +885,11 @@ const POSScreen = () => {
           </div>
         )}
 
-        {/* Weekly Sales View */}
-        {activeTab === "weekly_sales" && canAccessWeeklySales && (
-          <WeeklySalesView />
-        )}
       </div>
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-md border-t-2 border-purple-500/30 safe-area-inset-bottom z-50">
-        <div className={`grid h-16 ${canAccessConfirm && canAccessWeeklySales ? "grid-cols-3" : canAccessConfirm || canAccessWeeklySales ? "grid-cols-2" : "grid-cols-1"}`}>
+        <div className={`grid h-16 ${canAccessConfirm ? "grid-cols-2" : "grid-cols-1"}`}>
           <button
             onClick={() => setActiveTab("pos")}
             className={`
@@ -962,27 +939,6 @@ const POSScreen = () => {
             </button>
           )}
 
-          {canAccessWeeklySales && (
-            <button
-              onClick={() => setActiveTab("weekly_sales")}
-              className={`
-                flex flex-col items-center justify-center gap-1 transition-all duration-200
-                ${
-                  activeTab === "weekly_sales"
-                    ? "text-white bg-linear-to-t from-purple-600/20 to-transparent"
-                    : "text-gray-400 active:bg-gray-800/50"
-                }
-              `}
-              aria-label="Weekly Sales"
-            >
-              <BarChart3
-                size={24}
-                className={activeTab === "weekly_sales" ? "text-purple-400" : ""}
-                aria-hidden="true"
-              />
-              <span className="text-xs font-medium">Weekly</span>
-            </button>
-          )}
         </div>
       </nav>
 

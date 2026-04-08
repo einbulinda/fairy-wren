@@ -8,17 +8,8 @@ import LoginPage from "@/pages/LoginPage";
 import AppShell from "@/components/layout/AppShell";
 import DashboardPage from "@/pages/DashboardPage";
 import FinancialReportsPage from "@/pages/FinancialReportsPage";
-import BalanceSheetPage from "@/pages/BalanceSheetPage";
-import IncomeStatementPage from "@/pages/IncomeStatementPage";
-import TrialBalancePage from "@/pages/TrialBalancePage";
-import CashFlowStatementPage from "@/pages/CashFlowStatementPage";
-import EquityChangesPage from "@/pages/EquityChangesPage";
-import ChartOfAccountsPage from "@/pages/ChartOfAccountsPage";
-import LedgerPage from "@/pages/LedgerPage";
-import JournalEntryPage from "@/pages/JournalEntryPage";
-import ChequeWritingPage from "@/pages/ChequeWritingPage";
+import AccountingHubPage from "@/pages/AccountingHubPage";
 import ExpensesPage from "@/pages/ExpensesPage";
-import SupplierListPage from "@/pages/SupplierListPage";
 import SupplierDetailPage from "@/pages/SupplierDetailPage";
 import InventoryPage from "@/pages/InventoryPage";
 import ProductsPage from "@/pages/ProductsPage";
@@ -26,17 +17,12 @@ import ProductDetailPage from "@/pages/ProductDetailPage";
 import PayrollPage from "@/pages/PayrollPage";
 import ReceiptDetailPage from "@/pages/ReceiptDetailPage";
 import UsersPage from "@/pages/UsersPage";
-import PlaceholderPage from "@/pages/PlaceholderPage";
 import SettingsPage from "@/pages/SettingsPage";
-import BankReconciliationListPage from "@/pages/BankReconciliationListPage";
 import BankReconciliationDetailPage from "@/pages/BankReconciliationDetailPage";
 import SalesPage from "@/pages/SalesPage";
-import PendingInvoicesPage from "@/pages/PendingInvoicesPage";
 import ProfilePage from "@/pages/ProfilePage";
-import WebEventsPage from "@/pages/WebEventsPage";
-import WebFeedbackPage from "@/pages/WebFeedbackPage";
-import WebGalleryPage from "@/pages/WebGalleryPage";
-import WebReservationsPage from "@/pages/WebReservationsPage";
+import PurchasingPage from "@/pages/PurchasingPage";
+import WebHubPage from "@/pages/WebHubPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,29 +55,15 @@ const AuthenticatedRoutes = () => {
         <Route path="products" element={<ProductsPage />} />
         <Route path="products/:id" element={<ProductDetailPage />} />
         <Route path="sales" element={<SalesPage />} />
-        <Route path="suppliers" element={<SupplierListPage />} />
-        <Route path="suppliers/pending-invoices" element={<PendingInvoicesPage />} />
-        <Route path="suppliers/:id" element={<SupplierDetailPage />} />
-        <Route path="accounts" element={<ChartOfAccountsPage />} />
-        <Route path="ledger" element={<LedgerPage />} />
-        <Route path="journals" element={<JournalEntryPage />} />
-        <Route path="cheques" element={<ChequeWritingPage />} />
-        <Route path="bank-reconciliation" element={<BankReconciliationListPage />} />
+        <Route path="purchasing" element={<PurchasingPage />} />
+        <Route path="purchasing/:id" element={<SupplierDetailPage />} />
+        <Route path="accounting" element={<AccountingHubPage />} />
         <Route path="bank-reconciliation/:id" element={<BankReconciliationDetailPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="payroll" element={<PayrollPage />} />
         <Route path="reports" element={<FinancialReportsPage />} />
-        <Route path="reports/balance-sheet" element={<BalanceSheetPage />} />
-        <Route path="reports/income-statement" element={<IncomeStatementPage />} />
-        <Route path="reports/trial-balance" element={<TrialBalancePage />} />
-        <Route path="reports/cash-flow" element={<CashFlowStatementPage />} />
-        <Route path="reports/equity-changes" element={<EquityChangesPage />} />
-        <Route path="web/events" element={<WebEventsPage />} />
-        <Route path="web/gallery" element={<WebGalleryPage />} />
-        <Route path="web/feedback" element={<WebFeedbackPage />} />
-        <Route path="web/reservations" element={<WebReservationsPage />} />
+        <Route path="web" element={<WebHubPage />} />
         <Route path="users" element={<UsersPage />} />
-        <Route path="approvals" element={<PlaceholderPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

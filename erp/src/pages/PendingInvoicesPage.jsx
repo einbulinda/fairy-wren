@@ -122,7 +122,7 @@ const PendingInvoicesPage = () => {
         (a.suppliers?.name || "").localeCompare(b.suppliers?.name || ""),
       render: (_val, inv) => (
         <button
-          onClick={(e) => { e.stopPropagation(); navigate(`/suppliers/${inv.supplier_id}`); }}
+          onClick={(e) => { e.stopPropagation(); navigate(`/purchasing/${inv.supplier_id}`); }}
           className="flex items-center gap-1.5 text-surface-300 hover:text-white transition-colors"
         >
           <Building2 size={12} className="text-surface-500" />
