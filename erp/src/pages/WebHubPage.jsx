@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router";
 import { CalendarDays, Images, MessageSquare, CalendarCheck } from "lucide-react";
 import WebEventsPage from "./WebEventsPage";
 import WebGalleryPage from "./WebGalleryPage";
@@ -13,7 +14,8 @@ const TABS = [
 ];
 
 const WebHubPage = () => {
-  const [activeTab, setActiveTab] = useState("events");
+  const { state } = useLocation();
+  const [activeTab, setActiveTab] = useState(state?.tab ?? "events");
   const ActiveComponent = TABS.find((t) => t.key === activeTab)?.component;
 
   return (

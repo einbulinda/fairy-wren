@@ -56,10 +56,21 @@ exports.saveBusinessTarget = async (targetData, userId) => {
     throw new Error("YEAR_AND_MONTH_REQUIRED");
   }
 
+  const sanitized = sanitizeNumeric(data, [
+    "target_revenue",
+    "target_gross_margin",
+    "target_cash_reserve_days",
+    "max_outstanding_ratio",
+    "default_staff_target_revenue",
+    "target_avg_bill_value",
+    "target_bill_count",
+    "target_inventory_turnover",
+  ]);
+
   const payload = {
     year,
     month,
-    ...data,
+    ...sanitized,
     updated_by: userId,
   };
 
@@ -143,18 +154,26 @@ exports.saveUserTarget = async (targetData, userId) => {
     throw new Error("USER_YEAR_MONTH_REQUIRED");
   }
 
+  const sanitized = sanitizeNumeric(data, [
+    "target_revenue",
+    "target_bill_count",
+    "target_avg_bill_value",
+  ]);
+
   const payload = {
     user_id,
     year,
     month,
-    ...data,
+    ...sanitized,
     updated_by: userId,
     created_by: userId,
   };
 
   const { data: saved, error } = await repo.upsertUserTarget(payload);
 
-  if (error) throw new Error("FAILED_TO_SAVE_USER_TARGET");
+  if (error) {
+    throw new Error("FAILED_TO_SAVE_USER_TARGET");
+  }
 
   return saved;
 };
@@ -196,11 +215,13 @@ exports.saveCategoryTarget = async (targetData, userId) => {
     throw new Error("CATEGORY_YEAR_MONTH_REQUIRED");
   }
 
+  const sanitized = sanitizeNumeric(data, ["target_revenue"]);
+
   const payload = {
     category_id,
     year,
     month,
-    ...data,
+    ...sanitized,
     updated_by: userId,
     created_by: userId,
   };
@@ -264,6 +285,22 @@ exports.getDashboardTargets = async (year, month, currentMetrics = {}) => {
 // ==========================================
 // HELPER FUNCTIONS
 // ==========================================
+
+/**
+ * Converts empty strings to null for numeric fields so the DB
+ * doesn't receive invalid input (e.g. "" for a numeric column).
+ */
+function sanitizeNumeric(obj, fields) {
+  const out = { ...obj };
+  for (const field of fields) {
+    if (out[field] === "" || out[field] === undefined) {
+      out[field] = null;
+    } else if (out[field] !== null) {
+      out[field] = Number(out[field]) || null;
+    }
+  }
+  return out;
+}
 
 async function calculateFallbackTarget(year, month) {
   // Calculate previous month

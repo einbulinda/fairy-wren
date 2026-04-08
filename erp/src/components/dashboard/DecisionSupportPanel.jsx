@@ -15,9 +15,19 @@ import {
   X
 } from "lucide-react";
 import { formatCurrency } from "@/utils/formatters";
+import QuickActionModal from "@/components/dashboard/QuickActionModal";
+
+const ACTION_MODALS = {
+  "Emergency Reorder": "emergency-reorder",
+  "Check Alternatives": "check-alternatives",
+  "Review Pricing": "review-pricing",
+  "Cut Costs": "cut-costs",
+  "Focus High-Margin Products": "high-margin",
+};
 
 const DecisionSupportPanel = ({ data }) => {
   const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
+  const [activeModal, setActiveModal] = useState(null);
 
   const insights = useMemo(() => {
     if (!data) return [];
@@ -89,15 +99,28 @@ const DecisionSupportPanel = ({ data }) => {
     const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
     const prevMargin = data.previousMargin || 30;
     const marginChange = grossMargin - prevMargin;
+    const grossMarginTarget = data.grossMarginTarget ?? 35;
+    const criticalMarginThreshold = grossMarginTarget * 0.6; // 60% of target = critical
 
-    if (grossMargin < 20) {
+    if (grossMargin < criticalMarginThreshold) {
       alerts.push({
         id: "low-margin",
         category: "profitability",
         severity: "critical",
         icon: DollarSign,
         title: "Critical Margin Alert",
-        message: `Gross margin at ${grossMargin.toFixed(1)}% is dangerously low. Business sustainability at risk.`,
+        message: `Gross margin at ${grossMargin.toFixed(1)}% is dangerously low (target: ${grossMarginTarget}%). Business sustainability at risk.`,
+        actions: ["Review Pricing", "Cut Costs", "Focus High-Margin Products"],
+        metric: `${grossMargin.toFixed(1)}%`,
+      });
+    } else if (grossMargin < grossMarginTarget) {
+      alerts.push({
+        id: "low-margin",
+        category: "profitability",
+        severity: "warning",
+        icon: DollarSign,
+        title: "Margin Below Target",
+        message: `Gross margin at ${grossMargin.toFixed(1)}% is below the ${grossMarginTarget}% target. Review pricing or reduce costs.`,
         actions: ["Review Pricing", "Cut Costs", "Focus High-Margin Products"],
         metric: `${grossMargin.toFixed(1)}%`,
       });
@@ -331,6 +354,13 @@ const DecisionSupportPanel = ({ data }) => {
   };
 
   return (
+    <>
+    <QuickActionModal
+      type={activeModal}
+      data={data}
+      isOpen={activeModal !== null}
+      onClose={() => setActiveModal(null)}
+    />
     <div className="space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -396,15 +426,23 @@ const DecisionSupportPanel = ({ data }) => {
                   {/* Action Buttons */}
                   {insight.actions && insight.actions.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-3">
-                      {insight.actions.map((action, index) => (
-                        <button
-                          key={index}
-                          className="flex items-center gap-1 text-[10px] px-2.5 py-1.5 bg-surface-800 hover:bg-surface-700 border border-surface-600 hover:border-surface-500 rounded-md text-surface-300 hover:text-white transition-all"
-                        >
-                          {action}
-                          <ArrowRight size={10} />
-                        </button>
-                      ))}
+                      {insight.actions.map((action, index) => {
+                        const modalType = ACTION_MODALS[action];
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => modalType && setActiveModal(modalType)}
+                            className={`flex items-center gap-1 text-[10px] px-2.5 py-1.5 bg-surface-800 border rounded-md transition-all ${
+                              modalType
+                                ? "hover:bg-surface-700 border-surface-500 hover:border-primary-500 text-surface-200 hover:text-white cursor-pointer"
+                                : "border-surface-600 text-surface-400 cursor-default"
+                            }`}
+                          >
+                            {action}
+                            {modalType && <ArrowRight size={10} />}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -414,6 +452,7 @@ const DecisionSupportPanel = ({ data }) => {
         })}
       </div>
     </div>
+    </>
   );
 };
 

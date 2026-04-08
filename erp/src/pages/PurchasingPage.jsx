@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Truck, Clock, Package } from "lucide-react";
+import { Truck, Clock, Package, TrendingUp } from "lucide-react";
 import SupplierListPage from "./SupplierListPage";
 import PendingInvoicesPage from "./PendingInvoicesPage";
 import ReceiveTab from "@/components/inventory/ReceiveTab";
+import ReorderForecastTab from "@/components/inventory/ReorderForecastTab";
 
 const TABS = [
   { key: "suppliers", label: "Suppliers", icon: Truck },
   { key: "pending-invoices", label: "Pending Invoices", icon: Clock },
   { key: "receive", label: "Receive Goods", icon: Package },
+  { key: "reorder-forecast", label: "Reorder Forecast", icon: TrendingUp },
 ];
 
 const PurchasingPage = () => {
@@ -41,6 +43,7 @@ const PurchasingPage = () => {
       {activeTab === "receive" && (
         <ReceiveTab onSuccess={() => setActiveTab("suppliers")} />
       )}
+      {activeTab === "reorder-forecast" && <ReorderForecastTab />}
     </div>
   );
 };

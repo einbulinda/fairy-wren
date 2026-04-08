@@ -23,6 +23,30 @@ export default function Reservation() {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  const todayStr = new Date().toISOString().split("T")[0];
+  const nowTimeStr = new Date().toTimeString().slice(0, 5); // "HH:MM"
+  const isToday = form.reservation_date === todayStr;
+
+  const handleDateChange = (e) => {
+    const date = e.target.value;
+    const isNowToday = date === todayStr;
+    // If switching to today and the selected time is already in the past, clear it
+    setForm((f) => ({
+      ...f,
+      reservation_date: date,
+      reservation_time:
+        isNowToday && f.reservation_time && f.reservation_time < nowTimeStr
+          ? ""
+          : f.reservation_time,
+    }));
+  };
+
+  const handleTimeChange = (e) => {
+    const time = e.target.value;
+    if (isToday && time && time < nowTimeStr) return; // silently block past times
+    setForm((f) => ({ ...f, reservation_time: time }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("sending");
@@ -143,8 +167,8 @@ export default function Reservation() {
                   required
                   type="date"
                   value={form.reservation_date}
-                  onChange={set("reservation_date")}
-                  min={new Date().toISOString().split("T")[0]}
+                  onChange={handleDateChange}
+                  min={todayStr}
                   className={`${inputCls} [color-scheme:dark]`}
                 />
               </div>
@@ -157,7 +181,8 @@ export default function Reservation() {
                 <input
                   type="time"
                   value={form.reservation_time}
-                  onChange={set("reservation_time")}
+                  onChange={handleTimeChange}
+                  min={isToday ? nowTimeStr : undefined}
                   className={`${inputCls} [color-scheme:dark]`}
                 />
               </div>

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { usePendingApprovals } from "@/hooks/usePendingApprovals";
+import { usePendingReservations } from "@/hooks/usePendingReservations";
+import { useNewFeedback } from "@/hooks/useNewFeedback";
 import {
   Menu,
   Search,
@@ -14,12 +16,18 @@ import {
   Moon,
   Eye,
   ClipboardCheck,
+  CalendarCheck,
+  MessageSquare,
 } from "lucide-react";
 
 const Header = ({ title, onMenuClick }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { pendingApprovals, count } = usePendingApprovals();
+  const { pendingApprovals, count: approvalsCount } = usePendingApprovals();
+  const { pendingReservations, count: reservationsCount } =
+    usePendingReservations();
+  const { newFeedback, count: feedbackCount } = useNewFeedback();
+  const count = approvalsCount + reservationsCount + feedbackCount;
   const navigate = useNavigate();
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -42,7 +50,7 @@ const Header = ({ title, onMenuClick }) => {
   }, []);
 
   return (
-    <header className="h-[64px] bg-surface-900/95 backdrop-blur-sm border-b border-surface-700 sticky top-0 z-20">
+    <header className="h-16 bg-surface-900/95 backdrop-blur-sm border-b border-surface-700 sticky top-0 z-20">
       <div className="h-full px-4 lg:px-6 flex items-center justify-between">
         {/* Left: hamburger + title */}
         <div className="flex items-center gap-3">
@@ -71,7 +79,9 @@ const Header = ({ title, onMenuClick }) => {
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg text-surface-400 hover:text-white hover:bg-surface-800 transition-colors"
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
           >
             {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
           </button>
@@ -84,7 +94,7 @@ const Header = ({ title, onMenuClick }) => {
             >
               <Bell size={19} />
               {count > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-danger text-[10px] font-bold text-[#fff] rounded-full px-1">
+                <span className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 flex items-center justify-center bg-danger text-[10px] font-bold text-white rounded-full px-1">
                   {count > 99 ? "99+" : count}
                 </span>
               )}
@@ -94,7 +104,7 @@ const Header = ({ title, onMenuClick }) => {
               <div className="fixed left-1/2 -translate-x-1/2 top-17.5 w-[calc(100vw-2rem)] max-w-80 md:absolute md:left-auto md:translate-x-0 md:right-0 md:top-auto md:mt-1 md:w-80 bg-surface-800 rounded-xl shadow-lg border border-surface-700 z-50 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-surface-700">
                   <h4 className="text-sm font-semibold text-white">
-                    Pending Approvals
+                    Notifications
                   </h4>
                   {count > 0 && (
                     <span className="text-xs bg-danger/20 text-danger px-2 py-0.5 rounded-full font-medium">
@@ -103,64 +113,190 @@ const Header = ({ title, onMenuClick }) => {
                   )}
                 </div>
 
-                <div className="max-h-72 overflow-y-auto">
-                  {pendingApprovals.length === 0 ? (
+                <div className="max-h-96 overflow-y-auto">
+                  {/* Pending Approvals section */}
+                  {approvalsCount > 0 && (
+                    <>
+                      <div className="px-4 py-2 flex items-center justify-between bg-surface-900/50">
+                        <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-wider">
+                          Stock Take Reports
+                        </span>
+                        <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full">
+                          {approvalsCount}
+                        </span>
+                      </div>
+                      {pendingApprovals.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setNotifOpen(false);
+                            navigate(`/inventory/reports/${item.id}`, {
+                              state: { from: "approvals" },
+                            });
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-surface-700/50 transition-colors border-b border-surface-700/50 last:border-0"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-white truncate">
+                                {item.stock_take_name || "Stock Take"}
+                              </p>
+                              <p className="text-xs text-surface-400 mt-0.5">
+                                {item.profiles?.name || "Unknown"} &middot;{" "}
+                                {new Date(item.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <span
+                              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${
+                                item.approval_status === "under_review"
+                                  ? "bg-blue-500/20 text-blue-400"
+                                  : "bg-yellow-500/20 text-yellow-400"
+                              }`}
+                            >
+                              {item.approval_status?.replace("_", " ") ||
+                                "pending"}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Pending Reservations section */}
+                  {reservationsCount > 0 && (
+                    <>
+                      <div className="px-4 py-2 flex items-center justify-between bg-surface-900/50">
+                        <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-wider">
+                          New Reservations
+                        </span>
+                        <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full">
+                          {reservationsCount}
+                        </span>
+                      </div>
+                      {pendingReservations.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setNotifOpen(false);
+                            navigate("/web", {
+                              state: { tab: "reservations" },
+                            });
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-surface-700/50 transition-colors border-b border-surface-700/50 last:border-0"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-white truncate">
+                                {item.name || "Reservation"}
+                              </p>
+                              <p className="text-xs text-surface-400 mt-0.5">
+                                {item.reservation_date
+                                  ? new Date(
+                                      item.reservation_date + "T00:00:00",
+                                    ).toLocaleDateString("en-GB", {
+                                      day: "numeric",
+                                      month: "short",
+                                    })
+                                  : ""}
+                                {item.party_size
+                                  ? ` · ${item.party_size} guests`
+                                  : ""}
+                              </p>
+                            </div>
+                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/20 text-amber-400">
+                              pending
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* New Feedback section */}
+                  {feedbackCount > 0 && (
+                    <>
+                      <div className="px-4 py-2 flex items-center justify-between bg-surface-900/50">
+                        <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-wider">
+                          Customer Feedback
+                        </span>
+                        <span className="text-[10px] bg-primary-500/20 text-primary-400 px-1.5 py-0.5 rounded-full">
+                          {feedbackCount}
+                        </span>
+                      </div>
+                      {newFeedback.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setNotifOpen(false);
+                            navigate("/web", { state: { tab: "feedback" } });
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-surface-700/50 transition-colors border-b border-surface-700/50 last:border-0"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-white truncate">
+                                {item.name || "Anonymous"}
+                              </p>
+                              <p className="text-xs text-surface-400 mt-0.5 truncate">
+                                {item.message
+                                  ? item.message.slice(0, 50) +
+                                    (item.message.length > 50 ? "…" : "")
+                                  : item.type || "feedback"}
+                              </p>
+                            </div>
+                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary-500/20 text-primary-400">
+                              new
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Empty state */}
+                  {count === 0 && (
                     <div className="px-4 py-8 text-center">
                       <ClipboardCheck
                         size={28}
                         className="mx-auto mb-2 text-surface-600"
                       />
                       <p className="text-sm text-surface-400">
-                        No pending approvals
+                        No new notifications
                       </p>
                     </div>
-                  ) : (
-                    pendingApprovals.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setNotifOpen(false);
-                          navigate(`/inventory/reports/${item.id}`, {
-                            state: { from: "approvals" },
-                          });
-                        }}
-                        className="w-full px-4 py-3 text-left hover:bg-surface-700/50 transition-colors border-b border-surface-700/50 last:border-0"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-white truncate">
-                              {item.stock_take_name || "Stock Take"}
-                            </p>
-                            <p className="text-xs text-surface-400 mt-0.5">
-                              {item.profiles?.name || "Unknown"} &middot;{" "}
-                              {new Date(item.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <span
-                            className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${
-                              item.approval_status === "under_review"
-                                ? "bg-blue-500/20 text-blue-400"
-                                : "bg-yellow-500/20 text-yellow-400"
-                            }`}
-                          >
-                            {item.approval_status?.replace("_", " ") || "pending"}
-                          </span>
-                        </div>
-                      </button>
-                    ))
                   )}
                 </div>
 
-                <div className="border-t border-surface-700">
+                <div className="border-t border-surface-700 flex divide-x divide-surface-700">
                   <button
                     onClick={() => {
                       setNotifOpen(false);
                       navigate("/inventory/approvals");
                     }}
-                    className="w-full px-4 py-2.5 text-sm text-primary-400 hover:bg-surface-700/50 transition-colors flex items-center justify-center gap-1.5 font-medium"
+                    className="flex-1 px-3 py-2.5 text-xs text-primary-400 hover:bg-surface-700/50 transition-colors flex items-center justify-center gap-1.5 font-medium"
                   >
-                    <Eye size={14} />
-                    View All Approvals
+                    <Eye size={13} />
+                    Stock Takes
+                  </button>
+                  <button
+                    onClick={() => {
+                      setNotifOpen(false);
+                      navigate("/web", { state: { tab: "reservations" } });
+                    }}
+                    className="flex-1 px-3 py-2.5 text-xs text-amber-400 hover:bg-surface-700/50 transition-colors flex items-center justify-center gap-1.5 font-medium"
+                  >
+                    <CalendarCheck size={13} />
+                    Reservations
+                  </button>
+                  <button
+                    onClick={() => {
+                      setNotifOpen(false);
+                      navigate("/web", { state: { tab: "feedback" } });
+                    }}
+                    className="flex-1 px-3 py-2.5 text-xs text-primary-400 hover:bg-surface-700/50 transition-colors flex items-center justify-center gap-1.5 font-medium"
+                  >
+                    <MessageSquare size={13} />
+                    Feedback
                   </button>
                 </div>
               </div>
@@ -192,7 +328,10 @@ const Header = ({ title, onMenuClick }) => {
             {userMenuOpen && (
               <div className="absolute right-0 mt-1 w-48 bg-surface-800 rounded-lg shadow-lg border border-surface-700 py-1 z-50">
                 <button
-                  onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    navigate("/profile");
+                  }}
                   className="w-full flex items-center gap-2 px-4 py-2 text-sm text-surface-300 hover:bg-surface-700 hover:text-white"
                 >
                   <User size={16} />

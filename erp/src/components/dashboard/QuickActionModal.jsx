@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { X, ShoppingCart, Package, AlertTriangle, Users, DollarSign, Send, Printer, Download } from "lucide-react";
+import { useNavigate } from "react-router";
+import { X, ShoppingCart, Package, AlertTriangle, Users, DollarSign, Send, Printer, Download, Tag, TrendingUp, Scissors } from "lucide-react";
+import * as XLSX from "xlsx";
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 0 }).format(value);
 
 const QuickActionModal = ({ type, data, isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState("list");
+  const navigate = useNavigate();
 
   if (!isOpen) return null;
 
@@ -14,6 +17,70 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
       (s) => s.reorder_level > 0 && s.current_stock > 0 && s.current_stock <= s.reorder_level
     ) || [];
     const outOfStock = data?.stockItems?.filter((s) => s.current_stock <= 0) || [];
+
+    const suggestedQty = (item) =>
+      item.reorder_level > 0
+        ? Math.max(item.reorder_level * 2 - (item.current_stock || 0), item.reorder_level)
+        : 10;
+
+    const handleCreatePO = () => {
+      const initialLines = [...outOfStock, ...lowStock].map((item) => ({
+        product_id: item.id,
+        product_name: item.name,
+        quantity: suggestedQty(item),
+        unit_cost: item.cost_price || 0,
+      }));
+      onClose();
+      navigate("/inventory/receive", { state: { initialLines } });
+    };
+
+    const handleExport = () => {
+      const rows = [
+        ...outOfStock.map((item) => ({
+          Product: item.name,
+          Category: item.categories?.name || "Uncategorized",
+          Unit: item.unit || "",
+          "Current Stock": item.current_stock,
+          "Reorder Level": item.reorder_level || "",
+          "Suggested Qty": suggestedQty(item),
+          "Last Cost (KES)": item.cost_price || "",
+          "Estimated Total (KES)": item.cost_price
+            ? suggestedQty(item) * item.cost_price
+            : "",
+          Status: "Out of Stock",
+        })),
+        ...lowStock.map((item) => ({
+          Product: item.name,
+          Category: item.categories?.name || "Uncategorized",
+          Unit: item.unit || "",
+          "Current Stock": item.current_stock,
+          "Reorder Level": item.reorder_level || "",
+          "Suggested Qty": suggestedQty(item),
+          "Last Cost (KES)": item.cost_price || "",
+          "Estimated Total (KES)": item.cost_price
+            ? suggestedQty(item) * item.cost_price
+            : "",
+          Status: "Low Stock",
+        })),
+      ];
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = [
+        { wch: 30 }, // Product
+        { wch: 20 }, // Category
+        { wch: 10 }, // Unit
+        { wch: 14 }, // Current Stock
+        { wch: 14 }, // Reorder Level
+        { wch: 14 }, // Suggested Qty
+        { wch: 18 }, // Last Cost
+        { wch: 22 }, // Estimated Total
+        { wch: 14 }, // Status
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Reorder List");
+      const date = new Date().toISOString().split("T")[0];
+      XLSX.writeFile(wb, `reorder-list-${date}.xlsx`);
+    };
 
     return (
       <div className="space-y-4">
@@ -77,11 +144,17 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
 
         {/* Actions */}
         <div className="flex gap-3 pt-4 border-t border-surface-700">
-          <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
+          <button
+            onClick={handleCreatePO}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
+          >
             <ShoppingCart size={16} />
             Create Purchase Order
           </button>
-          <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg transition-colors">
+          <button
+            onClick={handleExport}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg transition-colors"
+          >
             <Download size={16} />
             Export List
           </button>
@@ -291,11 +364,396 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
     );
   };
 
+  const TARGET_MARGIN = data?.grossMarginTarget ?? 35; // % — configurable in Settings → Business Targets
+
+  const renderCheckAlternatives = () => {
+    const stockItems = data?.stockItems || [];
+    const outOfStock = stockItems.filter((s) => s.current_stock <= 0);
+    const inStock = stockItems.filter((s) => s.current_stock > 0);
+
+    if (outOfStock.length === 0) {
+      return (
+        <div className="py-10 text-center text-surface-400 text-sm">
+          <Package size={24} className="mx-auto mb-2 text-surface-600" />
+          No out-of-stock products at the moment.
+        </div>
+      );
+    }
+
+    // For each out-of-stock item, find alternatives in the same category
+    const grouped = outOfStock.map((item) => {
+      const alternatives = inStock
+        .filter((s) => s.category_id === item.category_id && s.id !== item.id)
+        .sort((a, b) => b.current_stock - a.current_stock)
+        .slice(0, 3);
+      return { item, alternatives };
+    });
+
+    const withAlternatives = grouped.filter((g) => g.alternatives.length > 0);
+    const noAlternatives = grouped.filter((g) => g.alternatives.length === 0);
+
+    return (
+      <div className="space-y-4">
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Out of Stock</p>
+            <p className="text-lg font-bold text-red-400">{outOfStock.length}</p>
+            <p className="text-[10px] text-surface-500">products</p>
+          </div>
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Have Alternatives</p>
+            <p className="text-lg font-bold text-emerald-400">{withAlternatives.length}</p>
+            <p className="text-[10px] text-surface-500">can substitute</p>
+          </div>
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">No Substitute</p>
+            <p className="text-lg font-bold text-orange-400">{noAlternatives.length}</p>
+            <p className="text-[10px] text-surface-500">reorder urgently</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 max-h-72 overflow-y-auto">
+          {/* Items with alternatives first */}
+          {withAlternatives.map(({ item, alternatives }) => (
+            <div key={item.id} className="rounded-lg border border-surface-700 overflow-hidden">
+              {/* Out-of-stock item header */}
+              <div className="flex items-center justify-between px-3 py-2 bg-red-500/10 border-b border-surface-700">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{item.name}</p>
+                  <p className="text-[11px] text-surface-500">{item.categories?.name || "Uncategorized"}</p>
+                </div>
+                <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-400 ml-2">
+                  Out of Stock
+                </span>
+              </div>
+              {/* Alternatives */}
+              <div className="divide-y divide-surface-700/50 bg-surface-800/30">
+                {alternatives.map((alt) => (
+                  <div key={alt.id} className="flex items-center justify-between px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-xs text-surface-200 truncate">{alt.name}</p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 ml-2">
+                      {alt.price > 0 && (
+                        <span className="text-[11px] text-surface-400">{formatCurrency(alt.price)}</span>
+                      )}
+                      <span className="text-[11px] font-medium text-emerald-400">
+                        {alt.current_stock} {alt.unit || "in stock"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Items with no alternatives */}
+          {noAlternatives.length > 0 && (
+            <div className="rounded-lg border border-orange-500/30 overflow-hidden">
+              <div className="px-3 py-2 bg-orange-500/10 border-b border-surface-700">
+                <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">
+                  No In-Category Alternatives — Reorder Required
+                </p>
+              </div>
+              <div className="divide-y divide-surface-700/50 bg-surface-800/30">
+                {noAlternatives.map(({ item }) => (
+                  <div key={item.id} className="flex items-center justify-between px-3 py-2">
+                    <p className="text-xs text-surface-300">{item.name}</p>
+                    <span className="text-[11px] text-surface-500">{item.categories?.name || "Uncategorized"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="pt-4 border-t border-surface-700">
+          <p className="text-[11px] text-surface-500">
+            Alternatives are same-category products currently in stock. Brief staff on these substitutes before the next service.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderReviewPricing = () => {
+    const items = (data?.stockItems || [])
+      .filter((s) => s.price > 0 && s.cost_price > 0)
+      .map((s) => ({
+        ...s,
+        margin: ((s.price - s.cost_price) / s.price) * 100,
+        suggestedPrice: s.cost_price / (1 - TARGET_MARGIN / 100),
+      }))
+      .filter((s) => s.margin < TARGET_MARGIN)
+      .sort((a, b) => a.margin - b.margin);
+
+    const critical = items.filter((s) => s.margin < 20);
+    const warning = items.filter((s) => s.margin >= 20 && s.margin < TARGET_MARGIN);
+
+    if (items.length === 0) {
+      return (
+        <div className="py-10 text-center text-surface-400 text-sm">
+          <Tag size={24} className="mx-auto mb-2 text-surface-600" />
+          All tracked products are priced above the {TARGET_MARGIN}% margin target.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Critical (&lt;20%)</p>
+            <p className="text-lg font-bold text-red-400">{critical.length}</p>
+            <p className="text-[10px] text-surface-500">products</p>
+          </div>
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Below {TARGET_MARGIN}%</p>
+            <p className="text-lg font-bold text-orange-400">{warning.length}</p>
+            <p className="text-[10px] text-surface-500">products</p>
+          </div>
+          <div className="bg-surface-800 border border-surface-700 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Target Margin</p>
+            <p className="text-lg font-bold text-white">{TARGET_MARGIN}%</p>
+            <p className="text-[10px] text-surface-500">gross margin</p>
+          </div>
+        </div>
+
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {items.map((item) => {
+            const isRed = item.margin < 20;
+            return (
+              <div key={item.id} className="p-3 bg-surface-800 rounded-lg">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0">
+                    <p className="text-sm text-white truncate">{item.name}</p>
+                    <p className="text-xs text-surface-500">{item.categories?.name || "Uncategorized"}</p>
+                  </div>
+                  <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold ${isRed ? "bg-red-500/20 text-red-400" : "bg-orange-500/20 text-orange-400"}`}>
+                    {item.margin.toFixed(1)}% margin
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <p className="text-surface-500">Selling Price</p>
+                    <p className="text-white font-medium">{formatCurrency(item.price)}</p>
+                  </div>
+                  <div>
+                    <p className="text-surface-500">Cost Price</p>
+                    <p className="text-white font-medium">{formatCurrency(item.cost_price)}</p>
+                  </div>
+                  <div>
+                    <p className="text-surface-500">Price for {TARGET_MARGIN}%</p>
+                    <p className="text-emerald-400 font-medium">{formatCurrency(Math.ceil(item.suggestedPrice))}</p>
+                  </div>
+                </div>
+                {/* Margin bar */}
+                <div className="mt-2">
+                  <div className="h-1.5 bg-surface-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${isRed ? "bg-red-400" : "bg-orange-400"}`}
+                      style={{ width: `${Math.max(Math.min((item.margin / TARGET_MARGIN) * 100, 100), 0)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="pt-4 border-t border-surface-700">
+          <p className="text-[11px] text-surface-500">
+            Suggested price calculated at {TARGET_MARGIN}% gross margin target. Adjust based on market conditions.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCutCosts = () => {
+    const items = (data?.stockItems || [])
+      .filter((s) => s.cost_price > 0)
+      .map((s) => ({
+        ...s,
+        stockValue: (s.cost_price || 0) * (s.current_stock || 0),
+        margin: s.price > 0 ? ((s.price - s.cost_price) / s.price) * 100 : null,
+      }))
+      .sort((a, b) => b.cost_price - a.cost_price)
+      .slice(0, 20);
+
+    const totalStockValue = items.reduce((sum, s) => sum + s.stockValue, 0);
+    const maxCost = items[0]?.cost_price || 1;
+
+    return (
+      <div className="space-y-4">
+        {/* Summary */}
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-orange-400 flex items-center gap-2 mb-1">
+            <Scissors size={15} />
+            Top Cost Contributors
+          </h4>
+          <p className="text-2xl font-bold text-white">{formatCurrency(totalStockValue)}</p>
+          <p className="text-xs text-surface-500">Total inventory value in these {items.length} products</p>
+        </div>
+
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {items.map((item) => (
+            <div key={item.id} className="p-3 bg-surface-800 rounded-lg">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <p className="text-sm text-white truncate">{item.name}</p>
+                  <p className="text-xs text-surface-500">{item.categories?.name || "Uncategorized"}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-semibold text-white">{formatCurrency(item.cost_price)}</p>
+                  <p className="text-[10px] text-surface-500">unit cost</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="text-surface-400">
+                  Stock: {item.current_stock} {item.unit || "units"}
+                  {item.stockValue > 0 && <span className="text-orange-400 ml-1">= {formatCurrency(item.stockValue)}</span>}
+                </span>
+                {item.margin !== null && (
+                  <span className={item.margin < 20 ? "text-red-400" : item.margin < TARGET_MARGIN ? "text-orange-400" : "text-emerald-400"}>
+                    {item.margin.toFixed(1)}% margin
+                  </span>
+                )}
+              </div>
+              {/* Cost bar relative to highest-cost item */}
+              <div className="h-1.5 bg-surface-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-orange-400 rounded-full"
+                  style={{ width: `${(item.cost_price / maxCost) * 100}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="pt-4 border-t border-surface-700">
+          <p className="text-[11px] text-surface-500">
+            Focus supplier negotiations on high-cost, low-margin items. Reducing cost by 5% on top items has the biggest GP impact.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderHighMarginProducts = () => {
+    const topSellerIds = new Set((data?.topSellingProducts || []).map((p) => p.product_id));
+
+    const items = (data?.stockItems || [])
+      .filter((s) => s.price > 0 && s.cost_price > 0)
+      .map((s) => ({
+        ...s,
+        margin: ((s.price - s.cost_price) / s.price) * 100,
+        isTopSeller: topSellerIds.has(s.id),
+      }))
+      .filter((s) => s.margin >= TARGET_MARGIN)
+      .sort((a, b) => b.margin - a.margin)
+      .slice(0, 20);
+
+    const opportunities = items.filter((s) => !s.isTopSeller);
+    const alreadyTop = items.filter((s) => s.isTopSeller);
+
+    if (items.length === 0) {
+      return (
+        <div className="py-10 text-center text-surface-400 text-sm">
+          <TrendingUp size={24} className="mx-auto mb-2 text-surface-600" />
+          No products with {TARGET_MARGIN}%+ margin found. Add cost prices to products to see this analysis.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {/* Summary */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Push Opportunities</p>
+            <p className="text-lg font-bold text-emerald-400">{opportunities.length}</p>
+            <p className="text-[10px] text-surface-500">high-margin, low sales</p>
+          </div>
+          <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-3 text-center">
+            <p className="text-xs text-surface-400">Already Top Sellers</p>
+            <p className="text-lg font-bold text-primary-400">{alreadyTop.length}</p>
+            <p className="text-[10px] text-surface-500">high-margin &amp; selling well</p>
+          </div>
+        </div>
+
+        {opportunities.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2">
+              Opportunities — Push These More
+            </p>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {opportunities.map((item) => (
+                <div key={item.id} className="p-3 bg-surface-800 rounded-lg border border-emerald-500/20">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm text-white truncate">{item.name}</p>
+                      <p className="text-xs text-surface-500">{item.categories?.name || "Uncategorized"}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold text-emerald-400">{item.margin.toFixed(1)}%</p>
+                      <p className="text-[10px] text-surface-500">{formatCurrency(item.price)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 h-1.5 bg-surface-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-400 rounded-full"
+                      style={{ width: `${Math.min(item.margin, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {alreadyTop.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-primary-400 uppercase tracking-wider mb-2">
+              High-Margin Top Sellers — Keep Stocked
+            </p>
+            <div className="space-y-2 max-h-36 overflow-y-auto">
+              {alreadyTop.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-3 bg-surface-800 rounded-lg">
+                  <div className="min-w-0">
+                    <p className="text-sm text-white truncate">{item.name}</p>
+                    <p className="text-xs text-surface-500">{item.categories?.name || "Uncategorized"}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-primary-400">{item.margin.toFixed(1)}%</p>
+                    <p className="text-[10px] text-surface-500">{formatCurrency(item.price)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="pt-4 border-t border-surface-700">
+          <p className="text-[11px] text-surface-500">
+            "Opportunities" are high-margin products not currently in your top sellers. Train staff to recommend these and ensure they are always visible and in stock.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   const titles = {
     "emergency-reorder": { title: "Emergency Stock Reorder", icon: ShoppingCart },
+    "check-alternatives": { title: "Check Alternatives", icon: Package },
     "dead-stock": { title: "Dead Stock Clearance", icon: Package },
     "collections": { title: "Critical Collections", icon: DollarSign },
     "staff-actions": { title: "Staff Performance Actions", icon: Users },
+    "review-pricing": { title: "Review Pricing", icon: Tag },
+    "cut-costs": { title: "Cut Costs", icon: Scissors },
+    "high-margin": { title: "Focus High-Margin Products", icon: TrendingUp },
   };
 
   const config = titles[type] || { title: "Quick Action", icon: AlertTriangle };
@@ -309,8 +767,12 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${
               type === "emergency-reorder" ? "bg-red-500/20 text-red-400" :
+              type === "check-alternatives" ? "bg-blue-500/20 text-blue-400" :
               type === "dead-stock" ? "bg-orange-500/20 text-orange-400" :
               type === "collections" ? "bg-red-500/20 text-red-400" :
+              type === "review-pricing" ? "bg-orange-500/20 text-orange-400" :
+              type === "cut-costs" ? "bg-orange-500/20 text-orange-400" :
+              type === "high-margin" ? "bg-emerald-500/20 text-emerald-400" :
               "bg-primary-500/20 text-primary-400"
             }`}>
               <Icon size={18} />
@@ -328,9 +790,13 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
         {/* Content */}
         <div className="p-4 overflow-y-auto max-h-[60vh]">
           {type === "emergency-reorder" && renderEmergencyReorder()}
+          {type === "check-alternatives" && renderCheckAlternatives()}
           {type === "dead-stock" && renderDeadStock()}
           {type === "collections" && renderCollections()}
           {type === "staff-actions" && renderStaffActions()}
+          {type === "review-pricing" && renderReviewPricing()}
+          {type === "cut-costs" && renderCutCosts()}
+          {type === "high-margin" && renderHighMarginProducts()}
         </div>
       </div>
     </div>

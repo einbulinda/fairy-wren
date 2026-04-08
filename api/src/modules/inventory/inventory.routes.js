@@ -74,6 +74,7 @@ router.get("/ledger", controller.getInventoryLedger);
    ====================================================== */
 router.get("/reorder-policies", controller.getReorderPolicies);
 router.get("/movement-analysis", controller.getMovementAnalysis);
+router.get("/reorder-forecast", controller.getReorderForecast);
 router.get("/reorder-alerts", controller.getReorderAlerts);
 router.get("/reorder-settings", controller.getReorderSettings);
 router.patch(

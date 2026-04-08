@@ -130,6 +130,13 @@ export const fetchMovementAnalysis = async () => {
   return data.data ?? data;
 };
 
+export const fetchReorderForecast = async (lookbackDays = 14) => {
+  const { data } = await api.get("/inventory/reorder-forecast", {
+    params: { lookback_days: lookbackDays },
+  });
+  return data.data ?? data;
+};
+
 export const clearReorderOverride = async (productId) => {
   const { data } = await api.delete(
     `/inventory/reorder-policies/${productId}/override`,

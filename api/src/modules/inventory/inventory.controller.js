@@ -4,6 +4,7 @@ const receivingService = require("./services/inventory.receiving.service");
 const stockTakeService = require("./services/inventory.stocktake.service");
 const policiesService = require("./services/inventory.policies.service");
 const conversionsService = require("./services/inventory.conversions.service");
+const forecastRepo = require("./repos/inventory.forecast.repository");
 const ledgerService = require("../ledger/ledger.service");
 const { buildContext, respond } = require("../../utils/common");
 
@@ -319,6 +320,17 @@ exports.getReorderAlerts = async (req, res, next) => {
   try {
     const data = await policiesService.getReorderAlerts();
     respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getReorderForecast = async (req, res, next) => {
+  try {
+    const lookbackDays = parseInt(req.query.lookback_days) || 14;
+    const { data, error } = await forecastRepo.getReorderForecast(lookbackDays);
+    if (error) throw new Error("FAILED_TO_FETCH_REORDER_FORECAST");
+    respond(res, 200, data || []);
   } catch (err) {
     next(err);
   }

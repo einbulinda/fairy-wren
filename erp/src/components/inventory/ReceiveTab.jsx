@@ -16,7 +16,7 @@ import { inputCls } from "./inventoryUtils";
 import ProductSearchModal from "./ProductSearchModal";
 import QuickAddSupplierModal from "./QuickAddSupplierModal";
 
-const ReceiveTab = ({ onSuccess, supplierId, supplierName }) => {
+const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({
@@ -40,6 +40,13 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName }) => {
   useEffect(() => {
     setProducts(stockItems);
   }, [stockItems]);
+
+  // Pre-populate lines when navigated from Emergency Reorder
+  useEffect(() => {
+    if (initialLines && initialLines.length > 0) {
+      setLines(initialLines);
+    }
+  }, [initialLines]);
 
   const addLine = (product) => {
     setLines([

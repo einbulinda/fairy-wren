@@ -79,7 +79,7 @@ const DashboardPage = () => {
   const cogs = metrics.cogs || 0;
   const grossProfit = revenue - cogs;
   const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
-  const targetGrossMargin = metrics.targetGrossMargin || 35;
+  const targetGrossMargin = metrics.targetGrossMargin || metrics.grossMarginTarget || 35;
   const cashPosition = (metrics.cashPosition || 0) + (metrics.bankBalance || 0);
   const outstandingAmount = metrics.outstandingBills?.reduce(
     (sum, b) => sum + (Number(b.bill_total) - Number(b.paid_amount || 0)), 0

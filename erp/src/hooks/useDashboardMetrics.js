@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchDashboardMetrics } from "@/services/reports.service";
 import { fetchStockItems, fetchMovementAnalysis } from "@/services/inventory.service";
+import { fetchSettings } from "@/services/settings.service";
 
 // Enhanced hook that combines dashboard metrics with inventory data
 export const useDashboardMetrics = ({ startDate, endDate }) => {
@@ -26,12 +27,20 @@ export const useDashboardMetrics = ({ startDate, endDate }) => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch global settings (gross_margin_target, etc.)
+  const settingsQuery = useQuery({
+    queryKey: ["settings"],
+    queryFn: fetchSettings,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Combine the data
   const combinedData = dashboardQuery.data
     ? {
         ...dashboardQuery.data,
         stockItems: inventoryQuery.data || [],
         movementAnalysis: movementQuery.data || [],
+        grossMarginTarget: parseFloat(settingsQuery.data?.gross_margin_target ?? 35),
       }
     : null;
 
@@ -43,6 +52,7 @@ export const useDashboardMetrics = ({ startDate, endDate }) => {
       dashboardQuery.refetch();
       inventoryQuery.refetch();
       movementQuery.refetch();
+      settingsQuery.refetch();
     },
   };
 };

@@ -24,6 +24,7 @@ import {
   setManualReorderLevel,
   clearReorderOverride,
   fetchMovementAnalysis,
+  fetchReorderForecast,
   fetchConvertibleProducts,
   fetchConversionHistory,
   fetchTotSize,
@@ -233,6 +234,14 @@ export const useMovementAnalysis = () => {
   return useQuery({
     queryKey: ["movement-analysis"],
     queryFn: fetchMovementAnalysis,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useReorderForecast = (lookbackDays = 14) => {
+  return useQuery({
+    queryKey: ["reorder-forecast", lookbackDays],
+    queryFn: () => fetchReorderForecast(lookbackDays),
     staleTime: 5 * 60 * 1000,
   });
 };

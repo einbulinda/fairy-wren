@@ -11,6 +11,7 @@ exports.getTrackedStock = async () => {
           id,
           name,
           unit,
+          price,
           cost_price,
           category_id,
           categories!products_category_id_fkey(name),

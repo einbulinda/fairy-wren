@@ -225,6 +225,33 @@ const BusinessTargetsTab = () => {
   const [overrides, setOverrides] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Performance thresholds (global settings)
+  const { data: settings } = useSettings();
+  const updateSettings = useUpdateSettings();
+  const savedGmTarget = parseFloat(settings?.gross_margin_target ?? 35);
+  const [gmTarget, setGmTarget] = useState("");
+  const [gmEditing, setGmEditing] = useState(false);
+
+  const displayGmTarget = gmEditing ? gmTarget : savedGmTarget;
+
+  const handleGmSave = () => {
+    const val = parseFloat(gmTarget);
+    if (isNaN(val) || val < 1 || val > 100) {
+      toast.error("Enter a margin target between 1 and 100");
+      return;
+    }
+    updateSettings.mutate(
+      { gross_margin_target: val.toString() },
+      {
+        onSuccess: () => {
+          toast.success("Gross margin target updated");
+          setGmEditing(false);
+        },
+        onError: () => toast.error("Failed to update setting"),
+      },
+    );
+  };
+
   const queryClient = useQueryClient();
 
   const { data: yearlyTargets = EMPTY, isLoading: targetsLoading } = useQuery({
@@ -433,6 +460,67 @@ const BusinessTargetsTab = () => {
               Previous Month Actual + 10%
             </span>
           </p>
+        </div>
+      </div>
+
+      {/* Performance Thresholds */}
+      <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp size={16} className="text-primary-400" />
+          <h3 className="text-sm font-semibold text-white">Performance Thresholds</h3>
+          <span className="text-xs text-surface-500">— global defaults used across dashboard alerts and pricing analysis</span>
+        </div>
+
+        <div className="flex items-start gap-6 flex-wrap">
+          <div className="min-w-52">
+            <label className={labelCls}>Gross Margin Target (%)</label>
+            <div className="flex items-center gap-2">
+              {gmEditing ? (
+                <>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="0.5"
+                    value={gmTarget}
+                    onChange={(e) => setGmTarget(e.target.value)}
+                    autoFocus
+                    className="w-24 px-3 py-2 rounded-lg bg-surface-800 border border-primary-500 text-white text-sm focus:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleGmSave();
+                      if (e.key === "Escape") setGmEditing(false);
+                    }}
+                  />
+                  <button
+                    onClick={handleGmSave}
+                    disabled={updateSettings.isPending}
+                    className="p-2 rounded-lg bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white transition-colors"
+                  >
+                    {updateSettings.isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  </button>
+                  <button
+                    onClick={() => setGmEditing(false)}
+                    className="p-2 rounded-lg bg-surface-700 hover:bg-surface-600 text-surface-300 transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-2xl font-bold text-white">{savedGmTarget}%</span>
+                  <button
+                    onClick={() => { setGmTarget(savedGmTarget.toString()); setGmEditing(true); }}
+                    className="p-1.5 rounded-lg hover:bg-surface-700 text-surface-400 hover:text-white transition-colors"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                </>
+              )}
+            </div>
+            <p className="text-xs text-surface-500 mt-1.5">
+              Products priced below this threshold are flagged in the "Review Pricing" dashboard alert.
+            </p>
+          </div>
         </div>
       </div>
 

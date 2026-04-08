@@ -252,33 +252,6 @@ const ChartOfAccountsPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Stats row */}
-      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        {ACCOUNT_CLASSES.map((cls) => {
-          const Icon = cls.icon;
-          const count = accounts.filter(
-            (a) => a.account_class === cls.value && a.active,
-          ).length;
-          return (
-            <button
-              key={cls.value}
-              onClick={() =>
-                setFilterClass(filterClass === cls.value ? "all" : cls.value)
-              }
-              className={`p-3 rounded-xl border transition-all text-left ${filterClass === cls.value ? "border-primary-500 bg-primary-500/10" : "border-surface-700 bg-surface-800/50 hover:border-surface-600"}`}
-            >
-              <div className={`p-1.5 rounded-lg ${cls.bg} inline-flex mb-2`}>
-                <Icon size={14} className={cls.color} />
-              </div>
-              <div className="text-xl font-bold text-white">{count}</div>
-              <div className="text-xs text-surface-400 mt-0.5 truncate">
-                {cls.label}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
       {/* Add Account Form */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-4">

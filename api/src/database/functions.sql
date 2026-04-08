@@ -1298,88 +1298,111 @@ return new;
 end;
 $function$;
 CREATE OR REPLACE FUNCTION public.post_inventory_purchase() RETURNS trigger LANGUAGE plpgsql AS $function$
-DECLARE v_inventory_account UUID;
-v_ap_account UUID;
-v_supplier_account UUID;
-v_credit_account UUID;
-v_journal_id UUID;
-BEGIN -- ========= 1. INVENTORY MOVEMENT =========
-INSERT INTO inventory_movements (
-        product_id,
-        movement_date,
-        quantity,
-        unit_cost,
-        movement_type,
-        reference_type,
-        reference_id,
-        notes
-    )
-VALUES (
-        NEW.product_id,
-        CURRENT_DATE,
-        NEW.quantity,
-        NEW.unit_cost,
-        'purchase',
-        'inventory_receipt',
-        NEW.receipt_id,
-        'Inventory receipt – automatic posting'
-    );
--- ========= 2. JOURNAL ENTRY: DR Inventory / CR Accounts Payable =========
-SELECT inventory_account_id INTO v_inventory_account
-FROM inventory_items
-WHERE product_id = NEW.product_id;
-SELECT s.account_id INTO v_supplier_account
-FROM inventory_receipts r
+DECLARE
+  v_inventory_account  UUID;
+  v_ap_account         UUID;
+  v_supplier_account   UUID;
+  v_credit_account     UUID;
+  v_journal_id         UUID;
+  -- WAC variables (snapshot taken before movement is inserted)
+  v_pre_stock          NUMERIC;
+  v_pre_cost           NUMERIC;
+  v_new_cost           NUMERIC;
+BEGIN
+
+  -- ========= 0. SNAPSHOT pre-purchase stock & cost for WAC =========
+  -- Must happen before the inventory_movements INSERT below, because that
+  -- INSERT fires trg_update_inventory which updates products.current_stock.
+  SELECT current_stock, cost_price
+    INTO v_pre_stock, v_pre_cost
+    FROM products
+   WHERE id = NEW.product_id;
+
+  -- ========= 1. INVENTORY MOVEMENT =========
+  INSERT INTO inventory_movements (
+    product_id,
+    movement_date,
+    quantity,
+    unit_cost,
+    movement_type,
+    reference_type,
+    reference_id,
+    notes
+  ) VALUES (
+    NEW.product_id,
+    CURRENT_DATE,
+    NEW.quantity,
+    NEW.unit_cost,
+    'purchase',
+    'inventory_receipt',
+    NEW.receipt_id,
+    'Inventory receipt – automatic posting'
+  );
+
+  -- ========= 2. JOURNAL ENTRY: DR Inventory / CR Accounts Payable =========
+  SELECT inventory_account_id INTO v_inventory_account
+    FROM inventory_items
+   WHERE product_id = NEW.product_id;
+
+  SELECT s.account_id INTO v_supplier_account
+    FROM inventory_receipts r
     JOIN suppliers s ON s.id = r.supplier_id
-WHERE r.id = NEW.receipt_id;
-SELECT id INTO v_ap_account
-FROM chart_of_accounts
-WHERE code = '2100';
-v_credit_account := COALESCE(v_supplier_account, v_ap_account);
-IF v_inventory_account IS NOT NULL
-AND v_credit_account IS NOT NULL
-AND NEW.line_total > 0 THEN -- Reuse existing journal entry for this receipt, or create a new one
-SELECT id INTO v_journal_id
-FROM journal_entries
-WHERE source_type = 'inventory_receipt'
-    AND source_id = NEW.receipt_id;
-IF v_journal_id IS NULL THEN
-INSERT INTO journal_entries (
-        entry_date,
-        source_type,
-        source_id,
-        description
-    )
-VALUES (
+   WHERE r.id = NEW.receipt_id;
+
+  SELECT id INTO v_ap_account
+    FROM chart_of_accounts
+   WHERE code = '2100';
+
+  v_credit_account := COALESCE(v_supplier_account, v_ap_account);
+
+  IF v_inventory_account IS NOT NULL
+    AND v_credit_account IS NOT NULL
+    AND NEW.line_total > 0
+  THEN
+    -- Reuse existing journal entry for this receipt, or create a new one
+    SELECT id INTO v_journal_id
+      FROM journal_entries
+     WHERE source_type = 'inventory_receipt'
+       AND source_id   = NEW.receipt_id;
+
+    IF v_journal_id IS NULL THEN
+      INSERT INTO journal_entries (entry_date, source_type, source_id, description)
+      VALUES (
         CURRENT_DATE,
         'inventory_receipt',
         NEW.receipt_id,
         'Inventory purchase – ' || COALESCE(
-            (
-                SELECT invoice_number
-                FROM inventory_receipts
-                WHERE id = NEW.receipt_id
-            ),
-            'no ref'
+          (SELECT invoice_number FROM inventory_receipts WHERE id = NEW.receipt_id),
+          'no ref'
         )
-    )
-RETURNING id INTO v_journal_id;
-END IF;
-INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
-VALUES (
-        v_journal_id,
-        v_inventory_account,
-        NEW.line_total,
-        0
-    ),
-    (
-        v_journal_id,
-        v_credit_account,
-        0,
-        NEW.line_total
-    );
-END IF;
-RETURN NEW;
+      )
+      RETURNING id INTO v_journal_id;
+    END IF;
+
+    INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+    VALUES
+      (v_journal_id, v_inventory_account, NEW.line_total, 0),
+      (v_journal_id, v_credit_account,    0,              NEW.line_total);
+  END IF;
+
+  -- ========= 3. WEIGHTED AVERAGE COST UPDATE =========
+  -- Only update when a real cost is provided on the receipt line.
+  IF NEW.unit_cost IS NOT NULL AND NEW.unit_cost > 0 THEN
+    IF v_pre_stock IS NULL OR v_pre_stock <= 0 OR v_pre_cost IS NULL OR v_pre_cost <= 0 THEN
+      -- No meaningful existing stock/cost → adopt purchase price directly
+      v_new_cost := NEW.unit_cost;
+    ELSE
+      -- Standard WAC formula
+      v_new_cost := (v_pre_stock * v_pre_cost + NEW.quantity * NEW.unit_cost)
+                    / (v_pre_stock + NEW.quantity);
+    END IF;
+
+    UPDATE products
+       SET cost_price = ROUND(v_new_cost, 4)
+     WHERE id = NEW.product_id;
+  END IF;
+
+  RETURN NEW;
 END;
 $function$;
 CREATE OR REPLACE FUNCTION public.post_bill_inventory_and_cogs() RETURNS trigger LANGUAGE plpgsql AS $function$
@@ -3026,6 +3049,112 @@ WHERE p.track_inventory = TRUE
     AND p.active = TRUE
 ORDER BY days_since_last_sale DESC;
 $$;
+/*=======================================================================
+ WEEKLY REORDER FORECAST
+ Returns per-product demand velocity and recommended reorder quantities
+ based on recent sales history, split by weekday vs weekend.
+ See migration 20260409_003_reorder_forecast_function.sql for full notes.
+ ========================================================================*/
+CREATE OR REPLACE FUNCTION public.get_reorder_forecast(
+  p_lookback_days INTEGER DEFAULT 14
+)
+RETURNS TABLE (
+  product_id             UUID,
+  product_name           VARCHAR,
+  category_name          VARCHAR,
+  unit                   VARCHAR,
+  current_stock          NUMERIC,
+  cost_price             NUMERIC,
+  avg_daily_qty          NUMERIC,
+  weekday_avg_qty        NUMERIC,
+  weekend_avg_qty        NUMERIC,
+  projected_weekly_demand  NUMERIC,
+  projected_weekend_demand NUMERIC,
+  reorder_qty            INTEGER,
+  last_supplier_id       UUID,
+  last_supplier_name     VARCHAR,
+  last_unit_cost         NUMERIC
+)
+LANGUAGE plpgsql STABLE AS $function$
+DECLARE
+  v_start_date    DATE    := CURRENT_DATE - p_lookback_days;
+  v_weekday_count INTEGER;
+  v_weekend_count INTEGER;
+BEGIN
+  SELECT
+    COUNT(*) FILTER (WHERE EXTRACT(DOW FROM d) BETWEEN 1 AND 5),
+    COUNT(*) FILTER (WHERE EXTRACT(DOW FROM d) IN (0, 6))
+  INTO v_weekday_count, v_weekend_count
+  FROM generate_series(v_start_date, CURRENT_DATE - 1, '1 day'::interval) AS d;
+
+  RETURN QUERY
+  WITH
+  daily_sales AS (
+    SELECT
+      ri.product_id,
+      DATE(pm.created_at)                    AS sale_date,
+      EXTRACT(DOW FROM pm.created_at)::INTEGER AS day_of_week,
+      SUM(ri.quantity)::NUMERIC              AS daily_qty
+    FROM round_items ri
+    JOIN rounds    r  ON r.id  = ri.round_id
+    JOIN bills     b  ON b.id  = r.bill_id
+    JOIN payments  pm ON pm.bill_id = b.id
+    WHERE
+      b.status    = 'completed'
+      AND pm.is_paid = true
+      AND DATE(pm.created_at) >= v_start_date
+      AND DATE(pm.created_at) <  CURRENT_DATE
+    GROUP BY ri.product_id, DATE(pm.created_at), EXTRACT(DOW FROM pm.created_at)
+  ),
+  product_sales AS (
+    SELECT
+      product_id,
+      SUM(daily_qty)::NUMERIC / GREATEST(p_lookback_days, 1) AS avg_daily_qty,
+      COALESCE(
+        SUM(daily_qty) FILTER (WHERE day_of_week BETWEEN 1 AND 5)::NUMERIC
+          / NULLIF(v_weekday_count, 0), 0
+      ) AS weekday_avg_qty,
+      COALESCE(
+        SUM(daily_qty) FILTER (WHERE day_of_week IN (0, 6))::NUMERIC
+          / NULLIF(v_weekend_count, 0), 0
+      ) AS weekend_avg_qty
+    FROM daily_sales
+    GROUP BY product_id
+  ),
+  last_receipt AS (
+    SELECT DISTINCT ON (iri.product_id)
+      iri.product_id,
+      ir.supplier_id,
+      s.name     AS supplier_name,
+      iri.unit_cost
+    FROM inventory_receipt_items iri
+    JOIN inventory_receipts ir ON ir.id = iri.receipt_id
+    JOIN suppliers          s  ON s.id  = ir.supplier_id
+    WHERE ir.status != 'cancelled'
+    ORDER BY iri.product_id, ir.purchase_date DESC, ir.created_at DESC
+  )
+  SELECT
+    p.id, p.name, c.name, p.unit,
+    COALESCE(p.current_stock, 0),
+    COALESCE(p.cost_price, 0),
+    ROUND(ps.avg_daily_qty,     2),
+    ROUND(ps.weekday_avg_qty,   2),
+    ROUND(ps.weekend_avg_qty,   2),
+    ROUND(ps.avg_daily_qty * 7, 1),
+    ROUND(COALESCE(NULLIF(ps.weekend_avg_qty, 0), ps.avg_daily_qty) * 2, 1),
+    GREATEST(CEIL(ps.avg_daily_qty * 7 * 1.2 - COALESCE(p.current_stock, 0))::INTEGER, 0),
+    lr.supplier_id,
+    lr.supplier_name,
+    lr.unit_cost
+  FROM products p
+  LEFT JOIN categories  c  ON c.id = p.category_id
+  JOIN  product_sales   ps ON ps.product_id = p.id
+  LEFT JOIN last_receipt lr ON lr.product_id = p.id
+  WHERE p.track_inventory = true AND p.active = true
+  ORDER BY ps.avg_daily_qty DESC;
+END;
+$function$;
+
 /*=======================================================================
  PRODUCT CONVERSION
  Atomically converts source product stock into target product stock,
