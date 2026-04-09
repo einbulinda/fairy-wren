@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import {
   Loader2,
   Receipt,
-  Clock,
   Users,
   Package,
   CreditCard,
@@ -11,6 +10,10 @@ import {
   Printer,
   ChevronDown,
   ChevronRight,
+  TrendingDown,
+  TrendingUp,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { useZReport } from "@/hooks/useZReport";
 import { useZReportBills } from "@/hooks/useZReportBills";
@@ -21,6 +24,18 @@ yesterday.setDate(yesterday.getDate() - 1);
 const defaultDate = yesterday.toISOString().split("T")[0];
 
 const fmt = (n) => formatCurrency(n);
+
+const PMT_COLORS = {
+  cash: "text-emerald-400",
+  mpesa: "text-sky-400",
+  "m-pesa": "text-sky-400",
+  card: "text-violet-400",
+  cheque: "text-amber-300",
+  credit: "text-rose-400",
+};
+
+const pmtColor = (type) =>
+  PMT_COLORS[(type || "").toLowerCase()] ?? "text-cyan-400";
 
 const Section = ({ title, icon: Icon, children }) => (
   <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
@@ -38,6 +53,7 @@ const ZReportView = () => {
   const [date, setDate] = useState(defaultDate);
   const [expandedPaymentType, setExpandedPaymentType] = useState(null);
   const [expandedBill, setExpandedBill] = useState(null);
+  const [outstandingModal, setOutstandingModal] = useState(null);
 
   const { data, loading } = useZReport(date);
   const { bills: billsList, loading: billsLoading } = useZReportBills(date);
@@ -47,8 +63,8 @@ const ZReportView = () => {
   const categories = data?.categories || [];
   const products = data?.products || [];
   const servers = data?.servers || [];
-  const hourly = data?.hourly || [];
   const voids = data?.voids || [];
+  const outstanding = data?.outstanding || {};
 
   const billsByPaymentType = useMemo(() => {
     const map = {};
@@ -106,6 +122,61 @@ const ZReportView = () => {
           </button>
         </div>
       </div>
+
+      {/* Outstanding Bills Movement */}
+      <Section title="Outstanding Bills" icon={AlertCircle}>
+        {(() => {
+          const opening = Number(outstanding.opening ?? 0);
+          const added   = Number(outstanding.added   ?? 0);
+          const paid    = Number(outstanding.paid    ?? 0);
+          const closing = Number(outstanding.closing ?? 0);
+          const pct     = outstanding.change_pct != null ? Number(outstanding.change_pct) : null;
+          const improved = pct !== null && pct < 0;
+          const worsened = pct !== null && pct > 0;
+          return (
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Opening Balance", value: fmt(opening), cls: "text-gray-300",   sub: "carried forward",   modal: null },
+                  { label: "+ Added Today",   value: fmt(added),   cls: "text-amber-400",  sub: "new unpaid bills",  modal: "added" },
+                  { label: "− Paid Today",    value: fmt(paid),    cls: "text-green-400",  sub: "old bills settled", modal: "paid" },
+                  { label: "Closing Balance", value: fmt(closing), cls: closing > opening ? "text-red-400" : "text-white", sub: `${outstanding.open_count ?? 0} open bill${outstanding.open_count !== 1 ? "s" : ""}`, modal: null },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    onClick={s.modal ? () => setOutstandingModal(s.modal) : undefined}
+                    className={`bg-gray-900/50 rounded-lg p-3 space-y-1 ${s.modal ? "cursor-pointer hover:bg-gray-800/70 hover:ring-1 hover:ring-yellow-500/40 transition-all" : ""}`}
+                  >
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">{s.label}</p>
+                    <p className={`text-lg font-bold tabular-nums ${s.cls}`}>{s.value}</p>
+                    <p className="text-xs text-gray-600">{s.sub}</p>
+                    {s.modal && <p className="text-[10px] text-yellow-500/70 mt-0.5">View bills →</p>}
+                  </div>
+                ))}
+              </div>
+              {pct !== null && (
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${improved ? "bg-green-500/10 text-green-400" : worsened ? "bg-red-500/10 text-red-400" : "bg-gray-800/50 text-gray-400"}`}>
+                  {improved ? <TrendingDown size={16} /> : worsened ? <TrendingUp size={16} /> : null}
+                  {improved
+                    ? `Outstanding reduced by ${Math.abs(pct)}% — good progress on collections`
+                    : worsened
+                    ? `Outstanding grew by ${Math.abs(pct)}% — more unpaid bills than start of day`
+                    : "No change in outstanding balance"}
+                </div>
+              )}
+              {pct === null && closing === 0 && opening === 0 && (
+                <p className="text-xs text-gray-600 text-center py-1">No outstanding bills</p>
+              )}
+              {pct === null && closing > 0 && opening === 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-amber-500/10 text-amber-400">
+                  <TrendingUp size={16} />
+                  {`${outstanding.open_count ?? 0} new unpaid bill${outstanding.open_count !== 1 ? "s" : ""} opened today — no prior outstanding to compare`}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </Section>
 
       {/* Bills Summary */}
       <Section title="Bills Summary" icon={Receipt}>
@@ -199,6 +270,10 @@ const ZReportView = () => {
                                       (sum, r) => sum + (r.round_items || []).reduce((rs, i) => rs + i.quantity * i.price, 0),
                                       0,
                                     );
+                                    const billPayments = bill.payments || [];
+                                    const pmtAmount = billPayments.find((pmt) => pmt.payment_type === p.payment_type)?.amount ?? 0;
+                                    const totalPaid = billPayments.reduce((s, pmt) => s + (Number(pmt.amount) || 0), 0);
+                                    const outstanding = billTotal - totalPaid;
                                     return (
                                       <>
                                         <tr
@@ -211,7 +286,7 @@ const ZReportView = () => {
                                           </td>
                                           <td className="px-3 py-2 text-gray-200">{bill.customer_name || "—"}</td>
                                           <td className="px-3 py-2 text-gray-400">{bill.created_by_user?.name || "—"}</td>
-                                          <td className="px-3 py-2 text-right text-white font-medium tabular-nums">{fmt(billTotal)}</td>
+                                          <td className={`px-3 py-2 text-right font-medium tabular-nums ${pmtColor(p.payment_type)}`}>{fmt(pmtAmount)}</td>
                                         </tr>
                                         {isBillExpanded && billItems.length > 0 && (
                                           <tr key={`${bill.id}-items`}>
@@ -233,6 +308,30 @@ const ZReportView = () => {
                                                     </tr>
                                                   ))}
                                                 </tbody>
+                                                <tfoot>
+                                                  <tr className="border-t border-gray-600/50">
+                                                    <td colSpan={3} className="pt-2 pb-1">
+                                                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                                        {billPayments.map((pmt) => (
+                                                          <span key={pmt.payment_type} className={`font-semibold tabular-nums ${pmtColor(pmt.payment_type)}`}>
+                                                            <span className="text-gray-500 font-normal capitalize">{pmt.payment_type}: </span>
+                                                            {fmt(pmt.amount)}
+                                                          </span>
+                                                        ))}
+                                                        {outstanding > 0.005 && (
+                                                          <span className="font-semibold tabular-nums text-amber-400">
+                                                            <span className="text-gray-500 font-normal">Outstanding: </span>
+                                                            {fmt(outstanding)}
+                                                          </span>
+                                                        )}
+                                                        <span className="font-semibold tabular-nums text-white ml-auto">
+                                                          <span className="text-gray-500 font-normal">Bill Total: </span>
+                                                          {fmt(billTotal)}
+                                                        </span>
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                </tfoot>
                                               </table>
                                             </td>
                                           </tr>
@@ -335,39 +434,6 @@ const ZReportView = () => {
         </Section>
       </div>
 
-      {/* Hourly Sales */}
-      <Section title="Hourly Sales" icon={Clock}>
-        {hourly.length === 0 ? (
-          <p className="text-gray-500 text-sm p-4">No hourly data</p>
-        ) : (
-          <div className="p-4">
-            <div className="flex items-end gap-1 h-36">
-              {(() => {
-                const maxRevenue = Math.max(...hourly.map((h) => Number(h.revenue) || 0), 1);
-                return hourly.map((h) => {
-                  const pct = ((Number(h.revenue) || 0) / maxRevenue) * 100;
-                  return (
-                    <div key={h.hour} className="flex-1 flex flex-col items-center gap-1 group">
-                      <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums">
-                        {fmt(h.revenue)}
-                      </span>
-                      <div
-                        className="w-full bg-yellow-500/50 rounded-t hover:bg-yellow-400/70 transition-colors"
-                        style={{ height: `${Math.max(pct, 2)}%` }}
-                        title={`${h.hour}:00 — ${fmt(h.revenue)} (${h.orders} orders)`}
-                      />
-                      <span className="text-[10px] text-gray-500 tabular-nums">
-                        {String(h.hour).padStart(2, "0")}
-                      </span>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-        )}
-      </Section>
-
       {/* Voids */}
       {voids.length > 0 && (
         <Section title="Voided Bills" icon={XCircle}>
@@ -392,6 +458,74 @@ const ZReportView = () => {
             </tbody>
           </table>
         </Section>
+      )}
+      {/* Outstanding bills drill-down modal */}
+      {outstandingModal && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setOutstandingModal(null)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-xl max-h-[80vh] flex flex-col shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 shrink-0">
+              <h3 className="font-semibold text-white">
+                {outstandingModal === "added" ? "Bills Added Today" : "Bills Paid Today"}
+              </h3>
+              <button
+                onClick={() => setOutstandingModal(null)}
+                className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <X size={16} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {(() => {
+                const list = outstandingModal === "added"
+                  ? (outstanding.added_bills || [])
+                  : (outstanding.paid_bills || []);
+                if (list.length === 0)
+                  return <p className="text-gray-500 text-sm p-6 text-center">No bills to display</p>;
+                const isPaid = outstandingModal === "paid";
+                return (
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-900/80 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-400 uppercase">Customer</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-400 uppercase">Server</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 uppercase">Bill Total</th>
+                        {isPaid && <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 uppercase">Paid Today</th>}
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-400 uppercase">Outstanding</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700/30">
+                      {list.map((bill, i) => (
+                        <tr key={bill.id || i} className="hover:bg-gray-800/40">
+                          <td className="px-4 py-2 text-white">{bill.customer}</td>
+                          <td className="px-4 py-2 text-gray-400">{bill.server}</td>
+                          <td className="px-4 py-2 text-right text-gray-300 tabular-nums">{fmt(bill.bill_total)}</td>
+                          {isPaid && <td className="px-4 py-2 text-right text-green-400 tabular-nums">{fmt(bill.paid_today)}</td>}
+                          <td className="px-4 py-2 text-right text-amber-400 font-medium tabular-nums">{fmt(bill.outstanding)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="border-t border-gray-700/50 bg-gray-900/60">
+                      <tr>
+                        <td colSpan={isPaid ? 4 : 3} className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+                          {list.length} bill{list.length !== 1 ? "s" : ""}
+                        </td>
+                        <td className="px-4 py-2 text-right font-bold text-amber-400 tabular-nums">
+                          {fmt(list.reduce((s, b) => s + Number(b.outstanding || 0), 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

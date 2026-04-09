@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { X, Search } from "lucide-react";
-import { calculateBillTotals } from "../../utils/calculations";
+import { calculateBillPaymentInfo } from "../../utils/calculations";
 
 const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
   const [search, setSearch] = useState("");
@@ -16,7 +16,7 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
   }, [bills, search]);
 
   const totalValue = useMemo(
-    () => bills.reduce((sum, bill) => sum + calculateBillTotals(bill).total, 0),
+    () => bills.reduce((sum, bill) => sum + calculateBillPaymentInfo(bill).balanceDue, 0),
     [bills],
   );
 
@@ -48,7 +48,7 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
             {bills.length > 0 && (
               <>
                 <p className="text-sm text-gray-400 mt-1">
-                  Total:{" "}
+                  Outstanding:{" "}
                   <span className="text-pink-400 font-semibold">
                     KSh.{" "}
                     {totalValue.toLocaleString("en-KE", {
@@ -95,8 +95,9 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
         {/* Bills List */}
         <div className="overflow-y-auto space-y-3 flex-1 p-4 sm:p-6">
           {filtered.map((bill) => {
-            const totals = calculateBillTotals(bill);
+            const { total, balanceDue, amountPaid } = calculateBillPaymentInfo(bill);
             const safeRounds = bill?.rounds ?? [];
+            const hasPartialPayment = amountPaid > 0;
             return (
               <div
                 key={bill.id}
@@ -121,16 +122,24 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
                       {safeRounds.length} round
                       {safeRounds.length !== 1 ? "s" : ""}
                     </p>
+                    {hasPartialPayment && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Bill: KSh. {total.toFixed(2)} · Paid: <span className="text-emerald-400">KSh. {amountPaid.toFixed(2)}</span>
+                      </p>
+                    )}
                   </div>
 
-                  {/* Right side - Status and Total */}
+                  {/* Right side - Status and Outstanding */}
                   <div className="text-right shrink-0">
                     <div className="px-2 sm:px-3 py-1 bg-green-600 rounded-full text-xs sm:text-sm font-semibold mb-2 whitespace-nowrap">
                       Open
                     </div>
-                    <div className="text-lg sm:text-xl font-bold text-pink-500  whitespace-nowrap">
-                      KSh. {totals.total.toFixed(2)}
+                    <div className="text-lg sm:text-xl font-bold text-pink-500 whitespace-nowrap">
+                      KSh. {balanceDue.toFixed(2)}
                     </div>
+                    {hasPartialPayment && (
+                      <p className="text-xs text-amber-400 mt-0.5">outstanding</p>
+                    )}
                   </div>
                 </div>
               </div>
