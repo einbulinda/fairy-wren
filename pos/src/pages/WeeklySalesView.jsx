@@ -77,7 +77,7 @@ const usePeriodSales = (startDate, endDate) => {
     if (!startDate || !endDate) return;
     let cancelled = false;
     setLoading(true);
-    BillsService.list({ startDate, endDate, status: "paid,awaiting_confirmation", limit: 1000 })
+    BillsService.list({ startDate, endDate, status: "completed,awaiting_confirmation", limit: 1000 })
       .then(({ bills }) => { if (!cancelled) setData(bills || []); })
       .catch(() => { if (!cancelled) setData([]); })
       .finally(() => { if (!cancelled) setLoading(false); });

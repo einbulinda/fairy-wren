@@ -177,6 +177,7 @@ exports.exchangeItem = async (billId, payload, context) => {
     bill_id: billId,
     round_number: roundNumber,
     created_by: context.userId,
+    exchanged_by: authorizer.id,
   });
   if (roundError) throw new Error("FAILED_TO_CREATE_EXCHANGE_ROUND");
 
