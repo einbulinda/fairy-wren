@@ -6,7 +6,9 @@ const {
   CreateBillDTO,
   UpdateBillStatusDTO,
   VoidBillDTO,
+  ExchangeItemDTO,
 } = require("./bills.dto");
+const authService = require("../auth/auth.service");
 
 // Lazy load broadcast to ensure socket server is initialized first
 let broadcast;
@@ -36,7 +38,10 @@ exports.createBill = async (payload, context) => {
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    console.error("[BillsService] Failed to broadcast bill:created:", err.message);
+    console.error(
+      "[BillsService] Failed to broadcast bill:created:",
+      err.message,
+    );
   }
 
   await auditRepo.log({
@@ -58,6 +63,7 @@ exports.getBill = async (id) => {
 
 exports.listBills = async (filters) => {
   const { data, error, pagination } = await repo.listBills(filters);
+  console.log("FAILED TO FETCH BILLS", error);
   if (error) throw new Error("FAILED_TO_FETCH_BILLS");
   return { bills: data, pagination };
 };
@@ -106,7 +112,10 @@ exports.voidBill = async (id, context) => {
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    console.error("[BillsService] Failed to broadcast bill:voided:", err.message);
+    console.error(
+      "[BillsService] Failed to broadcast bill:voided:",
+      err.message,
+    );
   }
 
   await auditRepo.log({
@@ -118,6 +127,128 @@ exports.voidBill = async (id, context) => {
   });
 
   return { id, status: "void" };
+};
+
+/* ---------- Item Exchange ---------- */
+
+exports.exchangeItem = async (billId, payload, context) => {
+  const dto = ExchangeItemDTO(payload);
+
+  if (!dto.returned_item_id) throw new Error("RETURNED_ITEM_REQUIRED");
+  if (!dto.returned_quantity || dto.returned_quantity < 1)
+    throw new Error("INVALID_RETURNED_QUANTITY");
+  if (!dto.replacement_product_id)
+    throw new Error("REPLACEMENT_PRODUCT_REQUIRED");
+  if (dto.replacement_quantity < 1)
+    throw new Error("INVALID_REPLACEMENT_QUANTITY");
+  if (dto.replacement_price < 0) throw new Error("INVALID_REPLACEMENT_PRICE");
+  if (!dto.authorizer_pin) throw new Error("AUTHORIZER_PIN_REQUIRED");
+
+  // 1. Verify PIN — check the authorizer's role has exchange_items permission
+  const authorizer = await authService.verifyPinForAction(
+    dto.authorizer_pin,
+    "exchange_items",
+  );
+
+  // 2. Confirm bill is open
+  const { data: bill, error: billError } = await repo.findBillById(billId);
+  if (billError || !bill) throw new Error("BILL_NOT_FOUND");
+  if (bill.status !== "open") throw new Error("BILL_NOT_OPEN");
+
+  // 3. Validate returned item belongs to this bill and was created ≤ 6 hours ago
+  const { data: roundItem, error: itemError } = await repo.findRoundItemById(
+    dto.returned_item_id,
+  );
+  if (itemError || !roundItem) throw new Error("ROUND_ITEM_NOT_FOUND");
+  if (roundItem.round.bill_id !== billId)
+    throw new Error("ITEM_NOT_ON_THIS_BILL");
+  if (roundItem.is_exchanged) throw new Error("ITEM_ALREADY_EXCHANGED");
+  if (!roundItem.inventory_posted) throw new Error("ITEM_NOT_YET_POSTED");
+  if (dto.returned_quantity > roundItem.quantity)
+    throw new Error("INVALID_RETURNED_QUANTITY");
+
+  const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const roundCreatedAt = new Date(roundItem.round.created_at);
+  if (roundCreatedAt < sixHoursAgo) throw new Error("EXCHANGE_WINDOW_EXPIRED");
+
+  // 4. Create an exchange round containing both the return line and the replacement line
+  const roundNumber = await repo.getNextRoundNumber(billId);
+  const { data: newRound, error: roundError } = await repo.createRound({
+    bill_id: billId,
+    round_number: roundNumber,
+    created_by: context.userId,
+  });
+  if (roundError) throw new Error("FAILED_TO_CREATE_EXCHANGE_ROUND");
+
+  // Return line: is_return = true, inventory_posted = true (post_round_sale skips it;
+  //   inventory reversal handled separately by reverse_round_item below)
+  // Replacement line: is_return = false, inventory_posted = false (post_round_sale will process it)
+  const { error: insertError } = await repo.insertRoundItems([
+    {
+      round_id: newRound.id,
+      product_id: roundItem.product_id,
+      quantity: dto.returned_quantity,
+      price: roundItem.price,
+      is_return: true,
+      inventory_posted: true,
+    },
+    {
+      round_id: newRound.id,
+      product_id: dto.replacement_product_id,
+      quantity: dto.replacement_quantity,
+      price: dto.replacement_price,
+      is_return: false,
+      inventory_posted: false,
+    },
+  ]);
+  if (insertError) throw new Error("FAILED_TO_INSERT_EXCHANGE_ITEMS");
+
+  // 5. Post inventory + revenue for replacement item only
+  //    (post_round_sale skips items with inventory_posted = true, so return line is safe)
+  const { error: saleError } = await repo.postRoundSale(newRound.id);
+  if (saleError) throw new Error("FAILED_TO_POST_REPLACEMENT_SALE");
+
+  // 6. Reverse inventory for original returned item
+  const { error: reversalError } = await repo.reverseRoundItem(
+    dto.returned_item_id,
+    dto.returned_quantity,
+  );
+  console.log("ERROR", reversalError);
+  if (reversalError) throw new Error("FAILED_TO_REVERSE_ITEM");
+
+  // 7. Broadcast
+  try {
+    getBroadcast()("item:exchanged", {
+      billId,
+      returnedItemId: dto.returned_item_id,
+      newRoundId: newRound.id,
+      authorizedBy: authorizer.id,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error(
+      "[BillsService] Failed to broadcast item:exchanged:",
+      err.message,
+    );
+  }
+
+  await auditRepo.log({
+    entity: "round_items",
+    entity_id: dto.returned_item_id,
+    action: "ITEM_EXCHANGED",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
+    metadata: {
+      bill_id: billId,
+      returned_item_id: dto.returned_item_id,
+      replacement_product_id: dto.replacement_product_id,
+      replacement_price: dto.replacement_price,
+      authorized_by: authorizer.id,
+      authorized_by_name: authorizer.name,
+    },
+  });
+
+  return { success: true, new_round_id: newRound.id };
 };
 
 /* ---------- Stats ---------- */
@@ -281,7 +412,10 @@ exports.addRound = async (billId, payload, context) => {
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    console.error("[BillsService] Failed to broadcast round:created:", err.message);
+    console.error(
+      "[BillsService] Failed to broadcast round:created:",
+      err.message,
+    );
   }
 
   await auditRepo.log({

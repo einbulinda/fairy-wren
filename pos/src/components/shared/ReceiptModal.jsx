@@ -1,5 +1,5 @@
 import { X, Printer } from "lucide-react";
-import { calculateBillTotals } from "../../utils/calculations";
+import { calculateBillTotals, itemLineTotal } from "../../utils/calculations";
 import { RECEIPT_LOGO_BASE64 } from "../../utils/receiptAssets";
 import { printReceipt, titleCase } from "../../utils/common";
 
@@ -72,13 +72,15 @@ const ReceiptModal = ({ bill, onClose }) => {
             </div>
             {round.round_items.map((item) => (
               <div key={item.id} className="thermal-item">
-                <div className="thermal-item-name">{item.product.name}</div>
+                <div className="thermal-item-name">
+                  {item.is_return ? "*** RETURN ***  " : ""}{item.product.name}
+                </div>
                 <div className="thermal-item-details">
                   <span>
                     {item.quantity} x {item.price.toLocaleString()}
                   </span>
                   <span className="thermal-item-total">
-                    {(item.price * item.quantity).toLocaleString()}
+                    {item.is_return ? "-" : ""}{(item.price * item.quantity).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -260,8 +262,9 @@ const ReceiptModal = ({ bill, onClose }) => {
                       </span>
                     </div>
                     {round.round_items.map((item) => (
-                      <div key={item.id} className="space-y-0.5">
-                        <div className="text-xs font-bold text-white">
+                      <div key={item.id} className={`space-y-0.5 ${item.is_return ? "opacity-75" : ""}`}>
+                        <div className={`text-xs font-bold ${item.is_return ? "text-red-400 line-through" : "text-white"}`}>
+                          {item.is_return && <span className="no-underline not-italic text-red-400 mr-1">[RETURN]</span>}
                           {item.product.name}
                         </div>
                         <div className="flex justify-between text-xs">
@@ -269,11 +272,9 @@ const ReceiptModal = ({ bill, onClose }) => {
                             {item.quantity} x KSh.{" "}
                             {item.price.toLocaleString("en-KE")}
                           </span>
-                          <span className="text-pink-400 font-bold">
-                            KSh.{" "}
-                            {(item.price * item.quantity).toLocaleString(
-                              "en-KE",
-                            )}
+                          <span className={`font-bold ${item.is_return ? "text-red-400" : "text-pink-400"}`}>
+                            {item.is_return ? "-" : ""}KSh.{" "}
+                            {(item.price * item.quantity).toLocaleString("en-KE")}
                           </span>
                         </div>
                       </div>

@@ -1,18 +1,19 @@
+// Return lines carry is_return = true; their value is subtracted from the total.
+export const itemLineTotal = (item) => {
+  const value = parseFloat(item.price) * parseInt(item.quantity);
+  return item.is_return ? -value : value;
+};
+
 export const calculateBillTotals = (bill) => {
   if (!bill || !bill.rounds) return { subtotal: 0, total: 0 };
 
   const allItems = bill.rounds.flatMap((round) => round.round_items || []);
 
-  const subtotal = allItems.reduce(
-    (sum, item) => sum + parseFloat(item.price) * parseInt(item.quantity),
-    0
-  );
-
-  const total = subtotal;
+  const subtotal = allItems.reduce((sum, item) => sum + itemLineTotal(item), 0);
 
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
-    total: parseFloat(total.toFixed(2)),
+    total: parseFloat(subtotal.toFixed(2)),
   };
 };
 

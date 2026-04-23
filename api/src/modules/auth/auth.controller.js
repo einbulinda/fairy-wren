@@ -63,3 +63,13 @@ exports.changePin = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.verifyPin = async (req, res, next) => {
+  try {
+    const { pin, required_permission = "exchange_items" } = req.body;
+    const user = await service.verifyPinForAction(pin, required_permission);
+    respond(res, 200, { user });
+  } catch (err) {
+    next(err);
+  }
+};

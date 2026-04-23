@@ -79,3 +79,12 @@ exports.addRound = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.exchangeItem = async (req, res, next) => {
+  try {
+    const data = await service.exchangeItem(req.params.id, req.body, buildContext(req));
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};

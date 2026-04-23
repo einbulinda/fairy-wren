@@ -29,6 +29,7 @@ import PaymentModal from "../components/pos/PaymentModal";
 import CurrentBill from "../components/bills/CurrentBill";
 import ConfirmPaymentsView from "../components/pos/ConfirmPaymentsView";
 import ConfirmModal from "../components/shared/ConfirmModal";
+import ExchangeModal from "../components/bills/ExchangeModal";
 
 const POSScreen = () => {
   const { user } = useAuth();
@@ -46,6 +47,7 @@ const POSScreen = () => {
     createBill,
     voidBill,
     addRound: addRoundService,
+    exchangeItem: exchangeItemService,
     reload: reloadBills,
     loading: billsLoading,
     error: billsError,
@@ -88,6 +90,8 @@ const POSScreen = () => {
 
   const [showMyBillsModal, setShowMyBillsModal] = useState(false);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
+  const [showExchangeModal, setShowExchangeModal] = useState(false);
+  const [exchangeLoading, setExchangeLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Show error toast only once when billsError changes
@@ -452,6 +456,28 @@ const POSScreen = () => {
       console.error(error);
     }
   }, [activeBill, reloadBills, voidBill]);
+
+  const handleExchangeItem = useCallback(async (payload) => {
+    if (!activeBill) return;
+    setExchangeLoading(true);
+    try {
+      await exchangeItemService(activeBill.id, payload);
+      // Refresh the active bill from updated store
+      const freshBill = bills.find((b) => b.id === activeBill.id);
+      if (freshBill) setActiveBill(freshBill);
+      setShowExchangeModal(false);
+      toast.success("Item exchanged successfully");
+    } catch (error) {
+      // normalizeError throws response.data directly: { error: { code, message } }
+      const msg =
+        error?.error?.message ||
+        error?.message ||
+        "Failed to exchange item";
+      toast.error(msg);
+    } finally {
+      setExchangeLoading(false);
+    }
+  }, [activeBill, bills, exchangeItemService]);
 
   const handleOpenPaymentModal = useCallback(() => {
     if (currentRoundItems.length > 0) {
@@ -845,6 +871,7 @@ const POSScreen = () => {
                   onOpenPayment={handleOpenPaymentModal}
                   onVoidBill={handleVoidBill}
                   onShowReceipt={() => setShowReceiptModal(true)}
+                  onExchangeItem={() => setShowExchangeModal(true)}
                   isAddingRound={addingRound}
                   stockWarnings={stockWarnings}
                 />
@@ -865,6 +892,7 @@ const POSScreen = () => {
                     onOpenPayment={handleOpenPaymentModal}
                     onVoidBill={handleVoidBill}
                     onShowReceipt={() => setShowReceiptModal(true)}
+                    onExchangeItem={() => setShowExchangeModal(true)}
                     isAddingRound={addingRound}
                     stockWarnings={stockWarnings}
                   />
@@ -984,6 +1012,16 @@ const POSScreen = () => {
         <ReceiptModal
           bill={activeBill}
           onClose={() => setShowReceiptModal(false)}
+        />
+      )}
+
+      {showExchangeModal && activeBill && (
+        <ExchangeModal
+          bill={activeBill}
+          products={products}
+          onExchange={handleExchangeItem}
+          onClose={() => setShowExchangeModal(false)}
+          loading={exchangeLoading}
         />
       )}
 

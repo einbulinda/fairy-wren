@@ -14,3 +14,12 @@ exports.UpdateBillStatusDTO = (payload) => ({
 exports.VoidBillDTO = (payload) => ({
   reason: payload?.reason || "Bill voided by user",
 });
+
+exports.ExchangeItemDTO = (payload) => ({
+  returned_item_id: payload.returned_item_id || null,
+  returned_quantity: parseInt(payload.returned_quantity) || 1,
+  replacement_product_id: payload.replacement_product_id || null,
+  replacement_quantity: parseInt(payload.replacement_quantity) || 1,
+  replacement_price: parseFloat(payload.replacement_price) || 0,
+  authorizer_pin: payload.authorizer_pin || null,
+});

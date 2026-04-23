@@ -13,11 +13,13 @@ import {
   PackagePlus,
   AlertTriangle,
   Loader2,
+  ArrowLeftRight,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   calculateBillTotals,
   calculateBillPaymentInfo,
+  itemLineTotal,
 } from "../../utils/calculations";
 
 const CurrentBill = ({
@@ -30,6 +32,7 @@ const CurrentBill = ({
   onOpenPayment,
   onVoidBill,
   onShowReceipt,
+  onExchangeItem,
   isAddingRound = false,
   stockWarnings = {},
 }) => {
@@ -45,6 +48,23 @@ const CurrentBill = ({
   const currentRoundTotal = calculateCurrentRoundTotal();
   const billTotals = calculateBillTotals(bill);
   const paymentInfo = bill ? calculateBillPaymentInfo(bill) : null;
+
+  const hasRecentItems = useMemo(() => {
+    const now = new Date();
+    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    return bill?.rounds?.some(
+      (r) =>
+        new Date(r.created_at) >= sixHoursAgo &&
+        (r.round_items || []).some((i) => !i.is_return && i.inventory_posted),
+    ) ?? false;
+  }, [bill]);
+
+  const canVoid = useMemo(() => {
+    if (!bill) return false;
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return new Date(bill.created_at) >= twentyFourHoursAgo;
+  }, [bill]);
   const hasStockWarnings = Object.keys(stockWarnings).length > 0;
   const hasCriticalStockError = Object.values(stockWarnings).some(
     (w) => w?.severity === "error",
@@ -184,10 +204,10 @@ const CurrentBill = ({
                           <div className="text-xs font-mono font-bold text-pink-400">
                             KSh{" "}
                             {(
-                              round.round_items?.reduce(
-                                (sum, item) => sum + item.price * item.quantity,
+                              (round.items || round.round_items || []).reduce(
+                                (sum, item) => sum + itemLineTotal(item),
                                 0,
-                              ) || 0
+                              )
                             ).toFixed(2)}
                           </div>
                         </div>
@@ -196,14 +216,15 @@ const CurrentBill = ({
                             (item) => (
                               <div
                                 key={item.id}
-                                className="flex justify-between text-xs"
+                                className={`flex justify-between text-xs ${item.is_return ? "opacity-70" : ""}`}
                               >
-                                <span className="text-gray-300">
+                                <span className={item.is_return ? "text-red-400 line-through" : "text-gray-300"}>
                                   {item.quantity}x{" "}
                                   {item.name || item.product?.name}
+                                  {item.is_return && " (RETURN)"}
                                 </span>
-                                <span className="font-mono text-gray-400">
-                                  KSh {(item.price * item.quantity).toFixed(2)}
+                                <span className={`font-mono ${item.is_return ? "text-red-400" : "text-gray-400"}`}>
+                                  {item.is_return ? "-" : ""}KSh {(item.price * item.quantity).toFixed(2)}
                                 </span>
                               </div>
                             ),
@@ -491,10 +512,26 @@ const CurrentBill = ({
               </button>
             )}
 
-            {/* Void Bill Button */}
+            {/* Exchange Item Button — only when there are posted items within last 6 hours */}
+            {hasRecentItems && (
+              <button
+                onClick={onExchangeItem}
+                className="w-full py-3 bg-amber-900/30 border-2 border-amber-500/30 hover:bg-amber-900/50 hover:border-amber-500/50 active:scale-95 text-amber-400 hover:text-amber-300 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation"
+              >
+                <ArrowLeftRight size={18} />
+                Exchange Item
+              </button>
+            )}
+
+            {/* Void Bill Button — disabled after 24 hours */}
             <button
-              onClick={onVoidBill}
-              className="w-full py-3 bg-red-900/30 border-2 border-red-500/30 hover:bg-red-900/50 hover:border-red-500/50 active:scale-95 text-red-400 hover:text-red-300 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation"
+              onClick={canVoid ? onVoidBill : undefined}
+              disabled={!canVoid}
+              className={`w-full py-3 border-2 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation ${
+                canVoid
+                  ? "bg-red-900/30 border-red-500/30 hover:bg-red-900/50 hover:border-red-500/50 active:scale-95 text-red-400 hover:text-red-300"
+                  : "border-gray-700/30 bg-gray-800/20 text-gray-600 cursor-not-allowed opacity-50"
+              }`}
             >
               <AlertCircle size={18} />
               Void Bill

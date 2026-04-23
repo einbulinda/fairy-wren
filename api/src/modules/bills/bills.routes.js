@@ -16,4 +16,7 @@ router.delete("/:id", controller.voidBill);
 // Rounds (POS ordering waves)
 router.post("/:id/rounds", controller.addRound);
 
+// Item exchange (return item + add replacement)
+router.post("/:id/exchange", controller.exchangeItem);
+
 module.exports = router;

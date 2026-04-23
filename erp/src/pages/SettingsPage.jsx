@@ -115,6 +115,11 @@ const CAPABILITIES = [
     label: "Weekly Sales",
     description: "Can view the weekly sales summary on POS",
   },
+  {
+    key: "exchange_items",
+    label: "Approve Item Exchanges",
+    description: "Can authorize item exchanges on open bills",
+  },
 ];
 
 const formatCurrency = (value) =>
@@ -154,6 +159,7 @@ const FIELDS = [
 
 const OrganisationTab = () => {
   const { data: settings, isLoading } = useSettings();
+  const { data: systemRoles = [] } = useSystemRoles();
   const updateMutation = useUpdateSettings();
   const [form, setForm] = useState({});
 
@@ -212,6 +218,33 @@ const OrganisationTab = () => {
             />
           </div>
         ))}
+      </div>
+
+      {/* POS Operations */}
+      <div className="mt-6 pt-6 border-t border-surface-700">
+        <h3 className="text-sm font-semibold text-surface-200 mb-1">POS Operations</h3>
+        <p className="text-xs text-surface-400 mb-4">
+          Configure operational controls for the point-of-sale system.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label className={labelCls}>Exchange Approver Role</label>
+            <select
+              className={inputCls}
+              value={form.exchange_approver_role ?? "manager"}
+              onChange={(e) => handleChange("exchange_approver_role", e.target.value)}
+            >
+              {systemRoles.map((r) => (
+                <option key={r.code} value={r.code}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-surface-500 mt-1">
+              PIN from a user with this role (or owner) is required to authorize an item exchange.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

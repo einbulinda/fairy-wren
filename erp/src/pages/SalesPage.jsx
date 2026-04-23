@@ -114,6 +114,12 @@ const computeItemCount = (bill) =>
     0,
   ) || 0;
 
+const computePaidAmount = (bill) =>
+  (bill.payments || []).reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+
+const computeOutstanding = (bill) =>
+  Math.max(0, computeBillTotal(bill) - computePaidAmount(bill));
+
 const SalesPage = () => {
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
@@ -221,7 +227,9 @@ const SalesPage = () => {
       Customer: bill.customer_name || "Walk-in",
       Status: STATUS_LABEL[bill.status] || bill.status,
       Items: computeItemCount(bill),
-      "Total (KES)": computeBillTotal(bill),
+      "Bill Total": computeBillTotal(bill),
+      "Paid Amount": computePaidAmount(bill),
+      Outstanding: computeOutstanding(bill),
       "Created By": bill.created_by_user?.name || "—",
       Date: fmtDate(bill.created_at),
     }));
@@ -230,6 +238,8 @@ const SalesPage = () => {
       { wch: 20 },
       { wch: 12 },
       { wch: 8 },
+      { wch: 15 },
+      { wch: 15 },
       { wch: 15 },
       { wch: 20 },
       { wch: 15 },
@@ -324,12 +334,37 @@ const SalesPage = () => {
     },
     {
       key: "total",
-      label: "Total (KES)",
+      label: "Bill Total",
       align: "right",
       sortable: true,
       cellClassName: "text-white font-medium tabular-nums",
       sortFn: (a, b) => computeBillTotal(a) - computeBillTotal(b),
       render: (_val, row) => fmt(computeBillTotal(row)),
+    },
+    {
+      key: "paid_amount",
+      label: "Paid Amount",
+      align: "right",
+      sortable: true,
+      cellClassName: "text-emerald-400 tabular-nums",
+      sortFn: (a, b) => computePaidAmount(a) - computePaidAmount(b),
+      render: (_val, row) => fmt(computePaidAmount(row)),
+    },
+    {
+      key: "outstanding",
+      label: "Outstanding",
+      align: "right",
+      sortable: true,
+      cellClassName: "tabular-nums",
+      sortFn: (a, b) => computeOutstanding(a) - computeOutstanding(b),
+      render: (_val, row) => {
+        const amt = computeOutstanding(row);
+        return (
+          <span className={amt > 0 ? "text-amber-400 font-medium" : "text-surface-500"}>
+            {fmt(amt)}
+          </span>
+        );
+      },
     },
     {
       key: "created_by",
@@ -351,6 +386,25 @@ const SalesPage = () => {
       render: (_val, row) => fmtDate(row.created_at),
     },
   ];
+
+  const billFooter = (
+    <tr className="font-bold">
+      <td className="px-4 py-3 text-surface-400 text-xs uppercase tracking-wide" colSpan={3}>
+        Totals — {filtered.length} bill{filtered.length !== 1 ? "s" : ""}
+      </td>
+      <td className="px-4 py-3 text-right text-white tabular-nums">
+        {fmt(filtered.reduce((s, b) => s + computeBillTotal(b), 0))}
+      </td>
+      <td className="px-4 py-3 text-right text-emerald-400 tabular-nums">
+        {fmt(filtered.reduce((s, b) => s + computePaidAmount(b), 0))}
+      </td>
+      <td className="px-4 py-3 text-right text-amber-400 tabular-nums">
+        {fmt(filtered.reduce((s, b) => s + computeOutstanding(b), 0))}
+      </td>
+      <td className="px-4 py-3 hidden lg:table-cell" />
+      <td className="px-4 py-3" />
+    </tr>
+  );
 
   const productColumns = [
     {
@@ -893,6 +947,7 @@ const SalesPage = () => {
                     }
                     expandedRow={renderBillExpandedRow}
                     emptyMessage="No bills found for this period"
+                    footer={billFooter}
                   />
                 </div>
 

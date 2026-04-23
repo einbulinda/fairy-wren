@@ -131,6 +131,32 @@ exports.endSession = async (userId, reason, context) => {
   });
 };
 
+exports.verifyPinForAction = async (pin, requiredPermission) => {
+  if (!pin) throw new Error('INVALID_CREDENTIALS');
+
+  const fingerprint = crypto
+    .createHmac('sha256', process.env.PIN_PEPPER)
+    .update(String(pin))
+    .digest('hex');
+
+  const { data: user, error } = await repo.findActiveUserByFingerprint(fingerprint);
+  if (error || !user) throw new Error('INVALID_CREDENTIALS');
+
+  const valid = await bcrypt.compare(String(pin), user.pin_hash);
+  if (!valid) throw new Error('INVALID_CREDENTIALS');
+
+  const permissions = await getPermissionsForRole(user.role);
+  const isAuthorized =
+    user.role === 'admin' ||
+    user.role === 'owner' ||
+    permissions.includes(requiredPermission);
+
+  if (!isAuthorized) throw new Error('INSUFFICIENT_PERMISSIONS');
+
+  return { id: user.id, name: user.name, role: user.role, permissions };
+};
+
+
 exports.changePin = async (userId, payload, context) => {
   const userRepo = require("../users/users.repository");
 

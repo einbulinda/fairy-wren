@@ -1,162 +1,269 @@
-import { useState } from "react";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Clock, Copy, Search } from "lucide-react";
-import toast from "react-hot-toast";
-import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
+import { useState, useMemo } from "react";
+import { Clock, Search, Download, X } from "lucide-react";
+import * as XLSX from "xlsx";
+import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
+import PaginatedTable from "@/components/shared/PaginatedTable";
+import { fmtDate } from "@/utils/formatters";
+
+const fmtAmt = (n) =>
+  new Intl.NumberFormat("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0);
+
+const getDaysColor = (days) => {
+  if (days >= 30) return "text-red-400";
+  if (days >= 14) return "text-orange-400";
+  if (days >= 7) return "text-yellow-400";
+  return "text-surface-400";
+};
+
+const calcDays = (createdAt) =>
+  Math.ceil(Math.abs(new Date() - new Date(createdAt)) / (1000 * 60 * 60 * 24));
 
 const OutstandingBillsTable = ({ data }) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState("days_outstanding");
-  const [sortDirection, setSortDirection] = useState("desc");
   const [search, setSearch] = useState("");
-  const itemsPerPage = 10;
 
-  const calculateDaysOutstanding = (createdAt) => {
-    const diffTime = Math.abs(new Date() - new Date(createdAt));
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const enhancedData = useMemo(
+    () =>
+      (data || []).map((item) => ({
+        ...item,
+        days_outstanding: calcDays(item.created_at),
+        customer_name: item.customer_name || item.customer?.name || "Walk-in Customer",
+        served_by: item.served_by || item.user?.name || "Unknown",
+        balance: (parseFloat(item.bill_total) || 0) - (parseFloat(item.paid_amount) || 0),
+      })),
+    [data],
+  );
+
+  const filteredData = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return enhancedData;
+    return enhancedData.filter(
+      (b) =>
+        b.customer_name.toLowerCase().includes(q) ||
+        b.served_by.toLowerCase().includes(q),
+    );
+  }, [enhancedData, search]);
+
+  const totals = useMemo(
+    () => ({
+      billTotal: filteredData.reduce((s, b) => s + parseFloat(b.bill_total || 0), 0),
+      paid: filteredData.reduce((s, b) => s + parseFloat(b.paid_amount || 0), 0),
+      balance: filteredData.reduce((s, b) => s + b.balance, 0),
+    }),
+    [filteredData],
+  );
+
+  const exportToExcel = () => {
+    const rows = filteredData.map((b) => ({
+      Customer: b.customer_name,
+      Staff: b.served_by,
+      Date: fmtDate(b.created_at),
+      "Days Outstanding": b.days_outstanding,
+      "Bill Total (KES)": parseFloat(b.bill_total || 0),
+      "Paid Amount (KES)": parseFloat(b.paid_amount || 0),
+      "Balance (KES)": b.balance,
+    }));
+    rows.push({
+      Customer: "TOTALS",
+      Staff: "",
+      Date: "",
+      "Days Outstanding": "",
+      "Bill Total (KES)": totals.billTotal,
+      "Paid Amount (KES)": totals.paid,
+      "Balance (KES)": totals.balance,
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 15 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Outstanding Bills");
+    XLSX.writeFile(wb, `outstanding-bills-${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
-  const copyBillId = (billId) => { navigator.clipboard.writeText(billId); toast.success("Bill ID copied!"); };
+  const columns = [
+    {
+      key: "customer_name",
+      label: "Customer",
+      sortable: true,
+      cellClassName: "text-white font-medium",
+    },
+    {
+      key: "served_by",
+      label: "Staff",
+      sortable: true,
+      headerClassName: "hidden lg:table-cell",
+      cellClassName: "hidden lg:table-cell text-surface-300",
+    },
+    {
+      key: "created_at",
+      label: "Date",
+      sortable: true,
+      cellClassName: "text-surface-300",
+      sortFn: (a, b) => new Date(a.created_at) - new Date(b.created_at),
+      render: (val) => fmtDate(val),
+    },
+    {
+      key: "days_outstanding",
+      label: "Days Out",
+      sortable: true,
+      align: "right",
+      render: (val) => (
+        <div className="flex items-center justify-end gap-1">
+          <Clock className={`w-3 h-3 ${getDaysColor(val)}`} />
+          <span className={`font-semibold tabular-nums ${getDaysColor(val)}`}>{val}</span>
+        </div>
+      ),
+    },
+    {
+      key: "bill_total",
+      label: "Bill Total",
+      sortable: true,
+      align: "right",
+      cellClassName: "text-surface-300 tabular-nums",
+      sortFn: (a, b) => parseFloat(a.bill_total || 0) - parseFloat(b.bill_total || 0),
+      render: (val) => fmtAmt(parseFloat(val || 0)),
+    },
+    {
+      key: "paid_amount",
+      label: "Paid",
+      sortable: true,
+      align: "right",
+      cellClassName: "text-emerald-400 tabular-nums",
+      sortFn: (a, b) => parseFloat(a.paid_amount || 0) - parseFloat(b.paid_amount || 0),
+      render: (val) => fmtAmt(parseFloat(val || 0)),
+    },
+    {
+      key: "balance",
+      label: "Balance",
+      sortable: true,
+      align: "right",
+      sortFn: (a, b) => a.balance - b.balance,
+      render: (val) => (
+        <span
+          className={`font-semibold tabular-nums ${val > 0 ? "text-red-400" : "text-surface-400"}`}
+        >
+          {fmtAmt(val)}
+        </span>
+      ),
+    },
+  ];
 
-  const enhancedData = (data || []).map((item) => ({
-    ...item,
-    days_outstanding: calculateDaysOutstanding(item.created_at),
-    customer_name: item.customer_name || item.customer?.name || "Walk-in Customer",
-    served_by: item.served_by || item.user?.name || "Unknown",
-  }));
+  const footer = (
+    <tr className="font-bold">
+      <td
+        className="px-4 py-3 text-surface-400 text-xs uppercase tracking-wide"
+        colSpan={4}
+      >
+        Totals — {filteredData.length} bill{filteredData.length !== 1 ? "s" : ""}
+      </td>
+      <td className="px-4 py-3 text-right text-surface-300 tabular-nums">
+        {fmtAmt(totals.billTotal)}
+      </td>
+      <td className="px-4 py-3 text-right text-emerald-400 tabular-nums">
+        {fmtAmt(totals.paid)}
+      </td>
+      <td className="px-4 py-3 text-right text-red-400 tabular-nums">
+        {fmtAmt(totals.balance)}
+      </td>
+    </tr>
+  );
 
-  const searchLower = search.toLowerCase();
-  const filteredData = searchLower
-    ? enhancedData.filter((b) =>
-        b.customer_name.toLowerCase().includes(searchLower) ||
-        b.served_by.toLowerCase().includes(searchLower) ||
-        b.bill_id?.toLowerCase().includes(searchLower)
-      )
-    : enhancedData;
-
-  const sortedData = [...filteredData].sort((a, b) => {
-    let aVal, bVal;
-    if (sortField === "days_outstanding") { aVal = a.days_outstanding; bVal = b.days_outstanding; }
-    else if (sortField === "bill_total") { aVal = parseFloat(a.bill_total) || 0; bVal = parseFloat(b.bill_total) || 0; }
-    else if (sortField === "balance") { aVal = (parseFloat(a.bill_total) || 0) - (parseFloat(a.paid_amount) || 0); bVal = (parseFloat(b.bill_total) || 0) - (parseFloat(b.paid_amount) || 0); }
-    else if (sortField === "created_at") { aVal = new Date(a.created_at); bVal = new Date(b.created_at); }
-    else { aVal = a[sortField]?.toString().toLowerCase() || ""; bVal = b[sortField]?.toString().toLowerCase() || ""; }
-    return sortDirection === "asc" ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
-  });
-
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = sortedData.slice(startIndex, startIndex + itemsPerPage);
-
-  const handleSort = (field) => {
-    if (sortField === field) setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    else { setSortField(field); setSortDirection("desc"); }
-    setCurrentPage(1);
-  };
-
-  const SortIcon = ({ field }) => {
-    if (sortField !== field) return <ChevronUp className="w-3 h-3 text-surface-600 opacity-0 group-hover:opacity-50" />;
-    return sortDirection === "asc" ? <ChevronUp className="w-3 h-3 text-primary-400" /> : <ChevronDown className="w-3 h-3 text-primary-400" />;
-  };
-
-  const getDaysColor = (days) => {
-    if (days >= 30) return "text-danger";
-    if (days >= 14) return "text-orange-400";
-    if (days >= 7) return "text-warning";
-    return "text-surface-400";
-  };
-
-  if (!data || data.length === 0) return <div className="text-center py-8 text-surface-400">No outstanding bills</div>;
+  if (!data || data.length === 0)
+    return (
+      <div className="text-center py-8 text-surface-400">No outstanding bills</div>
+    );
 
   return (
-    <div className="space-y-4">
-      <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
-        <input
-          type="text"
-          placeholder="Search by customer, staff, or bill ID..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-          className="w-full pl-9 pr-3 py-2 bg-surface-800 border border-surface-600 rounded-lg text-white text-sm placeholder-surface-500 focus:outline-none focus:border-primary-500"
+    <div className="space-y-3">
+      {/* Search + Export */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500"
+          />
+          <input
+            type="text"
+            placeholder="Search by customer or staff..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-8 pr-8 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={exportToExcel}
+          disabled={filteredData.length === 0}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+        >
+          <Download size={14} />
+          Excel
+        </button>
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <PaginatedTable
+          columns={columns}
+          data={filteredData}
+          rowKey="bill_id"
+          defaultSort={{ key: "days_outstanding", dir: "desc" }}
+          defaultPageSize={10}
+          emptyMessage="No bills match your search"
+          footer={footer}
         />
       </div>
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full">
-          <thead className="border-b border-surface-700">
-            <tr>
-              {[["bill_id", "Bill #"], ["customer_name", "Customer"], ["served_by", "Staff"], ["created_at", "Date"], ["days_outstanding", "Days Out"], ["bill_total", "Total"], ["paid_amount", "Paid"], ["balance", "Balance"]].map(([field, label]) => (
-                <th key={field} onClick={() => handleSort(field)} className="px-3 py-3 text-left text-xs font-medium text-surface-400 uppercase tracking-wider cursor-pointer hover:text-white transition-colors group">
-                  <div className="flex items-center gap-1">{label}<SortIcon field={field} /></div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-surface-700/50">
-            {paginatedData.map((bill, index) => {
-              const balance = (parseFloat(bill.bill_total) || 0) - (parseFloat(bill.paid_amount) || 0);
-              return (
-                <tr key={index} className="hover:bg-surface-800/50 transition-colors">
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-1">
-                      <span className="font-mono text-surface-300 text-xs">{bill.bill_id.slice(0, 8)}...</span>
-                      <button onClick={() => copyBillId(bill.bill_id)} className="p-1 rounded hover:bg-surface-700 transition-colors"><Copy size={12} className="text-primary-400" /></button>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 text-white font-medium text-sm">{bill.customer_name}</td>
-                  <td className="px-3 py-3 text-surface-300 text-sm">{bill.served_by}</td>
-                  <td className="px-3 py-3 text-surface-300 text-sm">{new Date(bill.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
-                  <td className="px-3 py-3"><div className="flex items-center gap-1"><Clock className={`w-3 h-3 ${getDaysColor(bill.days_outstanding)}`} /><span className={`font-semibold ${getDaysColor(bill.days_outstanding)}`}>{bill.days_outstanding}</span></div></td>
-                  <td className="px-3 py-3 text-surface-300 text-sm">KES {parseFloat(bill.bill_total || 0).toLocaleString()}</td>
-                  <td className="px-3 py-3 text-emerald-400 text-sm">KES {parseFloat(bill.paid_amount || 0).toLocaleString()}</td>
-                  <td className="px-3 py-3"><span className="text-danger font-semibold text-sm">KES {balance.toLocaleString()}</span></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
 
+      {/* Mobile cards */}
       <MobileCardList>
-        {paginatedData.map((bill, index) => {
-          const balance = (parseFloat(bill.bill_total) || 0) - (parseFloat(bill.paid_amount) || 0);
-          return (
-            <MobileCard key={index}>
-              <div className="flex items-center justify-between">
-                <span className="text-white font-medium text-sm">{bill.customer_name}</span>
-                <div className="flex items-center gap-1">
-                  <Clock className={`w-3 h-3 ${getDaysColor(bill.days_outstanding)}`} />
-                  <span className={`text-xs font-semibold ${getDaysColor(bill.days_outstanding)}`}>{bill.days_outstanding}d</span>
-                </div>
+        {filteredData.map((bill, index) => (
+          <MobileCard key={bill.bill_id || index}>
+            <div className="flex items-center justify-between">
+              <span className="text-white font-medium text-sm">{bill.customer_name}</span>
+              <div className="flex items-center gap-1">
+                <Clock className={`w-3 h-3 ${getDaysColor(bill.days_outstanding)}`} />
+                <span
+                  className={`text-xs font-semibold ${getDaysColor(bill.days_outstanding)}`}
+                >
+                  {bill.days_outstanding}d
+                </span>
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="font-mono text-surface-400">{bill.bill_id.slice(0, 8)}...</span>
-                <button onClick={() => copyBillId(bill.bill_id)} className="p-0.5 rounded hover:bg-surface-700 transition-colors"><Copy size={10} className="text-primary-400" /></button>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-surface-400">{fmtDate(bill.created_at)}</span>
+              <span className="text-surface-400">{bill.served_by}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <div className="space-x-2">
+                <span className="text-surface-300 tabular-nums">
+                  {fmtAmt(parseFloat(bill.bill_total || 0))}
+                </span>
+                <span className="text-emerald-400 text-xs tabular-nums">
+                  Paid {fmtAmt(parseFloat(bill.paid_amount || 0))}
+                </span>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-surface-400">{new Date(bill.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                <span className="text-surface-400">{bill.served_by}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <div className="space-x-3">
-                  <span className="text-surface-300">KES {parseFloat(bill.bill_total || 0).toLocaleString()}</span>
-                  <span className="text-emerald-400 text-xs">Paid {parseFloat(bill.paid_amount || 0).toLocaleString()}</span>
-                </div>
-                <span className="text-danger font-semibold">KES {balance.toLocaleString()}</span>
-              </div>
-            </MobileCard>
-          );
-        })}
+              <span
+                className={`font-semibold tabular-nums ${bill.balance > 0 ? "text-red-400" : "text-surface-400"}`}
+              >
+                {fmtAmt(bill.balance)}
+              </span>
+            </div>
+          </MobileCard>
+        ))}
       </MobileCardList>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 border-t border-surface-700/50">
-          <div className="text-sm text-surface-400">Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, sortedData.length)} of {sortedData.length}</div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-surface-800 hover:bg-surface-700 disabled:opacity-50 rounded border border-surface-600 text-white transition-colors flex items-center gap-1"><ChevronLeft className="w-4 h-4" />Prev</button>
-            <span className="text-sm text-surface-300">{currentPage} / {totalPages}</span>
-            <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-surface-800 hover:bg-surface-700 disabled:opacity-50 rounded border border-surface-600 text-white transition-colors flex items-center gap-1">Next<ChevronRight className="w-4 h-4" /></button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

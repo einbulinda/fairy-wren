@@ -154,6 +154,24 @@ export const useBills = (params = { active: true }) => {
   );
 
   /**
+   * Exchange a round item for a replacement product
+   */
+  const exchangeItem = useCallback(
+    async (billId, payload) => {
+      setError(null);
+      try {
+        await BillsService.exchange(billId, payload);
+        // Reload to get updated bill with new round
+        await loadBills();
+      } catch (err) {
+        setError(err);
+        throw err;
+      }
+    },
+    [loadBills],
+  );
+
+  /**
    * Void bill
    */
   const voidBill = useCallback(
@@ -188,5 +206,6 @@ export const useBills = (params = { active: true }) => {
     addRound,
     payBill,
     voidBill,
+    exchangeItem,
   };
 };

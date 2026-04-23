@@ -38,6 +38,9 @@ const MONTHS = [
   "July","August","September","October","November","December",
 ];
 
+const isoDate = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 const TABS = [
   { id: "executive", label: "Executive", icon: LayoutDashboard },
   { id: "financial", label: "Financial", icon: DollarSign },
@@ -52,6 +55,10 @@ const DashboardPage = () => {
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [collectionsStart, setCollectionsStart] = useState(() =>
+    isoDate(new Date(today.getFullYear(), today.getMonth(), 1)),
+  );
+  const [collectionsEnd, setCollectionsEnd] = useState(() => isoDate(today));
 
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -66,6 +73,35 @@ const DashboardPage = () => {
   }, [selectedMonth, selectedYear]);
 
   const { data, isLoading, error } = useDashboardMetrics(dateRange);
+
+  // Collections tab — date-filtered outstanding bills (must be before early returns)
+  const collectionsFiltered = useMemo(() => {
+    const start = new Date(collectionsStart + "T00:00:00");
+    const end = new Date(collectionsEnd + "T23:59:59");
+    return (data?.outstandingBills || []).filter((b) => {
+      const d = new Date(b.created_at);
+      return d >= start && d <= end;
+    });
+  }, [data?.outstandingBills, collectionsStart, collectionsEnd]);
+
+  const collectionsStats = useMemo(() => {
+    const now = new Date();
+    const net = (b) => Number(b.bill_total) - Number(b.paid_amount || 0);
+    const critical = collectionsFiltered.filter(
+      (b) => Math.ceil((now - new Date(b.created_at)) / (1000 * 60 * 60 * 24)) > 30,
+    );
+    const overdue = collectionsFiltered.filter((b) => {
+      const days = Math.ceil((now - new Date(b.created_at)) / (1000 * 60 * 60 * 24));
+      return days > 7 && days <= 30;
+    });
+    return {
+      totalOutstanding: collectionsFiltered.reduce((s, b) => s + net(b), 0),
+      criticalAmount: critical.reduce((s, b) => s + net(b), 0),
+      criticalCount: critical.length,
+      overdueAmount: overdue.reduce((s, b) => s + net(b), 0),
+      count: collectionsFiltered.length,
+    };
+  }, [collectionsFiltered]);
 
   if (error) toast.error(error.message || "Failed to load dashboard");
   if (isLoading) return <LoadingSpinner message="Loading Dashboard..." />;
@@ -96,7 +132,7 @@ const DashboardPage = () => {
     (m) => (m.movement_category === "NON_MOVING" || m.movement_category === "SLOW") && m.current_stock > 0,
   ).length;
 
-  // Critical bills
+  // Critical bills (used by executive tab)
   const criticalBills = (metrics.outstandingBills || []).filter((b) => {
     const days = Math.ceil((new Date() - new Date(b.created_at)) / (1000 * 60 * 60 * 24));
     return days > 30;
@@ -496,42 +532,62 @@ const DashboardPage = () => {
   // ===== COLLECTIONS TAB =====
   const renderCollectionsTab = () => (
     <div className="space-y-4">
-      {/* Collections Summary */}
+      {/* Date range picker */}
+      <div className="flex flex-wrap items-end gap-3 p-3 bg-surface-800/50 border border-surface-700 rounded-xl">
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">From</label>
+          <input
+            type="date"
+            value={collectionsStart}
+            onChange={(e) => setCollectionsStart(e.target.value)}
+            className="px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">To</label>
+          <input
+            type="date"
+            value={collectionsEnd}
+            onChange={(e) => setCollectionsEnd(e.target.value)}
+            className="px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        <p className="text-xs text-surface-500 self-center">
+          {collectionsStats.count} bill{collectionsStats.count !== 1 ? "s" : ""} in range
+        </p>
+      </div>
+
+      {/* Collections Summary — net of paid amounts */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
           <p className="text-xs text-surface-500 mb-1">Total Outstanding</p>
-          <p className="text-xl font-bold text-white">{formatCurrency(outstandingAmount)}</p>
-          <p className="text-[10px] text-surface-500 mt-1">{metrics.outstandingBills?.length || 0} bills</p>
+          <p className="text-xl font-bold text-white">
+            {formatCurrency(collectionsStats.totalOutstanding)}
+          </p>
+          <p className="text-[10px] text-surface-500 mt-1">
+            {collectionsStats.count} bill{collectionsStats.count !== 1 ? "s" : ""}
+          </p>
         </div>
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
           <p className="text-xs text-surface-500 mb-1">Critical (&gt;30 days)</p>
           <p className="text-xl font-bold text-red-400">
-            {formatCurrency(
-              (metrics.outstandingBills || [])
-                .filter(b => Math.ceil((new Date() - new Date(b.created_at)) / (1000 * 60 * 60 * 24)) > 30)
-                .reduce((sum, b) => sum + (Number(b.bill_total) - Number(b.paid_amount || 0)), 0)
-            )}
+            {formatCurrency(collectionsStats.criticalAmount)}
           </p>
-          <p className="text-[10px] text-surface-500 mt-1">{criticalBills} bills</p>
+          <p className="text-[10px] text-surface-500 mt-1">
+            {collectionsStats.criticalCount} bill{collectionsStats.criticalCount !== 1 ? "s" : ""}
+          </p>
         </div>
         <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
-          <p className="text-xs text-surface-500 mb-1">Overdue (7-30 days)</p>
+          <p className="text-xs text-surface-500 mb-1">Overdue (7–30 days)</p>
           <p className="text-xl font-bold text-orange-400">
-            {formatCurrency(
-              (metrics.outstandingBills || [])
-                .filter(b => {
-                  const days = Math.ceil((new Date() - new Date(b.created_at)) / (1000 * 60 * 60 * 24));
-                  return days > 7 && days <= 30;
-                })
-                .reduce((sum, b) => sum + (Number(b.bill_total) - Number(b.paid_amount || 0)), 0)
-            )}
+            {formatCurrency(collectionsStats.overdueAmount)}
           </p>
         </div>
       </div>
 
       {/* Action Button */}
-      {criticalBills > 0 && (
-        <button 
+      {collectionsStats.criticalCount > 0 && (
+        <button
           onClick={() => openModal("collections")}
           className="w-full flex items-center justify-center gap-2 p-3 bg-red-500/20 border border-red-500/40 rounded-xl hover:bg-red-500/30 transition-colors"
         >
@@ -543,8 +599,8 @@ const DashboardPage = () => {
 
       {/* Outstanding Bills Table */}
       <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-white mb-3">All Outstanding Bills</h3>
-        <OutstandingBillsTable data={metrics.outstandingBills || []} />
+        <h3 className="text-sm font-semibold text-white mb-3">Outstanding Bills</h3>
+        <OutstandingBillsTable data={collectionsFiltered} />
       </div>
     </div>
   );

@@ -115,6 +115,16 @@ export const BillsService = {
     }
   },
 
+  // POST /bills/:id/exchange - no deduplication
+  async exchange(billId, payload, signal) {
+    try {
+      const { data } = await api.post(`${BASE_PATH}/${billId}/exchange`, payload, { signal });
+      return data?.data ?? data;
+    } catch (error) {
+      throw normalizeError(error, "Error processing item exchange.");
+    }
+  },
+
   // POST /bills/:id/pay - no deduplication
   async pay(billId, payload, signal) {
     try {

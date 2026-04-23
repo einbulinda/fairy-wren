@@ -53,7 +53,7 @@ exports.findBillById = async (id) => {
       )
     `,
     )
-    .eq("id", billId)
+    .eq("id", id)
     .single();
 };
 
@@ -82,6 +82,9 @@ exports.listBills = async (filters = {}) => {
           id,
           quantity,
           price,
+          is_return,
+          is_exchanged,
+          inventory_posted,
           product:products(id, name, cost_price)
         )
       ),
@@ -180,6 +183,26 @@ exports.postRoundSale = async (roundId) => {
 exports.reverseBillSale = async (billId) => {
   const supabase = getSupabase();
   return supabase.rpc("reverse_bill_sale", { p_bill_id: billId });
+};
+
+exports.findRoundItemById = async (roundItemId) => {
+  const supabase = getSupabase();
+  return supabase
+    .from("round_items")
+    .select(`
+      id, product_id, quantity, price, inventory_posted, is_exchanged,
+      round:rounds!inner(id, bill_id, created_at)
+    `)
+    .eq("id", roundItemId)
+    .single();
+};
+
+exports.reverseRoundItem = async (roundItemId, returnedQuantity) => {
+  const supabase = getSupabase();
+  return supabase.rpc("reverse_round_item", {
+    p_round_item_id: roundItemId,
+    p_returned_quantity: returnedQuantity,
+  });
 };
 
 exports.getNextRoundNumber = async (billId) => {

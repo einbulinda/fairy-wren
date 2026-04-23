@@ -10,7 +10,8 @@
       "Bash(npx vite:*)",
       "Bash(grep -A 2 \"inventory_receipts\" /e/projects/fairy-wren/api/migrations/*.sql)",
       "Bash(xargs grep:*)",
-      "Bash(grep -rn \"paid_at.*timestamp\\\\|ADD COLUMN.*paid_at\" /e/projects/fairy-wren/api/src/database/migrations/*.sql)"
+      "Bash(grep -rn \"paid_at.*timestamp\\\\|ADD COLUMN.*paid_at\" /e/projects/fairy-wren/api/src/database/migrations/*.sql)",
+      "Bash(node_modules/.bin/eslint src/pages/DashboardPage.jsx src/components/dashboard/OutstandingBillsTable.jsx --max-warnings=5)"
     ]
   }
 }
