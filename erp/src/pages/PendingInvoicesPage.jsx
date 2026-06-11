@@ -6,6 +6,7 @@ import {
   Building2,
   CreditCard,
   X,
+  Search,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { usePendingInvoices } from "@/hooks/useSuppliers";
@@ -40,6 +41,7 @@ const PendingInvoicesPage = () => {
   const navigate = useNavigate();
   const { data: invoices = [], isLoading } = usePendingInvoices();
   const markPaid = useMarkReceiptPaid();
+  const [search, setSearch] = useState("");
   const [payingId, setPayingId] = useState(null);
   const [payForm, setPayForm] = useState({
     payment_method: "bank",
@@ -61,6 +63,17 @@ const PendingInvoicesPage = () => {
   }, [accounts]);
 
   const totalOutstanding = invoices.reduce((s, i) => s + Number(i.total_amount ?? 0), 0);
+
+  const filteredInvoices = useMemo(() => {
+    if (!search.trim()) return invoices;
+    const term = search.trim().toLowerCase();
+    return invoices.filter(
+      (inv) =>
+        (inv.invoice_number || "").toLowerCase().includes(term) ||
+        (inv.suppliers?.name || "").toLowerCase().includes(term) ||
+        String(Number(inv.total_amount ?? 0).toFixed(2)).includes(term),
+    );
+  }, [invoices, search]);
 
   // Aging summary
   const aging = useMemo(() => {
@@ -304,9 +317,31 @@ const PendingInvoicesPage = () => {
 
       {/* Invoices table */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-surface-700 flex items-center justify-between">
-          <h2 className="font-semibold text-white">Pending Supplier Invoices</h2>
-          <span className="text-xs text-surface-400">{invoices.length} unpaid</span>
+        <div className="p-4 border-b border-surface-700 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1">
+            <h2 className="font-semibold text-white">Pending Supplier Invoices</h2>
+            <p className="text-xs text-surface-400 mt-0.5">
+              {search.trim() ? `${filteredInvoices.length} of ${invoices.length}` : invoices.length} unpaid
+            </p>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search invoice #, supplier, amount…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-surface-900 border border-surface-600 text-white placeholder-surface-500 text-sm focus:outline-none focus:border-primary-500 transition-colors"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         {invoices.length === 0 ? (
@@ -314,13 +349,19 @@ const PendingInvoicesPage = () => {
             <FileText size={36} className="mx-auto mb-3 text-surface-700" />
             <p className="text-sm">No pending invoices. All supplier bills are paid.</p>
           </div>
+        ) : filteredInvoices.length === 0 ? (
+          <div className="py-12 text-center text-surface-500">
+            <Search size={28} className="mx-auto mb-3 text-surface-700" />
+            <p className="text-sm">No invoices match "{search}".</p>
+            <button onClick={() => setSearch("")} className="mt-2 text-xs text-primary-400 hover:text-primary-300 transition-colors">Clear search</button>
+          </div>
         ) : (
           <>
             {/* Desktop table */}
             <div className="hidden md:block">
               <PaginatedTable
                 columns={columns}
-                data={invoices}
+                data={filteredInvoices}
                 rowKey="id"
                 defaultSort={{ key: "purchase_date", dir: "asc" }}
                 defaultPageSize={20}
@@ -330,7 +371,7 @@ const PendingInvoicesPage = () => {
 
             {/* Mobile cards */}
             <MobileCardList>
-              {invoices.map((inv) => {
+              {filteredInvoices.map((inv) => {
                 const days = daysOutstanding(inv.purchase_date);
                 const bucket = agingBucket(days);
                 return (

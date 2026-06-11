@@ -13,6 +13,7 @@ import {
   Sun,
   Moon,
   BarChart3,
+  PackageSearch,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
@@ -23,6 +24,7 @@ import POSScreen from "@/pages/POSScreen";
 import StockTakeEntry from "../../pages/StockTakeEntry";
 import ZReportView from "@/pages/ZReportView";
 import WeeklySalesView from "@/pages/WeeklySalesView";
+import StockTakeReportsView from "@/pages/StockTakeReportsView";
 import { useBills } from "@/hooks/useBills";
 import { useMyBillStats } from "@/hooks/useMyBillStats";
 import { formatCurrency } from "@/utils/common";
@@ -61,6 +63,8 @@ const MainLayout = () => {
       tabs.push({ id: "z-report", label: "Z-Report", icon: Receipt });
     if (perms.includes("weekly_sales"))
       tabs.push({ id: "weekly-sales", label: "Weekly Sales", icon: BarChart3 });
+    if (perms.includes("stocktake_reports"))
+      tabs.push({ id: "stocktake-reports", label: "Stock Reports", icon: PackageSearch });
     return tabs;
   }, [user.permissions]);
 
@@ -135,6 +139,8 @@ const MainLayout = () => {
         return <ZReportView />;
       case "weekly-sales":
         return <WeeklySalesView />;
+      case "stocktake-reports":
+        return <StockTakeReportsView />;
       default:
         return null;
     }

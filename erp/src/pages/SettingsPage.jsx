@@ -120,6 +120,11 @@ const CAPABILITIES = [
     label: "Approve Item Exchanges",
     description: "Can authorize item exchanges on open bills",
   },
+  {
+    key: "stocktake_reports",
+    label: "Stock Take Reports",
+    description: "Can view the read-only stock take reports on POS",
+  },
 ];
 
 const formatCurrency = (value) =>

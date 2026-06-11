@@ -23,6 +23,9 @@ export const inventoryService = {
   stockTakeReports: (params) =>
     api.get("inventory/reports/stock-take", { params }).then((res) => res.data),
 
+  getStockTakeDetail: (id) =>
+    api.get(`/inventory/reports/stock-take/${id}`).then((res) => res.data),
+
   createStockTakeSession: (payload) =>
     api
       .post("/inventory/stock-take-sessions", payload)

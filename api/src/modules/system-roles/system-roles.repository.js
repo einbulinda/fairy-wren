@@ -37,7 +37,9 @@ exports.findByCode = async (code) => {
 exports.create = async (payload) => {
   try {
     const keys = Object.keys(payload);
-    const values = Object.values(payload);
+    const values = Object.values(payload).map((val) =>
+      Array.isArray(val) || (val !== null && typeof val === "object") ? JSON.stringify(val) : val
+    );
     const cols = keys.join(", ");
     const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
     const { rows } = await pool.query(
@@ -54,7 +56,9 @@ exports.update = async (code, payload) => {
   try {
     const entries = Object.entries(payload);
     const set = entries.map(([col], i) => `${col} = $${i + 1}`).join(", ");
-    const values = entries.map(([, val]) => val);
+    const values = entries.map(([, val]) =>
+      Array.isArray(val) || (val !== null && typeof val === "object") ? JSON.stringify(val) : val
+    );
     values.push(code);
     const { rows } = await pool.query(
       `UPDATE system_roles SET ${set} WHERE code = $${values.length} RETURNING *`,
