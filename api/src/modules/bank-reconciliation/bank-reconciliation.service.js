@@ -1,43 +1,55 @@
-const getSupabase = require("../../config/supabase");
+const pool = require("../../config/db");
 const logger = require("../../utils/logger");
 
 exports.listStatements = async (filters = {}) => {
-  const supabase = getSupabase();
+  const conditions = [];
+  const params = [];
 
-  let query = supabase
-    .from("bank_statements")
-    .select("*, bank_account:bank_account_id(code, name)")
-    .order("statement_date", { ascending: false });
-
-  if (filters.accountId)
-    query = query.eq("bank_account_id", filters.accountId);
-  if (filters.status) query = query.eq("status", filters.status);
-  if (filters.year) {
-    query = query.gte("statement_date", `${filters.year}-01-01`);
-    query = query.lte("statement_date", `${filters.year}-12-31`);
+  if (filters.accountId) {
+    params.push(filters.accountId);
+    conditions.push(`bs.bank_account_id = $${params.length}`);
+  }
+  if (filters.status) {
+    params.push(filters.status);
+    conditions.push(`bs.status = $${params.length}`);
+  }
+  if (filters.year && !filters.month) {
+    params.push(`${filters.year}-01-01`);
+    conditions.push(`bs.statement_date >= $${params.length}`);
+    params.push(`${filters.year}-12-31`);
+    conditions.push(`bs.statement_date <= $${params.length}`);
   }
   if (filters.month) {
     const year = filters.year || new Date().getFullYear();
     const month = String(filters.month).padStart(2, "0");
-    query = query.gte("statement_date", `${year}-${month}-01`);
-    query = query.lte("statement_date", `${year}-${month}-31`);
+    params.push(`${year}-${month}-01`);
+    conditions.push(`bs.statement_date >= $${params.length}`);
+    params.push(`${year}-${month}-31`);
+    conditions.push(`bs.statement_date <= $${params.length}`);
   }
 
-  const { data, error } = await query;
-  if (error) throw new Error("FAILED_TO_FETCH_STATEMENTS");
-  return data || [];
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const { rows } = await pool.query(
+    `SELECT bs.*,
+       json_build_object('code', coa.code, 'name', coa.name) AS bank_account
+     FROM bank_statements bs
+     LEFT JOIN chart_of_accounts coa ON coa.id = bs.bank_account_id
+     ${where}
+     ORDER BY bs.statement_date DESC`,
+    params
+  );
+
+  if (!rows) throw new Error("FAILED_TO_FETCH_STATEMENTS");
+  return rows || [];
 };
 
 exports.getStatement = async (id) => {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase.rpc("rpc_get_bank_reconciliation", {
-    p_bank_account_id: null,
-    p_statement_id: id,
-  });
-
-  if (error) throw new Error("FAILED_TO_FETCH_STATEMENT");
-  return data;
+  const { rows } = await pool.query(
+    `SELECT * FROM rpc_get_bank_reconciliation($1, $2)`,
+    [null, id]
+  );
+  if (!rows) throw new Error("FAILED_TO_FETCH_STATEMENT");
+  return rows;
 };
 
 exports.getStatementWithLines = async (id) => {
@@ -45,19 +57,15 @@ exports.getStatementWithLines = async (id) => {
 };
 
 exports.getStatementByAccount = async (bankAccountId) => {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase.rpc("rpc_get_bank_reconciliation", {
-    p_bank_account_id: bankAccountId,
-    p_statement_id: null,
-  });
-
-  if (error) throw new Error("FAILED_TO_FETCH_STATEMENT");
-  return data;
+  const { rows } = await pool.query(
+    `SELECT * FROM rpc_get_bank_reconciliation($1, $2)`,
+    [bankAccountId, null]
+  );
+  if (!rows) throw new Error("FAILED_TO_FETCH_STATEMENT");
+  return rows;
 };
 
 exports.importStatement = async (payload) => {
-  const supabase = getSupabase();
   const {
     bankAccountId,
     statementDate,
@@ -85,162 +93,163 @@ exports.importStatement = async (payload) => {
     withdrawal: l.withdrawal || 0,
   }));
 
-  const { data, error } = await supabase.rpc("import_bank_statement", {
-    p_bank_account_id: bankAccountId,
-    p_statement_date: statementDate,
-    p_statement_number: description || `Statement ${startDate} to ${endDate}`,
-    p_opening_balance: openingBalance,
-    p_closing_balance: closingBalance,
-    p_lines: JSON.stringify(formattedLines),
-    p_imported_by: userId,
-    p_file_name: null,
-  });
-
-  if (error) {
-    logger.error("Failed to import statement", { error: error.message });
-    throw new Error(error.message || "FAILED_TO_IMPORT_STATEMENT");
+  let rows;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM import_bank_statement($1, $2, $3, $4, $5, $6::jsonb, $7, $8)`,
+      [
+        bankAccountId,
+        statementDate,
+        description || `Statement ${startDate} to ${endDate}`,
+        openingBalance,
+        closingBalance,
+        JSON.stringify(formattedLines),
+        userId,
+        null,
+      ]
+    );
+    rows = result.rows;
+  } catch (err) {
+    logger.error("Failed to import statement", { error: err.message });
+    throw new Error(err.message || "FAILED_TO_IMPORT_STATEMENT");
   }
 
-  // data is the statement_id from the RPC; return a shaped object
-  return { id: data, success: true };
+  // rows[0] is the statement_id from the RPC; return a shaped object
+  return { id: rows[0], success: true };
 };
 
 exports.autoMatch = async (statementId, opts = {}) => {
-  const supabase = getSupabase();
-
   logger.info("Auto-matching statement lines", { statementId });
 
-  const { data, error } = await supabase.rpc("auto_match_bank_statement", {
-    p_statement_id: statementId,
-    p_match_threshold: 0.01,
-  });
-
-  if (error) {
-    logger.error("Auto-match failed", { error: error.message });
-    throw new Error(error.message || "FAILED_TO_AUTO_MATCH");
+  let rows;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM auto_match_bank_statement($1, $2)`,
+      [statementId, 0.01]
+    );
+    rows = result.rows;
+  } catch (err) {
+    logger.error("Auto-match failed", { error: err.message });
+    throw new Error(err.message || "FAILED_TO_AUTO_MATCH");
   }
 
-  return data;
+  return rows;
 };
 
 exports.manualMatch = async (statementId, lineId, journalEntryId, adjustmentAmount) => {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase.rpc("manual_match_statement_line", {
-    p_line_id: lineId,
-    p_transaction_id: journalEntryId,
-    p_transaction_type: "journal_entry",
-    p_matched_by: null,
-    p_notes: adjustmentAmount ? `Adjustment: ${adjustmentAmount}` : null,
-  });
-
-  if (error) throw new Error(error.message || "FAILED_TO_MANUAL_MATCH");
-  return data;
+  let rows;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM manual_match_statement_line($1, $2, $3, $4, $5)`,
+      [
+        lineId,
+        journalEntryId,
+        "journal_entry",
+        null,
+        adjustmentAmount ? `Adjustment: ${adjustmentAmount}` : null,
+      ]
+    );
+    rows = result.rows;
+  } catch (err) {
+    throw new Error(err.message || "FAILED_TO_MANUAL_MATCH");
+  }
+  return rows;
 };
 
 exports.unmatchLine = async (statementId, lineId) => {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase
-    .from("bank_statement_lines")
-    .update({
-      match_status: "unmatched",
-      matched_transaction_id: null,
-      matched_transaction_type: null,
-      matched_by: null,
-      matched_at: null,
-      match_notes: null,
-    })
-    .eq("id", lineId)
-    .select()
-    .single();
-
-  if (error) throw new Error("FAILED_TO_UNMATCH_LINE");
-  return data;
+  const { rows } = await pool.query(
+    `UPDATE bank_statement_lines
+     SET match_status = 'unmatched',
+         matched_transaction_id = NULL,
+         matched_transaction_type = NULL,
+         matched_by = NULL,
+         matched_at = NULL,
+         match_notes = NULL
+     WHERE id = $1
+     RETURNING *`,
+    [lineId]
+  );
+  if (!rows[0]) throw new Error("FAILED_TO_UNMATCH_LINE");
+  return rows[0];
 };
 
 exports.getSuggestedMatches = async (lineId) => {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase.rpc("rpc_get_suggested_matches", {
-    p_line_id: lineId,
-  });
-
-  if (error) throw new Error("FAILED_TO_GET_SUGGESTIONS");
-  return data || [];
+  const { rows } = await pool.query(
+    `SELECT * FROM rpc_get_suggested_matches($1)`,
+    [lineId]
+  );
+  return rows || [];
 };
 
 exports.getUnreconciledTransactions = async (bankAccountId) => {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase
-    .from("v_unreconciled_bank_transactions")
-    .select("*")
-    .eq("account_id", bankAccountId)
-    .order("entry_date", { ascending: false });
-
-  if (error) throw new Error("FAILED_TO_FETCH_UNRECONCILED");
-  return data || [];
+  const { rows } = await pool.query(
+    `SELECT * FROM v_unreconciled_bank_transactions
+     WHERE account_id = $1
+     ORDER BY entry_date DESC`,
+    [bankAccountId]
+  );
+  if (!rows) throw new Error("FAILED_TO_FETCH_UNRECONCILED");
+  return rows || [];
 };
 
 exports.getBankGlDetails = async (accountId, startDate, endDate) => {
-  const supabase = getSupabase();
+  const conditions = [`account_id = $1`];
+  const params = [accountId];
 
-  let query = supabase
-    .from("v_unreconciled_bank_transactions")
-    .select("*")
-    .eq("account_id", accountId)
-    .order("entry_date", { ascending: false });
+  if (startDate) {
+    params.push(startDate);
+    conditions.push(`entry_date >= $${params.length}`);
+  }
+  if (endDate) {
+    params.push(endDate);
+    conditions.push(`entry_date <= $${params.length}`);
+  }
 
-  if (startDate) query = query.gte("entry_date", startDate);
-  if (endDate) query = query.lte("entry_date", endDate);
-
-  const { data, error } = await query;
-  if (error) throw new Error("FAILED_TO_FETCH_BANK_GL");
-  return data || [];
+  const where = `WHERE ${conditions.join(" AND ")}`;
+  const { rows } = await pool.query(
+    `SELECT * FROM v_unreconciled_bank_transactions ${where} ORDER BY entry_date DESC`,
+    params
+  );
+  if (!rows) throw new Error("FAILED_TO_FETCH_BANK_GL");
+  return rows || [];
 };
 
 exports.getReconciliationSummary = async (bankAccountId) => {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase
-    .from("v_bank_reconciliation_summary")
-    .select("*")
-    .eq("bank_account_id", bankAccountId)
-    .order("statement_date", { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error && error.code !== "PGRST116") throw new Error("FAILED_TO_FETCH_SUMMARY");
-  return data;
+  const { rows } = await pool.query(
+    `SELECT * FROM v_bank_reconciliation_summary
+     WHERE bank_account_id = $1
+     ORDER BY statement_date DESC
+     LIMIT 1`,
+    [bankAccountId]
+  );
+  return rows[0] || null;
 };
 
 exports.getReconciliationReport = async (statementId) => {
-  const supabase = getSupabase();
+  const { rows: stmtRows } = await pool.query(
+    `SELECT bs.*,
+       json_build_object('code', coa.code, 'name', coa.name) AS bank_account
+     FROM bank_statements bs
+     LEFT JOIN chart_of_accounts coa ON coa.id = bs.bank_account_id
+     WHERE bs.id = $1`,
+    [statementId]
+  );
+  if (!stmtRows[0]) throw new Error("FAILED_TO_FETCH_REPORT");
+  const statement = stmtRows[0];
 
-  const { data: statement, error: stmtError } = await supabase
-    .from("bank_statements")
-    .select("*, bank_account:bank_account_id(code, name)")
-    .eq("id", statementId)
-    .single();
+  const { rows: lines } = await pool.query(
+    `SELECT * FROM bank_statement_lines
+     WHERE statement_id = $1
+     ORDER BY transaction_date ASC`,
+    [statementId]
+  );
+  if (!lines) throw new Error("FAILED_TO_FETCH_REPORT_LINES");
 
-  if (stmtError) throw new Error("FAILED_TO_FETCH_REPORT");
-
-  const { data: lines, error: linesError } = await supabase
-    .from("bank_statement_lines")
-    .select("*")
-    .eq("statement_id", statementId)
-    .order("transaction_date", { ascending: true });
-
-  if (linesError) throw new Error("FAILED_TO_FETCH_REPORT_LINES");
-
-  const { data: summary, error: summaryError } = await supabase
-    .from("v_bank_reconciliation_summary")
-    .select("*")
-    .eq("statement_id", statementId)
-    .single();
-
-  if (summaryError && summaryError.code !== "PGRST116") throw new Error("FAILED_TO_FETCH_REPORT_SUMMARY");
+  const { rows: summaryRows } = await pool.query(
+    `SELECT * FROM v_bank_reconciliation_summary WHERE statement_id = $1`,
+    [statementId]
+  );
+  const summary = summaryRows[0] || null;
 
   const totalDeposits = lines.reduce((s, l) => s + Number(l.deposit || 0), 0);
   const totalWithdrawals = lines.reduce((s, l) => s + Number(l.withdrawal || 0), 0);
@@ -263,36 +272,33 @@ exports.getReconciliationReport = async (statementId) => {
 };
 
 exports.finalizeReconciliation = async (statementId, reconciledBy, notes = null) => {
-  const supabase = getSupabase();
-
   logger.info("Finalizing reconciliation", { statementId, reconciledBy });
 
-  const { data: unmatched } = await supabase
-    .from("bank_statement_lines")
-    .select("count")
-    .eq("statement_id", statementId)
-    .eq("match_status", "unmatched")
-    .single();
+  const { rows: unmatchedRows } = await pool.query(
+    `SELECT COUNT(*) AS count FROM bank_statement_lines
+     WHERE statement_id = $1 AND match_status = 'unmatched'`,
+    [statementId]
+  );
+  const unmatched = unmatchedRows[0];
 
   if (unmatched?.count > 0) {
     throw new Error("CANNOT_FINALIZE_WITH_UNMATCHED_LINES");
   }
 
-  const { data, error } = await supabase
-    .from("bank_statements")
-    .update({
-      status: "reconciled",
-      reconciled_by: reconciledBy,
-      reconciled_at: new Date().toISOString(),
-      notes: notes,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", statementId)
-    .select()
-    .single();
-
-  if (error) throw new Error("FAILED_TO_FINALIZE_RECONCILIATION");
-  return data;
+  const now = new Date().toISOString();
+  const { rows } = await pool.query(
+    `UPDATE bank_statements
+     SET status = 'reconciled',
+         reconciled_by = $1,
+         reconciled_at = $2,
+         notes = $3,
+         updated_at = $4
+     WHERE id = $5
+     RETURNING *`,
+    [reconciledBy, now, notes, now, statementId]
+  );
+  if (!rows[0]) throw new Error("FAILED_TO_FINALIZE_RECONCILIATION");
+  return rows[0];
 };
 
 exports.finalize = async (statementId, adjustments, { userId }) => {
@@ -301,23 +307,20 @@ exports.finalize = async (statementId, adjustments, { userId }) => {
 };
 
 exports.cancelStatement = async (statementId, reason) => {
-  const supabase = getSupabase();
-
   logger.info("Cancelling bank statement", { statementId, reason });
 
-  const { data, error } = await supabase
-    .from("bank_statements")
-    .update({
-      status: "cancelled",
-      notes: reason,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", statementId)
-    .select()
-    .single();
-
-  if (error) throw new Error("FAILED_TO_CANCEL_STATEMENT");
-  return data;
+  const now = new Date().toISOString();
+  const { rows } = await pool.query(
+    `UPDATE bank_statements
+     SET status = 'cancelled',
+         notes = $1,
+         updated_at = $2
+     WHERE id = $3
+     RETURNING *`,
+    [reason, now, statementId]
+  );
+  if (!rows[0]) throw new Error("FAILED_TO_CANCEL_STATEMENT");
+  return rows[0];
 };
 
 exports.parseStatementFile = async (fileBuffer, fileType) => {

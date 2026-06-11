@@ -1,24 +1,25 @@
-const supabase = require("../../config/supabase");
-const logger = require("../../utils/logger");
+const pool = require("./config/db");
+const logger = require("./utils/logger");
 
 /* ---------------- STOCK ---------------- */
 
 exports.getStock = async () => {
   logger.info("Fetching active tracked stock");
 
-  const { data, error } = await supabase
-    .from("products")
-    .select("id,name,unit,current_stock,cost_price, categories(name)")
-    .eq("track_inventory", true)
-    .eq("active", true)
-    .order("name");
-
-  if (error) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, p.name, p.unit, p.current_stock, p.cost_price,
+              json_build_object('name', c.name) AS categories
+       FROM products p
+       LEFT JOIN categories c ON c.id = p.category_id
+       WHERE p.track_inventory = true AND p.active = true
+       ORDER BY p.name`,
+    );
+    return rows;
+  } catch (error) {
     logger.error("Failed to fetch stock", { error });
     throw error;
   }
-
-  return data;
 };
 
 /* ---------------- RESTOCK ---------------- */
@@ -31,14 +32,20 @@ exports.restock = async ({ productId, quantity, unitCost, userId, notes }) => {
     throw new Error("Quantity must be positive");
   }
 
-  const { data: product, error } = await supabase
-    .from("products")
-    .select("current_stock, cost_price")
-    .eq("id", productId)
-    .single();
-
-  if (error || !product) {
+  let product;
+  try {
+    const { rows } = await pool.query(
+      `SELECT current_stock, cost_price FROM products WHERE id = $1`,
+      [productId],
+    );
+    product = rows[0];
+  } catch (error) {
     logger.error("Product not found during restock", { productId, error });
+    throw new Error("Product not found");
+  }
+
+  if (!product) {
+    logger.error("Product not found during restock", { productId });
     throw new Error("Product not found");
   }
 
@@ -49,22 +56,16 @@ exports.restock = async ({ productId, quantity, unitCost, userId, notes }) => {
     (currentStock * currentCost + quantity * unitCost) /
     (currentStock + quantity);
 
-  await supabase.from("inventory_ledger").insert({
-    product_id: productId,
-    transaction_type: "RESTOCK",
-    quantity,
-    unit_cost: unitCost,
-    notes,
-    created_by: userId,
-  });
+  await pool.query(
+    `INSERT INTO inventory_ledger (product_id, transaction_type, quantity, unit_cost, notes, created_by)
+     VALUES ($1, 'RESTOCK', $2, $3, $4, $5)`,
+    [productId, quantity, unitCost, notes, userId],
+  );
 
-  await supabase
-    .from("products")
-    .update({
-      current_stock: currentStock + quantity,
-      cost_price: newAvgCost,
-    })
-    .eq("id", productId);
+  await pool.query(
+    `UPDATE products SET current_stock = $1, cost_price = $2 WHERE id = $3`,
+    [currentStock + quantity, newAvgCost, productId],
+  );
 
   logger.info("Restock completed", {
     productId,
@@ -78,18 +79,16 @@ exports.restock = async ({ productId, quantity, unitCost, userId, notes }) => {
 exports.createStockTake = async (userId) => {
   logger.info("Creating stock take", { userId });
 
-  const { data, error } = await supabase
-    .from("stock_takes")
-    .insert({ performed_by: userId })
-    .select()
-    .single();
-
-  if (error) {
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO stock_takes (performed_by) VALUES ($1) RETURNING *`,
+      [userId],
+    );
+    return rows[0];
+  } catch (error) {
     logger.error("Failed to create stock take", { error });
     throw error;
   }
-
-  return data;
 };
 
 exports.saveStockTakeItems = async (stockTakeId, items) => {
@@ -106,11 +105,25 @@ exports.saveStockTakeItems = async (stockTakeId, items) => {
     variance: i.physicalQty - i.systemQty,
   }));
 
-  const { error } = await supabase.from("stock_take_items").upsert(records, {
-    onConflict: "stock_take_id,product_id",
-  });
-
-  if (error) {
+  try {
+    for (const record of records) {
+      await pool.query(
+        `INSERT INTO stock_take_items (stock_take_id, product_id, system_qty, physical_qty, variance)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (stock_take_id, product_id) DO UPDATE SET
+           system_qty = EXCLUDED.system_qty,
+           physical_qty = EXCLUDED.physical_qty,
+           variance = EXCLUDED.variance`,
+        [
+          record.stock_take_id,
+          record.product_id,
+          record.system_qty,
+          record.physical_qty,
+          record.variance,
+        ],
+      );
+    }
+  } catch (error) {
     logger.error("Failed to save stock take items", { stockTakeId, error });
     throw error;
   }
@@ -119,12 +132,14 @@ exports.saveStockTakeItems = async (stockTakeId, items) => {
 exports.completeStockTake = async (stockTakeId, userId) => {
   logger.info("Completing stock take", { stockTakeId, userId });
 
-  const { data: items, error } = await supabase
-    .from("stock_take_items")
-    .select("*")
-    .eq("stock_take_id", stockTakeId);
-
-  if (error) {
+  let items;
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM stock_take_items WHERE stock_take_id = $1`,
+      [stockTakeId],
+    );
+    items = rows;
+  } catch (error) {
     logger.error("Failed to fetch stock take items", { stockTakeId, error });
     throw error;
   }
@@ -137,27 +152,23 @@ exports.completeStockTake = async (stockTakeId, userId) => {
         variance: item.variance,
       });
 
-      await supabase.from("inventory_ledger").insert({
-        product_id: item.product_id,
-        transaction_type: "STOCKTAKE_ADJUSTMENT",
-        quantity: item.variance,
-        reference_id: stockTakeId,
-        created_by: userId,
-      });
+      await pool.query(
+        `INSERT INTO inventory_ledger (product_id, transaction_type, quantity, reference_id, created_by)
+         VALUES ($1, 'STOCKTAKE_ADJUSTMENT', $2, $3, $4)`,
+        [item.product_id, item.variance, stockTakeId, userId],
+      );
 
-      await supabase
-        .from("products")
-        .update({
-          current_stock: item.physical_qty,
-        })
-        .eq("id", item.product_id);
+      await pool.query(
+        `UPDATE products SET current_stock = $1 WHERE id = $2`,
+        [item.physical_qty, item.product_id],
+      );
     }
   }
 
-  await supabase
-    .from("stock_takes")
-    .update({ status: "completed", completed_at: new Date() })
-    .eq("id", stockTakeId);
+  await pool.query(
+    `UPDATE stock_takes SET status = 'completed', completed_at = NOW() WHERE id = $1`,
+    [stockTakeId],
+  );
 
   logger.info("Stock take completed and locked", { stockTakeId });
 };
@@ -165,27 +176,35 @@ exports.completeStockTake = async (stockTakeId, userId) => {
 exports.getStockTakeAdjustments = async ({ startDate, endDate }) => {
   logger.info("Fetching stock take adjustments", { startDate, endDate });
 
-  let query = supabase.from("vw_stock_take_adjustments_report").select("*");
+  try {
+    const params = [];
+    const conditions = [];
+    let idx = 1;
 
-  if (startDate) {
-    query = query.gte("createdAt", startDate);
-  }
+    if (startDate) {
+      conditions.push(`"createdAt" >= $${idx++}`);
+      params.push(startDate);
+    }
+    if (endDate) {
+      conditions.push(`"createdAt" <= $${idx++}`);
+      params.push(endDate);
+    }
 
-  if (endDate) {
-    query = query.lte("createdAt", endDate);
-  }
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  const { data, error } = await query;
+    const { rows } = await pool.query(
+      `SELECT * FROM vw_stock_take_adjustments_report ${whereClause}`,
+      params,
+    );
 
-  if (error) {
+    return rows
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map((record) => ({ ...record, createdAt: new Date(record.createdAt) }));
+  } catch (error) {
     logger.error("Failed to fetch stock take ledger", { error });
     throw error;
   }
-  return data
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .map((record) => {
-      return { ...record, createdAt: new Date(record.createdAt) };
-    });
 };
 
 /* ---------------- RPC STOCK TAKE ---------------- */
@@ -203,147 +222,117 @@ exports.createStockTakeSession = async ({
     location,
   });
 
-  const { data, error } = await supabase.rpc("create_stock_take_session", {
-    p_performed_by_id: userId,
-    p_stock_take_name: stockTakeName,
-    p_stock_take_type: stockTakeType,
-    p_location: location,
-  });
-
-  if (error) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM create_stock_take_session($1, $2, $3, $4)`,
+      [userId, stockTakeName, stockTakeType, location],
+    );
+    return { stockTakeId: rows[0] };
+  } catch (error) {
     logger.error("Failed to create stock take session", { error });
     throw error;
   }
-
-  return { stockTakeId: data };
 };
 
 exports.recordStockTakeItem = async (payload) => {
   logger.info("Recording stock take item", payload);
 
-  const { data, error } = await supabase.rpc("record_stock_take_item", {
-    p_stock_take_id: payload.stockTakeId,
-    p_product_id: payload.productId,
-    p_physical_qty: payload.physicalQty,
-    p_reason: payload.reason,
-    p_notes: payload.notes,
-    p_batch_number: payload.batchNumber,
-  });
-
-  if (error) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM record_stock_take_item($1, $2, $3, $4, $5, $6)`,
+      [
+        payload.stockTakeId,
+        payload.productId,
+        payload.physicalQty,
+        payload.reason,
+        payload.notes,
+        payload.batchNumber,
+      ],
+    );
+    return rows[0] || null;
+  } catch (error) {
     logger.error("Failed to record stock take item", { error, payload });
     throw error;
   }
-
-  return data;
 };
 
 exports.completeStockTakeSession = async (stockTakeId, userId) => {
   logger.info("Completing stock take session", { stockTakeId, userId });
 
-  const { data, error } = await supabase.rpc("complete_stock_take_session", {
-    p_stock_take_id: stockTakeId,
-    p_completed_by_id: userId,
-  });
-
-  if (error) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM complete_stock_take_session($1, $2)`,
+      [stockTakeId, userId],
+    );
+    return rows[0] || null;
+  } catch (error) {
     logger.error("Failed to complete stock take session", { error });
     throw error;
   }
-
-  return data;
 };
 
 exports.approveStockTake = async (stockTakeId, reviewerId, notes) => {
   logger.info("Approving stock take", { stockTakeId, reviewerId });
 
-  const { data, error } = await supabase.rpc("approve_stock_take", {
-    p_stock_take_id: stockTakeId,
-    p_reviewed_by_id: reviewerId,
-    p_approval_notes: notes,
-  });
-
-  if (error) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM approve_stock_take($1, $2, $3)`,
+      [stockTakeId, reviewerId, notes],
+    );
+    return rows[0] || null;
+  } catch (error) {
     logger.error("Stock take approval failed", { stockTakeId, error });
     throw error;
   }
-
-  return data;
 };
 
 exports.rejectStockTake = async (stockTakeId, reviewerId, reason) => {
   logger.info("Rejecting stock take", { stockTakeId, reviewerId });
 
-  const { data, error } = await supabase.rpc("reject_stock_take", {
-    p_stock_take_id: stockTakeId,
-    p_reviewed_by_id: reviewerId,
-    p_rejection_reason: reason,
-  });
-
-  if (error) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM reject_stock_take($1, $2, $3)`,
+      [stockTakeId, reviewerId, reason],
+    );
+    return rows[0] || null;
+  } catch (error) {
     logger.error("Stock take rejection failed", { stockTakeId, error });
     throw error;
   }
-
-  return data;
-};
-
-exports.recordStockTakeItem = async (payload) => {
-  logger.info("Recording stock take item", payload);
-  const { data, error } = await supabase.rpc("record_stock_take_item", {
-    p_stock_take_id: payload.stockTakeId,
-    p_product_id: payload.productId,
-    p_physical_qty: payload.physicalQty,
-    p_reason: payload.reason,
-    p_notes: payload.notes,
-  });
-  if (error) {
-    logger.error("Failed to record stock take item", { error, payload });
-    throw error;
-  }
-  return data;
-};
-
-exports.completeStockTakeSession = async (stockTakeId, userId) => {
-  logger.info("Completing stock take session", { stockTakeId, userId });
-  const { data, error } = await supabase.rpc("complete_stock_take_session", {
-    p_stock_take_id: stockTakeId,
-    p_completed_by_id: userId,
-  });
-  if (error) {
-    logger.error("Failed to complete stock take session", { error });
-    throw error;
-  }
-  return data;
 };
 
 exports.getIncompleteStockTakes = async (userId) => {
   logger.info("Fetching incomplete stock take sessions");
-  const { data, error } = await supabase
-    .from("stock_takes")
-    .select("*")
-    .eq("status", "started")
-    .eq("performed_by_id", userId);
-  if (error) {
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM stock_takes WHERE status = 'started' AND performed_by_id = $1`,
+      [userId],
+    );
+    return rows;
+  } catch (error) {
     logger.error("Failed to fetch incomplete stock take sessions", { error });
     throw error;
   }
-  return data;
 };
 
 exports.getStockTakeItems = async (sessionId) => {
   logger.info("Fetching stock take items", { sessionId });
-  const { data, error } = await supabase
-    .from("stock_take_items")
-    .select("*, products(name)")
-    .eq("stock_take_id", sessionId);
-  if (error) {
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT sti.*, p.name AS product_name
+       FROM stock_take_items sti
+       LEFT JOIN products p ON p.id = sti.product_id
+       WHERE sti.stock_take_id = $1`,
+      [sessionId],
+    );
+    return rows.map(({ product_name, ...item }) => ({
+      ...item,
+      product_name: product_name ?? null,
+    }));
+  } catch (error) {
     logger.error("Failed to fetch stock take items", { sessionId, error });
     throw error;
   }
-
-  return (data || []).map(({ products, ...item }) => ({
-    ...item,
-    product_name: products?.name ?? null,
-  }));
 };

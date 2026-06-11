@@ -1,4 +1,4 @@
-const getSupabase = require("../../../config/supabase");
+const pool = require("../../../config/db");
 
 exports.executeConversion = async ({
   sourceProductId,
@@ -8,46 +8,77 @@ exports.executeConversion = async ({
   notes,
   userId,
 }) => {
-  const supabase = getSupabase();
-  return supabase.rpc("execute_product_conversion", {
-    p_source_product_id: sourceProductId,
-    p_target_product_id: targetProductId,
-    p_source_qty: sourceQty,
-    p_target_qty: targetQty,
-    p_notes: notes || null,
-    p_user_id: userId || null,
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM execute_product_conversion($1, $2, $3, $4, $5, $6)`,
+      [
+        sourceProductId,
+        targetProductId,
+        sourceQty,
+        targetQty,
+        notes || null,
+        userId || null,
+      ],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.getConversionHistory = async () => {
-  const supabase = getSupabase();
-  return supabase
-    .from("product_conversions")
-    .select(
-      `
-      *,
-      source:products!product_conversions_source_product_id_fkey(id, name, unit, volume_ml),
-      target:products!product_conversions_target_product_id_fkey(id, name, unit, volume_ml),
-      creator:profiles!product_conversions_created_by_fkey(name)
-    `,
-    )
-    .order("created_at", { ascending: false })
-    .limit(50);
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+        pc.*,
+        json_build_object('id', src.id, 'name', src.name, 'unit', src.unit, 'volume_ml', src.volume_ml) AS source,
+        json_build_object('id', tgt.id, 'name', tgt.name, 'unit', tgt.unit, 'volume_ml', tgt.volume_ml) AS target,
+        json_build_object('name', cr.name) AS creator
+       FROM product_conversions pc
+       LEFT JOIN products src ON src.id = pc.source_product_id
+       LEFT JOIN products tgt ON tgt.id = pc.target_product_id
+       LEFT JOIN profiles cr ON cr.id = pc.created_by
+       ORDER BY pc.created_at DESC
+       LIMIT 50`,
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.getConvertibleProducts = async (allowedCategoryIds = []) => {
-  const supabase = getSupabase();
-  let query = supabase
-    .from("products")
-    .select("id, name, unit, volume_ml, cost_price, current_stock, category_id, categories(name)")
-    .eq("active", true)
-    .eq("track_inventory", true)
-    .not("volume_ml", "is", null)
-    .gt("volume_ml", 0);
+  try {
+    const params = [];
+    let categoryFilter = "";
 
-  if (allowedCategoryIds.length > 0) {
-    query = query.in("category_id", allowedCategoryIds);
+    if (allowedCategoryIds.length > 0) {
+      params.push(allowedCategoryIds);
+      categoryFilter = `AND p.category_id = ANY($${params.length})`;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT
+        p.id,
+        p.name,
+        p.unit,
+        p.volume_ml,
+        p.cost_price,
+        p.current_stock,
+        p.category_id,
+        json_build_object('name', c.name) AS categories
+       FROM products p
+       LEFT JOIN categories c ON c.id = p.category_id
+       WHERE p.active = true
+         AND p.track_inventory = true
+         AND p.volume_ml IS NOT NULL
+         AND p.volume_ml > 0
+         ${categoryFilter}
+       ORDER BY p.name`,
+      params,
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
   }
-
-  return query.order("name");
 };

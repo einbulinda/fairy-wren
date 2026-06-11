@@ -1,3 +1,4 @@
+const pool = require("../../../config/db");
 const receiptsRepo = require("../repos/inventory.receipts.repository");
 const restockService = require("../repos/inventory.adjustments.repository");
 const ledgerRepo = require("../repos/inventory.ledger.repository");
@@ -133,7 +134,6 @@ exports.cancelReceipt = async (id, payload, context) => {
   if (receipt.paid_at) throw new Error("CANNOT_CANCEL_PAID_RECEIPT");
 
   const items = receipt.inventory_receipt_items || [];
-  const supabase = require("../../../config/supabase")();
   const today = new Date().toISOString().split("T")[0];
 
   // Reverse inventory movement for every line item
@@ -150,10 +150,24 @@ exports.cancelReceipt = async (id, payload, context) => {
   }));
 
   if (reversingMovements.length > 0) {
-    const { error: movErr } = await supabase
-      .from("inventory_movements")
-      .insert(reversingMovements);
-    if (movErr) throw new Error("FAILED_TO_REVERSE_INVENTORY");
+    for (const movement of reversingMovements) {
+      await pool.query(
+        `INSERT INTO inventory_movements
+           (product_id, movement_date, quantity, unit_cost, movement_type, reference_type, reference_id, notes, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          movement.product_id,
+          movement.movement_date,
+          movement.quantity,
+          movement.unit_cost,
+          movement.movement_type,
+          movement.reference_type,
+          movement.reference_id,
+          movement.notes,
+          movement.created_by,
+        ]
+      );
+    }
   }
 
   // Reverse the purchase journal entry (DR Inv / CR AP → DR AP / CR Inv)

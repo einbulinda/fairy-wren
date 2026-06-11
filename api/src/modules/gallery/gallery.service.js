@@ -1,8 +1,20 @@
-const repo = require("./gallery.repository");
-const getSupabase = require("../../config/supabase");
+const fs = require("fs");
 const path = require("path");
+const repo = require("./gallery.repository");
+const pool = require("../../config/db");
 
-const BUCKET = "gallery-images";
+const UPLOAD_DIR = path.join(__dirname, "../../../uploads/gallery");
+
+function ensureUploadDir() {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+}
+
+function buildPublicUrl(filename) {
+  const base = (process.env.BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+  return `${base}/uploads/gallery/${filename}`;
+}
 
 exports.list = async ({ activeOnly = false } = {}) => {
   const { data, error, count } = await repo.findAll({ activeOnly });
@@ -11,30 +23,19 @@ exports.list = async ({ activeOnly = false } = {}) => {
 };
 
 exports.upload = async (file, { caption, context }) => {
-  const supabase = getSupabase();
+  ensureUploadDir();
+
   const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+  const filePath = path.join(UPLOAD_DIR, filename);
 
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(filename, file.buffer, {
-      contentType: file.mimetype,
-      upsert: false,
-    });
+  fs.writeFileSync(filePath, file.buffer);
 
-  if (uploadError) {
-    console.log("Image Upload Error", uploadError);
-    throw new Error("FAILED_TO_UPLOAD_IMAGE");
-  }
-
-  const { data: urlData } = supabase.storage
-    .from(BUCKET)
-    .getPublicUrl(filename);
-
+  const publicUrl = buildPublicUrl(filename);
   const maxOrder = await repo.getMaxSortOrder();
 
   const { data, error } = await repo.create({
-    url: urlData.publicUrl,
+    url: publicUrl,
     caption: caption || null,
     sort_order: maxOrder + 1,
     active: true,
@@ -60,22 +61,25 @@ exports.update = async (id, { caption, active, sort_order }) => {
 };
 
 exports.reorder = async (orderedIds) => {
-  // Update sort_order for each id based on array position
-  const supabase = getSupabase();
-  const updates = orderedIds.map((id, index) =>
-    supabase.from("gallery_images").update({ sort_order: index }).eq("id", id),
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      pool.query("UPDATE gallery_images SET sort_order = $1 WHERE id = $2", [index, id])
+    )
   );
-  await Promise.all(updates);
 };
 
 exports.remove = async (id) => {
-  const supabase = getSupabase();
   const { data: existing, error: fetchErr } = await repo.findById(id);
   if (fetchErr || !existing) throw new Error("IMAGE_NOT_FOUND");
 
-  // Extract filename from URL and delete from storage
-  const filename = existing.url.split("/").pop();
-  await supabase.storage.from(BUCKET).remove([filename]);
+  // Delete local file if stored locally
+  if (existing.url && existing.url.includes("/uploads/gallery/")) {
+    const filename = existing.url.split("/uploads/gallery/").pop();
+    const filePath = path.join(UPLOAD_DIR, filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
 
   const { error } = await repo.remove(id);
   if (error) throw new Error("FAILED_TO_DELETE_IMAGE");

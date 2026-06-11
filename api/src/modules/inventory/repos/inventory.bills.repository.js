@@ -1,16 +1,17 @@
-const getSupabase = require("../../../config/supabase");
+const pool = require("../../../config/db");
 
 /* -------------Get all items for a bill (used during void) ----------- */
 exports.getBillItems = async (billId) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("round_items")
-    .select(
-      `
-      quantity,
-      product_id,
-      rounds!inner(bill_id)
-    `,
-    )
-    .eq("rounds.bill_id", billId);
+  try {
+    const { rows } = await pool.query(
+      `SELECT ri.quantity, ri.product_id
+       FROM round_items ri
+       INNER JOIN rounds r ON r.id = ri.round_id
+       WHERE r.bill_id = $1`,
+      [billId],
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };

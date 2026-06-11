@@ -1,8 +1,7 @@
-const getSupabase = require("../../../config/supabase");
+const pool = require("../../../config/db");
 
 /*----------- RECEIVE INVENTORY ----------*/
 exports.receiveInventory = async (payload, userId) => {
-  const supabase = getSupabase();
   const {
     supplier_id,
     invoice_number,
@@ -10,84 +9,95 @@ exports.receiveInventory = async (payload, userId) => {
     total_amount,
     line_items,
   } = payload;
-  const { data, error } = await supabase.rpc("receive_inventory", {
-    p_supplier_id: supplier_id,
-    p_invoice_number: invoice_number,
-    p_purchase_date: purchase_date,
-    p_total_amount: total_amount,
-    p_line_items: line_items,
-    p_created_by: userId,
-  });
 
-  if (error) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM receive_inventory($1, $2, $3, $4, $5::jsonb, $6)`,
+      [
+        supplier_id,
+        invoice_number,
+        purchase_date,
+        total_amount,
+        JSON.stringify(line_items),
+        userId,
+      ],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
     console.error("receive_inventory RPC error:", error);
     throw new Error("FAILED_TO_RECEIVE_INVENTORY");
   }
-  return { data, error: null };
 };
 
 /* ---------- RECEIPT DETAIL (READ) ---------- */
 exports.getReceiptById = async (id) => {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase
-    .from("inventory_receipts")
-    .select(
-      `
-      id,
-      invoice_number,
-      purchase_date,
-      total_amount,
-      status,
-      paid_at,
-      notes,
-      created_at,
-      supplier_id,
-      inventory_receipt_items (
-        id,
-        product_id,
-        quantity,
-        unit_cost,
-        line_total,
-        products ( id, name, unit )
-      )
-    `,
-    )
-    .eq("id", id)
-    .single();
-
-  if (error) return { data: null, error };
-
-  if (data?.supplier_id) {
-    const { data: supplier } = await supabase
-      .from("suppliers")
-      .select("id, name")
-      .eq("id", data.supplier_id)
-      .single();
-    data.supplier = supplier || null;
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+        ir.id,
+        ir.invoice_number,
+        ir.purchase_date,
+        ir.total_amount,
+        ir.status,
+        ir.paid_at,
+        ir.notes,
+        ir.created_at,
+        ir.supplier_id,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', iri.id,
+              'product_id', iri.product_id,
+              'quantity', iri.quantity,
+              'unit_cost', iri.unit_cost,
+              'line_total', iri.line_total,
+              'products', json_build_object('id', p.id, 'name', p.name, 'unit', p.unit)
+            )
+          )
+          FROM inventory_receipt_items iri
+          LEFT JOIN products p ON p.id = iri.product_id
+          WHERE iri.receipt_id = ir.id
+        ) AS inventory_receipt_items,
+        json_build_object('id', s.id, 'name', s.name) AS supplier
+       FROM inventory_receipts ir
+       LEFT JOIN suppliers s ON s.id = ir.supplier_id
+       WHERE ir.id = $1`,
+      [id],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
   }
-
-  return { data, error: null };
 };
 
 /* ---------- CANCEL RECEIPT ---------- */
 exports.cancelReceipt = async (id, userId) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("inventory_receipts")
-    .update({ status: "cancelled", updated_at: new Date().toISOString(), updated_by: userId })
-    .eq("id", id)
-    .select()
-    .single();
+  try {
+    const { rows } = await pool.query(
+      `UPDATE inventory_receipts
+       SET status = 'cancelled', updated_at = NOW(), updated_by = $2
+       WHERE id = $1
+       RETURNING *`,
+      [id, userId],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 /* ---------- MARK RECEIPT PAID ---------- */
 exports.markReceiptPaid = async (id) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("inventory_receipts")
-    .update({ paid_at: new Date().toISOString() })
-    .eq("id", id)
-    .select()
-    .single();
+  try {
+    const { rows } = await pool.query(
+      `UPDATE inventory_receipts
+       SET paid_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };

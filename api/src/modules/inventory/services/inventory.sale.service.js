@@ -1,15 +1,14 @@
+const pool = require("../../../config/db");
 const productsRepo = require("../repos/inventory.products.repository");
 const adjustmentsRepo = require("../repos/inventory.adjustments.repository");
 const billsRepo = require("../repos/inventory.bills.repository");
 const ledgerService = require("../../ledger/ledger.service");
-const getSupabase = require("../../../config/supabase");
 
 /**
  * Validate stock before sale with database-level consistency check
  * This prevents race conditions between multiple POS devices
  */
 exports.assertStockAvailable = async (items) => {
-  const supabase = getSupabase();
   const errors = [];
 
   // Get all product IDs
@@ -17,13 +16,15 @@ exports.assertStockAvailable = async (items) => {
 
   // Fetch current stock for all products in a single query
   // This ensures we get a consistent snapshot
-  const { data: products, error } = await supabase
-    .from("products")
-    .select("id, name, current_stock, track_inventory")
-    .in("id", productIds);
+  const { rows: products } = await pool.query(
+    `SELECT id, name, current_stock, track_inventory
+     FROM products
+     WHERE id = ANY($1::uuid[])`,
+    [productIds]
+  );
 
-  if (error) {
-    throw new Error(`FAILED_TO_CHECK_STOCK: ${error.message}`);
+  if (!products) {
+    throw new Error(`FAILED_TO_CHECK_STOCK`);
   }
 
   // Create a map for quick lookup

@@ -1,119 +1,160 @@
-const getSupabase = require("../../config/supabase");
+const pool = require("../../config/db");
 
 exports.findAll = async (filters = {}) => {
-  const supabase = getSupabase();
-  let query = supabase.from("chart_of_accounts").select("*");
+  try {
+    const conditions = [];
+    const values = [];
 
-  if (filters.active !== undefined) {
-    query = query.eq("active", filters.active);
-  }
-
-  if (filters.account_class) {
-    query = query.eq("account_class", filters.account_class);
-  }
-
-  if (filters.is_control_account !== undefined) {
-    query = query.eq("is_control_account", filters.is_control_account);
-  }
-
-  if (filters.parent_id !== undefined) {
-    if (filters.parent_id === null) {
-      query = query.is("parent_id", null);
-    } else {
-      query = query.eq("parent_id", filters.parent_id);
+    if (filters.active !== undefined) {
+      values.push(filters.active);
+      conditions.push(`active = $${values.length}`);
     }
-  }
 
-  return query.order("code", { ascending: true });
+    if (filters.account_class) {
+      values.push(filters.account_class);
+      conditions.push(`account_class = $${values.length}`);
+    }
+
+    if (filters.is_control_account !== undefined) {
+      values.push(filters.is_control_account);
+      conditions.push(`is_control_account = $${values.length}`);
+    }
+
+    if (filters.parent_id !== undefined) {
+      if (filters.parent_id === null) {
+        conditions.push(`parent_id IS NULL`);
+      } else {
+        values.push(filters.parent_id);
+        conditions.push(`parent_id = $${values.length}`);
+      }
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const { rows } = await pool.query(
+      `SELECT * FROM chart_of_accounts ${where} ORDER BY code ASC`,
+      values,
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.findById = async (id) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("chart_of_accounts")
-    .select("*")
-    .eq("id", id)
-    .single();
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM chart_of_accounts WHERE id = $1`,
+      [id],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.findByCode = async (code) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("chart_of_accounts")
-    .select("*")
-    .eq("code", code)
-    .maybeSingle();
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM chart_of_accounts WHERE code = $1`,
+      [code],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.create = async (payload) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("chart_of_accounts")
-    .insert(payload)
-    .select()
-    .single();
+  try {
+    const cols = Object.keys(payload);
+    const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
+    const { rows } = await pool.query(
+      `INSERT INTO chart_of_accounts (${cols.join(", ")}) VALUES (${placeholders}) RETURNING *`,
+      Object.values(payload),
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.update = async (id, payload) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("chart_of_accounts")
-    .update({ ...payload, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select()
-    .single();
+  try {
+    const entries = Object.entries({ ...payload, updated_at: new Date().toISOString() });
+    const set = entries.map(([col], i) => `"${col}" = $${i + 1}`).join(", ");
+    const { rows } = await pool.query(
+      `UPDATE chart_of_accounts SET ${set} WHERE id = $${entries.length + 1} RETURNING *`,
+      [...entries.map(([, v]) => v), id],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.updateStatus = async (id, active) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("chart_of_accounts")
-    .update({ active, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select()
-    .single();
+  try {
+    const { rows } = await pool.query(
+      `UPDATE chart_of_accounts SET active = $1, updated_at = $2 WHERE id = $3 RETURNING *`,
+      [active, new Date().toISOString(), id],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.delete = async (id) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("chart_of_accounts")
-    .delete()
-    .eq("id", id);
+  try {
+    const { rows } = await pool.query(
+      `DELETE FROM chart_of_accounts WHERE id = $1 RETURNING *`,
+      [id],
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.getChildren = async (parentId) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("chart_of_accounts")
-    .select("*")
-    .eq("parent_id", parentId)
-    .order("code", { ascending: true });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM chart_of_accounts WHERE parent_id = $1 ORDER BY code ASC`,
+      [parentId],
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.getNextChildCode = async (parentId, parentCode) => {
-  const supabase = getSupabase();
-  const { data: children } = await supabase
-    .from("chart_of_accounts")
-    .select("code")
-    .eq("parent_id", parentId)
-    .order("code", { ascending: false })
-    .limit(1);
+  try {
+    const { rows: children } = await pool.query(
+      `SELECT code FROM chart_of_accounts WHERE parent_id = $1 ORDER BY code DESC LIMIT 1`,
+      [parentId],
+    );
 
-  if (!children || children.length === 0) {
+    if (!children || children.length === 0) {
+      return `${parentCode}01`;
+    }
+
+    const lastCode = children[0].code;
+    const suffix = parseInt(lastCode.replace(parentCode, ""), 10) || 0;
+    return `${parentCode}${String(suffix + 1).padStart(2, "0")}`;
+  } catch {
     return `${parentCode}01`;
   }
-
-  const lastCode = children[0].code;
-  const suffix = parseInt(lastCode.replace(parentCode, ""), 10) || 0;
-  return `${parentCode}${String(suffix + 1).padStart(2, "0")}`;
 };
 
 exports.getAccountLedger = async (accountId, startDate, endDate) => {
-  const supabase = getSupabase();
-  return supabase.rpc("rpc_account_ledger", {
-    p_account_id: accountId,
-    p_start_date: startDate,
-    p_end_date: endDate,
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM rpc_account_ledger($1, $2, $3)`,
+      [accountId, startDate, endDate],
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };

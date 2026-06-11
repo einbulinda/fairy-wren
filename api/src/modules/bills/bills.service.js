@@ -63,7 +63,6 @@ exports.getBill = async (id) => {
 
 exports.listBills = async (filters) => {
   const { data, error, pagination } = await repo.listBills(filters);
-  console.log("FAILED TO FETCH BILLS", error);
   if (error) throw new Error("FAILED_TO_FETCH_BILLS");
   return { bills: data, pagination };
 };

@@ -1,4 +1,4 @@
-const supabase = require("../../config/supabase");
+const pool = require("../../config/db");
 const logger = require("../../utils/logger");
 
 /**
@@ -29,7 +29,7 @@ exports.postBillToLedger = async (billId) => {
       revenueEntryId,
       cogsEntryId,
     });
-  } catch (error) {
+  } catch (err) {
     // VERY IMPORTANT: Do NOT throw
     logger.error("Ledger posting failed", {
       billId,
@@ -43,48 +43,53 @@ exports.postBillToLedger = async (billId) => {
  */
 
 async function isBillAlreadyPosted(billId) {
-  const { data, error } = await supabase
-    .from("journal_entries")
-    .select("id")
-    .eq("bill_id", billId)
-    .limit(1)
-    .single();
-
-  return data !== null && !error;
+  const { rows } = await pool.query(
+    "SELECT id FROM journal_entries WHERE bill_id = $1 LIMIT 1",
+    [billId]
+  );
+  return rows.length > 0;
 }
 
 /**
  * Load Bill + Items + Costs
  */
 async function getBillWithItems(billId) {
-  const { data, error } = await supabase
-    .from("bills")
-    .select(
-      `
-            id,
-      total_amount,
-      payments (
-        method,
-        amount
-      ),
-      bill_items (
-        quantity,
-        price,
-        products (
-          cost_price,
-          inventory_account_id,
-          cogs_account_id
-        )
-      )
-            `,
-    )
-    .eq("id", billId)
-    .single();
+  const { rows } = await pool.query(
+    `SELECT
+       b.id,
+       b.total_amount,
+       COALESCE(
+         json_agg(DISTINCT jsonb_build_object('method', pay.method, 'amount', pay.amount))
+         FILTER (WHERE pay.id IS NOT NULL),
+         '[]'
+       ) AS payments,
+       COALESCE(
+         json_agg(
+           jsonb_build_object(
+             'quantity', bi.quantity,
+             'price', bi.price,
+             'products', jsonb_build_object(
+               'cost_price', p.cost_price,
+               'inventory_account_id', p.inventory_account_id,
+               'cogs_account_id', p.cogs_account_id
+             )
+           )
+         ) FILTER (WHERE bi.id IS NOT NULL),
+         '[]'
+       ) AS bill_items
+     FROM bills b
+     LEFT JOIN payments pay ON pay.bill_id = b.id
+     LEFT JOIN bill_items bi ON bi.bill_id = b.id
+     LEFT JOIN products p ON p.id = bi.product_id
+     WHERE b.id = $1
+     GROUP BY b.id, b.total_amount`,
+    [billId]
+  );
 
-  if (error) {
-    throw new Error(`Failed to load bill ${billId}: ${error.message}`);
+  if (!rows[0]) {
+    throw new Error(`Failed to load bill ${billId}: not found`);
   }
-  return data;
+  return rows[0];
 }
 
 // Reverse Bill Ledger Entries
@@ -125,19 +130,13 @@ async function postRevenueJournal(bill) {
   const settlementAccountId = await getSettlementAccount(bill);
 
   // 1. Create journal entry
-  const { data: entry, error } = await supabase
-    .from("journal_entries")
-    .insert({
-      entry_date: new Date(),
-      reference: `BILL:${bill.id}`,
-      description: "POS Sale",
-      source_type: "bill",
-      source_id: bill.id,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
+  const { rows: entryRows } = await pool.query(
+    `INSERT INTO journal_entries (entry_date, reference, description, source_type, source_id)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [new Date(), `BILL:${bill.id}`, "POS Sale", "bill", bill.id]
+  );
+  const entry = entryRows[0];
 
   // 2. Journal lines
   const lines = [
@@ -155,57 +154,58 @@ async function postRevenueJournal(bill) {
     },
   ];
 
-  const { error: lineError } = await supabase
-    .from("journal_lines")
-    .insert(lines);
-
-  if (lineError) throw lineError;
+  for (const line of lines) {
+    await pool.query(
+      `INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+       VALUES ($1, $2, $3, $4)`,
+      [line.journal_entry_id, line.account_id, line.debit, line.credit]
+    );
+  }
 
   return entry.id;
 }
 
 // Fetch Journal Entries for a Bill
 async function getBillJournalEntries(billId) {
-  const { data, error } = await supabase
-    .from("journal_entries")
-    .select(
-      `
-      id,
-      reference,
-      source_type,
-      source_id,
-      reversed_entry_id,
-      journal_lines (
-        account_id,
-        debit,
-        credit
-      )
-    `,
-    )
-    .eq("source_type", "bill")
-    .eq("source_id", billId);
-
-  if (error) throw error;
-  return data;
+  const { rows } = await pool.query(
+    `SELECT
+       je.id,
+       je.reference,
+       je.source_type,
+       je.source_id,
+       je.reversed_entry_id,
+       COALESCE(
+         json_agg(
+           jsonb_build_object('account_id', jl.account_id, 'debit', jl.debit, 'credit', jl.credit)
+         ) FILTER (WHERE jl.id IS NOT NULL),
+         '[]'
+       ) AS journal_lines
+     FROM journal_entries je
+     LEFT JOIN journal_lines jl ON jl.journal_entry_id = je.id
+     WHERE je.source_type = 'bill' AND je.source_id = $1
+     GROUP BY je.id, je.reference, je.source_type, je.source_id, je.reversed_entry_id`,
+    [billId]
+  );
+  return rows;
 }
 
 // Reverse Single Journal Entry
 async function reverseJournalEntry(originalEntry, reason) {
   // 1. Create reversal header
-  const { data: reversalEntry, error } = await supabase
-    .from("journal_entries")
-    .insert({
-      entry_date: new Date(),
-      reference: `${originalEntry.reference}:REV`,
-      description: reason,
-      source_type: originalEntry.source_type,
-      source_id: originalEntry.source_id,
-      reversed_entry_id: originalEntry.id,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
+  const { rows: entryRows } = await pool.query(
+    `INSERT INTO journal_entries (entry_date, reference, description, source_type, source_id, reversed_entry_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      new Date(),
+      `${originalEntry.reference}:REV`,
+      reason,
+      originalEntry.source_type,
+      originalEntry.source_id,
+      originalEntry.id,
+    ]
+  );
+  const reversalEntry = entryRows[0];
 
   // 2. Reverse lines
   const reversedLines = originalEntry.journal_lines.map((line) => ({
@@ -215,17 +215,19 @@ async function reverseJournalEntry(originalEntry, reason) {
     credit: line.debit,
   }));
 
-  const { error: lineError } = await supabase
-    .from("journal_lines")
-    .insert(reversedLines);
-
-  if (lineError) throw lineError;
+  for (const line of reversedLines) {
+    await pool.query(
+      `INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+       VALUES ($1, $2, $3, $4)`,
+      [line.journal_entry_id, line.account_id, line.debit, line.credit]
+    );
+  }
 
   // 3. Mark original as reversed
-  await supabase
-    .from("journal_entries")
-    .update({ reversed_entry_id: reversalEntry.id })
-    .eq("id", originalEntry.id);
+  await pool.query(
+    `UPDATE journal_entries SET reversed_entry_id = $1 WHERE id = $2`,
+    [reversalEntry.id, originalEntry.id]
+  );
 }
 
 // COGS Journal Posting
@@ -241,19 +243,13 @@ async function postCOGSJournal(bill) {
   const inventoryAccountId = bill.bill_items[0].products.inventory_account_id;
   const cogsAccountId = bill.bill_items[0].products.cogs_account_id;
 
-  const { data: entry, error } = await supabase
-    .from("journal_entries")
-    .insert({
-      entry_date: new Date(),
-      reference: `BILL:${bill.id}:COGS`,
-      description: "Cost of Goods Sold",
-      source_type: "bill",
-      source_id: bill.id,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
+  const { rows: entryRows } = await pool.query(
+    `INSERT INTO journal_entries (entry_date, reference, description, source_type, source_id)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [new Date(), `BILL:${bill.id}:COGS`, "Cost of Goods Sold", "bill", bill.id]
+  );
+  const entry = entryRows[0];
 
   const lines = [
     {
@@ -270,27 +266,24 @@ async function postCOGSJournal(bill) {
     },
   ];
 
-  const { error: lineError } = await supabase
-    .from("journal_lines")
-    .insert(lines);
-
-  if (lineError) throw lineError;
+  for (const line of lines) {
+    await pool.query(
+      `INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit)
+       VALUES ($1, $2, $3, $4)`,
+      [line.journal_entry_id, line.account_id, line.debit, line.credit]
+    );
+  }
 
   return entry.id;
 }
 
 // Revenue Account
 async function getRevenueAccount() {
-  const { data, error } = await supabase
-    .from("chart_of_accounts")
-    .select("id")
-    .eq("account_class", "income")
-    .eq("active", true)
-    .limit(1)
-    .single();
-
-  if (error) throw error;
-  return data.id;
+  const { rows } = await pool.query(
+    `SELECT id FROM chart_of_accounts WHERE account_class = 'income' AND active = true LIMIT 1`
+  );
+  if (!rows[0]) throw new Error("Revenue account not found");
+  return rows[0].id;
 }
 
 // Settlement Account based on payment method
@@ -298,13 +291,10 @@ async function getSettlementAccount(bill) {
   // For simplicity, using the first payment method
   const method = bill.payments[0]?.method || "cash";
 
-  const { data, error } = await supabase
-    .from("chart_of_accounts")
-    .select("id")
-    .eq("code", method.toUpperCase())
-    .eq("active", true)
-    .limit(1)
-    .single();
-  if (error) throw error;
-  return data.id;
+  const { rows } = await pool.query(
+    `SELECT id FROM chart_of_accounts WHERE code = $1 AND active = true LIMIT 1`,
+    [method.toUpperCase()]
+  );
+  if (!rows[0]) throw new Error(`Settlement account not found for method: ${method}`);
+  return rows[0].id;
 }

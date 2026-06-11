@@ -1,173 +1,207 @@
-const getSupabase = require("../../../config/supabase");
+const pool = require("../../../config/db");
 
 /* ---------- POLICIES ---------- */
 
 exports.getAllPolicies = async () => {
-  const supabase = getSupabase();
-
-  return supabase
-    .from("product_inventory_policies")
-    .select(
-      `
-      *,
-      products!product_inventory_policies_product_id_fkey(id, name, current_stock, track_inventory, active),
-      suppliers!product_inventory_policies_primary_supplier_id_fkey(id, name)
-    `,
-    )
-    .order("updated_at", { ascending: false });
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+        pip.*,
+        json_build_object(
+          'id', pr.id,
+          'name', pr.name,
+          'current_stock', pr.current_stock,
+          'track_inventory', pr.track_inventory,
+          'active', pr.active
+        ) AS products,
+        json_build_object('id', s.id, 'name', s.name) AS suppliers
+       FROM product_inventory_policies pip
+       LEFT JOIN products pr ON pr.id = pip.product_id
+       LEFT JOIN suppliers s ON s.id = pip.primary_supplier_id
+       ORDER BY pip.updated_at DESC`,
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.getPolicyByProductId = async (productId) => {
-  const supabase = getSupabase();
-
-  return supabase
-    .from("product_inventory_policies")
-    .select(
-      `
-      *,
-      products!product_inventory_policies_product_id_fkey(id, name, current_stock, track_inventory),
-      suppliers!product_inventory_policies_primary_supplier_id_fkey(id, name)
-    `,
-    )
-    .eq("product_id", productId)
-    .maybeSingle();
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+        pip.*,
+        json_build_object(
+          'id', pr.id,
+          'name', pr.name,
+          'current_stock', pr.current_stock,
+          'track_inventory', pr.track_inventory
+        ) AS products,
+        json_build_object('id', s.id, 'name', s.name) AS suppliers
+       FROM product_inventory_policies pip
+       LEFT JOIN products pr ON pr.id = pip.product_id
+       LEFT JOIN suppliers s ON s.id = pip.primary_supplier_id
+       WHERE pip.product_id = $1`,
+      [productId],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.upsertManualOverride = async (productId, reorderLevel) => {
-  const supabase = getSupabase();
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO product_inventory_policies (product_id, reorder_level, manual_override, source, updated_at)
+       VALUES ($1, $2, true, 'manual', NOW())
+       ON CONFLICT (product_id) DO UPDATE SET
+         reorder_level = EXCLUDED.reorder_level,
+         manual_override = true,
+         source = 'manual',
+         updated_at = NOW()
+       RETURNING *`,
+      [productId, reorderLevel],
+    );
+    const data = rows[0] || null;
+    if (!data) return { data: null, error: new Error("Upsert returned no row") };
 
-  // Upsert the policy with manual override
-  const { data, error } = await supabase
-    .from("product_inventory_policies")
-    .upsert(
-      {
-        product_id: productId,
-        reorder_level: reorderLevel,
-        manual_override: true,
-        source: "manual",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "product_id" },
-    )
-    .select()
-    .single();
+    await pool.query(
+      `UPDATE products SET reorder_level = $1 WHERE id = $2`,
+      [reorderLevel, productId],
+    );
 
-  if (error) return { data: null, error };
-
-  // Also update the products table
-  const { error: prodError } = await supabase
-    .from("products")
-    .update({ reorder_level: reorderLevel })
-    .eq("id", productId);
-
-  if (prodError) return { data: null, error: prodError };
-
-  return { data, error: null };
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.resetOverride = async (productId) => {
-  const supabase = getSupabase();
-
-  return supabase
-    .from("product_inventory_policies")
-    .update({
-      manual_override: false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("product_id", productId)
-    .select()
-    .single();
+  try {
+    const { rows } = await pool.query(
+      `UPDATE product_inventory_policies
+       SET manual_override = false, updated_at = NOW()
+       WHERE product_id = $1
+       RETURNING *`,
+      [productId],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 /* ---------- SETTINGS ---------- */
 
 exports.getSettings = async () => {
-  const supabase = getSupabase();
-
-  return supabase
-    .from("reorder_level_settings")
-    .select("*")
-    .limit(1)
-    .single();
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM reorder_level_settings LIMIT 1`,
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.updateSettings = async (payload) => {
-  const supabase = getSupabase();
+  try {
+    // Get existing row id
+    const { rows: existing } = await pool.query(
+      `SELECT id FROM reorder_level_settings LIMIT 1`,
+    );
 
-  // Get existing row id
-  const { data: existing } = await supabase
-    .from("reorder_level_settings")
-    .select("id")
-    .limit(1)
-    .single();
+    if (!existing[0]) {
+      const keys = Object.keys(payload);
+      const values = Object.values(payload);
+      values.push(new Date().toISOString());
+      const cols = [...keys, "updated_at"].join(", ");
+      const placeholders = values.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `INSERT INTO reorder_level_settings (${cols}) VALUES (${placeholders}) RETURNING *`,
+        values,
+      );
+      return { data: rows[0] || null, error: null };
+    }
 
-  if (!existing) {
-    return supabase
-      .from("reorder_level_settings")
-      .insert({ ...payload, updated_at: new Date().toISOString() })
-      .select()
-      .single();
+    const keys = Object.keys(payload);
+    const values = Object.values(payload);
+    values.push(new Date().toISOString());
+    values.push(existing[0].id);
+    const setClauses = [...keys, "updated_at"]
+      .map((k, i) => `${k} = $${i + 1}`)
+      .join(", ");
+    const { rows } = await pool.query(
+      `UPDATE reorder_level_settings SET ${setClauses} WHERE id = $${values.length} RETURNING *`,
+      values,
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
   }
-
-  return supabase
-    .from("reorder_level_settings")
-    .update({ ...payload, updated_at: new Date().toISOString() })
-    .eq("id", existing.id)
-    .select()
-    .single();
 };
 
 /* ---------- REFRESH ---------- */
 
 exports.refreshAll = async () => {
-  const supabase = getSupabase();
-  return supabase.rpc("refresh_reorder_levels");
+  try {
+    const { rows } = await pool.query(`SELECT * FROM refresh_reorder_levels()`);
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.refreshProduct = async (productId) => {
-  const supabase = getSupabase();
-  return supabase.rpc("refresh_reorder_levels", {
-    p_product_ids: [productId],
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM refresh_reorder_levels($1::uuid[])`,
+      [[productId]],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 /* ---------- MOVEMENT ANALYSIS ---------- */
 
 exports.getMovementAnalysis = async (fastDays = 30, slowDays = 90) => {
-  const supabase = getSupabase();
-
-  return supabase.rpc("get_product_movement_analysis", {
-    p_fast_days: fastDays,
-    p_slow_days: slowDays,
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM get_product_movement_analysis($1, $2)`,
+      [fastDays, slowDays],
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 /* ---------- ALERTS ---------- */
 
 exports.getReorderAlerts = async () => {
-  const supabase = getSupabase();
-
-  // Fetch all tracked products with ROL set, filter in JS since
-  // PostgREST can't compare two columns in a filter
-  const result = await supabase
-    .from("products")
-    .select(
-      `
-      id, name, current_stock, reorder_level, cost_price, unit,
-      categories!products_category_id_fkey(name)
-    `,
-    )
-    .eq("track_inventory", true)
-    .eq("active", true)
-    .gt("reorder_level", 0)
-    .order("current_stock", { ascending: true });
-
-  if (result.error) return result;
-
-  // Filter: current_stock <= reorder_level
-  result.data = result.data.filter(
-    (p) => p.current_stock <= p.reorder_level,
-  );
-
-  return result;
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+        p.id,
+        p.name,
+        p.current_stock,
+        p.reorder_level,
+        p.cost_price,
+        p.unit,
+        json_build_object('name', c.name) AS categories
+       FROM products p
+       LEFT JOIN categories c ON c.id = p.category_id
+       WHERE p.track_inventory = true
+         AND p.active = true
+         AND p.reorder_level > 0
+         AND p.current_stock <= p.reorder_level
+       ORDER BY p.current_stock ASC`,
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };

@@ -1,4 +1,4 @@
-const getSupabase = require("../../../config/supabase");
+const pool = require("../../../config/db");
 
 /* ---------- CREATE SESSION ---------- */
 exports.createSession = async ({
@@ -7,57 +7,71 @@ exports.createSession = async ({
   stockTakeType,
   location,
 }) => {
-  const supabase = getSupabase();
-
-  return supabase.rpc("create_stock_take_session", {
-    p_performed_by_id: userId,
-    p_stock_take_name: stockTakeName,
-    p_stock_take_type: stockTakeType,
-    p_location: location,
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM create_stock_take_session($1, $2, $3, $4)`,
+      [userId, stockTakeName, stockTakeType, location],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 /* ---------- RECORD ITEM ---------- */
 exports.recordItem = async (payload) => {
-  const supabase = getSupabase();
-
-  return supabase.rpc("record_stock_take_item", {
-    p_stock_take_id: payload.stockTakeId,
-    p_product_id: payload.productId,
-    p_physical_qty: payload.physicalQty,
-    p_reason: payload.reason,
-    p_notes: payload.notes,
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM record_stock_take_item($1, $2, $3, $4, $5)`,
+      [
+        payload.stockTakeId,
+        payload.productId,
+        payload.physicalQty,
+        payload.reason,
+        payload.notes,
+      ],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 /* ---------- COMPLETE ---------- */
 exports.completeSession = async (stockTakeId, userId) => {
-  const supabase = getSupabase();
-
-  return supabase.rpc("complete_stock_take_session", {
-    p_stock_take_id: stockTakeId,
-    p_completed_by_id: userId,
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM complete_stock_take_session($1, $2)`,
+      [stockTakeId, userId],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 /* ---------- APPROVE ---------- */
 exports.approve = async (stockTakeId, reviewerId, notes) => {
-  const supabase = getSupabase();
-
-  return supabase.rpc("approve_stock_take", {
-    p_stock_take_id: stockTakeId,
-    p_reviewed_by_id: reviewerId,
-    p_approval_notes: notes,
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM approve_stock_take($1, $2, $3)`,
+      [stockTakeId, reviewerId, notes],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 /* ---------- REJECT ---------- */
 exports.reject = async (stockTakeId, reviewerId, reason) => {
-  const supabase = getSupabase();
-
-  return supabase.rpc("reject_stock_take", {
-    p_stock_take_id: stockTakeId,
-    p_reviewed_by_id: reviewerId,
-    p_rejection_reason: reason,
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM reject_stock_take($1, $2, $3)`,
+      [stockTakeId, reviewerId, reason],
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };

@@ -167,12 +167,18 @@ exports.changePin = async (userId, payload, context) => {
     throw new Error("PIN_TOO_SHORT");
 
   // Fetch full user record with pin_hash
-  const supabase = require("../../config/supabase")();
-  const { data: fullUser, error: fetchErr } = await supabase
-    .from("profiles")
-    .select("id, pin_hash, pin_fingerprint")
-    .eq("id", userId)
-    .single();
+  const pool = require("../../config/db");
+  let fullUser, fetchErr;
+  try {
+    const result = await pool.query(
+      "SELECT id, pin_hash, pin_fingerprint FROM profiles WHERE id = $1",
+      [userId]
+    );
+    fullUser = result.rows[0] || null;
+    if (!fullUser) fetchErr = true;
+  } catch (e) {
+    fetchErr = e;
+  }
 
   if (fetchErr || !fullUser) throw new Error("USER_NOT_FOUND");
 

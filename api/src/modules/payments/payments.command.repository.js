@@ -1,4 +1,4 @@
-const getSupabase = require("../../config/supabase");
+const pool = require("../../config/db");
 
 /**
  * Process a payment against a bill
@@ -10,12 +10,13 @@ exports.processPayment = async ({
   payments,
   permissions,
 }) => {
-  const supabase = getSupabase();
-
-  return await supabase.rpc("process_payment", {
-    p_bill_id: billId,
-    p_payments: payments,
-    p_user_id: userId,
-    p_user_permissions: permissions,
-  });
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM process_payment($1, $2::jsonb, $3, $4::jsonb)",
+      [billId, JSON.stringify(payments), userId, JSON.stringify(permissions)]
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };

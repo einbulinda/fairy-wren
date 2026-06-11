@@ -1,8 +1,13 @@
-const getSupabase = require("../../../config/supabase");
+const pool = require("../../../config/db");
 
 exports.getReorderForecast = async (lookbackDays = 14) => {
-  const supabase = getSupabase();
-  return supabase.rpc("get_reorder_forecast", {
-    p_lookback_days: lookbackDays,
-  });
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM get_reorder_forecast($1)`,
+      [lookbackDays],
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };

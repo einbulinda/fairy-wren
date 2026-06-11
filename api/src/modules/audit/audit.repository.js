@@ -1,4 +1,4 @@
-const getSupabase = require("../../config/supabase");
+const pool = require("../../config/db");
 
 exports.log = async ({
   entity,
@@ -8,17 +8,20 @@ exports.log = async ({
   correlation_id,
   metadata,
 }) => {
-  const supabase = getSupabase();
-  const { error } = await supabase.from("audit_logs").insert({
-    entity,
-    entity_id: entity_id ? String(entity_id) : null,
-    action,
-    performed_by: performed_by || null,
-    correlation_id: correlation_id || null,
-    metadata: metadata || null,
-  });
-
-  if (error) {
+  try {
+    await pool.query(
+      `INSERT INTO audit_logs (entity, entity_id, action, performed_by, correlation_id, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        entity,
+        entity_id ? String(entity_id) : null,
+        action,
+        performed_by || null,
+        correlation_id || null,
+        metadata ? JSON.stringify(metadata) : null,
+      ]
+    );
+  } catch (error) {
     console.error("[audit] Failed to write audit log:", error.message, {
       entity,
       entity_id,

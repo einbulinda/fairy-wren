@@ -1,35 +1,36 @@
+const pool = require("../../config/db");
 const repo = require("./cheques.repository");
 const journalRepo = require("../journals/journals.repository");
 const supplierRepo = require("../suppliers/suppliers.repository");
 const { CreateChequeDTO } = require("./cheques.dto");
 const auditRepo = require("../audit/audit.repository");
-const getSupabase = require("../../config/supabase");
 
 // Cache invalidation helper
 const invalidateFinancialCaches = async (accountIds = []) => {
   try {
-    const supabase = getSupabase();
-    
-    // Log the change for real-time subscribers
-    await supabase.from('financial_data_changes').insert({
-      change_type: 'cheque_transaction',
-      entity_type: 'cheque',
-      affected_accounts: accountIds,
-      change_timestamp: new Date().toISOString()
-    });
-    
+    await pool.query(
+      `INSERT INTO financial_data_changes (change_type, entity_type, affected_accounts, change_timestamp)
+       VALUES ($1, $2, $3, $4)`,
+      [
+        "cheque_transaction",
+        "cheque",
+        JSON.stringify(accountIds),
+        new Date().toISOString(),
+      ]
+    );
+
     // Broadcast to WebSocket if available
     const broadcast = global.broadcast || global.io;
     if (broadcast) {
-      broadcast('financial:data:changed', {
-        type: 'cheque',
+      broadcast("financial:data:changed", {
+        type: "cheque",
         affectedAccounts: accountIds,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   } catch (err) {
     // Non-critical: log but don't fail the transaction
-    console.warn('[ChequeService] Cache invalidation warning:', err.message);
+    console.warn("[ChequeService] Cache invalidation warning:", err.message);
   }
 };
 
@@ -46,28 +47,28 @@ exports.getById = async (id) => {
 };
 
 exports.getDetailed = async (id) => {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.rpc('rpc_get_cheque_details', {
-    p_cheque_id: id
-  });
-  
-  if (error || !data || data.length === 0) {
+  const { rows } = await pool.query(
+    `SELECT * FROM rpc_get_cheque_details($1)`,
+    [id]
+  );
+
+  if (!rows || rows.length === 0) {
     throw new Error("CHEQUE_NOT_FOUND");
   }
-  
-  return data[0];
+
+  return rows[0];
 };
 
 exports.create = async (payload, context) => {
   const dto = CreateChequeDTO(payload);
 
   // Validate account existence and types
-  const supabase = getSupabase();
-  const { data: validation } = await supabase.rpc('validate_cheque_accounts', {
-    p_bank_account_id: dto.bank_account_id,
-    p_debit_account_id: dto.debit_account_id
-  });
-  
+  const { rows: validationRows } = await pool.query(
+    `SELECT * FROM validate_cheque_accounts($1, $2)`,
+    [dto.bank_account_id, dto.debit_account_id]
+  );
+  const validation = validationRows[0] || null;
+
   if (validation && !validation.is_valid) {
     throw new Error(validation.error_message || "INVALID_ACCOUNTS");
   }
@@ -171,8 +172,8 @@ exports.clear = async (id, context) => {
   // Invalidate cache for affected accounts
   if (cheque.bank_account_id && cheque.debit_account_id) {
     await invalidateFinancialCaches([
-      cheque.bank_account_id, 
-      cheque.debit_account_id
+      cheque.bank_account_id,
+      cheque.debit_account_id,
     ]);
   }
 
@@ -226,9 +227,9 @@ exports.void = async (id, context) => {
           cheque.journal_entry_id,
           reversal.id,
         );
-        
+
         // Track affected accounts for cache invalidation
-        original.journal_lines.forEach(l => {
+        original.journal_lines.forEach((l) => {
           if (!affectedAccounts.includes(l.account_id)) {
             affectedAccounts.push(l.account_id);
           }
@@ -258,9 +259,9 @@ exports.void = async (id, context) => {
     action: "CHEQUE_VOIDED",
     performed_by: context.userId,
     correlation_id: context.correlationId,
-    metadata: { 
+    metadata: {
       cheque_number: cheque.cheque_number,
-      reversed_accounts: affectedAccounts 
+      reversed_accounts: affectedAccounts,
     },
   });
 
@@ -268,30 +269,40 @@ exports.void = async (id, context) => {
 };
 
 exports.validateAccounts = async (bankAccountId, debitAccountId) => {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.rpc('validate_cheque_accounts', {
-    p_bank_account_id: bankAccountId,
-    p_debit_account_id: debitAccountId
-  });
-  
-  if (error) throw new Error("FAILED_TO_VALIDATE_ACCOUNTS");
-  return data;
+  const { rows } = await pool.query(
+    `SELECT * FROM validate_cheque_accounts($1, $2)`,
+    [bankAccountId, debitAccountId]
+  );
+  return rows[0] || null;
 };
 
 exports.getLinkageReport = async (filters = {}) => {
-  const supabase = getSupabase();
-  let query = supabase
-    .from('v_cheque_journal_linkage')
-    .select('*');
-  
-  if (filters.status) query = query.eq('status', filters.status);
-  if (filters.has_journal !== undefined) {
-    query = query.eq('has_journal', filters.has_journal);
+  const conditions = [];
+  const params = [];
+
+  if (filters.status) {
+    params.push(filters.status);
+    conditions.push(`status = $${params.length}`);
   }
-  if (filters.from) query = query.gte('cheque_date', filters.from);
-  if (filters.to) query = query.lte('cheque_date', filters.to);
-  
-  return query.order('cheque_date', { ascending: false });
+  if (filters.has_journal !== undefined) {
+    params.push(filters.has_journal);
+    conditions.push(`has_journal = $${params.length}`);
+  }
+  if (filters.from) {
+    params.push(filters.from);
+    conditions.push(`cheque_date >= $${params.length}`);
+  }
+  if (filters.to) {
+    params.push(filters.to);
+    conditions.push(`cheque_date <= $${params.length}`);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const { rows } = await pool.query(
+    `SELECT * FROM v_cheque_journal_linkage ${where} ORDER BY cheque_date DESC`,
+    params
+  );
+  return { data: rows, error: null };
 };
 
 module.exports = exports;

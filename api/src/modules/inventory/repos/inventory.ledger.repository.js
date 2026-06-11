@@ -1,23 +1,56 @@
-const getSupabase = require("../../../config/supabase");
+const pool = require("../../../config/db");
 
 /* ---------- INSERT LEDGER ENTRY ---------- */
 exports.insertLedgerEntry = async (payload) => {
-  const supabase = getSupabase();
-  return supabase.from("inventory_ledger").insert(payload);
+  try {
+    const keys = Object.keys(payload);
+    const values = Object.values(payload);
+    const cols = keys.join(", ");
+    const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
+
+    const { rows } = await pool.query(
+      `INSERT INTO inventory_ledger (${cols}) VALUES (${placeholders}) RETURNING *`,
+      values,
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 /* ---------- READ LEDGER ---------- */
 exports.getLedger = async ({ productId, from, to }) => {
-  const supabase = getSupabase();
+  try {
+    const params = [];
+    const conditions = [];
+    let idx = 1;
 
-  let query = supabase
-    .from("inventory_ledger")
-    .select("*, products(name)")
-    .order("created_at", { ascending: false });
+    if (productId) {
+      conditions.push(`il.product_id = $${idx++}`);
+      params.push(productId);
+    }
+    if (from) {
+      conditions.push(`il.created_at >= $${idx++}`);
+      params.push(from);
+    }
+    if (to) {
+      conditions.push(`il.created_at <= $${idx++}`);
+      params.push(to);
+    }
 
-  if (productId) query = query.eq("product_id", productId);
-  if (from) query = query.gte("created_at", from);
-  if (to) query = query.lte("created_at", to);
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  return query;
+    const { rows } = await pool.query(
+      `SELECT il.*, json_build_object('name', p.name) AS products
+       FROM inventory_ledger il
+       LEFT JOIN products p ON p.id = il.product_id
+       ${whereClause}
+       ORDER BY il.created_at DESC`,
+      params,
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };

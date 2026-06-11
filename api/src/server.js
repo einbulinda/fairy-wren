@@ -4,7 +4,7 @@ const { validateEnv } = require("./config/env");
 const app = require("./app");
 const logger = require("pino")();
 const { initializeSocketServer } = require("./websocket/socket.server");
-const { initializeSupabaseSubscriber, cleanupSubscriptions } = require("./websocket/supabase.subscriber");
+const { initializePgSubscriber, cleanupSubscriptions } = require("./websocket/pg.subscriber");
 
 console.log("Bootstrapping FairyWren API...");
 
@@ -28,8 +28,8 @@ const httpServer = createServer(app);
 // Initialize WebSocket server
 initializeSocketServer(httpServer);
 
-// Initialize Supabase real-time subscriber
-initializeSupabaseSubscriber();
+// Initialize PostgreSQL real-time subscriber (LISTEN/NOTIFY)
+initializePgSubscriber();
 
 // Start reorder level scheduler
 const reorderScheduler = require("./modules/inventory/services/inventory.scheduler");

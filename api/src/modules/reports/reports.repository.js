@@ -1,17 +1,29 @@
-const getSupabase = require("../../config/supabase");
+const pool = require("../../config/db");
 
 /**
- * Generic helper to call RPC safely
- * @param {string} rpcName - The name of the RPC function to call
- * @param {object} params - Parameters to pass to the RPC function
- * @returns {Promise<any>} The result from the RPC call
- * @throws {Error} If the RPC call fails
+ * Generic helper to call a PostgreSQL function safely
+ * @param {string} funcName - The name of the function to call
+ * @param {Array} params - Positional parameters for the function
+ * @returns {Promise<any>} The result rows from the function call
+ * @throws {Error} If the query fails
  */
-const callRpc = async (rpcName, params) => {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.rpc(rpcName, params);
-  if (error) throw error;
-  return data;
+const callFunc = async (funcName, params = []) => {
+  const placeholders = params.map((_, i) => `$${i + 1}`).join(", ");
+  const sql = `SELECT * FROM ${funcName}(${placeholders})`;
+  const { rows } = await pool.query(sql, params);
+
+  // PostgreSQL names the output column after the function when it returns a
+  // scalar or JSONB value (not a TABLE). Unwrap that single cell so callers
+  // get the value directly — matching the behaviour of supabase.rpc().
+  if (
+    rows.length === 1 &&
+    Object.keys(rows[0]).length === 1 &&
+    rows[0][funcName] !== undefined
+  ) {
+    return rows[0][funcName];
+  }
+
+  return rows;
 };
 
 /**
@@ -25,10 +37,7 @@ class ReportsRepository {
    * @returns {Promise<number>} Total revenue
    */
   async getTotalRevenue(startDate, endDate) {
-    return callRpc("rpc_total_revenue", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_total_revenue", [startDate, endDate]);
   }
 
   /**
@@ -38,10 +47,7 @@ class ReportsRepository {
    * @returns {Promise<Array<{business_date: Date, total_revenue: number}>>} Daily revenue data
    */
   async getDailyRevenue(startDate, endDate) {
-    return callRpc("rpc_daily_revenue", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_daily_revenue", [startDate, endDate]);
   }
 
   /**
@@ -51,10 +57,7 @@ class ReportsRepository {
    * @returns {Promise<Array<{payment_type: string, total_amount: number, count: number}>>} Payment type summary
    */
   async getPaymentTypeSummary(startDate, endDate) {
-    return callRpc("rpc_payment_type_summary", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_payment_type_summary", [startDate, endDate]);
   }
 
   /**
@@ -64,10 +67,7 @@ class ReportsRepository {
    * @returns {Promise<number>} Average bill value
    */
   async getAverageBillValue(startDate, endDate) {
-    return callRpc("rpc_avg_bill_value", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_avg_bill_value", [startDate, endDate]);
   }
 
   /**
@@ -77,10 +77,7 @@ class ReportsRepository {
    * @returns {Promise<Array<Object>>} Outstanding bills data
    */
   async getOutstandingBills(startDate, endDate) {
-    return callRpc("rpc_outstanding_bills", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_outstanding_bills", [startDate, endDate]);
   }
 
   /**
@@ -90,10 +87,7 @@ class ReportsRepository {
    * @returns {Promise<Array<{category_id: string, category_name: string, total_quantity: number, total_sales: number}>>} Category sales data
    */
   async getCategorySales(startDate, endDate) {
-    return callRpc("rpc_category_sales", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_category_sales", [startDate, endDate]);
   }
 
   /**
@@ -103,10 +97,7 @@ class ReportsRepository {
    * @returns {Promise<Array<Object>>} Weekly performance data
    */
   async getWeeklyPerformance(startDate, endDate) {
-    return callRpc("rpc_weekly_performance", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_weekly_performance", [startDate, endDate]);
   }
 
   /**
@@ -116,10 +107,7 @@ class ReportsRepository {
    * @returns {Promise<Array<Object>>} Monthly performance data
    */
   async getMonthlyPerformance(startDate, endDate) {
-    return callRpc("rpc_monthly_performance", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_monthly_performance", [startDate, endDate]);
   }
 
   /**
@@ -129,10 +117,7 @@ class ReportsRepository {
    * @returns {Promise<Array<Object>>} Weekend/weekday performance data
    */
   async getWeekendWeekdayPerformance(startDate, endDate) {
-    return callRpc("rpc_weekend_weekday_performance", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_weekend_weekday_performance", [startDate, endDate]);
   }
 
   /**
@@ -142,10 +127,7 @@ class ReportsRepository {
    * @returns {Promise<Array<Object>>} Day of week performance data
    */
   async getDayOfWeekPerformance(startDate, endDate) {
-    return callRpc("rpc_day_of_week_performance", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_day_of_week_performance", [startDate, endDate]);
   }
 
   /**
@@ -155,68 +137,47 @@ class ReportsRepository {
    * @returns {Promise<Array<Object>>} Daily category breakdown data
    */
   async getDailyCategoryBreakdown(startDate, endDate) {
-    return callRpc("rpc_daily_category_breakdown", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_daily_category_breakdown", [startDate, endDate]);
   }
 
   async getTopSellingProducts(startDate, endDate) {
-    return callRpc("rpc_top_selling_products", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_top_selling_products", [startDate, endDate]);
   }
 
   async getBillStatusSummary(startDate, endDate) {
-    return callRpc("rpc_bill_status_summary", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_bill_status_summary", [startDate, endDate]);
   }
 
   async getBalanceSheet(asOfDate) {
-    return callRpc("rpc_balance_sheet", { p_as_of_date: asOfDate });
+    return callFunc("rpc_balance_sheet", [asOfDate]);
   }
 
   async getNetIncome(asOfDate) {
-    return callRpc("rpc_net_income", { p_as_of_date: asOfDate });
+    return callFunc("rpc_net_income", [asOfDate]);
   }
 
   async getIncomeStatement(startDate, endDate) {
-    return callRpc("rpc_income_statement", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_income_statement", [startDate, endDate]);
   }
 
   async getTrialBalance(startDate, endDate) {
-    return callRpc("rpc_trial_balance", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_trial_balance", [startDate, endDate]);
   }
 
   async getCashFlowData(startDate, endDate) {
-    return callRpc("rpc_cash_flow_data", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_cash_flow_data", [startDate, endDate]);
   }
 
   async getEquityChanges(startDate, endDate) {
-    return callRpc("rpc_equity_changes", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
+    return callFunc("rpc_equity_changes", [startDate, endDate]);
   }
 
   async getHourlyRevenue(date) {
-    return callRpc("rpc_hourly_revenue", { p_date: date });
+    return callFunc("rpc_hourly_revenue", [date]);
   }
 
   async getZReport(date) {
-    return callRpc("rpc_z_report", { p_date: date });
+    return callFunc("rpc_z_report", [date]);
   }
 }
 

@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
+const path = require("path");
 const routes = require("./load/routes");
 const errorHandler = require("./middleware/errorHandler");
 const requestContext = require("./middleware/requestContext");
@@ -36,6 +37,9 @@ app.use(
 );
 
 app.use(express.json({ limit: "2mb" }));
+
+// Serve local uploads (gallery images, event posters)
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Rate limiting
 app.use(apiRateLimiter);

@@ -1,42 +1,50 @@
-const getSupabase = require("../../config/supabase");
+const pool = require("../../config/db");
 
 /**
  * List payments filtered by mode and date range
  * New read-only capability
  */
 exports.listPayments = async ({ type, from, to }) => {
-  const supabase = getSupabase();
+  try {
+    const conditions = [];
+    const params = [];
 
-  let query = supabase
-    .from("payments")
-    .select(
-      `
-      id,
-      bill_id,
-      amount,
-      payment_type,
-      is_paid,
-      status,
-      created_at,
-      created_by_user:profiles!fk_payments_created_by(
-        id,
-        name
-      )
-      `,
-    )
-    .order("created_at", { ascending: false });
+    if (type) {
+      params.push(type);
+      conditions.push(`pay.payment_type = $${params.length}`);
+    }
 
-  if (type) {
-    query = query.eq("payment_type", type);
+    if (from) {
+      params.push(from);
+      conditions.push(`pay.created_at >= $${params.length}`);
+    }
+
+    if (to) {
+      params.push(to);
+      conditions.push(`pay.created_at <= $${params.length}`);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const sql = `
+      SELECT
+        pay.id,
+        pay.bill_id,
+        pay.amount,
+        pay.payment_type,
+        pay.is_paid,
+        pay.status,
+        pay.created_at,
+        json_build_object('id', u.id, 'name', u.name) AS created_by_user
+      FROM payments pay
+      LEFT JOIN profiles u ON u.id = pay.created_by
+      ${whereClause}
+      ORDER BY pay.created_at DESC
+    `;
+
+    const { rows } = await pool.query(sql, params);
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
   }
-
-  if (from) {
-    query = query.gte("created_at", from);
-  }
-
-  if (to) {
-    query = query.lte("created_at", to);
-  }
-
-  return query;
 };

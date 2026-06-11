@@ -1,30 +1,31 @@
-const repo = require("./events.repository");
-const getSupabase = require("../../config/supabase");
+const fs = require("fs");
 const path = require("path");
+const repo = require("./events.repository");
 
-const BUCKET = "event-posters";
+const UPLOAD_DIR = path.join(__dirname, "../../../uploads/events");
+
+function ensureUploadDir() {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+}
+
+function buildPublicUrl(filePath) {
+  const base = (process.env.BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+  return `${base}/uploads/events/${filePath}`;
+}
 
 exports.uploadPoster = async (eventId, file) => {
-  const supabase = getSupabase();
+  ensureUploadDir();
+
   const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-  const filePath = `${eventId}${ext}`;
+  const filename = `${eventId}${ext}`;
+  const diskPath = path.join(UPLOAD_DIR, filename);
 
-  // Upsert so re-uploading replaces the previous poster
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(filePath, file.buffer, {
-      contentType: file.mimetype,
-      upsert: true,
-    });
+  fs.writeFileSync(diskPath, file.buffer);
 
-  if (uploadError) throw new Error("FAILED_TO_UPLOAD_POSTER");
+  const publicUrl = buildPublicUrl(filename);
 
-  const { data: urlData } = supabase.storage
-    .from(BUCKET)
-    .getPublicUrl(filePath);
-  const publicUrl = urlData.publicUrl;
-
-  // Persist the URL on the event record
   const { data, error } = await repo.update(eventId, { image_url: publicUrl });
   if (error) throw new Error("FAILED_TO_SAVE_POSTER_URL");
 
@@ -33,9 +34,7 @@ exports.uploadPoster = async (eventId, file) => {
 
 exports.list = async (filters) => {
   const { data, error, count } = await repo.findAll(filters);
-  if (error) {
-    throw new Error("FAILED_TO_FETCH_EVENTS");
-  }
+  if (error) throw new Error("FAILED_TO_FETCH_EVENTS");
   return { events: data, total: count };
 };
 
@@ -81,9 +80,7 @@ exports.create = async (payload, context) => {
     status: status || "draft",
     created_by: context.userId,
   });
-  if (error) {
-    throw new Error("FAILED_TO_CREATE_EVENT");
-  }
+  if (error) throw new Error("FAILED_TO_CREATE_EVENT");
   return data;
 };
 
@@ -101,7 +98,7 @@ exports.update = async (id, payload, context) => {
     "status",
   ];
   const updates = Object.fromEntries(
-    Object.entries(payload).filter(([k]) => allowed.includes(k)),
+    Object.entries(payload).filter(([k]) => allowed.includes(k))
   );
   const { data, error } = await repo.update(id, updates);
   if (error) throw new Error("FAILED_TO_UPDATE_EVENT");

@@ -1,63 +1,91 @@
-const getSupabase = require("../../config/supabase");
+const pool = require("../../config/db");
 
 exports.findAll = async () => {
-  const supabase = getSupabase();
-  return supabase
-    .from("account_classes")
-    .select("*")
-    .order("sort_order", { ascending: true });
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM account_classes ORDER BY sort_order ASC"
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.findActive = async () => {
-  const supabase = getSupabase();
-  return supabase
-    .from("account_classes")
-    .select("*")
-    .eq("active", true)
-    .order("sort_order", { ascending: true });
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM account_classes WHERE active = true ORDER BY sort_order ASC"
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.findByCode = async (code) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("account_classes")
-    .select("*")
-    .eq("code", code)
-    .maybeSingle();
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM account_classes WHERE code = $1",
+      [code]
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.create = async (payload) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("account_classes")
-    .insert(payload)
-    .select()
-    .single();
+  try {
+    const keys = Object.keys(payload);
+    const values = Object.values(payload);
+    const cols = keys.join(", ");
+    const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
+    const { rows } = await pool.query(
+      `INSERT INTO account_classes (${cols}) VALUES (${placeholders}) RETURNING *`,
+      values
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.update = async (code, payload) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("account_classes")
-    .update(payload)
-    .eq("code", code)
-    .select()
-    .single();
+  try {
+    const entries = Object.entries(payload);
+    const set = entries.map(([col], i) => `${col} = $${i + 1}`).join(", ");
+    const values = entries.map(([, val]) => val);
+    values.push(code);
+    const { rows } = await pool.query(
+      `UPDATE account_classes SET ${set} WHERE code = $${values.length} RETURNING *`,
+      values
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.delete = async (code) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("account_classes")
-    .delete()
-    .eq("code", code);
+  try {
+    const { rows } = await pool.query(
+      "DELETE FROM account_classes WHERE code = $1 RETURNING *",
+      [code]
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.isInUse = async (code) => {
-  const supabase = getSupabase();
-  const { count } = await supabase
-    .from("chart_of_accounts")
-    .select("id", { count: "exact", head: true })
-    .eq("account_class", code);
-  return count > 0;
+  try {
+    const { rows } = await pool.query(
+      "SELECT COUNT(*) AS count FROM chart_of_accounts WHERE account_class = $1",
+      [code]
+    );
+    return parseInt(rows[0].count, 10) > 0;
+  } catch (error) {
+    return false;
+  }
 };

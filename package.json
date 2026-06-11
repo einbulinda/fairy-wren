@@ -9,7 +9,7 @@
     "dev:pos": "concurrently \"npm run dev --prefix api\" \"npm run dev --prefix pos\"",
     "dev:erp": "concurrently \"npm run dev --prefix api\" \"npm run dev --prefix erp\"",
     "dev:web": "concurrently \"npm run dev --prefix api\" \"npm run dev --prefix web\"",
-    "start": "concurrently \"npm run start --prefix api\" \"npm run start --prefix pos\" \"npm run start --prefix erp\" \"npm run dev --prefix web\""
+    "start": "concurrently \"npm run start --prefix api\" \"npm run dev --prefix pos\" \"npm run dev --prefix erp\" \"npm run dev --prefix web\""
   },
   "repository": {
     "type": "git",

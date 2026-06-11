@@ -1,45 +1,90 @@
-const getSupabase = require("../../config/supabase");
+const pool = require("../../config/db");
 
 exports.findAll = async (filters = {}) => {
-  const supabase = getSupabase();
-  let query = supabase.from("profiles").select("id, name, role, active, created_at");
+  try {
+    const conditions = [];
+    const params = [];
 
-  if (filters.active !== undefined) {
-    query = query.eq("active", filters.active);
+    if (filters.active !== undefined) {
+      params.push(filters.active);
+      conditions.push(`active = $${params.length}`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const { rows } = await pool.query(
+      `SELECT id, name, role, active, created_at FROM profiles ${where} ORDER BY name`,
+      params
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
   }
-  return query.order("name");
 };
 
 exports.findById = async (id) => {
-  const supabase = getSupabase();
-  return supabase.from("profiles").select("id, name, role, active, created_at").eq("id", id).single();
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, name, role, active, created_at FROM profiles WHERE id = $1",
+      [id]
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.userExists = async (fingerprint) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("profiles")
-    .select("id")
-    .eq("pin_fingerprint", fingerprint)
-    .maybeSingle();
+  try {
+    const { rows } = await pool.query(
+      "SELECT id FROM profiles WHERE pin_fingerprint = $1",
+      [fingerprint]
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.create = async (payload) => {
-  const supabase = getSupabase();
-  return supabase.from("profiles").insert(payload).select().single();
+  try {
+    const keys = Object.keys(payload);
+    const values = Object.values(payload);
+    const cols = keys.join(", ");
+    const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
+    const { rows } = await pool.query(
+      `INSERT INTO profiles (${cols}) VALUES (${placeholders}) RETURNING *`,
+      values
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.update = async (id, payload) => {
-  const supabase = getSupabase();
-  return supabase
-    .from("profiles")
-    .update(payload)
-    .eq("id", id)
-    .select()
-    .single();
+  try {
+    const entries = Object.entries(payload);
+    const set = entries.map(([col], i) => `${col} = $${i + 1}`).join(", ");
+    const values = entries.map(([, val]) => val);
+    values.push(id);
+    const { rows } = await pool.query(
+      `UPDATE profiles SET ${set} WHERE id = $${values.length} RETURNING *`,
+      values
+    );
+    return { data: rows[0] || null, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
 
 exports.archive = async (id) => {
-  const supabase = getSupabase();
-  return supabase.from("profiles").update({ active: false }).eq("id", id);
+  try {
+    const { rows } = await pool.query(
+      "UPDATE profiles SET active = false WHERE id = $1 RETURNING *",
+      [id]
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
 };
