@@ -5,6 +5,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { usePendingApprovals } from "@/hooks/usePendingApprovals";
 import { usePendingReservations } from "@/hooks/usePendingReservations";
 import { useNewFeedback } from "@/hooks/useNewFeedback";
+import { useViewedNotifications } from "@/hooks/useViewedNotifications";
 import {
   Menu,
   Search,
@@ -23,11 +24,17 @@ import {
 const Header = ({ title, onMenuClick }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { pendingApprovals, count: approvalsCount } = usePendingApprovals();
-  const { pendingReservations, count: reservationsCount } =
-    usePendingReservations();
-  const { newFeedback, count: feedbackCount } = useNewFeedback();
-  const count = approvalsCount + reservationsCount + feedbackCount;
+  const { pendingApprovals } = usePendingApprovals();
+  const { pendingReservations } = usePendingReservations();
+  const { newFeedback } = useNewFeedback();
+  const { markViewed, filterUnviewed } = useViewedNotifications();
+
+  const unviewedApprovals = filterUnviewed(pendingApprovals);
+  const unviewedReservations = filterUnviewed(pendingReservations);
+  const unviewedFeedback = filterUnviewed(newFeedback);
+  const unviewedCount =
+    unviewedApprovals.length + unviewedReservations.length + unviewedFeedback.length;
+
   const navigate = useNavigate();
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -89,13 +96,33 @@ const Header = ({ title, onMenuClick }) => {
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
             <button
-              onClick={() => setNotifOpen((o) => !o)}
+              onClick={() => {
+                setNotifOpen((o) => {
+                  if (!o) {
+                    markViewed([
+                      ...unviewedApprovals.map((a) => ({
+                        entity_type: "stock_take",
+                        entity_id: a.id,
+                      })),
+                      ...unviewedReservations.map((r) => ({
+                        entity_type: "reservation",
+                        entity_id: r.id,
+                      })),
+                      ...unviewedFeedback.map((f) => ({
+                        entity_type: "feedback",
+                        entity_id: f.id,
+                      })),
+                    ]);
+                  }
+                  return !o;
+                });
+              }}
               className="relative p-2 rounded-lg text-surface-400 hover:text-white hover:bg-surface-800 transition-colors"
             >
               <Bell size={19} />
-              {count > 0 && (
+              {unviewedCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 flex items-center justify-center bg-danger text-[10px] font-bold text-white rounded-full px-1">
-                  {count > 99 ? "99+" : count}
+                  {unviewedCount > 99 ? "99+" : unviewedCount}
                 </span>
               )}
             </button>
@@ -106,26 +133,26 @@ const Header = ({ title, onMenuClick }) => {
                   <h4 className="text-sm font-semibold text-white">
                     Notifications
                   </h4>
-                  {count > 0 && (
+                  {unviewedCount > 0 && (
                     <span className="text-xs bg-danger/20 text-danger px-2 py-0.5 rounded-full font-medium">
-                      {count}
+                      {unviewedCount}
                     </span>
                   )}
                 </div>
 
                 <div className="max-h-96 overflow-y-auto">
                   {/* Pending Approvals section */}
-                  {approvalsCount > 0 && (
+                  {unviewedApprovals.length > 0 && (
                     <>
                       <div className="px-4 py-2 flex items-center justify-between bg-surface-900/50">
                         <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-wider">
                           Stock Take Reports
                         </span>
                         <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full">
-                          {approvalsCount}
+                          {unviewedApprovals.length}
                         </span>
                       </div>
-                      {pendingApprovals.map((item) => (
+                      {unviewedApprovals.map((item) => (
                         <button
                           key={item.id}
                           onClick={() => {
@@ -163,17 +190,17 @@ const Header = ({ title, onMenuClick }) => {
                   )}
 
                   {/* Pending Reservations section */}
-                  {reservationsCount > 0 && (
+                  {unviewedReservations.length > 0 && (
                     <>
                       <div className="px-4 py-2 flex items-center justify-between bg-surface-900/50">
                         <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-wider">
                           New Reservations
                         </span>
                         <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full">
-                          {reservationsCount}
+                          {unviewedReservations.length}
                         </span>
                       </div>
-                      {pendingReservations.map((item) => (
+                      {unviewedReservations.map((item) => (
                         <button
                           key={item.id}
                           onClick={() => {
@@ -213,17 +240,17 @@ const Header = ({ title, onMenuClick }) => {
                   )}
 
                   {/* New Feedback section */}
-                  {feedbackCount > 0 && (
+                  {unviewedFeedback.length > 0 && (
                     <>
                       <div className="px-4 py-2 flex items-center justify-between bg-surface-900/50">
                         <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-wider">
                           Customer Feedback
                         </span>
                         <span className="text-[10px] bg-primary-500/20 text-primary-400 px-1.5 py-0.5 rounded-full">
-                          {feedbackCount}
+                          {unviewedFeedback.length}
                         </span>
                       </div>
-                      {newFeedback.map((item) => (
+                      {unviewedFeedback.map((item) => (
                         <button
                           key={item.id}
                           onClick={() => {
@@ -254,7 +281,7 @@ const Header = ({ title, onMenuClick }) => {
                   )}
 
                   {/* Empty state */}
-                  {count === 0 && (
+                  {unviewedCount === 0 && (
                     <div className="px-4 py-8 text-center">
                       <ClipboardCheck
                         size={28}

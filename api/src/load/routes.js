@@ -27,6 +27,7 @@ const eventsRoutes = require("../modules/events/events.routes");
 const feedbackRoutes = require("../modules/feedback/feedback.routes");
 const galleryRoutes = require("../modules/gallery/gallery.routes");
 const reservationsRoutes = require("../modules/reservations/reservations.routes");
+const notificationsRoutes = require("../modules/notifications/notifications.routes");
 const publicRoutes = require("../modules/public/public.routes");
 
 // Public Routes
@@ -58,5 +59,6 @@ router.use("/events", authMiddleware, eventsRoutes);
 router.use("/feedback", authMiddleware, feedbackRoutes);
 router.use("/gallery", authMiddleware, galleryRoutes);
 router.use("/reservations", authMiddleware, reservationsRoutes);
+router.use("/notifications", authMiddleware, notificationsRoutes);
 
 module.exports = router;

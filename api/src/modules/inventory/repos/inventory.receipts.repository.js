@@ -12,14 +12,14 @@ exports.receiveInventory = async (payload, userId) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT * FROM receive_inventory($1, $2, $3, $4, $5::jsonb, $6)`,
+      `SELECT * FROM receive_inventory($1, $2, $3, $4, $5, $6::jsonb)`,
       [
         supplier_id,
         invoice_number,
         purchase_date,
         total_amount,
-        JSON.stringify(line_items),
         userId,
+        JSON.stringify(line_items),
       ],
     );
     return { data: rows[0] || null, error: null };
