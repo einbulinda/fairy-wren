@@ -52,11 +52,13 @@ const CurrentBill = ({
   const hasRecentItems = useMemo(() => {
     const now = new Date();
     const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-    return bill?.rounds?.some(
-      (r) =>
-        new Date(r.created_at) >= sixHoursAgo &&
-        (r.round_items || []).some((i) => !i.is_return && i.inventory_posted),
-    ) ?? false;
+    return (
+      bill?.rounds?.some(
+        (r) =>
+          new Date(r.created_at) >= sixHoursAgo &&
+          (r.round_items || []).some((i) => !i.is_return && i.inventory_posted),
+      ) ?? false
+    );
   }, [bill]);
 
   const canVoid = useMemo(() => {
@@ -203,12 +205,12 @@ const CurrentBill = ({
                           </div>
                           <div className="text-xs font-mono font-bold text-pink-400">
                             KSh{" "}
-                            {(
-                              (round.items || round.round_items || []).reduce(
+                            {(round.items || round.round_items || [])
+                              .reduce(
                                 (sum, item) => sum + itemLineTotal(item),
                                 0,
                               )
-                            ).toFixed(2)}
+                              .toFixed(2)}
                           </div>
                         </div>
                         <div className="space-y-1">
@@ -218,13 +220,22 @@ const CurrentBill = ({
                                 key={item.id}
                                 className={`flex justify-between text-xs ${item.is_return ? "opacity-70" : ""}`}
                               >
-                                <span className={item.is_return ? "text-red-400 line-through" : "text-gray-300"}>
+                                <span
+                                  className={
+                                    item.is_return
+                                      ? "text-red-400 line-through"
+                                      : "text-gray-300"
+                                  }
+                                >
                                   {item.quantity}x{" "}
                                   {item.name || item.product?.name}
                                   {item.is_return && " (RETURN)"}
                                 </span>
-                                <span className={`font-mono ${item.is_return ? "text-red-400" : "text-gray-400"}`}>
-                                  {item.is_return ? "-" : ""}KSh {(item.price * item.quantity).toFixed(2)}
+                                <span
+                                  className={`font-mono ${item.is_return ? "text-red-400" : "text-gray-400"}`}
+                                >
+                                  {item.is_return ? "-" : ""}KSh{" "}
+                                  {(item.price * item.quantity).toFixed(2)}
                                 </span>
                               </div>
                             ),
@@ -279,7 +290,7 @@ const CurrentBill = ({
                             {item.productName}
                           </p>
                           <p className="text-xs text-purple-300">
-                            KSh {item.price.toFixed(2)} each
+                            KSh {Number(item.price).toFixed(2)} each
                           </p>
                         </div>
                         <button
@@ -383,48 +394,64 @@ const CurrentBill = ({
               </div>
 
               {/* Payments Made */}
-              {paymentInfo && (paymentInfo.amountPaid > 0 || paymentInfo.pendingAmount > 0) && (
-                <div className="space-y-1.5 pt-2 border-t border-purple-500/10">
-                  {paymentInfo.amountPaid > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-green-400">Paid:</span>
-                      <span className="font-mono font-semibold text-green-400">
-                        -KSh {paymentInfo.amountPaid.toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                  {paymentInfo.pendingAmount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-yellow-400">Pending:</span>
-                      <span className="font-mono font-semibold text-yellow-400">
-                        KSh {paymentInfo.pendingAmount.toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                  {/* Individual payment lines */}
-                  {(bill.payments || [])
-                    .filter((p) => p.status === "confirmed" || p.status === "pending")
-                    .map((p) => (
-                      <div key={p.id} className="flex justify-between text-xs pl-3">
-                        <span className={p.status === "confirmed" ? "text-green-500/70" : "text-yellow-500/70"}>
-                          {p.payment_type === "mpesa" ? "M-PESA" : "Cash"}
-                          {p.status === "pending" && " (pending)"}
-                        </span>
-                        <span className={`font-mono ${p.status === "confirmed" ? "text-green-500/70" : "text-yellow-500/70"}`}>
-                          KSh {parseFloat(p.amount).toLocaleString()}
+              {paymentInfo &&
+                (paymentInfo.amountPaid > 0 ||
+                  paymentInfo.pendingAmount > 0) && (
+                  <div className="space-y-1.5 pt-2 border-t border-purple-500/10">
+                    {paymentInfo.amountPaid > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-400">Paid:</span>
+                        <span className="font-mono font-semibold text-green-400">
+                          -KSh {paymentInfo.amountPaid.toLocaleString()}
                         </span>
                       </div>
-                    ))}
-                  <div className="flex justify-between items-center pt-1.5 border-t border-purple-500/10">
-                    <span className="text-base font-bold text-pink-400">
-                      Balance Due:
-                    </span>
-                    <span className="text-xl font-bold text-pink-400 font-mono">
-                      KSh {paymentInfo.balanceDue.toLocaleString()}
-                    </span>
+                    )}
+                    {paymentInfo.pendingAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-yellow-400">Pending:</span>
+                        <span className="font-mono font-semibold text-yellow-400">
+                          KSh {paymentInfo.pendingAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {/* Individual payment lines */}
+                    {(bill.payments || [])
+                      .filter(
+                        (p) =>
+                          p.status === "confirmed" || p.status === "pending",
+                      )
+                      .map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex justify-between text-xs pl-3"
+                        >
+                          <span
+                            className={
+                              p.status === "confirmed"
+                                ? "text-green-500/70"
+                                : "text-yellow-500/70"
+                            }
+                          >
+                            {p.payment_type === "mpesa" ? "M-PESA" : "Cash"}
+                            {p.status === "pending" && " (pending)"}
+                          </span>
+                          <span
+                            className={`font-mono ${p.status === "confirmed" ? "text-green-500/70" : "text-yellow-500/70"}`}
+                          >
+                            KSh {parseFloat(p.amount).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    <div className="flex justify-between items-center pt-1.5 border-t border-purple-500/10">
+                      <span className="text-base font-bold text-pink-400">
+                        Balance Due:
+                      </span>
+                      <span className="text-xl font-bold text-pink-400 font-mono">
+                        KSh {paymentInfo.balanceDue.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </div>
         ) : (

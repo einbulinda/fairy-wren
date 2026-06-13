@@ -74,7 +74,6 @@ exports.findBillById = async (id) => {
               'round_number', r.round_number,
               'bill_id', r.bill_id,
               'created_at', r.created_at,
-              'updated_at', r.updated_at,
               'round_items', (
                 SELECT COALESCE(json_agg(json_build_object(
                   'id', ri.id,

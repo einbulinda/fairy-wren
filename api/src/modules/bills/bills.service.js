@@ -151,7 +151,11 @@ exports.exchangeItem = async (billId, payload, context) => {
 
   // 2. Confirm bill is open
   const { data: bill, error: billError } = await repo.findBillById(billId);
-  if (billError || !bill) throw new Error("BILL_NOT_FOUND");
+  if (billError) {
+    console.error("[exchangeItem] findBillById SQL error:", billError);
+    throw new Error("BILL_NOT_FOUND");
+  }
+  if (!bill) throw new Error("BILL_NOT_FOUND");
   if (bill.status !== "open") throw new Error("BILL_NOT_OPEN");
 
   // 3. Validate returned item belongs to this bill and was created ≤ 6 hours ago
