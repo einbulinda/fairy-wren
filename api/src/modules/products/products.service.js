@@ -88,7 +88,6 @@ exports.getPurchaseHistory = async (productId, dateRange) => {
 exports.getSalesHistory = async (productId, dateRange) => {
   const { data, error } = await repo.findSalesHistory(productId, dateRange);
   if (error) {
-    console.log("Error fetching sales history for product", productId, error);
     throw new Error("FAILED_TO_FETCH_SALES_HISTORY");
   }
   return data ?? [];
@@ -156,10 +155,10 @@ exports.getProductInsights = async (productId, dateRange) => {
       total_revenue: totalRevenue,
       total_cogs: totalCOGS,
       gross_profit: grossProfit,
-      profit_margin: Number(profitMargin.toFixed(2)),
-      avg_daily_sales: Number(avgDailySales.toFixed(2)),
+      profit_margin: Number(profitMargin).toFixed(2),
+      avg_daily_sales: Number(avgDailySales).toFixed(2),
       days_of_stock_remaining: daysOfStockRemaining,
-      avg_cost_price: Number(avgCostPrice.toFixed(2)),
+      avg_cost_price: Number(avgCostPrice).toFixed(2),
     },
   };
 };
