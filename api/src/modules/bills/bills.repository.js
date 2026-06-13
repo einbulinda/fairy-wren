@@ -84,7 +84,7 @@ exports.findBillById = async (id) => {
                   'is_return', ri.is_return,
                   'is_exchanged', ri.is_exchanged,
                   'inventory_posted', ri.inventory_posted,
-                  'created_at', ri.created_at,
+                  'created_at', r.created_at,
                   'product', json_build_object(
                     'id', p.id, 'name', p.name,
                     'price', p.price, 'cost_price', p.cost_price
@@ -138,7 +138,9 @@ exports.listBills = async (filters = {}) => {
       conditions.push(`b.created_at <= $${params.length}`);
     }
 
-    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
 
     // Count query
     const countSql = `SELECT COUNT(*) AS total FROM bills b ${whereClause}`;
@@ -256,8 +258,9 @@ exports.insertRoundItems = async (items) => {
 
     const columns = Object.keys(items[0]);
     const placeholders = items
-      .map((_, rowIdx) =>
-        `(${columns.map((_, colIdx) => `$${rowIdx * columns.length + colIdx + 1}`).join(", ")})`
+      .map(
+        (_, rowIdx) =>
+          `(${columns.map((_, colIdx) => `$${rowIdx * columns.length + colIdx + 1}`).join(", ")})`,
       )
       .join(", ");
     const values = items.flatMap((item) => columns.map((col) => item[col]));
@@ -350,10 +353,9 @@ exports.listBillsByDateRange = async (startDate, endDate) => {
 
 exports.postRoundSale = async (roundId) => {
   try {
-    const { rows } = await pool.query(
-      "SELECT * FROM post_round_sale($1)",
-      [roundId]
-    );
+    const { rows } = await pool.query("SELECT * FROM post_round_sale($1)", [
+      roundId,
+    ]);
     return { data: rows, error: null };
   } catch (error) {
     return { data: null, error };
@@ -362,10 +364,9 @@ exports.postRoundSale = async (roundId) => {
 
 exports.reverseBillSale = async (billId) => {
   try {
-    const { rows } = await pool.query(
-      "SELECT * FROM reverse_bill_sale($1)",
-      [billId]
-    );
+    const { rows } = await pool.query("SELECT * FROM reverse_bill_sale($1)", [
+      billId,
+    ]);
     return { data: rows, error: null };
   } catch (error) {
     return { data: null, error };
@@ -398,7 +399,7 @@ exports.reverseRoundItem = async (roundItemId, returnedQuantity) => {
   try {
     const { rows } = await pool.query(
       "SELECT * FROM reverse_round_item($1, $2)",
-      [roundItemId, returnedQuantity]
+      [roundItemId, returnedQuantity],
     );
     return { data: rows, error: null };
   } catch (error) {
