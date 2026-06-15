@@ -491,7 +491,7 @@ const PurchasesTab = ({ productId, dateRange }) => {
               <td className="px-4 py-2 text-right font-mono text-white text-xs">
                 {purchases
                   .filter((p) => p.inventory_receipts?.status !== "cancelled")
-                  .reduce((s, p) => s + (p.quantity || 0), 0)}
+                  .reduce((s, p) => s + (Number(p.quantity) || 0), 0)}
               </td>
               <td />
               <td className="px-4 py-2 text-right font-mono text-primary-400 text-xs">
@@ -499,7 +499,7 @@ const PurchasesTab = ({ productId, dateRange }) => {
                 {fmtD(
                   purchases
                     .filter((p) => p.inventory_receipts?.status !== "cancelled")
-                    .reduce((s, p) => s + (p.line_total || 0), 0),
+                    .reduce((s, p) => s + (Number(p.line_total) || 0), 0),
                 )}
               </td>
               <td />
@@ -556,7 +556,7 @@ const PurchasesTab = ({ productId, dateRange }) => {
               <span className="text-white font-mono">
                 {purchases
                   .filter((p) => p.inventory_receipts?.status !== "cancelled")
-                  .reduce((s, p) => s + (p.quantity || 0), 0)}
+                  .reduce((s, p) => s + (Number(p.quantity) || 0), 0)}
               </span>
             </span>
             <span className="text-primary-400 font-semibold font-mono">
@@ -564,7 +564,7 @@ const PurchasesTab = ({ productId, dateRange }) => {
               {fmtD(
                 purchases
                   .filter((p) => p.inventory_receipts?.status !== "cancelled")
-                  .reduce((s, p) => s + (p.line_total || 0), 0),
+                  .reduce((s, p) => s + (Number(p.line_total) || 0), 0),
               )}
             </span>
           </div>
