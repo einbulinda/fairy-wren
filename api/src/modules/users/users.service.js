@@ -42,7 +42,6 @@ exports.create = async (payload, context) => {
     pin_hash: pinHash,
     pin_fingerprint: fingerprint,
     role: dto.role,
-    mobile: dto.mobile,
     active: true,
   });
 

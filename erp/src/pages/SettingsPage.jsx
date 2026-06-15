@@ -125,6 +125,36 @@ const CAPABILITIES = [
     label: "Stock Take Reports",
     description: "Can view the read-only stock take reports on POS",
   },
+  {
+    key: "manage_products",
+    label: "Manage Products",
+    description: "Can create, update, and archive products",
+  },
+  {
+    key: "manage_categories",
+    label: "Manage Categories",
+    description: "Can create, update, and archive product categories",
+  },
+  {
+    key: "process_payments",
+    label: "Process Payments",
+    description: "Can record and process customer payments",
+  },
+  {
+    key: "manage_feedback",
+    label: "Manage Feedback",
+    description: "Can mark customer feedback as read or archive it",
+  },
+  {
+    key: "reconcile_bank",
+    label: "Reconcile Bank",
+    description: "Can match and unmatch bank statement lines",
+  },
+  {
+    key: "view_reports",
+    label: "View Reports",
+    description: "Can access financial and performance reports",
+  },
 ];
 
 const formatCurrency = (value) =>

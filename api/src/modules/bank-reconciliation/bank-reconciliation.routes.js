@@ -26,16 +26,16 @@ router.get("/:id", controller.getStatement);
 router.get("/:id/report", controller.getReconciliationReport);
 
 // Auto-match statement lines
-router.post("/:id/auto-match", controller.autoMatch);
+router.post("/:id/auto-match", requirePermission("reconcile_bank"), controller.autoMatch);
 
 // Manual match a line
-router.post("/:id/lines/:lineId/match", controller.manualMatch);
+router.post("/:id/lines/:lineId/match", requirePermission("reconcile_bank"), controller.manualMatch);
 
 // Get suggested matches for a line
 router.get("/:id/lines/:lineId/suggestions", controller.getSuggestedMatches);
 
 // Unmatch a line
-router.post("/:id/lines/:lineId/unmatch", controller.unmatchLine);
+router.post("/:id/lines/:lineId/unmatch", requirePermission("reconcile_bank"), controller.unmatchLine);
 
 // Finalize reconciliation
 router.post(
