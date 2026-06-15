@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useStockTakeDetail } from "@/hooks/useInventory";
+import { localDateStr } from "@/utils/formatters";
 import { PAGE_SIZE } from "./inventoryUtils";
 
 const StatusBadge = ({ status }) => {
@@ -117,6 +118,7 @@ const ReportDetailView = ({ id }) => {
       day: "numeric",
       month: "long",
       year: "numeric",
+      timeZone: "Africa/Nairobi",
     });
 
     const rows = items.map((item) => ({
@@ -163,7 +165,7 @@ const ReportDetailView = ({ id }) => {
     summaryWs["!cols"] = [{ wch: 20 }, { wch: 40 }];
     XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
 
-    const fileName = `stock-take-${(report.stock_take_name || "report").replace(/\s+/g, "-").toLowerCase()}-${new Date(report.created_at).toISOString().slice(0, 10)}.xlsx`;
+    const fileName = `stock-take-${(report.stock_take_name || "report").replace(/\s+/g, "-").toLowerCase()}-${localDateStr(new Date(report.created_at))}.xlsx`;
     XLSX.writeFile(wb, fileName);
   }, [report, items, total, accuracy, shortages, surpluses, totalUnitsShort, totalUnitsOver, totalValueImpact]);
 

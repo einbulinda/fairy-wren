@@ -91,6 +91,11 @@ export const fetchStockTakeAdjustments = async (params = {}) => {
   return data.data ?? data;
 };
 
+export const fetchAdjustmentInsights = async (params = {}) => {
+  const { data } = await api.get("/inventory/reports/adjustment-insights", { params });
+  return data.data ?? data;
+};
+
 // Reorder Level Policies
 export const fetchReorderPolicies = async () => {
   const { data } = await api.get("/inventory/reorder-policies");

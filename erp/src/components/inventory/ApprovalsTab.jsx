@@ -192,7 +192,7 @@ const ApprovalsTab = () => {
                     {session.stock_take_name || "—"}
                   </td>
                   <td className="px-4 py-3 text-surface-300">
-                    {new Date(session.created_at).toLocaleDateString()}
+                    {new Date(session.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
                   </td>
                   <td className="px-4 py-3 text-surface-300">
                     {session.profiles?.name || "—"}

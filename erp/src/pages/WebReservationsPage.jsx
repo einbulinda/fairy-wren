@@ -35,7 +35,7 @@ const STATUS_ACTIONS = {
 };
 
 const formatDate = (d) =>
-  new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Nairobi" });
 
 const formatTime = (t) => (t ? t.slice(0, 5) : null);
 
@@ -192,7 +192,7 @@ export default function WebReservationsPage() {
 
                   {/* Submitted at */}
                   <p className="text-[11px] text-surface-600">
-                    Submitted {new Date(item.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    Submitted {new Date(item.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" })}
                   </p>
 
                   {/* Actions */}

@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 import { useReceiveInventory, useStockItems } from "@/hooks/useInventory";
 import { fetchSuppliers } from "@/services/suppliers.service";
 import { inputCls } from "./inventoryUtils";
+import { localDateStr } from "@/utils/formatters";
 import ProductSearchModal from "./ProductSearchModal";
 import QuickAddSupplierModal from "./QuickAddSupplierModal";
 
@@ -22,7 +23,7 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
   const [form, setForm] = useState({
     supplier_id: supplierId || "",
     invoice_number: "",
-    purchase_date: new Date().toISOString().split("T")[0],
+    purchase_date: localDateStr(),
   });
   const [lines, setLines] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -109,7 +110,7 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
       setForm({
         supplier_id: supplierId || "",
         invoice_number: "",
-        purchase_date: new Date().toISOString().split("T")[0],
+        purchase_date: localDateStr(),
       });
       setLines([]);
       onSuccess?.();

@@ -1,5 +1,10 @@
 import api from "@/api";
 
+export const fetchBill = async (id) => {
+  const { data } = await api.get(`/bills/${id}`);
+  return data.data ?? data;
+};
+
 export const fetchBills = async (params = {}) => {
   const limit = 100;
   let page = 1;

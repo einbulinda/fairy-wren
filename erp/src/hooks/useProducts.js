@@ -9,6 +9,7 @@ import {
   fetchProductPurchaseHistory,
   fetchProductSalesHistory,
   fetchProductInsights,
+  fetchProductStatement,
 } from "@/services/products.service";
 
 export const useProducts = (params = {}) => {
@@ -93,6 +94,15 @@ export const useProductInsights = (id, dateRange = {}) => {
   return useQuery({
     queryKey: ["product-insights", id, dateRange],
     queryFn: () => fetchProductInsights(id, dateRange),
+    enabled: !!id,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useProductStatement = (id, dateRange = {}) => {
+  return useQuery({
+    queryKey: ["product-statement", id, dateRange],
+    queryFn: () => fetchProductStatement(id, dateRange),
     enabled: !!id,
     staleTime: 2 * 60 * 1000,
   });

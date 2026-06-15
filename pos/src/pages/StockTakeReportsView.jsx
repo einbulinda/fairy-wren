@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { localDateStr } from "@/utils/formatters";
 import {
   useStockTakeReports,
   useStockTakeDetail,
@@ -211,7 +212,7 @@ const ReportsList = ({ onSelect }) => {
                   className="hover:bg-gray-700/50 transition-colors cursor-pointer"
                 >
                   <td className="px-4 py-3 font-medium text-white">{r.stock_take_name || "—"}</td>
-                  <td className="px-4 py-3 text-gray-300">{new Date(r.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-gray-300">{new Date(r.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}</td>
                   <td className="px-4 py-3 text-gray-300">{r.profiles?.name || "—"}</td>
                   <td className="px-4 py-3 text-center text-gray-400 capitalize">{r.stock_take_type || "—"}</td>
                   <td className="px-4 py-3 text-center text-gray-300">{r.stock_take_items?.length ?? 0}</td>
@@ -308,7 +309,7 @@ const LoadedDetail = ({ report, onBack }) => {
     XLSX.utils.book_append_sheet(wb, ws, "Stock Take Items");
     const summaryRows = [
       { Field: "Report Name", Value: report.stock_take_name || "Stock Take" },
-      { Field: "Date", Value: new Date(report.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) },
+      { Field: "Date", Value: new Date(report.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Nairobi" }) },
       { Field: "Performed By", Value: report.profiles?.name || "—" },
       { Field: "Location", Value: report.location || "—" },
       { Field: "Type", Value: report.stock_take_type || "full" },
@@ -322,7 +323,7 @@ const LoadedDetail = ({ report, onBack }) => {
     const summaryWs = XLSX.utils.json_to_sheet(summaryRows);
     summaryWs["!cols"] = [{ wch: 20 }, { wch: 40 }];
     XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
-    const fileName = `stock-take-${(report.stock_take_name || "report").replace(/\s+/g, "-").toLowerCase()}-${new Date(report.created_at).toISOString().slice(0, 10)}.xlsx`;
+    const fileName = `stock-take-${(report.stock_take_name || "report").replace(/\s+/g, "-").toLowerCase()}-${localDateStr(new Date(report.created_at))}.xlsx`;
     XLSX.writeFile(wb, fileName);
   }, [report, items, total, accuracy, shortages, surpluses, totalUnitsShort, totalUnitsOver, totalValueImpact]);
 
@@ -377,7 +378,7 @@ const LoadedDetail = ({ report, onBack }) => {
             <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-400">
               <span className="flex items-center gap-1.5">
                 <Calendar size={14} />
-                {new Date(report.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                {new Date(report.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Nairobi" })}
               </span>
               {report.profiles?.name && (
                 <span className="flex items-center gap-1.5"><User size={14} />{report.profiles.name}</span>

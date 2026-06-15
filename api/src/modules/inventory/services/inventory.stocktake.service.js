@@ -231,6 +231,12 @@ exports.getStockTakeDetail = async (id) => {
   return data;
 };
 
+exports.getAdjustmentInsights = async (filters) => {
+  const { data, error } = await stockTakeReadRepo.getAdjustmentInsights(filters);
+  if (error) throw new Error("FAILED_TO_FETCH_ADJUSTMENT_INSIGHTS");
+  return data || [];
+};
+
 exports.getAdjustmentsReport = async (filters) => {
   const { data, error } =
     await stockTakeReadRepo.getStockTakeAdjustments(filters);

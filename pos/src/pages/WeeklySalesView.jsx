@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { BillsService } from "@/services/bills.service";
 import { calculateBillTotals } from "@/utils/calculations";
+import { localDateStr } from "@/utils/formatters";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-KE", {
@@ -43,7 +44,7 @@ const getSunday = (monday) => {
   return d;
 };
 
-const toDateStr = (d) => d.toISOString().slice(0, 10);
+const toDateStr = localDateStr;
 
 /**
  * Returns all Mon-Sun week objects that overlap with the given year/month.
@@ -269,8 +270,8 @@ const WeeklySalesView = () => {
 
   // ── Week label helper ─────────────────────────────────────────────
   const weekLabel = (w) => {
-    const s = w.monday.toLocaleDateString("en-KE", { day: "numeric", month: "short" });
-    const e = w.sunday.toLocaleDateString("en-KE", { day: "numeric", month: "short" });
+    const s = w.monday.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Nairobi" });
+    const e = w.sunday.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Nairobi" });
     return `${s} – ${e}`;
   };
 

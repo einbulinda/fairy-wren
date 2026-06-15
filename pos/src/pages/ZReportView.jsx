@@ -18,10 +18,11 @@ import {
 import { useZReport } from "@/hooks/useZReport";
 import { useZReportBills } from "@/hooks/useZReportBills";
 import { formatCurrency } from "@/utils/common";
+import { localDateStr } from "@/utils/formatters";
 
 const yesterday = new Date();
 yesterday.setDate(yesterday.getDate() - 1);
-const defaultDate = yesterday.toISOString().split("T")[0];
+const defaultDate = localDateStr(yesterday);
 
 const fmt = (n) => formatCurrency(n);
 
@@ -87,6 +88,7 @@ const ZReportView = () => {
       day: "2-digit",
       month: "short",
       year: "numeric",
+      timeZone: "Africa/Nairobi",
     });
   };
 

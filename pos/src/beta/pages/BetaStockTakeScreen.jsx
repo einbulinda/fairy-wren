@@ -142,7 +142,7 @@ const BetaStockTakeScreen = () => {
       setCurrentSessionId(session.id);
       setSessionName(
         session.stock_take_name ||
-          `Stock Take - ${new Date(session.created_at).toLocaleDateString()}`
+          `Stock Take - ${new Date(session.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}`
       );
       setSessionType(session.stock_take_type || "full");
       setLocation(session.location || "Bar");
@@ -396,7 +396,7 @@ const BetaStockTakeScreen = () => {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-white text-lg truncate group-hover:text-pink-400 transition-colors">
                           {session.stock_take_name ||
-                            `Stock Take - ${new Date(session.created_at).toLocaleDateString()}`}
+                            `Stock Take - ${new Date(session.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}`}
                         </h3>
                         <div className="grid grid-cols-2 gap-2 mt-2 text-sm text-gray-400">
                           <span className="flex items-center gap-1">
@@ -413,7 +413,7 @@ const BetaStockTakeScreen = () => {
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock size={12} />
-                            {new Date(session.created_at).toLocaleDateString()}
+                            {new Date(session.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
                           </span>
                         </div>
                       </div>

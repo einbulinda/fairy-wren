@@ -8,10 +8,10 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { fmt } from "@/utils/formatters";
+import { fmt, localDateStr } from "@/utils/formatters";
 import { dateInputCls as inputCls } from "@/utils/constants";
 
-const today = new Date().toISOString().split("T")[0];
+const today = localDateStr();
 
 const EMPTY_LINE = { account_id: "", description: "", debit: "", credit: "" };
 
@@ -337,7 +337,7 @@ const JournalEntryPage = () => {
                           {isExpanded ? <ChevronDown size={15} className="text-surface-400" /> : <ChevronRight size={15} className="text-surface-400" />}
                         </td>
                         <td className="px-3 py-3 text-surface-300 whitespace-nowrap">
-                          {new Date(j.entry_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}
+                          {new Date(j.entry_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
                         </td>
                         <td className="px-3 py-3 text-white">
                           <span>{primaryAccount}</span>

@@ -4,7 +4,7 @@ const formatCurrency = (value) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 0 }).format(value);
 
 const formatDate = (dateStr) =>
-  new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  new Date(dateStr).toLocaleDateString("en-GB", { month: "short", day: "numeric", timeZone: "Africa/Nairobi" });
 
 const WeeklySummaryCard = ({ data }) => {
   if (!data || data.length === 0) {

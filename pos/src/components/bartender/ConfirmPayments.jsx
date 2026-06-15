@@ -66,7 +66,7 @@ const ConfirmPayments = () => {
 
                     <p className="text-xs text-gray-500">
                       {bill.marked_paid_at &&
-                        new Date(bill.marked_paid_at).toLocaleString()}
+                        new Date(bill.marked_paid_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" })}
                     </p>
                   </div>
                   <div className="text-right">

@@ -195,6 +195,15 @@ exports.getStockTakeAdjustments = async (req, res, next) => {
   }
 };
 
+exports.getAdjustmentInsights = async (req, res, next) => {
+  try {
+    const data = await stockTakeService.getAdjustmentInsights(req.query);
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 /**
  * GET /inventory/reports/stock-take/:id
  */

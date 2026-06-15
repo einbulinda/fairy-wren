@@ -303,10 +303,11 @@ const AllBillsView = ({ bills }) => {
                             </span>
                           </p>
                           <p className="text-xs text-gray-500">
-                            {new Date(bill.created_at).toLocaleDateString()} at{" "}
-                            {new Date(bill.created_at).toLocaleTimeString([], {
+                            {new Date(bill.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })} at{" "}
+                            {new Date(bill.created_at).toLocaleTimeString("en-GB", {
                               hour: "2-digit",
                               minute: "2-digit",
+                              timeZone: "Africa/Nairobi",
                             })}
                           </p>
                           <p className="text-sm text-gray-400">

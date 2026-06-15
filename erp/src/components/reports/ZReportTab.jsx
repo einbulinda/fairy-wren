@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 import { useZReport } from "@/hooks/useZReport";
 import { useBills } from "@/hooks/useBills";
-import { fmtNumber as fmt, fmtDate } from "@/utils/formatters";
+import { fmtNumber as fmt, fmtDate, localDateStr } from "@/utils/formatters";
 import { dateInputCls } from "@/utils/constants";
 
 const yesterday = new Date();
 yesterday.setDate(yesterday.getDate() - 1);
-const defaultDate = yesterday.toISOString().split("T")[0];
+const defaultDate = localDateStr(yesterday);
 
 const Section = ({ title, icon: Icon, children }) => (
   <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl overflow-hidden">

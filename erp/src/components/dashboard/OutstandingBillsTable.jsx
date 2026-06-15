@@ -3,7 +3,7 @@ import { Clock, Search, Download, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
 import PaginatedTable from "@/components/shared/PaginatedTable";
-import { fmtDate } from "@/utils/formatters";
+import { fmtDate, localDateStr } from "@/utils/formatters";
 
 const fmtAmt = (n) =>
   new Intl.NumberFormat("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0);
@@ -83,7 +83,7 @@ const OutstandingBillsTable = ({ data }) => {
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Outstanding Bills");
-    XLSX.writeFile(wb, `outstanding-bills-${new Date().toISOString().split("T")[0]}.xlsx`);
+    XLSX.writeFile(wb, `outstanding-bills-${localDateStr()}.xlsx`);
   };
 
   const columns = [

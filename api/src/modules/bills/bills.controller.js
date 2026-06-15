@@ -75,14 +75,17 @@ exports.addRound = async (req, res, next) => {
     await service.addRound(req.params.id, req.body, buildContext(req));
     respond(res, 201, { success: true });
   } catch (err) {
-    console.log("Error adding round:", err);
     next(err);
   }
 };
 
 exports.exchangeItem = async (req, res, next) => {
   try {
-    const data = await service.exchangeItem(req.params.id, req.body, buildContext(req));
+    const data = await service.exchangeItem(
+      req.params.id,
+      req.body,
+      buildContext(req),
+    );
     respond(res, 200, data);
   } catch (err) {
     next(err);

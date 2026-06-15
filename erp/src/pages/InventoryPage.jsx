@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router";
-import { Package, PackagePlus, BarChart2, CheckSquare, RefreshCw } from "lucide-react";
+import { Package, PackagePlus, BarChart2, CheckSquare, RefreshCw, TrendingUp } from "lucide-react";
 import { useStockItems } from "@/hooks/useInventory";
 import StockTab from "@/components/inventory/StockTab";
 import ReceiveTab from "@/components/inventory/ReceiveTab";
@@ -7,6 +7,7 @@ import ReportsTab from "@/components/inventory/ReportsTab";
 import ReportDetailView from "@/components/inventory/ReportDetailView";
 import ApprovalsTab from "@/components/inventory/ApprovalsTab";
 import ConversionTab from "@/components/inventory/ConversionTab";
+import AdjustmentInsightsTab from "@/components/inventory/AdjustmentInsightsTab";
 
 const TABS = [
   { path: "/inventory", label: "Stock", icon: Package, exact: true },
@@ -14,6 +15,7 @@ const TABS = [
   { path: "/inventory/reports", label: "Reports", icon: BarChart2 },
   { path: "/inventory/approvals", label: "Approvals", icon: CheckSquare },
   { path: "/inventory/conversions", label: "Conversions", icon: RefreshCw },
+  { path: "/inventory/insights", label: "Adj. Insights", icon: TrendingUp },
 ];
 
 const InventoryPage = () => {
@@ -67,6 +69,7 @@ const InventoryPage = () => {
       {activeTab === "/inventory/reports" && <ReportsTab />}
       {activeTab === "/inventory/approvals" && <ApprovalsTab />}
       {activeTab === "/inventory/conversions" && <ConversionTab />}
+      {activeTab === "/inventory/insights" && <AdjustmentInsightsTab />}
     </div>
   );
 };

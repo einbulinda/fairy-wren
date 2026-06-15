@@ -62,6 +62,7 @@ router.post(
    ====================================================== */
 router.get("/stock-take-adjustments", controller.getStockTakeAdjustments);
 router.get("/reports/stock-take", controller.getStockTakeReports);
+router.get("/reports/adjustment-insights", controller.getAdjustmentInsights);
 router.get("/reports/stock-take/:id", controller.getStockTakeDetail);
 
 /* ======================================================

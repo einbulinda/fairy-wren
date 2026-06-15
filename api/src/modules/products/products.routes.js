@@ -11,6 +11,7 @@ router.post("/", requirePermission("manage_products"), controller.createProduct)
 router.get("/:productId/purchases", controller.getProductPurchaseHistory);
 router.get("/:productId/sales", controller.getProductSalesHistory);
 router.get("/:productId/insights", controller.getProductInsights);
+router.get("/:productId/statement", controller.getProductStatement);
 
 router.get("/:productId", controller.getProduct);
 router.put("/:productId", requirePermission("manage_products"), controller.updateProduct);

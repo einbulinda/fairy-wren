@@ -10,13 +10,10 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { fmtNumber as fmt } from "@/utils/formatters";
+import { fmtNumber as fmt, localDateStr } from "@/utils/formatters";
 
-const today = new Date();
-const defaultEndDate = today.toISOString().split("T")[0];
-const defaultStartDate = new Date(today.getFullYear(), today.getMonth(), 1)
-  .toISOString()
-  .split("T")[0];
+const defaultEndDate = localDateStr();
+const defaultStartDate = localDateStr(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
 const CASH_CODE_PREFIX = "10"; // 1010 Cash, 1020 Bank, etc.
 const ASSET_CLASSES = ["asset", "current_asset"];
@@ -210,10 +207,11 @@ const generatePDF = (sections, startDate, endDate, orgName) => {
   const mediumText = [100, 100, 100];
 
   const fmtDate = (d) =>
-    new Date(d).toLocaleDateString("en-KE", {
+    new Date(d).toLocaleDateString("en-GB", {
       day: "numeric",
       month: "long",
       year: "numeric",
+      timeZone: "Africa/Nairobi",
     });
 
   doc.setFontSize(11);
@@ -385,7 +383,7 @@ const generatePDF = (sections, startDate, endDate, orgName) => {
       doc.setFontSize(7);
       doc.setTextColor(150, 150, 150);
       doc.text(
-        `Generated on ${new Date().toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}`,
+        `Generated on ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Nairobi" })}`,
         pageWidth / 2,
         pageHeight - 10,
         { align: "center" }
@@ -534,10 +532,11 @@ const CashFlowStatementPage = () => {
   }, [data]);
 
   const fmtDate = (d) =>
-    new Date(d).toLocaleDateString("en-KE", {
+    new Date(d).toLocaleDateString("en-GB", {
       day: "numeric",
       month: "long",
       year: "numeric",
+      timeZone: "Africa/Nairobi",
     });
 
   const handleDownloadPdf = useCallback(() => {

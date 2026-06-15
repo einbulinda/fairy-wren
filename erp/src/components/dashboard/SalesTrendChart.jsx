@@ -81,7 +81,7 @@ const SalesTrendChart = ({ data, monthlyData, revenueGrowth, hourlyData }) => {
       const last7 = data.slice(-7);
       return {
         chartData: last7.map((d) => ({
-          label: new Date(d.business_date).toLocaleDateString("en-US", { weekday: "short" }),
+          label: new Date(d.business_date).toLocaleDateString("en-GB", { weekday: "short", timeZone: "Africa/Nairobi" }),
           revenue: Number(d.total_revenue),
           orders: Number(d.total_orders || 0),
         })),

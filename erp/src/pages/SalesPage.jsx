@@ -17,17 +17,16 @@ import { useBills } from "@/hooks/useBills";
 import * as XLSX from "xlsx";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
 import PaginatedTable from "@/components/shared/PaginatedTable";
-import { fmtNumber as fmt, fmtDate } from "@/utils/formatters";
+import { fmtNumber as fmt, fmtDate, localDateStr } from "@/utils/formatters";
 import { dateInputCls } from "@/utils/constants";
 import ZReportTab from "@/components/reports/ZReportTab";
 
 const yesterday = new Date();
 yesterday.setDate(yesterday.getDate() - 1);
-const defaultStartDate = yesterday.toISOString().split("T")[0];
+const defaultStartDate = localDateStr(yesterday);
 const defaultEndDate = defaultStartDate;
 
-const toISO = (d) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const toISO = localDateStr;
 const getDatePreset = (key) => {
   const today = new Date();
   const d = (offset) => {

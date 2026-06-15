@@ -13,6 +13,7 @@ import {
   fetchStockTakeReports,
   fetchStockTakeDetail,
   fetchStockTakeAdjustments,
+  fetchAdjustmentInsights,
   fetchReceiptDetail,
   markReceiptPaid,
   cancelReceipt,
@@ -168,6 +169,14 @@ export const useStockTakeAdjustments = (params = {}) => {
   return useQuery({
     queryKey: ["stock-take-adjustments", params],
     queryFn: () => fetchStockTakeAdjustments(params),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useAdjustmentInsights = (params = {}) => {
+  return useQuery({
+    queryKey: ["adjustment-insights", params],
+    queryFn: () => fetchAdjustmentInsights(params),
     staleTime: 5 * 60 * 1000,
   });
 };

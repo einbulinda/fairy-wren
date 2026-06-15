@@ -26,9 +26,12 @@ module.exports = (err, req, res, next) => {
     },
   };
 
-  // Include detailed error messages if available (e.g., for INSUFFICIENT_STOCK)
   if (err.details && Array.isArray(err.details)) {
     errorResponse.error.details = err.details;
+  }
+
+  if (err.lockRemainingSeconds) {
+    errorResponse.error.lockRemainingSeconds = err.lockRemainingSeconds;
   }
 
   res.status(mapped.status).json(errorResponse);

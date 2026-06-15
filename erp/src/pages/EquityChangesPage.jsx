@@ -4,14 +4,11 @@ import { useSettings } from "@/hooks/useSettings";
 import { Scale, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { fmtNumber as fmt, fmt as fmtCurrency, fmtDate } from "@/utils/formatters";
+import { fmtNumber as fmt, fmt as fmtCurrency, fmtDate, localDateStr } from "@/utils/formatters";
 import { dateInputCls } from "@/utils/constants";
 
-const today = new Date();
-const defaultEndDate = today.toISOString().split("T")[0];
-const defaultStartDate = new Date(today.getFullYear(), 0, 1)
-  .toISOString()
-  .split("T")[0];
+const defaultEndDate = localDateStr();
+const defaultStartDate = localDateStr(new Date(new Date().getFullYear(), 0, 1));
 
 // --- PDF Generation ---
 
@@ -146,7 +143,7 @@ const generatePDF = (accounts, netIncome, startDate, endDate, orgName) => {
       doc.setFontSize(7);
       doc.setTextColor(150, 150, 150);
       doc.text(
-        `Generated on ${new Date().toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}`,
+        `Generated on ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Nairobi" })}`,
         pageWidth / 2,
         pageHeight - 8,
         { align: "center" }

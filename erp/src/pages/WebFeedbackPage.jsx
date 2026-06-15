@@ -152,12 +152,13 @@ export default function WebFeedbackPage() {
                     <div className="flex items-center gap-3 mt-0.5">
                       <Stars rating={item.rating} />
                       <span className="text-[12px] text-surface-500">
-                        {new Date(item.created_at).toLocaleDateString("en-GB", {
+                        {new Date(item.created_at).toLocaleString("en-GB", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
                           hour: "2-digit",
                           minute: "2-digit",
+                          timeZone: "Africa/Nairobi",
                         })}
                       </span>
                     </div>

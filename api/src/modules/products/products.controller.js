@@ -90,6 +90,16 @@ exports.getProductSalesHistory = async (req, res, next) => {
   }
 };
 
+exports.getProductStatement = async (req, res, next) => {
+  try {
+    const { from, to } = req.query;
+    const data = await service.getProductStatement(req.params.productId, { from, to });
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getProductInsights = async (req, res, next) => {
   try {
     const { from, to } = req.query;

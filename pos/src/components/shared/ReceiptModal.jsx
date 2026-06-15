@@ -39,14 +39,15 @@ const ReceiptModal = ({ bill, onClose }) => {
         </div>
         <div className="thermal-row">
           <span>Date:</span>
-          <span>{new Date(bill.created_at).toLocaleDateString()}</span>
+          <span>{new Date(bill.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}</span>
         </div>
         <div className="thermal-row">
           <span>Time:</span>
           <span>
-            {new Date(bill.created_at).toLocaleTimeString([], {
+            {new Date(bill.created_at).toLocaleTimeString("en-GB", {
               hour: "2-digit",
               minute: "2-digit",
+              timeZone: "Africa/Nairobi",
             })}
           </span>
         </div>
@@ -67,6 +68,7 @@ const ReceiptModal = ({ bill, onClose }) => {
                   year: "numeric",
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: "Africa/Nairobi",
                 })
                 .replace(",", " •")}
             </div>
@@ -227,6 +229,7 @@ const ReceiptModal = ({ bill, onClose }) => {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
+                      timeZone: "Africa/Nairobi",
                     })}
                   </span>
                 </div>
@@ -236,6 +239,7 @@ const ReceiptModal = ({ bill, onClose }) => {
                     {new Date(bill.created_at).toLocaleString("en-GB", {
                       hour: "2-digit",
                       minute: "2-digit",
+                      timeZone: "Africa/Nairobi",
                     })}
                   </span>
                 </div>
@@ -257,6 +261,7 @@ const ReceiptModal = ({ bill, onClose }) => {
                             year: "numeric",
                             hour: "2-digit",
                             minute: "2-digit",
+                            timeZone: "Africa/Nairobi",
                           })
                           .replace(",", " •")}
                       </span>

@@ -9,10 +9,10 @@ import {
   X, ChevronLeft, ChevronRight, Building2, Landmark,
 } from "lucide-react";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
-import { fmt } from "@/utils/formatters";
+import { fmt, localDateStr } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
 
-const today = new Date().toISOString().split("T")[0];
+const today = localDateStr();
 
 const STATUS_STYLES = {
   issued:  { label: "Issued",  icon: Clock,        cls: "bg-primary-500/15 text-primary-300" },
@@ -663,7 +663,7 @@ const ChequeWritingPage = () => {
                         </td>
                         <td className="px-4 py-3 text-surface-300">{c.bank_account?.name || "—"}</td>
                         <td className="px-4 py-3 text-surface-300">
-                          {new Date(c.cheque_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}
+                          {new Date(c.cheque_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
                         </td>
                         <td className="px-4 py-3 text-right text-white font-medium">{fmt(c.amount)}</td>
                         <td className="px-4 py-3 text-center">
@@ -724,7 +724,7 @@ const ChequeWritingPage = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-white font-semibold tabular-nums">{fmt(c.amount)}</span>
                       <span className="text-surface-400 text-xs">
-                        {new Date(c.cheque_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}
+                        {new Date(c.cheque_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
                       </span>
                     </div>
                     <MobileField label="From">{c.bank_account?.name || "—"}</MobileField>

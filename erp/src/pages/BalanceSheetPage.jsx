@@ -12,14 +12,11 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { fmtNumber as fmt } from "@/utils/formatters";
+import { fmtNumber as fmt, localDateStr } from "@/utils/formatters";
 import AccountLedgerModal from "@/components/shared/AccountLedgerModal";
 
-const today = new Date();
-const todayStr = today.toISOString().split("T")[0];
-const defaultStartDate = new Date(today.getFullYear(), 0, 1)
-  .toISOString()
-  .split("T")[0];
+const todayStr = localDateStr();
+const defaultStartDate = localDateStr(new Date(new Date().getFullYear(), 0, 1));
 
 // Filter out zero-balance leaf accounts (keep parents for structure)
 const filterZeroBalance = (nodes) => {
@@ -462,7 +459,7 @@ const generatePDF = (sections, formattedDate, asOfDate, orgName) => {
       doc.setFontSize(7);
       doc.setTextColor(150, 150, 150);
       doc.text(
-        `Generated on ${new Date().toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}`,
+        `Generated on ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Nairobi" })}`,
         pageWidth / 2,
         pageHeight - 10,
         { align: "center" }
@@ -564,10 +561,11 @@ const BalanceSheetPage = () => {
     };
   }, [data]);
 
-  const formattedDate = new Date(asOfDate).toLocaleDateString("en-KE", {
+  const formattedDate = new Date(asOfDate).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Africa/Nairobi",
   });
 
   const handleDownloadPdf = useCallback(() => {

@@ -364,12 +364,13 @@ const ConfirmPaymentsView = ({
                         <span className="text-xs text-gray-400">
                           {bill.updated_at
                             ? new Date(bill.updated_at).toLocaleString(
-                                "en-US",
+                                "en-GB",
                                 {
                                   month: "short",
                                   day: "numeric",
                                   hour: "2-digit",
                                   minute: "2-digit",
+                                  timeZone: "Africa/Nairobi",
                                 },
                               )
                             : "Pending"}

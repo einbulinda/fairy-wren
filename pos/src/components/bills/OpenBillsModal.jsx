@@ -23,8 +23,8 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
   const dateRange = useMemo(() => {
     if (bills.length === 0) return null;
     const fmt = (d) =>
-      new Date(d).toLocaleString("en-KE", {
-        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+      new Date(d).toLocaleString("en-GB", {
+        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi",
       });
     const sorted = [...bills].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     const earliest = sorted[0].created_at;
@@ -115,7 +115,7 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
                         Bill #{bill?.id.slice(0, 8)}
                       </p>
                       <p className="text-xs sm:text-sm text-gray-400">
-                        {new Date(bill.created_at).toLocaleDateString()}
+                        {new Date(bill.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
                       </p>
                     </div>
                     <p className="text-xs sm:text-sm text-gray-400 mt-1">

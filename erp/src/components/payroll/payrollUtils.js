@@ -2,8 +2,11 @@ export { fmt } from "@/utils/formatters";
 
 export const fmtPeriod = (period) => {
   if (!period) return "—";
-  const d = new Date(period);
-  return d.toLocaleString("en-US", { month: "long", year: "numeric" });
+  return new Date(period).toLocaleString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "Africa/Nairobi",
+  });
 };
 
 export { inputCls } from "@/utils/constants";

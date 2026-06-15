@@ -41,7 +41,7 @@ import {
   MobileCardList,
 } from "@/components/shared/MobileCard";
 import PaginatedTable from "@/components/shared/PaginatedTable";
-import { fmt, fmtDate } from "@/utils/formatters";
+import { fmt, fmtDate, localDateStr } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
 
 const dateInputCls =
@@ -57,7 +57,7 @@ const TABS = [
 
 
 const EMPTY_PAYMENT = {
-  payment_date: new Date().toISOString().split("T")[0],
+  payment_date: localDateStr(),
   amount: "",
   payment_method: "bank",
   reference: "",
@@ -184,7 +184,7 @@ const SupplierDetailPage = () => {
   const [payAllocations, setPayAllocations] = useState({}); // { invoiceId: amount }
   const [payReference, setPayReference] = useState("");
   const [payDate, setPayDate] = useState(
-    new Date().toISOString().split("T")[0],
+    localDateStr(),
   );
   const [paySubmitting, setPaySubmitting] = useState(false);
 

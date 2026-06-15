@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import { Calendar, Clock } from "lucide-react";
 
+const TZ = "Africa/Nairobi";
+
 const getGreeting = () => {
-  const hour = new Date().getHours();
+  const hour = parseInt(
+    new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: TZ }).format(new Date()),
+    10,
+  );
   if (hour < 12) return "Good Morning";
   if (hour < 17) return "Good Afternoon";
   return "Good Evening";
@@ -16,18 +21,20 @@ const WelcomeCard = ({ userName }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const dateStr = time.toLocaleDateString("en-US", {
+  const dateStr = time.toLocaleDateString("en-GB", {
     weekday: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: TZ,
   });
 
-  const timeStr = time.toLocaleTimeString("en-US", {
+  const timeStr = time.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
+    timeZone: TZ,
   });
 
   return (

@@ -20,11 +20,11 @@ import {
 } from "lucide-react";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
 import toast from "react-hot-toast";
-import { fmt } from "@/utils/formatters";
+import { fmt, localDateStr } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
 import { parseBankStatementPdf } from "@/utils/pdfParser";
 
-const today = new Date().toISOString().split("T")[0];
+const today = localDateStr();
 
 const STATUS_STYLES = {
   draft: { label: "Draft", icon: Clock, cls: "bg-surface-700 text-surface-300" },
@@ -375,7 +375,7 @@ const BankReconciliationListPage = () => {
                     const Icon = st.icon;
                     return (
                       <tr key={s.id} className="hover:bg-surface-700/30 transition-colors cursor-pointer" onClick={() => navigate(`/bank-reconciliation/${s.id}`)}>
-                        <td className="px-4 py-3 text-white">{new Date(s.statement_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                        <td className="px-4 py-3 text-white">{new Date(s.statement_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}</td>
                         <td className="px-4 py-3 text-surface-300">{s.bank_account?.name || "—"}</td>
                         <td className="px-4 py-3 text-surface-300">{s.description || "—"}</td>
                         <td className="px-4 py-3 text-right text-surface-300">{fmt(s.opening_balance)}</td>
@@ -402,7 +402,7 @@ const BankReconciliationListPage = () => {
                 return (
                   <MobileCard key={s.id} onClick={() => navigate(`/bank-reconciliation/${s.id}`)}>
                     <div className="flex items-center justify-between">
-                      <span className="text-white text-sm">{new Date(s.statement_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                      <span className="text-white text-sm">{new Date(s.statement_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}</span>
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>
                         <Icon size={11} /> {st.label}
                       </span>

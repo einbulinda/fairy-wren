@@ -159,7 +159,7 @@ const PayslipModal = ({ line, run, onClose }) => {
             </div>
 
             <p className="text-center text-xs text-gray-400 mt-5">
-              Generated {new Date().toLocaleDateString("en-KE")}
+              Generated {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
             </p>
           </div>
         </div>

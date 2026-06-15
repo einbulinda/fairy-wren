@@ -4,12 +4,11 @@ import { fetchAccounts, fetchAccountLedger } from "@/services/accounts.service";
 import { fetchJournals } from "@/services/journals.service";
 import { BookOpen, TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from "lucide-react";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
-import { fmt, fmtDate } from "@/utils/formatters";
+import { fmt, fmtDate, localDateStr } from "@/utils/formatters";
 import { dateInputCls } from "@/utils/constants";
 
-const today = new Date();
-const firstOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
-const todayStr = today.toISOString().split("T")[0];
+const todayStr = localDateStr();
+const firstOfMonth = `${todayStr.slice(0, 7)}-01`;
 
 const PAGE_SIZE = 15;
 

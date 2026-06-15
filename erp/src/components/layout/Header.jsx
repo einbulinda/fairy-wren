@@ -170,7 +170,7 @@ const Header = ({ title, onMenuClick }) => {
                               </p>
                               <p className="text-xs text-surface-400 mt-0.5">
                                 {item.profiles?.name || "Unknown"} &middot;{" "}
-                                {new Date(item.created_at).toLocaleDateString()}
+                                {new Date(item.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
                               </p>
                             </div>
                             <span
@@ -223,6 +223,7 @@ const Header = ({ title, onMenuClick }) => {
                                     ).toLocaleDateString("en-GB", {
                                       day: "numeric",
                                       month: "short",
+                                      timeZone: "Africa/Nairobi",
                                     })
                                   : ""}
                                 {item.party_size

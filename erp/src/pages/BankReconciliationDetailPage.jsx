@@ -131,7 +131,7 @@ const BankReconciliationDetailPage = () => {
               {statement.description || "Bank Statement"}
             </h1>
             <p className="text-sm text-surface-400">
-              {bankAccountName} • {new Date(statement.start_date).toLocaleDateString("en-KE")} – {new Date(statement.end_date).toLocaleDateString("en-KE")}
+              {bankAccountName} • {new Date(statement.start_date).toLocaleDateString("en-GB", { timeZone: "Africa/Nairobi" })} – {new Date(statement.end_date).toLocaleDateString("en-GB", { timeZone: "Africa/Nairobi" })}
             </p>
           </div>
         </div>
@@ -220,7 +220,7 @@ const BankReconciliationDetailPage = () => {
                             }
                           }}
                         >
-                          <td className="px-4 py-3 text-white whitespace-nowrap">{new Date(line.transaction_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short" })}</td>
+                          <td className="px-4 py-3 text-white whitespace-nowrap">{new Date(line.transaction_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Africa/Nairobi" })}</td>
                           <td className="px-4 py-3">
                             <p className="text-white">{line.description || "—"}</p>
                             {line.reference && <p className="text-[11px] text-surface-500">Ref: {line.reference}</p>}
@@ -261,7 +261,7 @@ const BankReconciliationDetailPage = () => {
                       }}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-white text-sm">{new Date(line.transaction_date).toLocaleDateString("en-KE")}</span>
+                        <span className="text-white text-sm">{new Date(line.transaction_date).toLocaleDateString("en-GB", { timeZone: "Africa/Nairobi" })}</span>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${ms.cls}`}>
                           {ms.label}
                         </span>
@@ -326,7 +326,7 @@ const BankReconciliationDetailPage = () => {
                   <tbody className="divide-y divide-surface-700/50">
                     {glEntries.map((entry) => (
                       <tr key={`${entry.journal_entry_id}-${entry.journal_line_id}`} className="hover:bg-surface-700/30 transition-colors">
-                        <td className="px-4 py-3 text-white whitespace-nowrap">{new Date(entry.entry_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short" })}</td>
+                        <td className="px-4 py-3 text-white whitespace-nowrap">{new Date(entry.entry_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Africa/Nairobi" })}</td>
                         <td className="px-4 py-3">
                           <p className="text-white">{entry.reference || entry.entry_description || "—"}</p>
                           <p className="text-[11px] text-surface-500">{entry.source_type || "journal_entry"}</p>
@@ -358,7 +358,7 @@ const BankReconciliationDetailPage = () => {
                 {glEntries.map((entry) => (
                   <MobileCard key={`${entry.journal_entry_id}-${entry.journal_line_id}`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-white text-sm">{new Date(entry.entry_date).toLocaleDateString("en-KE")}</span>
+                      <span className="text-white text-sm">{new Date(entry.entry_date).toLocaleDateString("en-GB", { timeZone: "Africa/Nairobi" })}</span>
                       <span className="text-[11px] text-surface-500">{entry.source_type || "journal_entry"}</span>
                     </div>
                     <p className="text-white font-medium text-sm">{entry.reference || entry.entry_description || "—"}</p>

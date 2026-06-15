@@ -22,6 +22,7 @@ import {
   Activity,
 } from "lucide-react";
 import { useInventoryReports } from "../../hooks/inventory/useInventoryReports";
+import { localDateStr } from "@/utils/formatters";
 
 const StockTakeReports = () => {
   const { stockTakeReports, loading } = useInventoryReports();
@@ -261,7 +262,7 @@ const StockTakeReports = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `stock-take-adjustments-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `stock-take-adjustments-${localDateStr()}.csv`;
     a.click();
   };
 
@@ -451,24 +452,26 @@ const StockTakeReports = () => {
                       <Calendar className="w-4 h-4 text-pink-400" />
                       <span className="text-sm text-gray-300">
                         {session.completedAt
-                          ? new Date(session.completedAt).toLocaleDateString(
-                              "en-US",
+                          ? new Date(session.completedAt).toLocaleString(
+                              "en-GB",
                               {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
                                 hour: "2-digit",
                                 minute: "2-digit",
+                                timeZone: "Africa/Nairobi",
                               },
                             )
-                          : new Date(session.createdAt).toLocaleDateString(
-                              "en-US",
+                          : new Date(session.createdAt).toLocaleString(
+                              "en-GB",
                               {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
                                 hour: "2-digit",
                                 minute: "2-digit",
+                                timeZone: "Africa/Nairobi",
                               },
                             )}
                       </span>
@@ -545,7 +548,7 @@ const StockTakeReports = () => {
                       <CheckCircle className="w-3 h-3" />
                       <span>
                         Reviewed by {session.reviewedBy} on{" "}
-                        {new Date(session.reviewedAt).toLocaleDateString()}
+                        {new Date(session.reviewedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
                       </span>
                     </div>
                   )}
@@ -780,14 +783,14 @@ const StockTakeReports = () => {
                 <div>
                   <span className="text-gray-400">Created:</span>
                   <div className="text-white mt-1">
-                    {new Date(selectedSession.createdAt).toLocaleString()}
+                    {new Date(selectedSession.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" })}
                   </div>
                 </div>
                 {selectedSession.completedAt && (
                   <div>
                     <span className="text-gray-400">Completed:</span>
                     <div className="text-white mt-1">
-                      {new Date(selectedSession.completedAt).toLocaleString()}
+                      {new Date(selectedSession.completedAt).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" })}
                     </div>
                   </div>
                 )}

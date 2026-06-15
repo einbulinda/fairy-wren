@@ -180,9 +180,11 @@ exports.findSalesHistory = async (productId, { from, to } = {}) => {
          r.id           AS round_id,
          r.round_number AS round_number,
          r.bill_id      AS bill_id,
-         r.created_at   AS sale_date
+         r.created_at   AS sale_date,
+         b.customer_name
        FROM round_items ri
        ${joinType} rounds r ON r.id = ri.round_id
+       LEFT JOIN bills b ON b.id = r.bill_id
        ${where}
        ORDER BY r.created_at DESC`,
       values,
@@ -196,9 +198,81 @@ exports.findSalesHistory = async (productId, { from, to } = {}) => {
       round_number: item.round_number,
       bill_id: item.bill_id,
       sale_date: item.sale_date,
+      customer_name: item.customer_name ?? null,
     }));
 
     return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+exports.findProductStatement = async (productId, { from, to } = {}) => {
+  try {
+    const fromDate = from || new Date().toISOString().slice(0, 10);
+    const toDate = to || new Date().toISOString().slice(0, 10);
+
+    const { rows } = await pool.query(
+      `WITH opening_bal AS (
+         SELECT COALESCE(SUM(quantity), 0) AS qty
+         FROM inventory_movements
+         WHERE product_id = $1 AND movement_date < $2::date
+       )
+       SELECT
+         im.id,
+         im.movement_date,
+         im.movement_type,
+         im.quantity,
+         im.reference_type,
+         im.reference_id,
+         im.reason,
+         im.notes,
+         im.unit_cost,
+         im.created_at,
+         CASE WHEN im.reference_type = 'round' THEN b.customer_name END AS customer_name,
+         CASE WHEN im.reference_type = 'round' THEN r.bill_id::text END AS bill_id,
+         CASE WHEN im.reference_type = 'inventory_receipt' THEN ir.invoice_number END AS invoice_number,
+         CASE WHEN im.reference_type = 'inventory_receipt' THEN s.name END AS supplier_name,
+         CASE WHEN im.reference_type = 'stock_take' THEN st.stock_take_name END AS stock_take_name,
+         (SELECT qty FROM opening_bal) AS opening_balance
+       FROM inventory_movements im
+       LEFT JOIN rounds r ON r.id = im.reference_id AND im.reference_type = 'round'
+       LEFT JOIN bills b ON b.id = r.bill_id
+       LEFT JOIN inventory_receipts ir ON ir.id = im.reference_id AND im.reference_type = 'inventory_receipt'
+       LEFT JOIN suppliers s ON s.id = ir.supplier_id
+       LEFT JOIN stock_takes st ON st.id = im.reference_id AND im.reference_type = 'stock_take'
+       WHERE im.product_id = $1
+         AND im.movement_date >= $2::date
+         AND im.movement_date <= $3::date
+       ORDER BY im.movement_date, im.created_at`,
+      [productId, fromDate, toDate],
+    );
+
+    const openingBalance = rows.length > 0 ? Number(rows[0].opening_balance) : 0;
+
+    let runningBalance = openingBalance;
+    const movements = rows.map((row) => {
+      runningBalance += Number(row.quantity);
+      return {
+        id: row.id,
+        movement_date: row.movement_date,
+        movement_type: row.movement_type,
+        quantity: Number(row.quantity),
+        reference_type: row.reference_type,
+        reference_id: row.reference_id,
+        reason: row.reason ?? null,
+        notes: row.notes ?? null,
+        unit_cost: row.unit_cost ? Number(row.unit_cost) : null,
+        customer_name: row.customer_name ?? null,
+        bill_id: row.bill_id ?? null,
+        invoice_number: row.invoice_number ?? null,
+        supplier_name: row.supplier_name ?? null,
+        stock_take_name: row.stock_take_name ?? null,
+        balance: runningBalance,
+      };
+    });
+
+    return { data: { opening_balance: openingBalance, movements }, error: null };
   } catch (error) {
     return { data: null, error };
   }

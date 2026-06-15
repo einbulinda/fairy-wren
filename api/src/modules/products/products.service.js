@@ -93,6 +93,12 @@ exports.getSalesHistory = async (productId, dateRange) => {
   return data ?? [];
 };
 
+exports.getProductStatement = async (productId, dateRange) => {
+  const { data, error } = await repo.findProductStatement(productId, dateRange);
+  if (error) throw new Error("FAILED_TO_FETCH_PRODUCT_STATEMENT");
+  return data;
+};
+
 exports.getProductInsights = async (productId, dateRange) => {
   const [{ data: product, error: pErr }, purchases, sales] = await Promise.all([
     repo.findById(productId),

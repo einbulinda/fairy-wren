@@ -6,6 +6,10 @@ const auditRepo = require("../audit/audit.repository");
 const sessionRepo = require("./login-sessions.repository");
 const { signToken } = require("../../utils/jwt");
 const { getPermissionsForRole } = require("../system-roles/system-roles.service");
+const lockout = require("../../utils/pin-lockout");
+
+// Computed once at startup — used to keep bcrypt timing constant when user not found.
+const DUMMY_HASH = bcrypt.hashSync("dummy-pin-that-never-matches", 10);
 
 exports.login = async (payload, context) => {
   if (!payload?.pin) {
@@ -14,41 +18,46 @@ exports.login = async (payload, context) => {
 
   const dto = LoginDTO(payload);
 
-  //Compute fingerprint
   const fingerprint = crypto
     .createHmac("sha256", process.env.PIN_PEPPER)
     .update(dto.pin)
     .digest("hex");
 
-  const { data: user, error } =
-    await repo.findActiveUserByFingerprint(fingerprint);
+  const { data: user, error } = await repo.findActiveUserByFingerprint(fingerprint);
 
-  // Same error for invalid user or PIN (anti-enumeration)
-  if (error || !user) {
-    await auditRepo.log({
-      entity: "auth",
-      action: "LOGIN_FAILED",
-      performed_by: null,
-      correlation_id: context.correlationId,
-      metadata: { reason: "INVALID_PIN" },
-    });
+  // Always run bcrypt — constant response time whether user exists or not.
+  const valid = await bcrypt.compare(dto.pin, user?.pin_hash ?? DUMMY_HASH);
 
+  if (error || !user || !valid) {
+    if (user) {
+      // Known user — record failure and check lockout threshold.
+      lockout.recordFailure(user.id);
+      await auditRepo.log({
+        entity: "auth",
+        action: "LOGIN_FAILED",
+        performed_by: user.id,
+        correlation_id: context.correlationId,
+        metadata: { reason: "INVALID_PIN" },
+      });
+    } else {
+      await auditRepo.log({
+        entity: "auth",
+        action: "LOGIN_FAILED",
+        performed_by: null,
+        correlation_id: context.correlationId,
+        metadata: { reason: "INVALID_PIN" },
+      });
+    }
     throw new Error("INVALID_CREDENTIALS");
   }
 
-  const valid = await bcrypt.compare(dto.pin, user.pin_hash);
-
-  if (!valid) {
-    await auditRepo.log({
-      entity: "auth",
-      action: "LOGIN_FAILED",
-      performed_by: user.id,
-      correlation_id: context.correlationId,
-      metadata: { reason: "INVALID_PIN" },
-    });
-
-    throw new Error("INVALID_CREDENTIALS");
+  // Check lockout before allowing access.
+  if (lockout.isLocked(user.id)) {
+    const secs = lockout.remainingLockSecs(user.id);
+    throw Object.assign(new Error("ACCOUNT_LOCKED"), { lockRemainingSeconds: secs });
   }
+
+  lockout.clearFailures(user.id);
   const permissions = await getPermissionsForRole(user.role);
 
   const token = signToken({
@@ -132,26 +141,37 @@ exports.endSession = async (userId, reason, context) => {
 };
 
 exports.verifyPinForAction = async (pin, requiredPermission) => {
-  if (!pin) throw new Error('INVALID_CREDENTIALS');
+  if (!pin) throw new Error("INVALID_CREDENTIALS");
 
   const fingerprint = crypto
-    .createHmac('sha256', process.env.PIN_PEPPER)
+    .createHmac("sha256", process.env.PIN_PEPPER)
     .update(String(pin))
-    .digest('hex');
+    .digest("hex");
 
   const { data: user, error } = await repo.findActiveUserByFingerprint(fingerprint);
-  if (error || !user) throw new Error('INVALID_CREDENTIALS');
 
-  const valid = await bcrypt.compare(String(pin), user.pin_hash);
-  if (!valid) throw new Error('INVALID_CREDENTIALS');
+  // Always run bcrypt — constant response time whether user exists or not.
+  const valid = await bcrypt.compare(String(pin), user?.pin_hash ?? DUMMY_HASH);
+
+  if (error || !user || !valid) {
+    if (user) lockout.recordFailure(user.id);
+    throw new Error("INVALID_CREDENTIALS");
+  }
+
+  if (lockout.isLocked(user.id)) {
+    const secs = lockout.remainingLockSecs(user.id);
+    throw Object.assign(new Error("ACCOUNT_LOCKED"), { lockRemainingSeconds: secs });
+  }
+
+  lockout.clearFailures(user.id);
 
   const permissions = await getPermissionsForRole(user.role);
   const isAuthorized =
-    user.role === 'admin' ||
-    user.role === 'owner' ||
+    user.role === "admin" ||
+    user.role === "owner" ||
     permissions.includes(requiredPermission);
 
-  if (!isAuthorized) throw new Error('INSUFFICIENT_PERMISSIONS');
+  if (!isAuthorized) throw new Error("INSUFFICIENT_PERMISSIONS");
 
   return { id: user.id, name: user.name, role: user.role, permissions };
 };

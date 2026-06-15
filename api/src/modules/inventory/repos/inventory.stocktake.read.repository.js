@@ -48,6 +48,56 @@ exports.getStockTakeById = async (id) => {
   }
 };
 
+exports.getAdjustmentInsights = async ({ startDate, endDate } = {}) => {
+  try {
+    const params = [];
+    const conditions = ["sti.variance != 0", "st.approval_status = 'approved'"];
+
+    if (startDate) {
+      params.push(startDate);
+      conditions.push(`COALESCE(st.completed_at, st.created_at) >= $${params.length}`);
+    }
+    if (endDate) {
+      params.push(endDate);
+      conditions.push(`COALESCE(st.completed_at, st.created_at) <= $${params.length}`);
+    }
+
+    const where = `WHERE ${conditions.join(" AND ")}`;
+
+    const { rows } = await pool.query(
+      `SELECT
+        p.id                                                              AS product_id,
+        p.name                                                            AS product_name,
+        p.unit,
+        COUNT(*)::int                                                     AS adjustment_count,
+        SUM(ABS(sti.variance))::numeric                                   AS total_abs_variance,
+        ROUND(AVG(ABS(COALESCE(sti.variance_percentage, 0)))::numeric, 2) AS avg_variance_pct,
+        ROUND(SUM(COALESCE(sti.total_value_adjustment, 0))::numeric, 2)   AS total_value_impact,
+        json_agg(
+          json_build_object(
+            'stock_take_id',      st.id,
+            'stock_take_name',    st.stock_take_name,
+            'date',               COALESCE(st.completed_at, st.created_at),
+            'variance',           sti.variance,
+            'variance_percentage', COALESCE(sti.variance_percentage, 0),
+            'reason',             sti.reason
+          )
+          ORDER BY COALESCE(st.completed_at, st.created_at)
+        )                                                                 AS adjustment_history
+       FROM stock_take_items sti
+       JOIN products p ON p.id = sti.product_id
+       JOIN stock_takes st ON st.id = sti.stock_take_id
+       ${where}
+       GROUP BY p.id, p.name, p.unit
+       ORDER BY COUNT(*) DESC, SUM(ABS(sti.variance)) DESC`,
+      params,
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
 exports.getStockTakeAdjustments = async ({ startDate, endDate }) => {
   try {
     const params = [];

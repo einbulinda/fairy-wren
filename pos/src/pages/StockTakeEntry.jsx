@@ -127,7 +127,7 @@ export default function StockTakeEntry() {
       setCurrentSessionId(session.id);
       setSessionName(
         session.stock_take_name ||
-          `Stock Take - ${new Date(session.created_at).toLocaleDateString()}`,
+          `Stock Take - ${new Date(session.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}`,
       );
       setSessionType(session.stock_take_type || "full");
       setLocation(session.location || "Bar");
@@ -975,7 +975,7 @@ export default function StockTakeEntry() {
                           <div className="flex-1">
                             <h4 className="font-medium text-white mb-2">
                               {session.stock_take_name ||
-                                `Stock Take - ${new Date(session.created_at).toLocaleDateString()}`}
+                                `Stock Take - ${new Date(session.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}`}
                             </h4>
 
                             <div className="grid grid-cols-2 gap-2 text-sm mb-2">
@@ -993,7 +993,7 @@ export default function StockTakeEntry() {
                               </div>
                               <div className="flex items-center gap-1 text-gray-400">
                                 <Clock className="w-3 h-3" />
-                                {new Date(session.created_at).toLocaleString()}
+                                {new Date(session.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" })}
                               </div>
                             </div>
 

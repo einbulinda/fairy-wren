@@ -302,6 +302,7 @@ export default function WebEventsPage() {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
+                          timeZone: "Africa/Nairobi",
                         })}
                         {ev.start_time && (
                           <span className="text-surface-500 ml-1">· {ev.start_time.slice(0, 5)}</span>
@@ -361,6 +362,7 @@ export default function WebEventsPage() {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
+                          timeZone: "Africa/Nairobi",
                         })}
                         {ev.dj_act ? ` · ${ev.dj_act}` : ""}
                       </p>

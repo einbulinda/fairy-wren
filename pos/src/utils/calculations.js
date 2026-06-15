@@ -52,6 +52,7 @@ export const formatDate = (date) => {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Africa/Nairobi",
   });
 };
 

@@ -276,12 +276,13 @@ const ApprovalTab = () => {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    return new Date(dateStr).toLocaleString("en-GB", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Africa/Nairobi",
     });
   };
 

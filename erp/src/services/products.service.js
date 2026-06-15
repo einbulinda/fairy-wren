@@ -39,3 +39,8 @@ export const fetchProductInsights = async (id, params = {}) => {
   const { data } = await api.get(`/products/${id}/insights`, { params });
   return data.data ?? data;
 };
+
+export const fetchProductStatement = async (id, params = {}) => {
+  const { data } = await api.get(`/products/${id}/statement`, { params });
+  return data.data ?? data;
+};

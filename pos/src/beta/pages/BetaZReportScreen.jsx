@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { formatCurrency } from "@/utils/common";
+import { localDateStr } from "@/utils/formatters";
 import toast from "react-hot-toast";
 import ConfirmModal from "@/components/shared/ConfirmModal";
 
@@ -43,10 +44,7 @@ const pmtColor = (type) =>
   PMT_COLORS[(type || "").toLowerCase()] ?? "text-cyan-400";
 
 // Default to today (current day)
-const getDefaultDate = () => {
-  const today = new Date();
-  return today.toISOString().split("T")[0];
-};
+const getDefaultDate = () => localDateStr();
 
 // Format date nicely
 const formatDate = (d) => {
@@ -56,15 +54,12 @@ const formatDate = (d) => {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "Africa/Nairobi",
   });
 };
 
 // Check if date is today
-const isToday = (d) => {
-  const date = new Date(d);
-  const today = new Date();
-  return date.toDateString() === today.toDateString();
-};
+const isToday = (d) => d === localDateStr();
 
 const BetaZReportScreen = () => {
   const { user } = useAuth();
@@ -207,7 +202,7 @@ const BetaZReportScreen = () => {
             onClick={() => {
               const d = new Date(date);
               d.setDate(d.getDate() - 1);
-              setDate(d.toISOString().split("T")[0]);
+              setDate(localDateStr(d));
             }}
             className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
           >
@@ -225,7 +220,7 @@ const BetaZReportScreen = () => {
               d.setDate(d.getDate() + 1);
               const today = new Date();
               if (d <= today) {
-                setDate(d.toISOString().split("T")[0]);
+                setDate(localDateStr(d));
               }
             }}
             disabled={isToday(date)}

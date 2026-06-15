@@ -63,7 +63,7 @@ const DailyCategoryStackedChart = ({ data, selectedMonth, selectedYear }) => {
                       </div>
                       <div className="absolute left-1/2 -translate-x-1/2 -translate-y-full mb-3 hidden group-hover:block z-50 pointer-events-none w-max">
                         <div className="bg-surface-800 border border-surface-600 rounded-lg px-3 py-2 shadow-2xl">
-                          <p className="text-white text-xs font-bold border-b border-surface-700 pb-1.5 mb-1.5">{new Date(date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</p>
+                          <p className="text-white text-xs font-bold border-b border-surface-700 pb-1.5 mb-1.5">{new Date(date).toLocaleDateString("en-GB", { weekday: "short", month: "short", day: "numeric", timeZone: "Africa/Nairobi" })}</p>
                           <p className="text-white text-xs font-bold mb-1.5">Total: {formatCurrency(total)}</p>
                           <div className="space-y-1">
                             {categories.map((cat) => {

@@ -114,7 +114,7 @@ const TransactionTable = ({ transactions }) => (
             {transactions.map((t) => (
               <tr key={t.id} className="hover:bg-surface-700/20 transition-colors">
                 <td className="px-6 py-2 text-surface-400">
-                  {new Date(t.txn_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}
+                  {new Date(t.txn_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
                 </td>
                 <td className="px-3 py-2 text-surface-300">{t.supplier_name || "—"}</td>
                 <td className="px-3 py-2 text-surface-400">{t.invoice_number || "—"}</td>
@@ -482,7 +482,7 @@ const ExpensesPage = () => {
                                 {child.transactions.map((t) => (
                                   <div key={t.id} className="bg-surface-900/40 border border-surface-700/50 rounded-lg px-3 py-2 space-y-1">
                                     <div className="flex items-center justify-between">
-                                      <span className="text-surface-400 text-xs">{new Date(t.txn_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                                      <span className="text-surface-400 text-xs">{new Date(t.txn_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}</span>
                                       <span className="text-red-400 tabular-nums text-xs font-medium">{fmt(t.amount)}</span>
                                     </div>
                                     {t.supplier_name && <div className="text-surface-300 text-xs">{t.supplier_name}</div>}
@@ -497,7 +497,7 @@ const ExpensesPage = () => {
                       {hasOwnTxns && !hasChildren && parent.transactions.map((t) => (
                         <div key={t.id} className="bg-surface-900/40 border border-surface-700/50 rounded-lg px-3 py-2 space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-surface-400 text-xs">{new Date(t.txn_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                            <span className="text-surface-400 text-xs">{new Date(t.txn_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}</span>
                             <span className="text-red-400 tabular-nums text-xs font-medium">{fmt(t.amount)}</span>
                           </div>
                           {t.supplier_name && <div className="text-surface-300 text-xs">{t.supplier_name}</div>}

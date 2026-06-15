@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { X, ShoppingCart, Package, AlertTriangle, Users, DollarSign, Send, Printer, Download, Tag, TrendingUp, Scissors } from "lucide-react";
 import * as XLSX from "xlsx";
+import { localDateStr } from "@/utils/formatters";
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 0 }).format(value);
@@ -78,7 +79,7 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Reorder List");
-      const date = new Date().toISOString().split("T")[0];
+      const date = localDateStr();
       XLSX.writeFile(wb, `reorder-list-${date}.xlsx`);
     };
 

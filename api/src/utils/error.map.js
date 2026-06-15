@@ -8,6 +8,10 @@ const ERROR_MAP = {
     status: 401,
     message: "Invalid PIN or credentials",
   },
+  ACCOUNT_LOCKED: {
+    status: 423,
+    message: "Account temporarily locked due to too many failed attempts.",
+  },
   TOO_MANY_LOGIN_ATTEMPTS: {
     status: 429,
     message: "Too many login attempts. Please try again later.",
