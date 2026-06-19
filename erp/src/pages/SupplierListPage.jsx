@@ -265,7 +265,7 @@ const SupplierListPage = () => {
             </label>
             <button
               onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Plus size={15} />
               New Supplier

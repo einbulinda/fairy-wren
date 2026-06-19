@@ -45,7 +45,7 @@ import { fmt, fmtDate, localDateStr } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
 
 const dateInputCls =
-  "px-2 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 w-36";
+  "px-2 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 w-full";
 
 const TABS = [
   { id: "purchases", label: "Purchases", icon: Package },
@@ -102,33 +102,36 @@ const PaymentBadge = ({ paidAt, status, purchaseDate }) => {
 };
 
 const DateFilter = ({ from, setFrom, to, setTo, onClear }) => (
-  <div className="flex flex-wrap items-end gap-3 px-4 py-3 border-b border-surface-700 bg-surface-800/20">
-    <div>
-      <label className="block text-xs text-surface-400 mb-1">From</label>
-      <input
-        type="date"
-        value={from}
-        onChange={(e) => setFrom(e.target.value)}
-        className={dateInputCls}
-      />
+  <div className="px-4 py-3 border-b border-surface-700 bg-surface-800/20">
+    <div className="flex items-end gap-2">
+      <div className="flex-1 min-w-0">
+        <label className="block text-xs text-surface-400 mb-1">From</label>
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          className={dateInputCls}
+        />
+      </div>
+      <span className="text-surface-500 pb-1.5 shrink-0">→</span>
+      <div className="flex-1 min-w-0">
+        <label className="block text-xs text-surface-400 mb-1">To</label>
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          className={dateInputCls}
+        />
+      </div>
+      {(from || to) && (
+        <button
+          onClick={onClear}
+          className="text-xs text-surface-400 hover:text-white transition-colors pb-1.5 shrink-0"
+        >
+          Clear
+        </button>
+      )}
     </div>
-    <div>
-      <label className="block text-xs text-surface-400 mb-1">To</label>
-      <input
-        type="date"
-        value={to}
-        onChange={(e) => setTo(e.target.value)}
-        className={dateInputCls}
-      />
-    </div>
-    {(from || to) && (
-      <button
-        onClick={onClear}
-        className="text-xs text-surface-400 hover:text-white transition-colors pb-px"
-      >
-        Clear dates
-      </button>
-    )}
   </div>
 );
 
@@ -444,21 +447,23 @@ const SupplierDetailPage = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface-800/50 border border-surface-700 rounded-xl p-1 w-fit">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === t.id
-                ? "bg-primary-600 text-white"
-                : "text-surface-400 hover:text-white"
-            }`}
-          >
-            <t.icon size={14} />
-            {t.label}
-          </button>
-        ))}
+      <div className="overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1 bg-surface-800/50 border border-surface-700 rounded-xl p-1 min-w-max w-fit">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                tab === t.id
+                  ? "bg-primary-600 text-white"
+                  : "text-surface-400 hover:text-white"
+              }`}
+            >
+              <t.icon size={14} />
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Purchases tab ─────────────────────────────────────────────────── */}
@@ -1100,7 +1105,54 @@ const SupplierDetailPage = () => {
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
+                {/* Mobile invoice cards */}
+                <div className="md:hidden space-y-2">
+                  {unpaidInvoices.map((inv) => {
+                    const outstanding = Number(inv.total_amount) - Number(inv.amount_paid || 0);
+                    return (
+                      <div key={inv.id} className="border border-surface-700 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs text-primary-400">{inv.invoice_number}</span>
+                          <span className="text-surface-300 text-xs">{fmtDate(inv.purchase_date)}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <p className="text-surface-500">Invoice</p>
+                            <p className="text-white tabular-nums">{fmt(inv.total_amount)}</p>
+                          </div>
+                          <div>
+                            <p className="text-surface-500">Paid</p>
+                            <p className="text-green-400 tabular-nums">{fmt(inv.amount_paid || 0)}</p>
+                          </div>
+                          <div>
+                            <p className="text-surface-500">Outstanding</p>
+                            <p className="text-red-400 font-medium tabular-nums">{fmt(outstanding)}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-surface-400 mb-1">Pay Amount</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={outstanding}
+                            step="0.01"
+                            placeholder="0.00"
+                            className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            value={payAllocations[inv.id] || ""}
+                            onChange={(e) => handlePayAllocation(inv.id, e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="border-t border-surface-600 pt-2 flex items-center justify-between text-sm font-semibold">
+                    <span className="text-surface-300">Total Payment</span>
+                    <span className="text-white tabular-nums text-lg">{fmt(payTotal)}</span>
+                  </div>
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-surface-700 bg-surface-800/30">

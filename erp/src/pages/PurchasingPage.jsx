@@ -6,10 +6,10 @@ import ReceiveTab from "@/components/inventory/ReceiveTab";
 import ReorderForecastTab from "@/components/inventory/ReorderForecastTab";
 
 const TABS = [
-  { key: "suppliers", label: "Suppliers", icon: Truck },
-  { key: "pending-invoices", label: "Pending Invoices", icon: Clock },
-  { key: "receive", label: "Receive Goods", icon: Package },
-  { key: "reorder-forecast", label: "Reorder Forecast", icon: TrendingUp },
+  { key: "suppliers", label: "Suppliers", short: "Suppliers", icon: Truck },
+  { key: "pending-invoices", label: "Pending Invoices", short: "Invoices", icon: Clock },
+  { key: "receive", label: "Receive Goods", short: "Receive", icon: Package },
+  { key: "reorder-forecast", label: "Reorder Forecast", short: "Reorder", icon: TrendingUp },
 ];
 
 const PurchasingPage = () => {
@@ -18,20 +18,21 @@ const PurchasingPage = () => {
   return (
     <div className="space-y-4">
       {/* Tab bar */}
-      <div className="border-b border-surface-700">
-        <nav className="flex gap-1 overflow-x-auto">
-          {TABS.map(({ key, label, icon: Icon }) => (
+      <div className="border-b border-surface-700 overflow-x-auto scrollbar-hide">
+        <nav className="flex gap-1 min-w-max">
+          {TABS.map(({ key, label, short, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              className={`flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === key
                   ? "border-primary-500 text-primary-400"
                   : "border-transparent text-surface-400 hover:text-white"
               }`}
             >
               <Icon size={15} />
-              {label}
+              <span className="sm:hidden">{short}</span>
+              <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
         </nav>
