@@ -146,8 +146,73 @@ const StockTab = ({ items, isLoading, onRefresh }) => {
         </button>
       </div>
 
-      {/* Table */}
-      <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <div className="text-center py-8 text-surface-400">Loading…</div>
+        ) : paginated.length === 0 ? (
+          <div className="text-center py-8 text-surface-400">No items found</div>
+        ) : (
+          paginated.map((item) => {
+            const rol = item.reorder_level || 0;
+            const stockStatus =
+              item.current_stock <= 0 ? "out" :
+              item.current_stock <= rol ? "low" : "ok";
+            const statusCls =
+              stockStatus === "out" ? "bg-red-500/20 text-red-400" :
+              stockStatus === "low" ? "bg-yellow-500/20 text-yellow-400" :
+              "bg-green-500/20 text-green-400";
+            const statusLabel =
+              stockStatus === "out" ? "Out of Stock" :
+              stockStatus === "low" ? "Low" : "In Stock";
+            const borderCls =
+              stockStatus === "out" ? "border-l-red-500" :
+              stockStatus === "low" ? "border-l-yellow-500" : "border-l-surface-600";
+            const value = (item.cost_price || 0) * item.current_stock;
+            return (
+              <div key={item.id} className={`bg-surface-800/50 border border-surface-700 border-l-4 ${borderCls} rounded-xl p-3 space-y-2`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-white font-medium text-sm leading-tight truncate">{item.name}</p>
+                    <p className="text-surface-500 text-xs mt-0.5">{item.category_name || item.categories?.name || "—"}</p>
+                  </div>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${statusCls}`}>{statusLabel}</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold tabular-nums text-white leading-none">{item.current_stock}</span>
+                  <span className="text-xs text-surface-500">units</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-surface-700/50 pt-2 text-[11px]">
+                  <span className="text-surface-500">Cost <span className="text-surface-300 font-medium tabular-nums">KSh {(item.cost_price || 0).toLocaleString()}</span></span>
+                  <span className="text-surface-700">·</span>
+                  <span className="text-surface-500">Value <span className="text-surface-300 font-medium tabular-nums">KSh {value.toLocaleString()}</span></span>
+                  <span className="text-surface-700">·</span>
+                  <span className="text-surface-500">ROL <span className="text-surface-400 tabular-nums">{rol > 0 ? rol : "—"}</span></span>
+                </div>
+              </div>
+            );
+          })
+        )}
+        {!isLoading && totalPages > 1 && (
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-surface-400 tabular-nums">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs text-surface-400 tabular-nums px-1">{page} / {totalPages}</span>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
             <tr>

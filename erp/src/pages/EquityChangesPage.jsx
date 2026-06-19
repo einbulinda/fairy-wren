@@ -226,40 +226,26 @@ const EquityChangesPage = () => {
               <p className="text-xs text-surface-500">(Amounts in KES)</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 sm:ml-auto flex-wrap">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-end sm:gap-3 sm:ml-auto">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
-                From
-              </label>
-              <input
-                type="date"
-                className={inputCls}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+              <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">From</label>
+              <input type="date" className={inputCls + " w-full"} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
-                To
-              </label>
-              <input
-                type="date"
-                className={inputCls}
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
+              <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">To</label>
+              <input type="date" className={inputCls + " w-full"} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
             {computed && (
               <button
                 onClick={handleDownloadPdf}
-                className="flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium rounded-lg transition-colors self-end"
+                className="col-span-2 sm:col-auto flex items-center justify-center sm:justify-start gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium rounded-lg transition-colors sm:self-end"
               >
                 <Download size={16} />
-                <span className="hidden sm:inline">Download PDF</span>
+                <span>Download PDF</span>
               </button>
             )}
             {isFetching && (
-              <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin self-end mb-2" />
+              <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin col-span-2 sm:col-auto sm:self-end sm:mb-2 mx-auto sm:mx-0" />
             )}
           </div>
         </div>
@@ -309,6 +295,9 @@ const EquityChangesPage = () => {
         </div>
       ) : (
         <>
+          <p className="sm:hidden text-xs text-surface-500 text-center -mb-1">
+            Rotate to landscape for a better view of this statement
+          </p>
           <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

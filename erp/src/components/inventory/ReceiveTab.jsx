@@ -34,7 +34,9 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
 
   useEffect(() => {
     if (!supplierId) {
-      fetchSuppliers().then(setSuppliers).catch(console.error);
+      fetchSuppliers()
+        .then((data) => setSuppliers([...data].sort((a, b) => a.name.localeCompare(b.name))))
+        .catch(console.error);
     }
   }, [supplierId]);
 
@@ -223,79 +225,122 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
           </h3>
 
           {lines.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-surface-400 uppercase bg-surface-900">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Product</th>
-                    <th className="px-3 py-2 text-right w-24">Qty</th>
-                    <th className="px-3 py-2 text-right w-28">Unit Cost</th>
-                    <th className="px-3 py-2 text-right w-28">Total</th>
-                    <th className="px-3 py-2 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-700">
-                  {lines.map((line, idx) => (
-                    <tr key={idx}>
-                      <td className="px-3 py-2 text-white">
-                        {line.product_name}
-                      </td>
-                      <td className="px-3 py-2">
+            <>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {lines.map((line, idx) => (
+                  <div key={idx} className="bg-surface-900 border border-surface-700 rounded-xl p-3 space-y-2.5">
+                    {/* Product name + delete */}
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-white text-sm font-medium leading-tight flex-1 min-w-0">{line.product_name}</p>
+                      <button
+                        type="button"
+                        onClick={() => setLines(lines.filter((_, i) => i !== idx))}
+                        className="shrink-0 p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                    {/* Qty + Unit Cost inputs */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-surface-500 mb-1 uppercase tracking-wide">Qty</label>
                         <input
                           type="number"
                           min="1"
                           value={line.quantity}
-                          onChange={(e) =>
-                            updateLine(idx, "quantity", e.target.value)
-                          }
-                          className="w-20 px-2 py-1 bg-surface-700 border border-surface-600 rounded text-white text-right text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 ml-auto block"
+                          onChange={(e) => updateLine(idx, "quantity", e.target.value)}
+                          className="w-full px-2.5 py-2 bg-surface-700 border border-surface-600 rounded-lg text-white text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
                         />
-                      </td>
-                      <td className="px-3 py-2">
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-surface-500 mb-1 uppercase tracking-wide">Unit Cost (KSh)</label>
                         <input
                           type="number"
                           step="0.01"
                           min="0"
                           value={line.unit_cost}
-                          onChange={(e) =>
-                            updateLine(idx, "unit_cost", e.target.value)
-                          }
-                          className="w-24 px-2 py-1 bg-surface-700 border border-surface-600 rounded text-white text-right text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary-500 ml-auto block"
+                          onChange={(e) => updateLine(idx, "unit_cost", e.target.value)}
+                          className="w-full px-2.5 py-2 bg-surface-700 border border-surface-600 rounded-lg text-white text-sm text-right font-mono focus:outline-none focus:ring-1 focus:ring-primary-500"
                         />
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono text-primary-400">
+                      </div>
+                    </div>
+                    {/* Line total */}
+                    <div className="flex items-center justify-between border-t border-surface-700/60 pt-2 text-xs">
+                      <span className="text-surface-500">Line Total</span>
+                      <span className="font-mono font-semibold text-primary-400">
                         KSh {(line.quantity * line.unit_cost).toLocaleString()}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setLines(lines.filter((_, i) => i !== idx))
-                          }
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {/* Mobile total strip */}
+                <div className="flex items-center justify-between px-3 py-2.5 bg-surface-900 border border-surface-700 rounded-xl text-sm font-semibold">
+                  <span className="text-surface-400">{lines.length} item{lines.length !== 1 ? "s" : ""}</span>
+                  <span className="font-mono text-white">KSh {total.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-surface-400 uppercase bg-surface-900">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Product</th>
+                      <th className="px-3 py-2 text-right w-24">Qty</th>
+                      <th className="px-3 py-2 text-right w-28">Unit Cost</th>
+                      <th className="px-3 py-2 text-right w-28">Total</th>
+                      <th className="px-3 py-2 w-10"></th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-surface-900 font-semibold">
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-3 py-2 text-surface-400 text-sm"
-                    >
-                      Total
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono text-white">
-                      KSh {total.toLocaleString()}
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-surface-700">
+                    {lines.map((line, idx) => (
+                      <tr key={idx}>
+                        <td className="px-3 py-2 text-white">{line.product_name}</td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            min="1"
+                            value={line.quantity}
+                            onChange={(e) => updateLine(idx, "quantity", e.target.value)}
+                            className="w-20 px-2 py-1 bg-surface-700 border border-surface-600 rounded text-white text-right text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 ml-auto block"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={line.unit_cost}
+                            onChange={(e) => updateLine(idx, "unit_cost", e.target.value)}
+                            className="w-24 px-2 py-1 bg-surface-700 border border-surface-600 rounded text-white text-right text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary-500 ml-auto block"
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-primary-400">
+                          KSh {(line.quantity * line.unit_cost).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setLines(lines.filter((_, i) => i !== idx))}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-surface-900 font-semibold">
+                    <tr>
+                      <td colSpan={3} className="px-3 py-2 text-surface-400 text-sm">Total</td>
+                      <td className="px-3 py-2 text-right font-mono text-white">KSh {total.toLocaleString()}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </>
           ) : (
             <p className="text-center py-6 text-surface-400 text-sm">
               No items added yet — click <strong>Add Product</strong> above
@@ -303,18 +348,18 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
           )}
         </div>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
           <button
             type="button"
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-500 rounded-lg text-sm text-white transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2 bg-primary-600 hover:bg-primary-500 active:bg-primary-700 rounded-lg text-sm text-white transition-colors"
           >
             <Plus size={14} /> Add Product
           </button>
           <button
             type="submit"
             disabled={receiveMutation.isPending || lines.length === 0}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
           >
             <Save size={16} />
             {receiveMutation.isPending ? "Saving…" : "Save Invoice"}
@@ -337,7 +382,7 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
       {showSupplierModal && (
         <QuickAddSupplierModal
           onCreated={(supplier) => {
-            setSuppliers((prev) => [...prev, supplier]);
+            setSuppliers((prev) => [...prev, supplier].sort((a, b) => a.name.localeCompare(b.name)));
             setForm((prev) => ({ ...prev, supplier_id: supplier.id }));
           }}
           onClose={() => setShowSupplierModal(false)}

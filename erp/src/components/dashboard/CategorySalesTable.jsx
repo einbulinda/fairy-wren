@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const CategorySalesTable = ({ data }) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -33,8 +32,44 @@ const CategorySalesTable = ({ data }) => {
 
   if (!data || data.length === 0) return <div className="text-center py-8 text-surface-400">No category data available</div>;
 
+  const maxRevenue = Math.max(...sortedData.map((d) => parseFloat(d.total_sales) || 0), 1);
+
+  const fmtK = (v) => {
+    if (!v) return "0";
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
+    return String(Math.round(v));
+  };
+
+  const Pagination = () =>
+    totalPages > 1 ? (
+      <div className="flex items-center justify-between pt-3 border-t border-surface-700/50">
+        <span className="text-xs text-surface-400">
+          {startIndex + 1}–{Math.min(startIndex + itemsPerPage, sortedData.length)} of {sortedData.length}
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-1.5 bg-surface-800 hover:bg-surface-700 disabled:opacity-40 rounded-lg border border-surface-600 text-white transition-colors"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+          <span className="text-xs text-surface-300 tabular-nums px-1">{currentPage} / {totalPages}</span>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-1.5 bg-surface-800 hover:bg-surface-700 disabled:opacity-40 rounded-lg border border-surface-600 text-white transition-colors"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    ) : null;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {/* Desktop table */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-surface-700">
@@ -58,28 +93,42 @@ const CategorySalesTable = ({ data }) => {
         </table>
       </div>
 
-      <MobileCardList>
-        {paginatedData.map((item, index) => (
-          <MobileCard key={index}>
-            <div className="flex items-center justify-between">
-              <span className="text-white font-medium">{item.category_name || "Uncategorized"}</span>
-              <span className="text-emerald-400 font-semibold text-sm">KES {parseFloat(item.total_sales || 0).toLocaleString()}</span>
-            </div>
-            <div className="text-xs text-surface-400">Qty Sold: <span className="text-surface-300">{parseInt(item.total_quantity || 0).toLocaleString()}</span></div>
-          </MobileCard>
-        ))}
-      </MobileCardList>
+      {/* Mobile cards — rank + bar + compact amounts */}
+      <div className="md:hidden space-y-1">
+        {paginatedData.map((item, index) => {
+          const revenue = parseFloat(item.total_sales) || 0;
+          const qty     = parseInt(item.total_quantity) || 0;
+          const pct     = (revenue / maxRevenue) * 100;
+          const rank    = startIndex + index + 1;
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 border-t border-surface-700/50">
-          <div className="text-sm text-surface-400">Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, sortedData.length)} of {sortedData.length}</div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-surface-800 hover:bg-surface-700 disabled:opacity-50 rounded border border-surface-600 text-white transition-colors flex items-center gap-1"><ChevronLeft className="w-4 h-4" />Prev</button>
-            <span className="text-sm text-surface-300">{currentPage} / {totalPages}</span>
-            <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-surface-800 hover:bg-surface-700 disabled:opacity-50 rounded border border-surface-600 text-white transition-colors flex items-center gap-1">Next<ChevronRight className="w-4 h-4" /></button>
-          </div>
-        </div>
-      )}
+          return (
+            <div key={index} className="py-2.5 border-b border-surface-700/40 last:border-0">
+              {/* Name row */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-surface-500 w-5 shrink-0 tabular-nums">#{rank}</span>
+                <span className="text-sm font-medium text-white flex-1 truncate min-w-0">
+                  {item.category_name || "Uncategorized"}
+                </span>
+                <span className="text-sm font-bold text-emerald-400 tabular-nums shrink-0">
+                  KES {fmtK(revenue)}
+                </span>
+              </div>
+              {/* Bar + qty row */}
+              <div className="flex items-center gap-2 mt-1.5 pl-7">
+                <div className="flex-1 h-1.5 bg-surface-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-linear-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="text-[11px] text-surface-500 tabular-nums shrink-0">{qty.toLocaleString()} sold</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Pagination />
     </div>
   );
 };

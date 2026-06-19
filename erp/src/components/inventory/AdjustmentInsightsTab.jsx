@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   TrendingUp,
@@ -6,11 +6,15 @@ import {
   Minus,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   AlertTriangle,
   CheckCircle2,
   Activity,
   Star,
 } from "lucide-react";
+
+const PAGE_SIZE = 8;
 import { useAdjustmentInsights } from "@/hooks/useInventory";
 import { inputCls } from "./inventoryUtils";
 import { localDateStr } from "@/utils/formatters";
@@ -245,6 +249,7 @@ const AdjustmentInsightsTab = () => {
   const [endDate, setEndDate] = useState(() => localDateStr());
   const [sortKey, setSortKey] = useState("count");
   const [trendFilter, setTrendFilter] = useState(null);
+  const [page, setPage] = useState(1);
 
   const params = useMemo(() => {
     const p = {};
@@ -271,12 +276,18 @@ const AdjustmentInsightsTab = () => {
   const sorted = useMemo(() => {
     let list = trendFilter ? enriched.filter((r) => r.trend === trendFilter) : enriched;
     return [...list].sort((a, b) => {
-      if (sortKey === "count")   return b.adjustment_count - a.adjustment_count;
+      if (sortKey === "count")    return b.adjustment_count - a.adjustment_count;
       if (sortKey === "variance") return Number(b.avg_variance_pct) - Number(a.avg_variance_pct);
-      if (sortKey === "impact")  return Math.abs(Number(b.total_value_impact)) - Math.abs(Number(a.total_value_impact));
+      if (sortKey === "impact")   return Math.abs(Number(b.total_value_impact)) - Math.abs(Number(a.total_value_impact));
       return 0;
     });
   }, [enriched, sortKey, trendFilter]);
+
+  useEffect(() => setPage(1), [sorted]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -393,8 +404,8 @@ const AdjustmentInsightsTab = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-700">
-                {sorted.map((row, i) => (
-                  <ProductRow key={row.product_id} row={row} rank={i + 1} />
+                {paginated.map((row, i) => (
+                  <ProductRow key={row.product_id} row={row} rank={(safePage - 1) * PAGE_SIZE + i + 1} />
                 ))}
               </tbody>
             </table>
@@ -402,10 +413,36 @@ const AdjustmentInsightsTab = () => {
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
-            {sorted.map((row, i) => (
-              <MobileProductCard key={row.product_id} row={row} rank={i + 1} />
+            {paginated.map((row, i) => (
+              <MobileProductCard key={row.product_id} row={row} rank={(safePage - 1) * PAGE_SIZE + i + 1} />
             ))}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs text-surface-400 tabular-nums">
+                {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, sorted.length)} of {sorted.length}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-xs text-surface-400 tabular-nums px-1">{safePage} / {totalPages}</span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

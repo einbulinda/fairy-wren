@@ -42,14 +42,14 @@ const isoDate = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const TABS = [
-  { id: "executive", label: "Executive", icon: LayoutDashboard },
-  { id: "financial", label: "Financial", icon: DollarSign },
-  { id: "operations", label: "Operations", icon: Zap },
-  { id: "collections", label: "Collections", icon: FileText },
+  { id: "executive",   label: "Executive",   short: "Overview", icon: LayoutDashboard },
+  { id: "financial",   label: "Financial",   short: "Finance",  icon: DollarSign },
+  { id: "operations",  label: "Operations",  short: "Ops",      icon: Zap },
+  { id: "collections", label: "Collections", short: "Bills",    icon: FileText },
 ];
 
 const DashboardPage = () => {
-  const { user } = useAuth();
+  useAuth();
   const [activeTab, setActiveTab] = useState("executive");
   const [modalType, setModalType] = useState(null);
   const today = new Date();
@@ -299,68 +299,135 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Quick Action Buttons - High Impact Only */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {outOfStock > 0 && (
-          <button 
-            onClick={() => openModal("emergency-reorder")}
-            className="flex items-center justify-center gap-2 p-3 bg-red-500/20 border border-red-500/40 rounded-xl hover:bg-red-500/30 transition-colors group"
-          >
-            <ShoppingCart size={16} className="text-red-400" />
-            <div className="text-left">
-              <p className="text-xs font-semibold text-red-400">Emergency Reorder</p>
-              <p className="text-[10px] text-surface-500">{outOfStock} out of stock</p>
-            </div>
-            <ArrowUpRight size={14} className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
-          </button>
-        )}
-        
-        {lowStock > 0 && (
-          <button 
-            onClick={() => openModal("emergency-reorder")}
-            className="flex items-center justify-center gap-2 p-3 bg-orange-500/20 border border-orange-500/40 rounded-xl hover:bg-orange-500/30 transition-colors group"
-          >
-            <Package size={16} className="text-orange-400" />
-            <div className="text-left">
-              <p className="text-xs font-semibold text-orange-400">Low Stock Alert</p>
-              <p className="text-[10px] text-surface-500">{lowStock} items low</p>
-            </div>
-            <ArrowUpRight size={14} className="text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
-          </button>
-        )}
+      {/* Alert Cards — always 4, 2×2 on mobile */}
+      <div>
+        <p className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2">Alerts</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-        {criticalBills > 0 && (
-          <button 
-            onClick={() => openModal("collections")}
-            className="flex items-center justify-center gap-2 p-3 bg-red-500/20 border border-red-500/40 rounded-xl hover:bg-red-500/30 transition-colors group"
+          {/* Out of Stock */}
+          <button
+            onClick={() => openModal("emergency-reorder")}
+            className={`text-left p-4 rounded-xl border transition-all group active:scale-[0.98] ${
+              outOfStock > 0
+                ? "bg-red-500/10 border-red-500/30 hover:bg-red-500/15"
+                : "bg-surface-800/30 border-surface-700/50 hover:bg-surface-700/30"
+            }`}
           >
-            <DollarSign size={16} className="text-red-400" />
-            <div className="text-left">
-              <p className="text-xs font-semibold text-red-400">Critical Collections</p>
-              <p className="text-[10px] text-surface-500">{criticalBills} overdue 30+ days</p>
+            <div className="flex items-start justify-between mb-3">
+              <div className={`p-1.5 rounded-lg ${outOfStock > 0 ? "bg-red-500/20" : "bg-surface-700/50"}`}>
+                <ShoppingCart size={13} className={outOfStock > 0 ? "text-red-400" : "text-surface-500"} />
+              </div>
+              <ArrowUpRight size={13} className={`${outOfStock > 0 ? "text-red-400" : "text-surface-600"} opacity-0 group-hover:opacity-100 transition-opacity`} />
             </div>
-            <ArrowUpRight size={14} className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
-          </button>
-        )}
-
-        {/* Dead Stock - Show with count from movement analysis */}
-        <button
-          onClick={() => openModal("dead-stock")}
-          className={`flex items-center justify-center gap-2 p-3 rounded-xl transition-colors group border ${
-            deadStockCount > 0
-              ? "bg-orange-500/20 border-orange-500/40 hover:bg-orange-500/30"
-              : "bg-surface-800/50 border-surface-700 hover:bg-surface-700/50"
-          }`}
-        >
-          <Package size={16} className="text-orange-400" />
-          <div className="text-left">
-            <p className={`text-xs font-semibold ${deadStockCount > 0 ? "text-orange-400" : "text-white"}`}>Dead Stock</p>
-            <p className="text-[10px] text-surface-500">
-              {deadStockCount > 0 ? `${deadStockCount} slow/non-moving` : "All stock healthy"}
+            <p className={`text-3xl font-bold tabular-nums leading-none mb-1.5 ${outOfStock > 0 ? "text-red-400" : "text-white"}`}>
+              {outOfStock}
             </p>
-          </div>
-          <ArrowUpRight size={14} className={`${deadStockCount > 0 ? "text-orange-400" : "text-surface-400"} opacity-0 group-hover:opacity-100 transition-opacity ml-auto`} />
-        </button>
+            <p className="text-xs font-semibold text-white leading-tight">Out of Stock</p>
+            <p className="text-[10px] text-surface-500 mt-0.5 leading-tight">
+              {outOfStock > 0 ? "Needs immediate reorder" : "All items stocked"}
+            </p>
+            {outOfStock > 0 && (
+              <span className="inline-flex items-center mt-2.5 text-[10px] px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded-full font-medium">
+                Critical
+              </span>
+            )}
+          </button>
+
+          {/* Low Stock */}
+          <button
+            onClick={() => openModal("emergency-reorder")}
+            className={`text-left p-4 rounded-xl border transition-all group active:scale-[0.98] ${
+              lowStock > 5
+                ? "bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/15"
+                : lowStock > 0
+                  ? "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15"
+                  : "bg-surface-800/30 border-surface-700/50 hover:bg-surface-700/30"
+            }`}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className={`p-1.5 rounded-lg ${lowStock > 0 ? "bg-orange-500/20" : "bg-surface-700/50"}`}>
+                <Package size={13} className={lowStock > 0 ? "text-orange-400" : "text-surface-500"} />
+              </div>
+              <ArrowUpRight size={13} className={`${lowStock > 0 ? "text-orange-400" : "text-surface-600"} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            </div>
+            <p className={`text-3xl font-bold tabular-nums leading-none mb-1.5 ${lowStock > 0 ? "text-orange-400" : "text-white"}`}>
+              {lowStock}
+            </p>
+            <p className="text-xs font-semibold text-white leading-tight">Low Stock</p>
+            <p className="text-[10px] text-surface-500 mt-0.5 leading-tight">
+              {lowStock > 0 ? "Near reorder level" : "Stock levels healthy"}
+            </p>
+            {lowStock > 5 && (
+              <span className="inline-flex items-center mt-2.5 text-[10px] px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded-full font-medium">
+                Warning
+              </span>
+            )}
+            {lowStock > 0 && lowStock <= 5 && (
+              <span className="inline-flex items-center mt-2.5 text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded-full font-medium">
+                Watch
+              </span>
+            )}
+          </button>
+
+          {/* Critical Bills */}
+          <button
+            onClick={() => openModal("collections")}
+            className={`text-left p-4 rounded-xl border transition-all group active:scale-[0.98] ${
+              criticalBills > 0
+                ? "bg-red-500/10 border-red-500/30 hover:bg-red-500/15"
+                : "bg-surface-800/30 border-surface-700/50 hover:bg-surface-700/30"
+            }`}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className={`p-1.5 rounded-lg ${criticalBills > 0 ? "bg-red-500/20" : "bg-surface-700/50"}`}>
+                <DollarSign size={13} className={criticalBills > 0 ? "text-red-400" : "text-surface-500"} />
+              </div>
+              <ArrowUpRight size={13} className={`${criticalBills > 0 ? "text-red-400" : "text-surface-600"} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            </div>
+            <p className={`text-3xl font-bold tabular-nums leading-none mb-1.5 ${criticalBills > 0 ? "text-red-400" : "text-white"}`}>
+              {criticalBills}
+            </p>
+            <p className="text-xs font-semibold text-white leading-tight">Overdue Bills</p>
+            <p className="text-[10px] text-surface-500 mt-0.5 leading-tight">
+              {criticalBills > 0 ? "30+ days outstanding" : "All bills current"}
+            </p>
+            {criticalBills > 0 && (
+              <span className="inline-flex items-center mt-2.5 text-[10px] px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded-full font-medium">
+                Critical
+              </span>
+            )}
+          </button>
+
+          {/* Dead / Slow Stock */}
+          <button
+            onClick={() => openModal("dead-stock")}
+            className={`text-left p-4 rounded-xl border transition-all group active:scale-[0.98] ${
+              deadStockCount > 0
+                ? "bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/15"
+                : "bg-surface-800/30 border-surface-700/50 hover:bg-surface-700/30"
+            }`}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className={`p-1.5 rounded-lg ${deadStockCount > 0 ? "bg-orange-500/20" : "bg-surface-700/50"}`}>
+                <AlertTriangle size={13} className={deadStockCount > 0 ? "text-orange-400" : "text-surface-500"} />
+              </div>
+              <ArrowUpRight size={13} className={`${deadStockCount > 0 ? "text-orange-400" : "text-surface-600"} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            </div>
+            <p className={`text-3xl font-bold tabular-nums leading-none mb-1.5 ${deadStockCount > 0 ? "text-orange-400" : "text-emerald-400"}`}>
+              {deadStockCount}
+            </p>
+            <p className="text-xs font-semibold text-white leading-tight">Dead Stock</p>
+            <p className="text-[10px] text-surface-500 mt-0.5 leading-tight">
+              {deadStockCount > 0 ? "Slow / non-moving" : "All stock moving"}
+            </p>
+            {deadStockCount > 0 && (
+              <span className="inline-flex items-center mt-2.5 text-[10px] px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded-full font-medium">
+                Review
+              </span>
+            )}
+          </button>
+
+        </div>
       </div>
 
       {/* Sales Trend - Mini Version */}
@@ -379,17 +446,17 @@ const DashboardPage = () => {
   const renderFinancialTab = () => (
     <div className="space-y-4">
       {/* Target Info Banner */}
-      <div className="flex items-center justify-between p-3 bg-surface-800/50 border border-surface-700 rounded-lg">
-        <div className="flex items-center gap-2 text-sm">
-          <Target size={16} className="text-primary-400" />
-          <span className="text-surface-400">Current Targets:</span>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-surface-800/50 border border-surface-700 rounded-lg">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <Target size={16} className="text-primary-400 shrink-0" />
+          <span className="text-surface-400">Targets:</span>
           <span className="text-white font-medium">Revenue {formatCurrency(targetRevenue)}</span>
-          <span className="text-surface-500">|</span>
+          <span className="text-surface-500 hidden sm:inline">|</span>
           <span className="text-white font-medium">Margin {targetGrossMargin}%</span>
         </div>
         <Link
           to="/settings"
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg transition-colors"
+          className="self-start sm:self-auto flex items-center gap-1.5 text-xs px-3 py-1.5 bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg transition-colors"
         >
           <Settings size={12} />
           Edit Targets
@@ -402,18 +469,18 @@ const DashboardPage = () => {
           <TrendingUp size={16} className="text-violet-400" />
           Profitability Analysis
         </h3>
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div className="bg-surface-800/50 rounded-lg p-3">
-            <p className="text-xs text-surface-500 mb-1">Revenue</p>
-            <p className="text-lg font-bold text-white">{formatCurrency(revenue)}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div className="bg-surface-800/50 rounded-lg p-3 flex sm:block items-center justify-between">
+            <p className="text-xs text-surface-500 sm:mb-1">Revenue</p>
+            <p className="text-base sm:text-lg font-bold text-white">{formatCurrency(revenue)}</p>
           </div>
-          <div className="bg-surface-800/50 rounded-lg p-3">
-            <p className="text-xs text-surface-500 mb-1">COGS</p>
-            <p className="text-lg font-bold text-orange-400">{formatCurrency(cogs)}</p>
+          <div className="bg-surface-800/50 rounded-lg p-3 flex sm:block items-center justify-between">
+            <p className="text-xs text-surface-500 sm:mb-1">COGS</p>
+            <p className="text-base sm:text-lg font-bold text-orange-400">{formatCurrency(cogs)}</p>
           </div>
-          <div className="bg-surface-800/50 rounded-lg p-3">
-            <p className="text-xs text-surface-500 mb-1">Gross Profit</p>
-            <p className="text-lg font-bold text-emerald-400">{formatCurrency(grossProfit)}</p>
+          <div className="bg-surface-800/50 rounded-lg p-3 flex sm:block items-center justify-between">
+            <p className="text-xs text-surface-500 sm:mb-1">Gross Profit</p>
+            <p className="text-base sm:text-lg font-bold text-emerald-400">{formatCurrency(grossProfit)}</p>
           </div>
         </div>
         
@@ -488,7 +555,7 @@ const DashboardPage = () => {
   const renderOperationsTab = () => (
     <div className="space-y-4">
       {/* Stock Summary */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-white">{stockItems.length}</p>
           <p className="text-[10px] text-surface-500">Total Products</p>
@@ -533,55 +600,84 @@ const DashboardPage = () => {
   const renderCollectionsTab = () => (
     <div className="space-y-4">
       {/* Date range picker */}
-      <div className="flex flex-wrap items-end gap-3 p-3 bg-surface-800/50 border border-surface-700 rounded-xl">
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">From</label>
-          <input
-            type="date"
-            value={collectionsStart}
-            onChange={(e) => setCollectionsStart(e.target.value)}
-            className="px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
+      <div className="p-3 bg-surface-800/50 border border-surface-700 rounded-xl space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-end sm:gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">From</label>
+            <input
+              type="date"
+              value={collectionsStart}
+              onChange={(e) => setCollectionsStart(e.target.value)}
+              className="w-full px-2.5 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">To</label>
+            <input
+              type="date"
+              value={collectionsEnd}
+              onChange={(e) => setCollectionsEnd(e.target.value)}
+              className="w-full px-2.5 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
         </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">To</label>
-          <input
-            type="date"
-            value={collectionsEnd}
-            onChange={(e) => setCollectionsEnd(e.target.value)}
-            className="px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-        </div>
-        <p className="text-xs text-surface-500 self-center">
+        <p className="text-xs text-surface-500 sm:self-center">
           {collectionsStats.count} bill{collectionsStats.count !== 1 ? "s" : ""} in range
         </p>
       </div>
 
-      {/* Collections Summary — net of paid amounts */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
-          <p className="text-xs text-surface-500 mb-1">Total Outstanding</p>
-          <p className="text-xl font-bold text-white">
-            {formatCurrency(collectionsStats.totalOutstanding)}
+      {/* Collections Summary — always 3-col, compact amounts */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {/* Total Outstanding */}
+        <div className="bg-surface-800/30 border border-surface-700/50 rounded-xl p-3 sm:p-4">
+          <p className="text-[10px] text-surface-500 mb-1.5 truncate">
+            <span className="sm:hidden">Outstanding</span>
+            <span className="hidden sm:inline">Total Outstanding</span>
+          </p>
+          <p className="text-sm sm:text-xl font-bold text-white tabular-nums">
+            {fmtKes(collectionsStats.totalOutstanding)}
           </p>
           <p className="text-[10px] text-surface-500 mt-1">
             {collectionsStats.count} bill{collectionsStats.count !== 1 ? "s" : ""}
           </p>
         </div>
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-          <p className="text-xs text-surface-500 mb-1">Critical (&gt;30 days)</p>
-          <p className="text-xl font-bold text-red-400">
-            {formatCurrency(collectionsStats.criticalAmount)}
+
+        {/* Critical */}
+        <div className={`rounded-xl p-3 sm:p-4 border ${
+          collectionsStats.criticalAmount > 0
+            ? "bg-red-500/10 border-red-500/30"
+            : "bg-surface-800/30 border-surface-700/50"
+        }`}>
+          <p className="text-[10px] text-surface-500 mb-1.5 truncate">
+            <span className="sm:hidden">Critical</span>
+            <span className="hidden sm:inline">Critical (&gt;30 days)</span>
+          </p>
+          <p className={`text-sm sm:text-xl font-bold tabular-nums ${
+            collectionsStats.criticalAmount > 0 ? "text-red-400" : "text-white"
+          }`}>
+            {fmtKes(collectionsStats.criticalAmount)}
           </p>
           <p className="text-[10px] text-surface-500 mt-1">
             {collectionsStats.criticalCount} bill{collectionsStats.criticalCount !== 1 ? "s" : ""}
           </p>
         </div>
-        <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
-          <p className="text-xs text-surface-500 mb-1">Overdue (7–30 days)</p>
-          <p className="text-xl font-bold text-orange-400">
-            {formatCurrency(collectionsStats.overdueAmount)}
+
+        {/* Overdue */}
+        <div className={`rounded-xl p-3 sm:p-4 border ${
+          collectionsStats.overdueAmount > 0
+            ? "bg-orange-500/10 border-orange-500/30"
+            : "bg-surface-800/30 border-surface-700/50"
+        }`}>
+          <p className="text-[10px] text-surface-500 mb-1.5 truncate">
+            <span className="sm:hidden">Overdue</span>
+            <span className="hidden sm:inline">Overdue (7–30 days)</span>
           </p>
+          <p className={`text-sm sm:text-xl font-bold tabular-nums ${
+            collectionsStats.overdueAmount > 0 ? "text-orange-400" : "text-white"
+          }`}>
+            {fmtKes(collectionsStats.overdueAmount)}
+          </p>
+          <p className="text-[10px] text-surface-500 mt-1 sm:hidden">7–30 days</p>
         </div>
       </div>
 
@@ -608,63 +704,68 @@ const DashboardPage = () => {
   return (
     <div className="space-y-4 pb-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-white">Business Dashboard</h1>
-          <p className="text-surface-400 text-sm">High-impact decisions at a glance</p>
-        </div>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold text-white">Business Dashboard</h1>
+            <p className="text-surface-400 text-xs sm:text-sm">High-impact decisions at a glance</p>
+          </div>
           <Link
             to="/settings"
-            className="flex items-center gap-2 px-3 py-2 bg-surface-800/50 border border-surface-700 rounded-lg text-surface-300 hover:text-white hover:bg-surface-700/50 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-800/50 border border-surface-700 rounded-lg text-surface-300 hover:text-white hover:bg-surface-700/50 transition-colors"
+            title="Configure Targets"
           >
-            <Settings size={16} />
-            <span className="text-sm">Configure Targets</span>
+            <Settings size={15} />
+            <span className="hidden sm:inline text-sm">Configure Targets</span>
           </Link>
-          <div className="flex items-center gap-2 bg-surface-800/50 border border-surface-700 rounded-lg p-1">
-            <Calendar size={16} className="text-primary-400 ml-2" />
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className="px-2 py-1.5 rounded bg-surface-800 border border-surface-600 text-white text-sm focus:outline-none focus:border-primary-500"
-            >
-              {MONTHS.map((month, index) => (
-                <option key={index} value={index}>{month}</option>
-              ))}
-            </select>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="px-2 py-1.5 rounded bg-surface-800 border border-surface-600 text-white text-sm focus:outline-none focus:border-primary-500"
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
-          </div>
+        </div>
+        <div className="flex items-center gap-2 bg-surface-800/50 border border-surface-700 rounded-lg p-1 self-start">
+          <Calendar size={15} className="text-primary-400 ml-1.5 shrink-0" />
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+            className="px-1.5 py-1 rounded bg-surface-800 border border-surface-600 text-white text-sm focus:outline-none focus:border-primary-500"
+          >
+            {MONTHS.map((month, index) => (
+              <option key={index} value={index}>{month}</option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="px-1.5 py-1 rounded bg-surface-800 border border-surface-600 text-white text-sm focus:outline-none focus:border-primary-500"
+          >
+            {years.map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-1 bg-surface-800/50 border border-surface-700 rounded-xl p-1">
+      <div className="flex items-stretch gap-1 bg-surface-800/50 border border-surface-700 rounded-xl p-1">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
+          const alertCount = tab.id === "executive"
+            ? (outOfStock > 0 ? 1 : 0) + (criticalBills > 0 ? 1 : 0) + (lowStock > 5 ? 1 : 0)
+            : 0;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`relative flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-2 rounded-lg font-medium transition-all ${
                 isActive
                   ? "bg-primary-500 text-white shadow-lg shadow-primary-500/25"
                   : "text-surface-400 hover:text-white hover:bg-surface-700/50"
               }`}
             >
-              <Icon size={16} />
-              {tab.label}
-              {tab.id === "executive" && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-white/20 rounded-full">
-                  {(outOfStock > 0 ? 1 : 0) + (criticalBills > 0 ? 1 : 0) + (lowStock > 5 ? 1 : 0)}
+              <Icon size={15} />
+              <span className="text-[10px] sm:hidden leading-none">{tab.short}</span>
+              <span className="hidden sm:inline text-sm">{tab.label}</span>
+              {alertCount > 0 && (
+                <span className={`text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full leading-none ${isActive ? "bg-white/20 text-white" : "bg-red-500/30 text-red-300"}`}>
+                  {alertCount}
                 </span>
               )}
             </button>
@@ -693,5 +794,12 @@ const DashboardPage = () => {
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 0 }).format(value || 0);
+
+const fmtKes = (v) => {
+  if (!v) return "KES 0";
+  if (v >= 1_000_000) return `KES ${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `KES ${(v / 1_000).toFixed(1)}k`;
+  return `KES ${Math.round(v)}`;
+};
 
 export default DashboardPage;

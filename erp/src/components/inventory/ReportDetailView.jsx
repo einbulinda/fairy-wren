@@ -270,54 +270,44 @@ const ReportDetailView = ({ id }) => {
       </button>
 
       {/* Header */}
-      <div className="bg-surface-800 rounded-xl border border-surface-700 p-5">
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-white">
+      <div className="bg-surface-800 rounded-xl border border-surface-700 p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg sm:text-xl font-bold text-white leading-tight">
               {report.stock_take_name || "Stock Take"}
             </h2>
-            <div className="flex flex-wrap gap-4 mt-3 text-sm text-surface-400">
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 text-xs sm:text-sm text-surface-400">
               <span className="flex items-center gap-1.5">
-                <Calendar size={14} />
-                {new Date(report.created_at).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+                <Calendar size={13} />
+                {new Date(report.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
               </span>
               {report.profiles?.name && (
                 <span className="flex items-center gap-1.5">
-                  <User size={14} />
-                  {report.profiles.name}
+                  <User size={13} /> {report.profiles.name}
                 </span>
               )}
               {report.location && (
                 <span className="flex items-center gap-1.5">
-                  <MapPin size={14} />
-                  {report.location}
+                  <MapPin size={13} /> {report.location}
                 </span>
               )}
               <span className="flex items-center gap-1.5 capitalize">
-                <Package size={14} />
-                {report.stock_take_type || "full"} count
+                <Package size={13} /> {report.stock_take_type || "full"} count
               </span>
             </div>
             {report.approval_notes && (
-              <p className="mt-2 text-xs text-surface-500 italic">
-                Note: {report.approval_notes}
-              </p>
+              <p className="mt-2 text-xs text-surface-500 italic">Note: {report.approval_notes}</p>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
+            <StatusBadge status={report.approval_status} />
             <button
               onClick={handleExportExcel}
               disabled={items.length === 0}
-              className="flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white text-xs sm:text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Download size={16} />
-              <span className="hidden sm:inline">Export Excel</span>
+              <Download size={14} /> Export
             </button>
-            <StatusBadge status={report.approval_status} />
           </div>
         </div>
       </div>
@@ -400,127 +390,116 @@ const ReportDetailView = ({ id }) => {
         </div>
 
         {sortedItems.length === 0 ? (
-          <p className="px-5 py-8 text-center text-surface-400 text-sm">
-            No items recorded.
-          </p>
+          <p className="px-5 py-8 text-center text-surface-400 text-sm">No items recorded.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
-                <tr>
-                  {COLS.map(({ key, label, align }) => (
-                    <th
-                      key={key}
-                      onClick={() => handleSort(key)}
-                      className={`px-4 py-3 text-${align} cursor-pointer select-none hover:text-white transition-colors`}
-                    >
-                      {label}
-                      <SortIcon col={key} sortCol={sortCol} sortDir={sortDir} />
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-left">Reason</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-700">
-                {pageItems.map((item) => {
-                  const v = item.variance ?? 0;
-                  const vPct = Number(item.variance_percentage ?? 0);
-                  const valImpact = Number(item.total_value_adjustment ?? 0);
-                  return (
-                    <tr
-                      key={item.id}
-                      className={`transition-colors ${
-                        v < 0
-                          ? "hover:bg-red-500/5"
-                          : v > 0
-                            ? "hover:bg-yellow-500/5"
-                            : "hover:bg-surface-700/30"
-                      }`}
-                    >
-                      <td className="px-4 py-3 font-medium text-white">
-                        {item.products?.name || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-surface-300">
-                        {item.system_qty}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-surface-300">
-                        {item.physical_qty}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right font-mono font-semibold ${
-                          v < 0
-                            ? "text-red-400"
-                            : v > 0
-                              ? "text-yellow-400"
-                              : "text-green-400"
-                        }`}
-                      >
-                        {v > 0 ? "+" : ""}
-                        {v}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right font-mono text-xs ${
-                          v < 0
-                            ? "text-red-400"
-                            : v > 0
-                              ? "text-yellow-400"
-                              : "text-surface-500"
-                        }`}
-                      >
+          <>
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-surface-700/50">
+              {pageItems.map((item) => {
+                const v = item.variance ?? 0;
+                const vPct = Number(item.variance_percentage ?? 0);
+                const valImpact = Number(item.total_value_adjustment ?? 0);
+                const varCls = v < 0 ? "text-red-400" : v > 0 ? "text-yellow-400" : "text-green-400";
+                const borderCls = v < 0 ? "border-l-red-500" : v > 0 ? "border-l-yellow-500" : "border-l-green-600";
+                const badgeCls = v < 0 ? "bg-red-500/15 text-red-400" : v > 0 ? "bg-yellow-500/15 text-yellow-400" : "bg-green-500/15 text-green-400";
+                return (
+                  <div key={item.id} className={`border-l-4 ${borderCls} px-3 py-3 space-y-2`}>
+                    {/* Product + variance badge */}
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-white text-sm font-medium leading-tight flex-1 min-w-0">{item.products?.name || "—"}</p>
+                      <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${badgeCls}`}>
+                        {v === 0 ? "✓ Match" : `${v > 0 ? "+" : ""}${v} units`}
+                      </span>
+                    </div>
+                    {/* Sys → Physical count */}
+                    <div className="flex items-center gap-2 text-xs text-surface-500">
+                      <span>Sys <span className="text-surface-300 font-mono">{item.system_qty}</span></span>
+                      <ChevronRight size={11} className="text-surface-600" />
+                      <span>Physical <span className="text-surface-300 font-mono">{item.physical_qty}</span></span>
+                    </div>
+                    {/* Variance % + Value Impact + Reason */}
+                    <div className="flex items-center justify-between border-t border-surface-700/50 pt-2 text-[11px]">
+                      <span className={`tabular-nums font-medium ${varCls}`}>
                         {v === 0 ? "—" : `${vPct > 0 ? "+" : ""}${vPct.toFixed(1)}%`}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right font-mono text-xs ${
-                          valImpact < 0
-                            ? "text-red-400"
-                            : valImpact > 0
-                              ? "text-yellow-400"
-                              : "text-surface-500"
-                        }`}
-                      >
+                      </span>
+                      <span className={`tabular-nums ${valImpact < 0 ? "text-red-400" : valImpact > 0 ? "text-yellow-400" : "text-surface-500"}`}>
                         {valImpact === 0 ? "—" : fmt(valImpact)}
-                      </td>
-                      <td className="px-4 py-3 text-surface-400 capitalize text-xs">
+                      </span>
+                      <span className="text-surface-500 capitalize truncate max-w-24">
                         {item.reason?.replace(/_/g, " ") || "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
+                  <tr>
+                    {COLS.map(({ key, label, align }) => (
+                      <th
+                        key={key}
+                        onClick={() => handleSort(key)}
+                        className={`px-4 py-3 text-${align} cursor-pointer select-none hover:text-white transition-colors`}
+                      >
+                        {label}
+                        <SortIcon col={key} sortCol={sortCol} sortDir={sortDir} />
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-left">Reason</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-700">
+                  {pageItems.map((item) => {
+                    const v = item.variance ?? 0;
+                    const vPct = Number(item.variance_percentage ?? 0);
+                    const valImpact = Number(item.total_value_adjustment ?? 0);
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`transition-colors ${v < 0 ? "hover:bg-red-500/5" : v > 0 ? "hover:bg-yellow-500/5" : "hover:bg-surface-700/30"}`}
+                      >
+                        <td className="px-4 py-3 font-medium text-white">{item.products?.name || "—"}</td>
+                        <td className="px-4 py-3 text-right font-mono text-surface-300">{item.system_qty}</td>
+                        <td className="px-4 py-3 text-right font-mono text-surface-300">{item.physical_qty}</td>
+                        <td className={`px-4 py-3 text-right font-mono font-semibold ${v < 0 ? "text-red-400" : v > 0 ? "text-yellow-400" : "text-green-400"}`}>
+                          {v > 0 ? "+" : ""}{v}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-mono text-xs ${v < 0 ? "text-red-400" : v > 0 ? "text-yellow-400" : "text-surface-500"}`}>
+                          {v === 0 ? "—" : `${vPct > 0 ? "+" : ""}${vPct.toFixed(1)}%`}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-mono text-xs ${valImpact < 0 ? "text-red-400" : valImpact > 0 ? "text-yellow-400" : "text-surface-500"}`}>
+                          {valImpact === 0 ? "—" : fmt(valImpact)}
+                        </td>
+                        <td className="px-4 py-3 text-surface-400 capitalize text-xs">{item.reason?.replace(/_/g, " ") || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             {/* Pagination */}
             {totalItemPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
                 <p className="text-xs text-surface-400">
-                  Showing {(safeItemPage - 1) * PAGE_SIZE + 1}–
-                  {Math.min(safeItemPage * PAGE_SIZE, sortedItems.length)} of{" "}
-                  {sortedItems.length}
+                  {(safeItemPage - 1) * PAGE_SIZE + 1}–{Math.min(safeItemPage * PAGE_SIZE, sortedItems.length)} of {sortedItems.length}
                 </p>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setItemPage((p) => Math.max(1, p - 1))}
-                    disabled={safeItemPage === 1}
-                    className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-                  >
+                  <button onClick={() => setItemPage((p) => Math.max(1, p - 1))} disabled={safeItemPage === 1} className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
                     <ChevronLeft size={14} />
                   </button>
-                  <span className="px-3 text-xs text-surface-400">
-                    {safeItemPage} / {totalItemPages}
-                  </span>
-                  <button
-                    onClick={() =>
-                      setItemPage((p) => Math.min(totalItemPages, p + 1))
-                    }
-                    disabled={safeItemPage === totalItemPages}
-                    className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
-                  >
+                  <span className="px-3 text-xs text-surface-400">{safeItemPage} / {totalItemPages}</span>
+                  <button onClick={() => setItemPage((p) => Math.min(totalItemPages, p + 1))} disabled={safeItemPage === totalItemPages} className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
                     <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>

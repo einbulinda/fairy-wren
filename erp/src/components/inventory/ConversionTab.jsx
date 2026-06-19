@@ -348,58 +348,75 @@ const ConversionTab = () => {
       )}
 
       {tab === "history" && (
-        <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
-              <tr>
-                <th className="px-4 py-3 text-left">Date</th>
-                <th className="px-4 py-3 text-left">Source</th>
-                <th className="px-4 py-3 text-center">Qty</th>
-                <th className="px-4 py-3 text-center" />
-                <th className="px-4 py-3 text-left">Target</th>
-                <th className="px-4 py-3 text-center">Qty</th>
-                <th className="px-4 py-3 text-left hidden md:table-cell">By</th>
-                <th className="px-4 py-3 text-left hidden lg:table-cell">Notes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-700">
-              {loadingHistory ? (
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2">
+            {loadingHistory ? (
+              <div className="text-center py-8 text-surface-400">Loading…</div>
+            ) : history.length === 0 ? (
+              <div className="text-center py-8 text-surface-400">No conversions yet</div>
+            ) : (
+              history.map((c) => (
+                <div key={c.id} className="bg-surface-800/60 border border-surface-700 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-surface-500">{fmtDate(c.created_at)}</span>
+                    {c.creator?.name && <span className="text-[11px] text-surface-500">{c.creator.name}</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">{c.source?.name}</p>
+                      <p className="text-red-400 font-mono text-xs">−{c.source_qty}</p>
+                    </div>
+                    <ArrowRight size={14} className="text-surface-500 shrink-0" />
+                    <div className="flex-1 min-w-0 text-right">
+                      <p className="text-white text-sm font-medium truncate">{c.target?.name}</p>
+                      <p className="text-emerald-400 font-mono text-xs">+{c.target_qty}</p>
+                    </div>
+                  </div>
+                  {c.notes && <p className="text-[11px] text-surface-500 border-t border-surface-700/50 pt-1.5">{c.notes}</p>}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-surface-400">
-                    Loading…
-                  </td>
+                  <th className="px-4 py-3 text-left">Date</th>
+                  <th className="px-4 py-3 text-left">Source</th>
+                  <th className="px-4 py-3 text-center">Qty</th>
+                  <th className="px-4 py-3 text-center" />
+                  <th className="px-4 py-3 text-left">Target</th>
+                  <th className="px-4 py-3 text-center">Qty</th>
+                  <th className="px-4 py-3 text-left">By</th>
+                  <th className="px-4 py-3 text-left hidden lg:table-cell">Notes</th>
                 </tr>
-              ) : history.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-surface-400">
-                    No conversions yet
-                  </td>
-                </tr>
-              ) : (
-                history.map((c) => (
-                  <tr key={c.id} className="hover:bg-surface-700/50 transition-colors">
-                    <td className="px-4 py-3 text-surface-300 whitespace-nowrap">
-                      {fmtDate(c.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-white">{c.source?.name}</td>
-                    <td className="px-4 py-3 text-center text-red-400 font-mono">-{c.source_qty}</td>
-                    <td className="px-4 py-3 text-center">
-                      <ArrowRight size={14} className="text-surface-500 mx-auto" />
-                    </td>
-                    <td className="px-4 py-3 text-white">{c.target?.name}</td>
-                    <td className="px-4 py-3 text-center text-emerald-400 font-mono">+{c.target_qty}</td>
-                    <td className="px-4 py-3 text-surface-400 hidden md:table-cell">
-                      {c.creator?.name || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-surface-500 hidden lg:table-cell truncate max-w-[200px]">
-                      {c.notes || "—"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-surface-700">
+                {loadingHistory ? (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-surface-400">Loading…</td></tr>
+                ) : history.length === 0 ? (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-surface-400">No conversions yet</td></tr>
+                ) : (
+                  history.map((c) => (
+                    <tr key={c.id} className="hover:bg-surface-700/50 transition-colors">
+                      <td className="px-4 py-3 text-surface-300 whitespace-nowrap">{fmtDate(c.created_at)}</td>
+                      <td className="px-4 py-3 text-white">{c.source?.name}</td>
+                      <td className="px-4 py-3 text-center text-red-400 font-mono">-{c.source_qty}</td>
+                      <td className="px-4 py-3 text-center"><ArrowRight size={14} className="text-surface-500 mx-auto" /></td>
+                      <td className="px-4 py-3 text-white">{c.target?.name}</td>
+                      <td className="px-4 py-3 text-center text-emerald-400 font-mono">+{c.target_qty}</td>
+                      <td className="px-4 py-3 text-surface-400">{c.creator?.name || "—"}</td>
+                      <td className="px-4 py-3 text-surface-500 hidden lg:table-cell truncate max-w-50">{c.notes || "—"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

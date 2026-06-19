@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
-import { Clock, Search, Download, X } from "lucide-react";
+import { Clock, Search, Download, X, ChevronLeft, ChevronRight } from "lucide-react";
 import * as XLSX from "xlsx";
-import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
 import PaginatedTable from "@/components/shared/PaginatedTable";
 import { fmtDate, localDateStr } from "@/utils/formatters";
 
@@ -18,8 +17,11 @@ const getDaysColor = (days) => {
 const calcDays = (createdAt) =>
   Math.ceil(Math.abs(new Date() - new Date(createdAt)) / (1000 * 60 * 60 * 24));
 
+const MOBILE_PAGE_SIZE = 10;
+
 const OutstandingBillsTable = ({ data }) => {
   const [search, setSearch] = useState("");
+  const [mobilePage, setMobilePage] = useState(1);
 
   const enhancedData = useMemo(
     () =>
@@ -34,6 +36,7 @@ const OutstandingBillsTable = ({ data }) => {
   );
 
   const filteredData = useMemo(() => {
+    setMobilePage(1);
     const q = search.toLowerCase().trim();
     if (!q) return enhancedData;
     return enhancedData.filter(
@@ -42,6 +45,10 @@ const OutstandingBillsTable = ({ data }) => {
         b.served_by.toLowerCase().includes(q),
     );
   }, [enhancedData, search]);
+
+  const mobileTotalPages = Math.ceil(filteredData.length / MOBILE_PAGE_SIZE);
+  const mobileStart = (mobilePage - 1) * MOBILE_PAGE_SIZE;
+  const mobilePageData = filteredData.slice(mobileStart, mobileStart + MOBILE_PAGE_SIZE);
 
   const totals = useMemo(
     () => ({
@@ -228,42 +235,107 @@ const OutstandingBillsTable = ({ data }) => {
       </div>
 
       {/* Mobile cards */}
-      <MobileCardList>
-        {filteredData.map((bill, index) => (
-          <MobileCard key={bill.bill_id || index}>
-            <div className="flex items-center justify-between">
-              <span className="text-white font-medium text-sm">{bill.customer_name}</span>
-              <div className="flex items-center gap-1">
-                <Clock className={`w-3 h-3 ${getDaysColor(bill.days_outstanding)}`} />
-                <span
-                  className={`text-xs font-semibold ${getDaysColor(bill.days_outstanding)}`}
-                >
-                  {bill.days_outstanding}d
+      <div className="md:hidden space-y-2">
+        {mobilePageData.map((bill, index) => {
+          const days = bill.days_outstanding;
+          const urgencyBorder =
+            days >= 30 ? "border-l-red-500" :
+            days >= 14 ? "border-l-orange-500" :
+            days >= 7  ? "border-l-yellow-500" :
+                         "border-l-surface-600";
+          const badgeCls =
+            days >= 30 ? "bg-red-500/20 text-red-400" :
+            days >= 14 ? "bg-orange-500/20 text-orange-400" :
+            days >= 7  ? "bg-yellow-500/20 text-yellow-400" :
+                         "bg-surface-700/60 text-surface-500";
+
+          return (
+            <div
+              key={bill.bill_id || index}
+              className={`bg-surface-800/50 border border-surface-700 border-l-4 ${urgencyBorder} rounded-xl p-3 space-y-2.5`}
+            >
+              {/* Customer + days badge */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-white font-semibold text-sm truncate">{bill.customer_name}</span>
+                <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeCls}`}>
+                  <Clock size={9} />
+                  {days}d
                 </span>
               </div>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-surface-400">{fmtDate(bill.created_at)}</span>
-              <span className="text-surface-400">{bill.served_by}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="space-x-2">
-                <span className="text-surface-300 tabular-nums">
-                  {fmtAmt(parseFloat(bill.bill_total || 0))}
-                </span>
-                <span className="text-emerald-400 text-xs tabular-nums">
-                  Paid {fmtAmt(parseFloat(bill.paid_amount || 0))}
-                </span>
+
+              {/* Balance (hero) + date */}
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="flex items-baseline gap-1.5">
+                  <span className={`text-xl font-bold tabular-nums leading-none ${bill.balance > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                    {fmtAmt(bill.balance)}
+                  </span>
+                  <span className="text-[10px] text-surface-500">balance</span>
+                </div>
+                <span className="text-[11px] text-surface-500 shrink-0">{fmtDate(bill.created_at)}</span>
               </div>
-              <span
-                className={`font-semibold tabular-nums ${bill.balance > 0 ? "text-red-400" : "text-surface-400"}`}
-              >
-                {fmtAmt(bill.balance)}
+
+              {/* Bill / Paid / Staff breakdown */}
+              <div className="flex items-center justify-between border-t border-surface-700/50 pt-2 text-[11px]">
+                <span className="text-surface-500">
+                  Bill <span className="text-surface-300 tabular-nums font-medium">{fmtAmt(parseFloat(bill.bill_total || 0))}</span>
+                </span>
+                <span className="text-surface-700">·</span>
+                <span className="text-surface-500">
+                  Paid <span className="text-emerald-400 tabular-nums font-medium">{fmtAmt(parseFloat(bill.paid_amount || 0))}</span>
+                </span>
+                <span className="text-surface-700">·</span>
+                <span className="text-surface-500 truncate max-w-20">{bill.served_by}</span>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Mobile totals strip */}
+        {filteredData.length > 0 && (
+          <div className="flex items-center justify-between px-3 py-2.5 bg-surface-900/60 border border-surface-700 rounded-xl text-[11px]">
+            <span className="text-surface-500 font-medium">
+              {filteredData.length} bill{filteredData.length !== 1 ? "s" : ""}
+            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-surface-500">
+                Billed <span className="text-surface-300 font-semibold tabular-nums">{fmtAmt(totals.billTotal)}</span>
+              </span>
+              <span className="text-surface-500">
+                Paid <span className="text-emerald-400 font-semibold tabular-nums">{fmtAmt(totals.paid)}</span>
+              </span>
+              <span className="text-surface-500">
+                Bal <span className="text-red-400 font-bold tabular-nums">{fmtAmt(totals.balance)}</span>
               </span>
             </div>
-          </MobileCard>
-        ))}
-      </MobileCardList>
+          </div>
+        )}
+
+        {/* Mobile pagination */}
+        {mobileTotalPages > 1 && (
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-surface-400 tabular-nums">
+              {mobileStart + 1}–{Math.min(mobileStart + MOBILE_PAGE_SIZE, filteredData.length)} of {filteredData.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setMobilePage((p) => Math.max(1, p - 1))}
+                disabled={mobilePage === 1}
+                className="p-1.5 bg-surface-800 hover:bg-surface-700 disabled:opacity-40 rounded-lg border border-surface-600 text-white transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-xs text-surface-300 tabular-nums px-1">{mobilePage} / {mobileTotalPages}</span>
+              <button
+                onClick={() => setMobilePage((p) => Math.min(mobileTotalPages, p + 1))}
+                disabled={mobilePage === mobileTotalPages}
+                className="p-1.5 bg-surface-800 hover:bg-surface-700 disabled:opacity-40 rounded-lg border border-surface-600 text-white transition-colors"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

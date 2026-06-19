@@ -4,9 +4,10 @@ import { fetchAccounts } from "@/services/accounts.service";
 import { useCheques, useCreateCheque, useClearCheque, useVoidCheque } from "@/hooks/useCheques";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useAccountClasses } from "@/hooks/useAccountClasses";
+import { useProducts } from "@/hooks/useProducts";
 import {
   Plus, Trash2, CheckCircle, XCircle, Clock, Receipt, ArrowLeftRight,
-  X, ChevronLeft, ChevronRight, Building2, Landmark,
+  X, ChevronLeft, ChevronRight, Building2, Landmark, Package,
 } from "lucide-react";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import { fmt, localDateStr } from "@/utils/formatters";
@@ -20,6 +21,8 @@ const STATUS_STYLES = {
   voided:  { label: "Voided",  icon: XCircle,      cls: "bg-red-500/15 text-red-400" },
 };
 
+const EMPTY_ITEM_LINE = { product_id: "", description: "", quantity: "", unit_cost: "", account_id: "" };
+
 const EMPTY_BANK_FORM = {
   reference: "",
   cheque_date: today,
@@ -30,6 +33,7 @@ const EMPTY_BANK_FORM = {
   payee_name: "",
   debit_account_id: "",
   expense_lines: [{ account_id: "", amount: "" }],
+  item_lines: [{ ...EMPTY_ITEM_LINE }],
 };
 
 const EMPTY_TRANSFER_FORM = {
@@ -49,6 +53,7 @@ const ChequeWritingPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_BANK_FORM);
   const [transferForm, setTransferForm] = useState(EMPTY_TRANSFER_FORM);
+  const [lineTab, setLineTab] = useState("expenses");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
@@ -61,6 +66,7 @@ const ChequeWritingPage = () => {
   });
   const { data: suppliers = [] } = useSuppliers({ active: true });
   const { data: accountClasses = [] } = useAccountClasses();
+  const { data: products = [] } = useProducts({ active: true });
 
   const filters = useMemo(() => {
     const f = {};
@@ -116,10 +122,16 @@ const ChequeWritingPage = () => {
     (s, l) => s + (parseFloat(l.amount) || 0),
     0,
   );
-  const expenseRemaining = chequeAmount - expenseTotal;
+  const itemTotal = form.item_lines.reduce(
+    (s, l) => s + (parseFloat(l.quantity) || 0) * (parseFloat(l.unit_cost) || 0),
+    0,
+  );
+  const combinedTotal = expenseTotal + itemTotal;
+  const combinedRemaining = chequeAmount - combinedTotal;
   const expensesValid =
-    form.expense_lines.filter((l) => l.account_id && parseFloat(l.amount) > 0).length > 0 &&
-    Math.round(expenseRemaining * 100) === 0;
+    (form.expense_lines.some((l) => l.account_id && parseFloat(l.amount) > 0) ||
+     form.item_lines.some((l) => l.account_id && parseFloat(l.quantity) > 0 && parseFloat(l.unit_cost) > 0)) &&
+    Math.round(combinedRemaining * 100) === 0;
 
   // Journal preview accounts for bank payment
   const previewBankAcc = selectedBank;
@@ -152,7 +164,9 @@ const ChequeWritingPage = () => {
       payee_name: "",
       debit_account_id: "",
       expense_lines: [{ account_id: "", amount: "" }],
+      item_lines: [{ ...EMPTY_ITEM_LINE }],
     });
+    setLineTab("expenses");
   };
 
   const handleSupplierSelect = (id) => {
@@ -180,6 +194,34 @@ const ChequeWritingPage = () => {
   // Used expense account ids (to prevent duplicates)
   const usedExpenseAccounts = new Set(form.expense_lines.map((l) => l.account_id).filter(Boolean));
 
+  // Item line handlers
+  const updateItemLine = (idx, key, value) => {
+    const lines = form.item_lines.map((l, i) => i === idx ? { ...l, [key]: value } : l);
+    setForm({ ...form, item_lines: lines });
+  };
+
+  const handleItemProductSelect = (idx, productId) => {
+    const product = products.find((p) => p.id === productId);
+    const lines = form.item_lines.map((l, i) =>
+      i === idx ? {
+        ...l,
+        product_id: productId,
+        description: product?.name || "",
+        unit_cost: product?.cost_price != null ? String(product.cost_price) : "",
+      } : l,
+    );
+    setForm({ ...form, item_lines: lines });
+  };
+
+  const addItemLine = () => {
+    setForm({ ...form, item_lines: [...form.item_lines, { ...EMPTY_ITEM_LINE }] });
+  };
+
+  const removeItemLine = (idx) => {
+    if (form.item_lines.length === 1) return;
+    setForm({ ...form, item_lines: form.item_lines.filter((_, i) => i !== idx) });
+  };
+
   const handleBankSubmit = () => {
     const payload = {
       transaction_type: "bank_cheque",
@@ -198,13 +240,20 @@ const ChequeWritingPage = () => {
         debit_account_id: form.debit_account_id,
       });
     } else {
+      const expLines = form.expense_lines
+        .filter((l) => l.account_id && parseFloat(l.amount) > 0)
+        .map((l) => ({ account_id: l.account_id, amount: parseFloat(l.amount) }));
+      const itemLines = form.item_lines
+        .filter((l) => l.account_id && parseFloat(l.quantity) > 0 && parseFloat(l.unit_cost) > 0)
+        .map((l) => ({
+          account_id: l.account_id,
+          amount: parseFloat(l.quantity) * parseFloat(l.unit_cost),
+        }));
       Object.assign(payload, {
         payee_type: "expense",
         payee_name: form.memo || "Expense Payment",
         debit_account_id: null,
-        expense_lines: form.expense_lines
-          .filter((l) => l.account_id && parseFloat(l.amount) > 0)
-          .map((l) => ({ account_id: l.account_id, amount: parseFloat(l.amount) })),
+        expense_lines: [...expLines, ...itemLines],
       });
     }
 
@@ -255,8 +304,33 @@ const ChequeWritingPage = () => {
     !transferForm.from_account_id ||
     !transferForm.to_account_id;
 
+  const handleNewCheque = () => {
+    if (leafBankAccounts.length === 0) return;
+    if (leafBankAccounts.length === 1) {
+      openTab(leafBankAccounts[0].id);
+    } else {
+      document.getElementById("bank-tabs-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-white">Write Cheques</h1>
+          <p className="text-sm text-surface-400 mt-0.5">Issue payments and record bank transactions</p>
+        </div>
+        <button
+          onClick={handleNewCheque}
+          disabled={leafBankAccounts.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          <Plus size={15} />
+          Write Cheque
+        </button>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-4">
@@ -277,9 +351,17 @@ const ChequeWritingPage = () => {
       </div>
 
       {/* Bank account tabs + Transfer */}
-      <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
+      <div id="bank-tabs-section" className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
         <div className="px-4 pt-4 pb-0 border-b border-surface-700">
-          <p className="text-xs text-surface-500 uppercase tracking-wider mb-2 font-medium">Issue Payment From</p>
+          <p className="text-xs text-surface-500 uppercase tracking-wider mb-2 font-medium">
+            Select Bank Account to Issue From
+            {!showForm && leafBankAccounts.length > 0 && (
+              <span className="ml-2 normal-case text-primary-400 font-normal">— click an account below</span>
+            )}
+          </p>
+          {leafBankAccounts.length === 0 && (
+            <p className="text-xs text-amber-400 mb-2">No bank accounts configured. Add bank accounts under Accounting to issue cheques.</p>
+          )}
           <div className="flex flex-wrap gap-2 pb-0">
             {leafBankAccounts.map((acc) => (
               <button
@@ -476,64 +558,156 @@ const ChequeWritingPage = () => {
                         value={form.memo} onChange={setField("memo")} />
                     </div>
 
-                    <div>
-                      <label className="text-xs text-surface-400 font-medium uppercase tracking-wider mb-2 block">Expense Lines</label>
-
-                      <div className="space-y-2">
-                        {form.expense_lines.map((line, idx) => (
-                          <div key={idx} className="grid grid-cols-4 gap-2 items-center">
-                            <select
-                              className={`${inputCls} col-span-3`}
-                              value={line.account_id}
-                              onChange={(e) => updateExpenseLine(idx, "account_id", e.target.value)}
-                            >
-                              <option value="">Select expense account…</option>
-                              {expenseAccounts.map((a) => (
-                                <option
-                                  key={a.id}
-                                  value={a.id}
-                                  disabled={usedExpenseAccounts.has(a.id) && a.id !== line.account_id}
-                                >
-                                  {a.name}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="flex gap-1 items-center">
-                              <input
-                                type="number" min="0.01" step="0.01"
-                                className={`${inputCls} min-w-0 flex-1`}
-                                placeholder="0.00"
-                                value={line.amount}
-                                onChange={(e) => updateExpenseLine(idx, "amount", e.target.value)}
-                              />
-                              <button type="button" onClick={() => removeExpenseLine(idx)}
-                                disabled={form.expense_lines.length === 1}
-                                className="text-surface-500 hover:text-red-400 disabled:opacity-30 transition-colors shrink-0"
-                                title="Remove line">
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                    {/* Expenses / Items tab switcher */}
+                    <div className="border border-surface-700 rounded-lg overflow-hidden">
+                      <div className="flex border-b border-surface-700 bg-surface-900/50">
+                        <button type="button"
+                          onClick={() => setLineTab("expenses")}
+                          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                            lineTab === "expenses"
+                              ? "border-primary-500 text-primary-400"
+                              : "border-transparent text-surface-400 hover:text-white"
+                          }`}>
+                          <Receipt size={13} /> Expenses
+                        </button>
+                        <button type="button"
+                          onClick={() => setLineTab("items")}
+                          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                            lineTab === "items"
+                              ? "border-primary-500 text-primary-400"
+                              : "border-transparent text-surface-400 hover:text-white"
+                          }`}>
+                          <Package size={13} /> Items
+                        </button>
                       </div>
 
-                      <button type="button" onClick={addExpenseLine}
-                        className="mt-2 flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors">
-                        <Plus size={13} /> Add Line
-                      </button>
+                      <div className="p-3 space-y-2">
+                        {/* ── Expenses tab ── */}
+                        {lineTab === "expenses" && (
+                          <>
+                            <div className="hidden sm:grid grid-cols-12 gap-2 text-[10px] font-medium text-surface-500 uppercase tracking-wider px-1 mb-1">
+                              <span className="col-span-7">Account</span>
+                              <span className="col-span-4 text-right">Amount</span>
+                              <span className="col-span-1" />
+                            </div>
+                            {form.expense_lines.map((line, idx) => (
+                              <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                                <select
+                                  className={`${inputCls} col-span-7`}
+                                  value={line.account_id}
+                                  onChange={(e) => updateExpenseLine(idx, "account_id", e.target.value)}
+                                >
+                                  <option value="">Select expense account…</option>
+                                  {expenseAccounts.map((a) => (
+                                    <option key={a.id} value={a.id}
+                                      disabled={usedExpenseAccounts.has(a.id) && a.id !== line.account_id}>
+                                      {a.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="number" min="0.01" step="0.01"
+                                  className={`${inputCls} col-span-4`}
+                                  placeholder="0.00"
+                                  value={line.amount}
+                                  onChange={(e) => updateExpenseLine(idx, "amount", e.target.value)}
+                                />
+                                <button type="button" onClick={() => removeExpenseLine(idx)}
+                                  disabled={form.expense_lines.length === 1}
+                                  className="col-span-1 text-surface-500 hover:text-red-400 disabled:opacity-30 transition-colors flex justify-center"
+                                  title="Remove line">
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={addExpenseLine}
+                              className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors">
+                              <Plus size={13} /> Add Expense Line
+                            </button>
+                          </>
+                        )}
+
+                        {/* ── Items tab ── */}
+                        {lineTab === "items" && (
+                          <>
+                            <div className="hidden sm:grid grid-cols-12 gap-2 text-[10px] font-medium text-surface-500 uppercase tracking-wider px-1 mb-1">
+                              <span className="col-span-3">Item</span>
+                              <span className="col-span-3">Account</span>
+                              <span className="col-span-2 text-right">Qty</span>
+                              <span className="col-span-2 text-right">Unit Cost</span>
+                              <span className="col-span-1 text-right">Amount</span>
+                              <span className="col-span-1" />
+                            </div>
+                            {form.item_lines.map((line, idx) => {
+                              const lineAmt = (parseFloat(line.quantity) || 0) * (parseFloat(line.unit_cost) || 0);
+                              return (
+                                <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                                  <select
+                                    className={`${inputCls} col-span-3`}
+                                    value={line.product_id}
+                                    onChange={(e) => handleItemProductSelect(idx, e.target.value)}
+                                  >
+                                    <option value="">Select item…</option>
+                                    {products.filter((p) => p.active !== false).map((p) => (
+                                      <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    className={`${inputCls} col-span-3`}
+                                    value={line.account_id}
+                                    onChange={(e) => updateItemLine(idx, "account_id", e.target.value)}
+                                  >
+                                    <option value="">Account…</option>
+                                    {expenseAccounts.map((a) => (
+                                      <option key={a.id} value={a.id}>{a.name}</option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    type="number" min="0.01" step="0.01"
+                                    className={`${inputCls} col-span-2`}
+                                    placeholder="1"
+                                    value={line.quantity}
+                                    onChange={(e) => updateItemLine(idx, "quantity", e.target.value)}
+                                  />
+                                  <input
+                                    type="number" min="0.01" step="0.01"
+                                    className={`${inputCls} col-span-2`}
+                                    placeholder="0.00"
+                                    value={line.unit_cost}
+                                    onChange={(e) => updateItemLine(idx, "unit_cost", e.target.value)}
+                                  />
+                                  <span className="col-span-1 text-right text-xs text-surface-300 tabular-nums">
+                                    {lineAmt > 0 ? fmt(lineAmt) : "—"}
+                                  </span>
+                                  <button type="button" onClick={() => removeItemLine(idx)}
+                                    disabled={form.item_lines.length === 1}
+                                    className="col-span-1 text-surface-500 hover:text-red-400 disabled:opacity-30 transition-colors flex justify-center"
+                                    title="Remove line">
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                            <button type="button" onClick={addItemLine}
+                              className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors">
+                              <Plus size={13} /> Add Item Line
+                            </button>
+                          </>
+                        )}
+                      </div>
 
                       {/* Allocation summary */}
                       {chequeAmount > 0 && (
-                        <div className={`mt-2 flex items-center justify-between text-xs px-1 ${
-                          expenseRemaining < 0 ? "text-red-400" : "text-surface-400"
+                        <div className={`px-3 py-2 border-t border-surface-700 flex items-center justify-between text-xs ${
+                          combinedRemaining < 0 ? "bg-red-500/5" : "bg-surface-900/30"
                         }`}>
-                          <span>Total allocated: {fmt(expenseTotal)}</span>
-                          <span className={expenseRemaining < 0 ? "text-red-400" : expenseRemaining === 0 ? "text-emerald-400" : "text-surface-400"}>
-                            {expenseRemaining < 0
-                              ? `Over by ${fmt(Math.abs(expenseRemaining))}`
-                              : expenseRemaining === 0
+                          <span className="text-surface-400">Total allocated: {fmt(combinedTotal)}</span>
+                          <span className={combinedRemaining < 0 ? "text-red-400" : combinedRemaining === 0 ? "text-emerald-400" : "text-surface-400"}>
+                            {combinedRemaining < 0
+                              ? `Over by ${fmt(Math.abs(combinedRemaining))}`
+                              : combinedRemaining === 0
                                 ? "Fully allocated"
-                                : `${fmt(expenseRemaining)} remaining`}
+                                : `${fmt(combinedRemaining)} remaining`}
                           </span>
                         </div>
                       )}
@@ -566,9 +740,21 @@ const ChequeWritingPage = () => {
                           .map((l, i) => {
                             const acc = accounts.find((a) => a.id === l.account_id);
                             return (
-                              <div key={i} className="flex justify-between">
+                              <div key={`exp-${i}`} className="flex justify-between">
                                 <span className="text-white">Dr {acc?.name || "Expense Account"}</span>
                                 <span className="text-emerald-400">{fmt(parseFloat(l.amount))}</span>
+                              </div>
+                            );
+                          })}
+                        {form.item_lines
+                          .filter((l) => l.account_id && parseFloat(l.quantity) > 0 && parseFloat(l.unit_cost) > 0)
+                          .map((l, i) => {
+                            const acc = accounts.find((a) => a.id === l.account_id);
+                            const amt = parseFloat(l.quantity) * parseFloat(l.unit_cost);
+                            return (
+                              <div key={`itm-${i}`} className="flex justify-between">
+                                <span className="text-white">Dr {acc?.name || "Expense Account"} <span className="text-surface-500">({l.description || "Item"})</span></span>
+                                <span className="text-emerald-400">{fmt(amt)}</span>
                               </div>
                             );
                           })}

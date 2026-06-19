@@ -10,12 +10,12 @@ import ConversionTab from "@/components/inventory/ConversionTab";
 import AdjustmentInsightsTab from "@/components/inventory/AdjustmentInsightsTab";
 
 const TABS = [
-  { path: "/inventory", label: "Stock", icon: Package, exact: true },
-  { path: "/inventory/receive", label: "Receive", icon: PackagePlus },
-  { path: "/inventory/reports", label: "Reports", icon: BarChart2 },
-  { path: "/inventory/approvals", label: "Approvals", icon: CheckSquare },
-  { path: "/inventory/conversions", label: "Conversions", icon: RefreshCw },
-  { path: "/inventory/insights", label: "Adj. Insights", icon: TrendingUp },
+  { path: "/inventory", label: "Stock", short: "Stock", icon: Package, exact: true },
+  { path: "/inventory/receive", label: "Receive", short: "Receive", icon: PackagePlus },
+  { path: "/inventory/reports", label: "Reports", short: "Reports", icon: BarChart2 },
+  { path: "/inventory/approvals", label: "Approvals", short: "Approve", icon: CheckSquare },
+  { path: "/inventory/conversions", label: "Conversions", short: "Convert", icon: RefreshCw },
+  { path: "/inventory/insights", label: "Adj. Insights", short: "Insights", icon: TrendingUp },
 ];
 
 const InventoryPage = () => {
@@ -38,19 +38,20 @@ const InventoryPage = () => {
     <div className="space-y-4">
       {/* Tab bar */}
       <div className="border-b border-surface-700">
-        <nav className="flex gap-1 overflow-x-auto">
-          {TABS.map(({ path, label, icon: Icon }) => (
+        <nav className="flex gap-0.5 overflow-x-auto">
+          {TABS.map(({ path, label, short, icon: Icon }) => (
             <button
               key={path}
               onClick={() => navigate(path)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              className={`flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === path
                   ? "border-primary-500 text-primary-400"
                   : "border-transparent text-surface-400 hover:text-white"
               }`}
             >
-              <Icon size={15} />
-              {label}
+              <Icon size={14} />
+              <span className="sm:hidden">{short}</span>
+              <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
         </nav>

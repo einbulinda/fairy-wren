@@ -118,7 +118,66 @@ const ApprovalsTab = () => {
           No stock takes pending approval.
         </div>
       ) : (
-        <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
+        <>
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2">
+          {paginated.map((session) => (
+            <div key={session.id} className="bg-surface-800/60 border border-surface-700 rounded-xl p-3 space-y-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-white font-medium text-sm leading-tight flex-1 min-w-0 truncate">{session.stock_take_name || "—"}</p>
+                <StatusBadge status={session.approval_status} />
+              </div>
+              <div className="flex items-center gap-2 text-[11px] text-surface-500">
+                <span>{new Date(session.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}</span>
+                <span className="text-surface-700">·</span>
+                <span>{session.profiles?.name || "—"}</span>
+                <span className="text-surface-700">·</span>
+                <span>{session.stock_take_items?.length ?? 0} items</span>
+              </div>
+              <div className="flex items-center gap-1.5 border-t border-surface-700/50 pt-2">
+                <button
+                  onClick={() => navigate(`/inventory/reports/${session.id}`, { state: { from: "approvals" } })}
+                  className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs bg-surface-700 hover:bg-surface-600 text-surface-300 hover:text-white rounded-lg transition-colors"
+                >
+                  <Eye size={12} /> View
+                </button>
+                <button
+                  onClick={() => approveMutation.mutate(session.id, { onSuccess: refetch })}
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
+                  className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs bg-green-600/20 hover:bg-green-600/40 text-green-400 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <CheckCircle size={12} /> Approve
+                </button>
+                <button
+                  onClick={() => rejectMutation.mutate(session.id, { onSuccess: refetch })}
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
+                  className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <XCircle size={12} /> Reject
+                </button>
+              </div>
+            </div>
+          ))}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs text-surface-400 tabular-nums">
+                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-xs text-surface-400 tabular-nums px-1">{page} / {totalPages}</span>
+                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
               <tr>
@@ -277,6 +336,7 @@ const ApprovalsTab = () => {
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   );

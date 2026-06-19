@@ -97,102 +97,120 @@ const ReportsTab = () => {
 
   return (
     <div className="space-y-4">
-      {/* Filters row */}
-      <div className="flex flex-wrap items-end gap-3">
-        {/* Search */}
-        <div className="relative">
-          <label className="block text-xs text-surface-400 mb-1">Search</label>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Name, performed by, type…"
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-              className={inputCls + " w-56 pl-8 pr-8"}
-            />
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500" />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white transition-colors"
-              >
-                <X size={14} />
-              </button>
-            )}
+      {/* Filters */}
+      <div className="space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+        {/* Search + dates row on mobile */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <label className="block text-xs text-surface-400 mb-1">Search</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Name, performed by, type…"
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                className={inputCls + " w-full sm:w-56 pl-8 pr-8"}
+              />
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500" />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white transition-colors">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs text-surface-400 mb-1">From</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className={inputCls + " w-40"}
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-surface-400 mb-1">To</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className={inputCls + " w-40"}
-          />
+        <div className="grid grid-cols-2 gap-2 sm:contents">
+          <div>
+            <label className="block text-xs text-surface-400 mb-1">From</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls + " w-full sm:w-40"} />
+          </div>
+          <div>
+            <label className="block text-xs text-surface-400 mb-1">To</label>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls + " w-full sm:w-40"} />
+          </div>
         </div>
 
-        {/* Divider */}
         <div className="hidden sm:block h-8 w-px bg-surface-700 self-center" />
 
         {/* Status filters */}
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
           {(startDate || endDate) && (
-            <button
-              onClick={() => { setStartDate(""); setEndDate(""); }}
-              className="text-xs text-surface-400 hover:text-white transition-colors"
-            >
+            <button onClick={() => { setStartDate(""); setEndDate(""); }} className="text-xs text-surface-400 hover:text-white transition-colors">
               Clear dates
             </button>
           )}
           {STATUS_FILTERS.map(({ key, label }) => {
-          const isActive = statusFilter === key;
-          const count = counts[key];
-          const colorMap = {
-            approved: isActive
-              ? "bg-green-600 text-white"
-              : "bg-surface-800 border border-surface-700 text-surface-400 hover:border-green-500/50 hover:text-green-400",
-            pending: isActive
-              ? "bg-yellow-600 text-white"
-              : "bg-surface-800 border border-surface-700 text-surface-400 hover:border-yellow-500/50 hover:text-yellow-400",
-            rejected: isActive
-              ? "bg-red-700 text-white"
-              : "bg-surface-800 border border-surface-700 text-surface-400 hover:border-red-500/50 hover:text-red-400",
-            null: isActive
-              ? "bg-primary-600 text-white"
-              : "bg-surface-800 border border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-white",
-          };
-          return (
-            <button
-              key={String(key)}
-              onClick={() => setStatusFilter(key)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${colorMap[key]}`}
-            >
-              {label}
-              <span
-                className={`text-xs px-1.5 py-0.5 rounded-full font-mono ${
-                  isActive ? "bg-white/20" : "bg-surface-700"
-                }`}
-              >
-                {count}
-              </span>
-            </button>
-          );
+            const isActive = statusFilter === key;
+            const count = counts[key];
+            const colorMap = {
+              approved: isActive ? "bg-green-600 text-white" : "bg-surface-800 border border-surface-700 text-surface-400 hover:border-green-500/50 hover:text-green-400",
+              pending:  isActive ? "bg-yellow-600 text-white" : "bg-surface-800 border border-surface-700 text-surface-400 hover:border-yellow-500/50 hover:text-yellow-400",
+              rejected: isActive ? "bg-red-700 text-white"   : "bg-surface-800 border border-surface-700 text-surface-400 hover:border-red-500/50 hover:text-red-400",
+              null:     isActive ? "bg-primary-600 text-white" : "bg-surface-800 border border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-white",
+            };
+            return (
+              <button key={String(key)} onClick={() => setStatusFilter(key)} className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${colorMap[key]}`}>
+                {label}
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-mono ${isActive ? "bg-white/20" : "bg-surface-700"}`}>{count}</span>
+              </button>
+            );
           })}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <div className="text-center py-8 text-surface-400">Loading…</div>
+        ) : paginated.length === 0 ? (
+          <div className="text-center py-8 text-surface-400">No stock take reports found.</div>
+        ) : (
+          paginated.map((r) => (
+            <div
+              key={r.id}
+              onClick={() => navigate(`/inventory/reports/${r.id}`)}
+              className="bg-surface-800/60 border border-surface-700 rounded-xl p-3 space-y-2 active:bg-surface-700/60 cursor-pointer"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-white font-medium text-sm leading-tight flex-1 min-w-0 truncate">{r.stock_take_name || "—"}</p>
+                <StatusBadge status={r.approval_status} />
+              </div>
+              <div className="flex items-center gap-2 text-[11px] text-surface-500">
+                <span>{new Date(r.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}</span>
+                <span className="text-surface-700">·</span>
+                <span className="capitalize">{r.stock_take_type || "—"}</span>
+                <span className="text-surface-700">·</span>
+                <span className="text-surface-400 truncate">{r.profiles?.name || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-surface-700/50 pt-1.5 text-[11px]">
+                <span className="text-surface-500">{r.stock_take_items?.length ?? 0} products counted</span>
+                <ArrowRight size={13} className="text-surface-500" />
+              </div>
+            </div>
+          ))
+        )}
+        {!isLoading && totalPages > 1 && (
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-surface-400 tabular-nums">
+              {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1} className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs text-surface-400 tabular-nums px-1">{safePage} / {totalPages}</span>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
             <tr>
