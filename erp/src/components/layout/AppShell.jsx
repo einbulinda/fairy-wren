@@ -30,6 +30,8 @@ import {
   ArrowLeftRight,
   Target,
   Building2,
+  Users,
+  Shield,
 } from "lucide-react";
 
 const inventoryNavTabs = [
