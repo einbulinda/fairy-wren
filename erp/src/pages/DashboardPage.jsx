@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import DecisionSupportPanel from "@/components/dashboard/DecisionSupportPanel";
 import QuickActionModal from "@/components/dashboard/QuickActionModal";
@@ -50,7 +50,8 @@ const TABS = [
 
 const DashboardPage = () => {
   useAuth();
-  const [activeTab, setActiveTab] = useState("executive");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "executive";
   const [modalType, setModalType] = useState(null);
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
@@ -742,8 +743,8 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex items-stretch gap-1 bg-surface-800/50 border border-surface-700 rounded-xl p-1">
+      {/* Tab Navigation — desktop only; mobile uses contextual bottom nav */}
+      <div className="hidden md:flex items-stretch gap-1 bg-surface-800/50 border border-surface-700 rounded-xl p-1">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -753,18 +754,17 @@ const DashboardPage = () => {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`relative flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-2 rounded-lg font-medium transition-all ${
+              onClick={() => setSearchParams({ tab: tab.id })}
+              className={`relative flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                 isActive
                   ? "bg-primary-500 text-white shadow-lg shadow-primary-500/25"
                   : "text-surface-400 hover:text-white hover:bg-surface-700/50"
               }`}
             >
               <Icon size={15} />
-              <span className="text-[10px] sm:hidden leading-none">{tab.short}</span>
-              <span className="hidden sm:inline text-sm">{tab.label}</span>
+              <span className="text-sm">{tab.label}</span>
               {alertCount > 0 && (
-                <span className={`text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full leading-none ${isActive ? "bg-white/20 text-white" : "bg-red-500/30 text-red-300"}`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full leading-none ${isActive ? "bg-white/20 text-white" : "bg-red-500/30 text-red-300"}`}>
                   {alertCount}
                 </span>
               )}

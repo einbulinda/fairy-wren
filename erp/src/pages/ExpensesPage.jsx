@@ -365,23 +365,26 @@ const ExpensesPage = () => {
 
       {/* Filters */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-4">
-        <div className="flex flex-wrap gap-3">
-          <div className="relative flex-1 min-w-40">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+          <div className="relative w-full sm:flex-1 sm:min-w-40">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
             <input className="w-full pl-9 pr-8 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="Search expenses..." value={search} onChange={(e) => setSearch(e.target.value)} />
             {search && <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white"><X size={14} /></button>}
           </div>
-          <input type="date" className="px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} />
-          <input type="date" className="px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterTo} onChange={(e) => setFilterTo(e.target.value)} />
-          <select className="px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+          <div className="flex items-center gap-2">
+            <input type="date" className="flex-1 sm:flex-none px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+              value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} />
+            <span className="text-surface-500 shrink-0">→</span>
+            <input type="date" className="flex-1 sm:flex-none px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+              value={filterTo} onChange={(e) => setFilterTo(e.target.value)} />
+          </div>
+          <select className="w-full sm:w-auto px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
             value={filterSupplier} onChange={(e) => setFilterSupplier(e.target.value)}>
             <option value="">All Suppliers</option>
             {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select className="px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+          <select className="w-full sm:w-auto px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
             value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
             <option value="">All Accounts</option>
             {expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}

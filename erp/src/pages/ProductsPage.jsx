@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { FolderTree, Package } from "lucide-react";
 import ProductsTab from "@/components/products/ProductsTab";
 import CategoriesTab from "@/components/products/CategoriesTab";
@@ -9,15 +9,17 @@ const TABS = [
 ];
 
 const ProductsPage = () => {
-  const [activeTab, setActiveTab] = useState("products");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "products";
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 border-b border-surface-700">
+      {/* Tab bar — desktop only; mobile uses contextual bottom nav */}
+      <div className="hidden md:flex gap-1 border-b border-surface-700">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveTab(id)}
+            onClick={() => setSearchParams({ tab: id })}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all relative ${
               activeTab === id
                 ? "text-primary-400"

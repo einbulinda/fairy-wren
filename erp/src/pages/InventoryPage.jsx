@@ -36,8 +36,8 @@ const InventoryPage = () => {
 
   return (
     <div className="space-y-4">
-      {/* Tab bar */}
-      <div className="border-b border-surface-700">
+      {/* Tab bar — desktop only; mobile uses contextual bottom nav */}
+      <div className="hidden md:block border-b border-surface-700">
         <nav className="flex gap-0.5 overflow-x-auto">
           {TABS.map(({ path, label, short, icon: Icon }) => (
             <button

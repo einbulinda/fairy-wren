@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { Truck, Clock, Package, TrendingUp } from "lucide-react";
 import SupplierListPage from "./SupplierListPage";
 import PendingInvoicesPage from "./PendingInvoicesPage";
@@ -13,26 +13,26 @@ const TABS = [
 ];
 
 const PurchasingPage = () => {
-  const [activeTab, setActiveTab] = useState("suppliers");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "suppliers";
 
   return (
     <div className="space-y-4">
-      {/* Tab bar */}
-      <div className="border-b border-surface-700 overflow-x-auto scrollbar-hide">
+      {/* Tab bar — desktop only; mobile uses contextual bottom nav */}
+      <div className="hidden md:block border-b border-surface-700 overflow-x-auto scrollbar-hide">
         <nav className="flex gap-1 min-w-max">
-          {TABS.map(({ key, label, short, icon: Icon }) => (
+          {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              onClick={() => setSearchParams({ tab: key })}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === key
                   ? "border-primary-500 text-primary-400"
                   : "border-transparent text-surface-400 hover:text-white"
               }`}
             >
               <Icon size={15} />
-              <span className="sm:hidden">{short}</span>
-              <span className="hidden sm:inline">{label}</span>
+              {label}
             </button>
           ))}
         </nav>
@@ -42,7 +42,7 @@ const PurchasingPage = () => {
       {activeTab === "suppliers" && <SupplierListPage />}
       {activeTab === "pending-invoices" && <PendingInvoicesPage />}
       {activeTab === "receive" && (
-        <ReceiveTab onSuccess={() => setActiveTab("suppliers")} />
+        <ReceiveTab onSuccess={() => setSearchParams({ tab: "suppliers" })} />
       )}
       {activeTab === "reorder-forecast" && <ReorderForecastTab />}
     </div>

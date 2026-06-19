@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router";
 import {
   Receipt,
   Download,
@@ -120,10 +121,11 @@ const computeOutstanding = (bill) =>
   Math.max(0, computeBillTotal(bill) - computePaidAmount(bill));
 
 const SalesPage = () => {
+  const [urlParams, setUrlParams] = useSearchParams();
+  const statusFilter = urlParams.get("status") || "all";
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
   const [quickSelect, setQuickSelect] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [expandedBill, setExpandedBill] = useState(null);
@@ -217,7 +219,7 @@ const SalesPage = () => {
   }, [productSales.items, productSearch]);
 
   const handleStatusChange = (key) => {
-    setStatusFilter(key);
+    setUrlParams({ status: key });
   };
 
   // Excel export
@@ -806,21 +808,20 @@ const SalesPage = () => {
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
         {/* Table header */}
         <div className="p-3 sm:p-4 border-b border-surface-700 space-y-3">
-          {/* Status tabs — horizontally scrollable on mobile */}
-          <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-hide">
+          {/* Status tabs — desktop only; mobile uses contextual bottom nav */}
+          <div className="hidden md:block overflow-x-auto scrollbar-hide">
             <div className="flex gap-1 min-w-max">
               {STATUS_TABS.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => handleStatusChange(tab.key)}
-                  className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                     statusFilter === tab.key
                       ? "bg-primary-600/20 text-primary-400"
                       : "text-surface-400 hover:text-white hover:bg-surface-700/50"
                   }`}
                 >
-                  <span className="sm:hidden">{tab.short}</span>
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  {tab.label}
                 </button>
               ))}
             </div>

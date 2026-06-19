@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router";
 import {
   Plus,
   Search,
@@ -8,9 +9,11 @@ import {
   X,
   Users,
   Shield,
+  Target,
 } from "lucide-react";
 import { useUsers, useCreateUser, useUpdateUser, useToggleUserStatus } from "@/hooks/useUsers";
 import { useSystemRoles } from "@/hooks/useSystemRoles";
+import { StaffTargetsTab, SystemRolesTab } from "./SettingsPage";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import PaginatedTable from "@/components/shared/PaginatedTable";
 import { fmtDate } from "@/utils/formatters";
@@ -33,7 +36,13 @@ const RoleBadge = ({ role }) => (
   </span>
 );
 
-const UsersPage = () => {
+const USER_TABS = [
+  { key: "users",         label: "Users",        short: "Users", icon: Users  },
+  { key: "staff-targets", label: "Staff Targets", short: "Staff", icon: Target },
+  { key: "system-roles",  label: "System Roles",  short: "Roles", icon: Shield },
+];
+
+const UsersTab = () => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState(null);
   const [showInactive, setShowInactive] = useState(false);
@@ -209,19 +218,28 @@ const UsersPage = () => {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
-          <input
-            type="text"
-            placeholder="Search users…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={`${inputCls} pl-8`}
-          />
+      <div className="flex flex-col gap-3">
+        {/* Search + Add User (desktop) */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+            <input
+              type="text"
+              placeholder="Search users…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`${inputCls} pl-8 w-full`}
+            />
+          </div>
+          <button
+            onClick={openCreate}
+            className="hidden md:flex shrink-0 items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={15} /> Add User
+          </button>
         </div>
 
-        {/* Role filter pills */}
+        {/* Role filter pills + show inactive - wrap into rows on mobile */}
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => setRoleFilter(null)}
@@ -246,27 +264,27 @@ const UsersPage = () => {
               {label}
             </button>
           ))}
+          <button
+            onClick={() => setShowInactive((v) => !v)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              showInactive
+                ? "bg-surface-600 border-surface-500 text-white"
+                : "bg-surface-800 border-surface-700 text-surface-400 hover:text-white"
+            }`}
+          >
+            {showInactive ? "Hiding inactive" : "Show inactive"}
+          </button>
         </div>
-
-        {/* Show inactive toggle */}
-        <button
-          onClick={() => setShowInactive((v) => !v)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-            showInactive
-              ? "bg-surface-600 border-surface-500 text-white"
-              : "bg-surface-800 border-surface-700 text-surface-400 hover:text-white"
-          }`}
-        >
-          {showInactive ? "Hiding inactive" : "Show inactive"}
-        </button>
-
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors ml-auto"
-        >
-          <Plus size={15} /> Add User
-        </button>
       </div>
+
+      {/* Mobile FAB */}
+      <button
+        onClick={openCreate}
+        className="md:hidden fixed bottom-20 right-6 z-30 w-14 h-14 rounded-full bg-primary-600 hover:bg-primary-700 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-primary-900/40 transition-all"
+        aria-label="Add user"
+      >
+        <Plus size={22} />
+      </button>
 
       {/* Table */}
       <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
@@ -504,6 +522,37 @@ const UsersPage = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const UsersPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "users";
+
+  return (
+    <div className="space-y-4">
+      {/* Tab bar — desktop only; mobile uses contextual bottom nav */}
+      <div className="hidden md:flex gap-1 border-b border-surface-700">
+        {USER_TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setSearchParams({ tab: key })}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              activeTab === key
+                ? "border-primary-500 text-primary-400"
+                : "border-transparent text-surface-400 hover:text-white"
+            }`}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "users"         && <UsersTab />}
+      {activeTab === "staff-targets" && <StaffTargetsTab />}
+      {activeTab === "system-roles"  && <SystemRolesTab />}
     </div>
   );
 };

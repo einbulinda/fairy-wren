@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Target,
@@ -223,14 +224,14 @@ const OrganisationTab = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm text-surface-400">
           Configure your organisation details used across the system.
         </p>
         <button
           onClick={handleSave}
           disabled={updateMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+          className="flex justify-center sm:justify-start items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
         >
           {updateMutation.isPending ? (
             <Loader2 size={16} className="animate-spin" />
@@ -463,7 +464,7 @@ const BusinessTargetsTab = () => {
   return (
     <div className="space-y-4">
       {/* Year Selector & Quick Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
           <Calendar size={18} className="text-primary-400" />
           <select
@@ -482,23 +483,23 @@ const BusinessTargetsTab = () => {
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-surface-400">Quick Apply:</span>
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+          <span className="text-xs text-surface-400 shrink-0">Quick Apply:</span>
           <button
             onClick={() => applyGrowthRate(10)}
-            className="text-xs px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg"
+            className="shrink-0 text-xs px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg"
           >
             +10%/month
           </button>
           <button
             onClick={() => applyGrowthRate(5)}
-            className="text-xs px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg"
+            className="shrink-0 text-xs px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg"
           >
             +5%/month
           </button>
           <button
             onClick={() => applyGrowthRate(0)}
-            className="text-xs px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg"
+            className="shrink-0 text-xs px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg"
           >
             Flat
           </button>
@@ -506,7 +507,7 @@ const BusinessTargetsTab = () => {
             <button
               onClick={handleSaveAll}
               disabled={bulkUpdateMutation.isPending}
-              className="flex items-center gap-2 px-4 py-1.5 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white text-xs rounded-lg"
+              className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white text-xs rounded-lg"
             >
               <Save size={12} />
               Save All
@@ -714,7 +715,7 @@ const BusinessTargetsTab = () => {
 // ==========================================
 // 3. STAFF TARGETS TAB (New)
 // ==========================================
-const StaffTargetsTab = () => {
+export const StaffTargetsTab = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [staffOverrides, setStaffOverrides] = useState({});
@@ -816,14 +817,15 @@ const StaffTargetsTab = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
-        <div className="flex items-center gap-3">
-          <Calendar size={18} className="text-primary-400" />
+      {/* Header controls */}
+      <div className="flex flex-col gap-3 bg-surface-800/30 border border-surface-700/50 rounded-xl p-4">
+        {/* Date pickers */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Calendar size={16} className="text-primary-400 shrink-0" />
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="px-3 py-2 rounded-lg bg-surface-800 border border-surface-600 text-white text-sm"
+            className="flex-1 min-w-[90px] px-3 py-2 rounded-lg bg-surface-800 border border-surface-600 text-white text-sm"
           >
             {Array.from(
               { length: 5 },
@@ -837,7 +839,7 @@ const StaffTargetsTab = () => {
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-            className="px-3 py-2 rounded-lg bg-surface-800 border border-surface-600 text-white text-sm"
+            className="flex-1 min-w-[120px] px-3 py-2 rounded-lg bg-surface-800 border border-surface-600 text-white text-sm"
           >
             {MONTHS.map((m, i) => (
               <option key={i} value={i + 1}>
@@ -847,20 +849,21 @@ const StaffTargetsTab = () => {
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-surface-400">Apply to all:</span>
+        {/* Apply to all + Save */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 border-t border-surface-700/30">
+          <span className="text-xs text-surface-400 shrink-0">Apply revenue to all:</span>
           <input
             type="text"
-            placeholder="Revenue target"
+            placeholder="e.g. 50,000"
             onChange={(e) => handleApplyToAll("target_revenue", e.target.value)}
-            className="w-32 px-2 py-1.5 bg-surface-800 border border-surface-600 rounded text-white text-xs"
+            className="flex-1 px-3 py-2 bg-surface-800 border border-surface-600 rounded-lg text-white text-sm"
           />
           <button
             onClick={handleSave}
             disabled={bulkUpdateStaffMutation.isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white text-xs rounded-lg"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary-500 hover:bg-primary-600 active:scale-95 disabled:opacity-50 text-white text-sm rounded-lg transition-all shrink-0"
           >
-            <Save size={12} />
+            <Save size={14} />
             {bulkUpdateStaffMutation.isPending ? "Saving..." : "Save All"}
           </button>
         </div>
@@ -875,28 +878,30 @@ const StaffTargetsTab = () => {
           return (
             <div
               key={user.id}
-              className={`bg-surface-800/30 border rounded-xl p-4 ${hasExisting ? "border-surface-700/50" : "border-surface-700/30 opacity-75"}`}
+              className={`bg-surface-800/30 border rounded-xl overflow-hidden ${hasExisting ? "border-surface-700/50" : "border-surface-700/30 opacity-75"}`}
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center">
-                  <span className="text-primary-400 font-semibold">
+              {/* Card header */}
+              <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-surface-700/40">
+                <div className="w-9 h-9 rounded-full bg-primary-500/20 flex items-center justify-center shrink-0">
+                  <span className="text-primary-400 font-semibold text-sm">
                     {user.name?.charAt(0).toUpperCase() || "?"}
                   </span>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-white">{user.name}</p>
-                  <p className="text-xs text-surface-500">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                  <p className="text-xs text-surface-500 capitalize">
                     {user.role || "Staff"}
                   </p>
                 </div>
                 {!hasExisting && (
-                  <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-surface-700 text-surface-400 rounded">
+                  <span className="shrink-0 text-[10px] px-1.5 py-0.5 bg-surface-700 text-surface-400 rounded-md">
                     Default
                   </span>
                 )}
               </div>
 
-              <div className="space-y-3">
+              {/* Inputs */}
+              <div className="p-4 space-y-3">
                 <div>
                   <label className="text-xs text-surface-400 mb-1 block">
                     Revenue Target (KES)
@@ -976,6 +981,8 @@ const StaffTargetsTab = () => {
 // ==========================================
 // 4. ACCOUNT CLASSES TAB (Original)
 // ==========================================
+const MOBILE_CLASS_PAGE_SIZE = 5;
+
 const AccountClassesTab = () => {
   const { data: classes, isLoading } = useAccountClasses();
   const createMutation = useCreateAccountClass();
@@ -989,6 +996,11 @@ const AccountClassesTab = () => {
     category: "asset",
     sort_order: 0,
   });
+  const [mobileClassPage, setMobileClassPage] = useState(1);
+
+  useEffect(() => {
+    setMobileClassPage(1);
+  }, [classes]);
 
   const resetForm = () => {
     setForm({ code: "", label: "", category: "asset", sort_order: 0 });
@@ -1010,7 +1022,16 @@ const AccountClassesTab = () => {
       sort_order: item.sort_order,
     });
     setAdding(false);
+    setMobileClassPage(1);
   };
+
+  const allClasses = classes || [];
+  const mobileTotalPages = Math.max(1, Math.ceil(allClasses.length / MOBILE_CLASS_PAGE_SIZE));
+  const mobileSafePage = Math.min(mobileClassPage, mobileTotalPages);
+  const mobileClasses = allClasses.slice(
+    (mobileSafePage - 1) * MOBILE_CLASS_PAGE_SIZE,
+    mobileSafePage * MOBILE_CLASS_PAGE_SIZE,
+  );
 
   if (isLoading)
     return (
@@ -1021,7 +1042,8 @@ const AccountClassesTab = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm text-surface-400">
           Define account classifications used in the chart of accounts.
         </p>
@@ -1030,23 +1052,22 @@ const AccountClassesTab = () => {
             onClick={() => {
               setAdding(true);
               setEditCode(null);
-              setForm({
-                code: "",
-                label: "",
-                category: "asset",
-                sort_order: 0,
-              });
+              setForm({ code: "", label: "", category: "asset", sort_order: 0 });
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 active:scale-95 text-white text-sm rounded-lg transition-all"
           >
             <Plus size={14} /> Add Class
           </button>
         )}
       </div>
 
+      {/* Add / Edit form */}
       {(adding || editCode) && (
-        <div className="bg-surface-800 border border-surface-600 rounded-lg p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="bg-surface-800 border border-surface-600 rounded-xl p-4 space-y-3">
+          <p className="text-xs font-semibold text-surface-300 uppercase tracking-wide">
+            {adding ? "New Account Class" : "Edit Account Class"}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {adding && (
               <div>
                 <label className={labelCls}>Code</label>
@@ -1099,17 +1120,17 @@ const AccountClassesTab = () => {
               />
             </div>
           </div>
-          <div className="flex gap-2 mt-3">
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <button
               onClick={adding ? handleAdd : handleUpdate}
               disabled={createMutation.isPending || updateMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm rounded-lg"
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 active:scale-95 text-white text-sm rounded-lg transition-all"
             >
-              <Check size={14} /> {adding ? "Add" : "Save"}
+              <Check size={14} /> {adding ? "Add Class" : "Save Changes"}
             </button>
             <button
               onClick={resetForm}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-surface-300 text-sm rounded-lg"
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-surface-700 hover:bg-surface-600 active:scale-95 text-surface-300 text-sm rounded-lg transition-all"
             >
               <X size={14} /> Cancel
             </button>
@@ -1117,7 +1138,8 @@ const AccountClassesTab = () => {
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-700 text-surface-400 text-left">
@@ -1130,7 +1152,7 @@ const AccountClassesTab = () => {
             </tr>
           </thead>
           <tbody>
-            {(classes || []).map((item) => (
+            {allClasses.map((item) => (
               <tr
                 key={item.code}
                 className="border-b border-surface-800 hover:bg-surface-800/50"
@@ -1176,6 +1198,97 @@ const AccountClassesTab = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Mobile cards */}
+      {allClasses.length === 0 ? (
+        <div className="md:hidden text-center py-12 text-surface-400 text-sm">
+          No account classes defined yet.
+        </div>
+      ) : (
+        <div className="md:hidden space-y-3">
+          {mobileClasses.map((item) => (
+            <div
+              key={item.code}
+              className={`bg-surface-800/50 border rounded-xl overflow-hidden transition-colors ${
+                editCode === item.code
+                  ? "border-primary-500/50"
+                  : "border-surface-700"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-white truncate">
+                      {item.label}
+                    </span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
+                        item.active
+                          ? "bg-green-900/40 text-green-400"
+                          : "bg-red-900/40 text-red-400"
+                      }`}
+                    >
+                      {item.active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <span className="font-mono text-[11px] text-surface-500 mt-0.5 block">
+                    {item.code}
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    onClick={() => startEdit(item)}
+                    className="p-2 rounded-lg text-surface-400 hover:text-primary-400 hover:bg-primary-500/10 active:scale-95 transition-all"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete "${item.label}"?`))
+                        deleteMutation.mutate(item.code);
+                    }}
+                    className="p-2 rounded-lg text-surface-400 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+              <div className="px-4 pb-4 border-t border-surface-700/50 pt-3">
+                <div className="flex items-center gap-3 text-xs text-surface-400">
+                  <span className="capitalize bg-surface-700/60 px-2 py-0.5 rounded-md">
+                    {item.category}
+                  </span>
+                  <span className="text-surface-500">Order: {item.sort_order}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Pagination */}
+          {mobileTotalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <button
+                onClick={() => setMobileClassPage((p) => Math.max(1, p - 1))}
+                disabled={mobileSafePage === 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-surface-300 bg-surface-700 hover:bg-surface-600 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+              >
+                <ChevronLeft size={14} /> Prev
+              </button>
+              <span className="text-xs text-surface-400">
+                {mobileSafePage} / {mobileTotalPages}
+                <span className="text-surface-600 ml-1">({allClasses.length} total)</span>
+              </span>
+              <button
+                onClick={() => setMobileClassPage((p) => Math.min(mobileTotalPages, p + 1))}
+                disabled={mobileSafePage === mobileTotalPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-surface-300 bg-surface-700 hover:bg-surface-600 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -1183,7 +1296,7 @@ const AccountClassesTab = () => {
 // ==========================================
 // 5. SYSTEM ROLES TAB (Original)
 // ==========================================
-const SystemRolesTab = () => {
+export const SystemRolesTab = () => {
   const { data: roles, isLoading } = useSystemRoles();
   const createMutation = useCreateSystemRole();
   const updateMutation = useUpdateSystemRole();
@@ -1241,7 +1354,7 @@ const SystemRolesTab = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm text-surface-400">
           Define roles and assign permissions for system users.
         </p>
@@ -1317,7 +1430,8 @@ const SystemRolesTab = () => {
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-700 text-surface-400 text-left">
@@ -1399,13 +1513,130 @@ const SystemRolesTab = () => {
         </table>
       </div>
 
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-3">
+        {(roles || []).map((item) => (
+          <div key={item.code} className={`bg-surface-800/50 border rounded-xl overflow-hidden transition-colors ${permEditCode === item.code ? "border-primary-500/50" : "border-surface-700"}`}>
+            {/* Card header */}
+            <div className="flex items-start justify-between gap-3 p-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-white">{item.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${item.active ? "bg-green-900/40 text-green-400" : "bg-red-900/40 text-red-400"}`}>
+                    {item.active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <span className="font-mono text-[11px] text-surface-500 mt-0.5 block">{item.code}</span>
+              </div>
+              {permEditCode !== item.code && (
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    onClick={() => startPermEdit(item)}
+                    className="p-2 rounded-lg text-surface-400 hover:text-primary-400 hover:bg-primary-500/10 active:scale-95 transition-all"
+                    title="Edit permissions"
+                  >
+                    <Shield size={15} />
+                  </button>
+                  <button
+                    onClick={() => startEdit(item)}
+                    className="p-2 rounded-lg text-surface-400 hover:text-white hover:bg-surface-700 active:scale-95 transition-all"
+                    title="Edit role"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    onClick={() => { if (window.confirm(`Delete "${item.label}"?`)) deleteMutation.mutate(item.code); }}
+                    className="p-2 rounded-lg text-surface-400 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+                    title="Delete"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Inline permissions editor */}
+            {permEditCode === item.code ? (
+              <div className="border-t border-primary-500/30 p-4 space-y-3 bg-surface-900/30">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-primary-400 flex items-center gap-1.5">
+                    <Shield size={12} /> Editing permissions · {permDraft.length} selected
+                  </p>
+                  <button
+                    onClick={() => { setPermEditCode(null); setPermDraft([]); }}
+                    className="p-1 rounded-lg text-surface-400 hover:text-white hover:bg-surface-700 transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                  {CAPABILITIES.map(({ key, label, description }) => (
+                    <label
+                      key={key}
+                      className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${permDraft.includes(key) ? "border-primary-500/40 bg-primary-500/10" : "border-surface-700 hover:border-surface-600"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={permDraft.includes(key)}
+                        onChange={() => togglePerm(key)}
+                        className="mt-0.5 accent-primary-500 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm text-white font-medium">{label}</p>
+                        <p className="text-xs text-surface-400 leading-relaxed">{description}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <button
+                  onClick={savePerm}
+                  disabled={updateMutation.isPending}
+                  className="w-full flex justify-center items-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <Check size={14} />
+                  {updateMutation.isPending ? "Saving…" : "Save Permissions"}
+                </button>
+              </div>
+            ) : (
+              /* Permissions display */
+              <div className="px-4 pb-4 border-t border-surface-700/50 pt-3">
+                {(item.permissions || []).length > 0 ? (
+                  <>
+                    <p className="text-[10px] text-surface-500 uppercase tracking-wider mb-2">
+                      Permissions ({item.permissions.length})
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {(item.permissions || []).map((p) => (
+                        <span key={p} className="text-[10px] px-2 py-0.5 rounded-full bg-primary-500/15 text-primary-300 border border-primary-500/20 font-medium">
+                          {CAPABILITIES.find((c) => c.key === p)?.label || p}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => startPermEdit(item)}
+                    className="w-full flex items-center justify-center gap-2 py-2 border border-dashed border-surface-600 rounded-lg text-xs text-surface-400 hover:text-white hover:border-surface-500 transition-colors"
+                  >
+                    <Shield size={12} /> Tap to assign permissions
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
       {permEditCode && (
-        <div className="bg-surface-800 border border-surface-600 rounded-lg p-4 space-y-3">
-          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-            <Shield size={15} className="text-primary-400" />
-            Permissions for{" "}
-            <span className="font-mono text-primary-300">{permEditCode}</span>
-          </h4>
+        <div className="bg-surface-800 border border-surface-600 rounded-xl p-4 space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Shield size={15} className="text-primary-400" />
+              Permissions —{" "}
+              <span className="font-mono text-primary-300">{permEditCode}</span>
+            </h4>
+            <span className="text-xs text-surface-500">{permDraft.length} selected</span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {CAPABILITIES.map(({ key, label, description }) => (
               <label
@@ -1416,29 +1647,26 @@ const SystemRolesTab = () => {
                   type="checkbox"
                   checked={permDraft.includes(key)}
                   onChange={() => togglePerm(key)}
-                  className="mt-0.5 accent-primary-500"
+                  className="mt-0.5 accent-primary-500 shrink-0"
                 />
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-white font-medium">{label}</p>
-                  <p className="text-xs text-surface-400">{description}</p>
+                  <p className="text-xs text-surface-400 leading-relaxed">{description}</p>
                 </div>
               </label>
             ))}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <button
               onClick={savePerm}
               disabled={updateMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm rounded-lg"
+              className="flex justify-center items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg"
             >
               <Check size={14} /> Save Permissions
             </button>
             <button
-              onClick={() => {
-                setPermEditCode(null);
-                setPermDraft([]);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-surface-300 text-sm rounded-lg"
+              onClick={() => { setPermEditCode(null); setPermDraft([]); }}
+              className="flex justify-center items-center gap-1.5 px-4 py-2 bg-surface-700 hover:bg-surface-600 text-surface-300 text-sm rounded-lg"
             >
               <X size={14} /> Cancel
             </button>
@@ -1452,17 +1680,16 @@ const SystemRolesTab = () => {
 // ==========================================
 // MAIN SETTINGS PAGE - ALL TABS
 // ==========================================
-const TABS = [
-  { key: "organisation", label: "Organisation", icon: Building2 },
-  { key: "business-targets", label: "Business Targets", icon: BarChart3 },
-  { key: "staff-targets", label: "Staff Targets", icon: UserCircle },
-  { key: "account-classes", label: "Account Classes", icon: BookOpen },
-  { key: "system-roles", label: "System Roles", icon: Shield },
-  { key: "inventory-policies", label: "Inventory Policies", icon: Package },
+const SETTINGS_TABS = [
+  { key: "organisation",       label: "Organisation",       short: "Org",       icon: Building2 },
+  { key: "business-targets",   label: "Business Targets",   short: "Targets",   icon: BarChart3 },
+  { key: "account-classes",    label: "Account Classes",    short: "Acct",      icon: BookOpen },
+  { key: "inventory-policies", label: "Inventory Policies", short: "Inventory", icon: Package },
 ];
 
 const SettingsPage = () => {
-  const [activeTab, setActiveTab] = useState("organisation");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "organisation";
 
   return (
     <div className="space-y-6 pb-6">
@@ -1474,37 +1701,36 @@ const SettingsPage = () => {
         <div>
           <h1 className="text-xl font-bold text-white">Settings</h1>
           <p className="text-sm text-surface-400">
-            Manage organisation details, targets, account classes, and system
-            roles
+            Manage organisation details, targets, account classes and inventory policies
           </p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-1 bg-surface-800/50 border border-surface-700 rounded-xl p-1">
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === key
-                ? "bg-primary-500 text-white shadow-lg shadow-primary-500/25"
-                : "text-surface-400 hover:text-white hover:bg-surface-700/50"
-            }`}
-          >
-            <Icon size={16} />
-            {label}
-          </button>
-        ))}
+      {/* Tabs — desktop only; mobile uses contextual bottom nav */}
+      <div className="hidden md:block overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1 bg-surface-800/50 border border-surface-700 rounded-xl p-1 min-w-max">
+          {SETTINGS_TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setSearchParams({ tab: key })}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === key
+                  ? "bg-primary-500 text-white shadow-lg shadow-primary-500/25"
+                  : "text-surface-400 hover:text-white hover:bg-surface-700/50"
+              }`}
+            >
+              <Icon size={16} />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab Content */}
       <div className="min-h-[400px]">
-        {activeTab === "organisation" && <OrganisationTab />}
-        {activeTab === "business-targets" && <BusinessTargetsTab />}
-        {activeTab === "staff-targets" && <StaffTargetsTab />}
-        {activeTab === "account-classes" && <AccountClassesTab />}
-        {activeTab === "system-roles" && <SystemRolesTab />}
+        {activeTab === "organisation"       && <OrganisationTab />}
+        {activeTab === "business-targets"   && <BusinessTargetsTab />}
+        {activeTab === "account-classes"    && <AccountClassesTab />}
         {activeTab === "inventory-policies" && <InventoryPoliciesTab />}
       </div>
     </div>
@@ -1607,7 +1833,7 @@ const InventoryPoliciesTab = () => {
     <div className="space-y-6">
       {/* Global Configuration */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-primary-500/15 rounded-lg">
               <Target size={16} className="text-primary-400" />
@@ -1617,7 +1843,7 @@ const InventoryPoliciesTab = () => {
           <button
             onClick={() => refreshLevels.mutate()}
             disabled={refreshLevels.isPending}
-            className="flex items-center gap-2 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+            className="flex justify-center sm:justify-start items-center gap-2 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
           >
             <RefreshCw size={13} className={refreshLevels.isPending ? "animate-spin" : ""} />
             {refreshLevels.isPending ? "Calculating..." : "Recalculate All"}
@@ -1864,17 +2090,17 @@ const InventoryPoliciesTab = () => {
 
       {/* Policies Table */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-surface-700 flex items-center justify-between gap-4">
+        <div className="p-4 border-b border-surface-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="font-semibold text-white shrink-0">Product Reorder Policies</h2>
           <div className="flex items-center gap-3">
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-none">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500" />
               <input
                 type="text"
                 placeholder="Search products..."
                 value={policySearch}
                 onChange={(e) => setPolicySearch(e.target.value)}
-                className="pl-8 pr-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-xs text-white placeholder:text-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500 w-48"
+                className="w-full sm:w-48 pl-8 pr-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-xs text-white placeholder:text-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             <span className="text-xs text-surface-400 shrink-0">{filteredPolicies.length} products</span>
@@ -1887,7 +2113,85 @@ const InventoryPoliciesTab = () => {
             <p>No policies calculated yet. Click &quot;Recalculate All&quot; to generate.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-surface-700/40">
+            {paginatedPolicies.map((p) => {
+              const product = p.products;
+              const supplier = p.suppliers;
+              const stock = product?.current_stock ?? 0;
+              const isLow = stock > 0 && stock <= p.reorder_level;
+              const isOut = stock <= 0;
+              return (
+                <div key={p.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-white text-sm">{product?.name || "Unknown"}</p>
+                      {supplier && <p className="text-[10px] text-surface-500 mt-0.5">{supplier.name}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        p.source === "manual" ? "bg-blue-500/15 text-blue-400"
+                        : p.source === "default" ? "bg-surface-700 text-surface-400"
+                        : "bg-green-500/15 text-green-400"
+                      }`}>{p.source}</span>
+                      <span className={`font-mono font-semibold text-sm ${isOut ? "text-red-400" : isLow ? "text-orange-400" : "text-green-400"}`}>
+                        {stock}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-surface-800/50 rounded-lg px-3 py-2">
+                      <p className="text-surface-500 mb-0.5">Demand/day</p>
+                      <p className="text-white font-mono">{formatNum(p.avg_daily_demand)}</p>
+                    </div>
+                    <div className="bg-surface-800/50 rounded-lg px-3 py-2">
+                      <p className="text-surface-500 mb-0.5">Lead Time</p>
+                      <p className="text-white font-mono">{formatNum(p.lead_time_days, 0)}d</p>
+                    </div>
+                    <div className="bg-surface-800/50 rounded-lg px-3 py-2">
+                      <p className="text-surface-500 mb-0.5">Safety Stock</p>
+                      <p className="text-white font-mono">{formatNum(p.safety_stock)}</p>
+                    </div>
+                    <div className="bg-surface-800/50 rounded-lg px-3 py-2">
+                      <p className="text-surface-500 mb-0.5">ROL</p>
+                      {editingId === p.product_id ? (
+                        <div className="flex items-center gap-1">
+                          <input type="number" min="0" value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-14 px-1.5 py-0.5 bg-surface-900 border border-surface-600 rounded text-white text-xs focus:outline-none"
+                            autoFocus />
+                          <button onClick={() => handleSaveOverride(p.product_id)} disabled={setManual.isPending}
+                            className="p-1 text-green-400 hover:bg-surface-700 rounded"><Check size={11} /></button>
+                          <button onClick={() => setEditingId(null)}
+                            className="p-1 text-surface-400 hover:bg-surface-700 rounded"><X size={11} /></button>
+                        </div>
+                      ) : (
+                        <p className="text-white font-mono font-semibold">{formatNum(p.reorder_level, 0)}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {editingId !== p.product_id && (
+                      <button onClick={() => handleStartOverride(p)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-surface-700 hover:bg-surface-600 text-surface-300 rounded-lg text-xs">
+                        <Pencil size={12} /> Set ROL
+                      </button>
+                    )}
+                    {p.manual_override && (
+                      <button onClick={() => handleClearOverride(p.product_id)} disabled={clearOverride.isPending}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 rounded-lg text-xs">
+                        <RefreshCw size={12} /> Clear Override
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-surface-700 bg-surface-800/30">
@@ -2008,6 +2312,7 @@ const InventoryPoliciesTab = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {/* Pagination */}

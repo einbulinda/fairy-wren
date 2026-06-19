@@ -88,20 +88,22 @@ export default function WebFeedbackPage() {
       </div>
 
       {/* Status tabs */}
-      <div className="flex gap-1 bg-surface-800/50 border border-surface-700 rounded-lg p-1 w-fit">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setStatusFilter(tab.key)}
-            className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
-              statusFilter === tab.key
-                ? "bg-primary-600 text-white"
-                : "text-surface-400 hover:text-white"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1 bg-surface-800/50 border border-surface-700 rounded-lg p-1 w-fit min-w-max">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
+                statusFilter === tab.key
+                  ? "bg-primary-600 text-white"
+                  : "text-surface-400 hover:text-white"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* List */}
