@@ -72,12 +72,12 @@ const getDatePreset = (key) => {
 };
 
 const STATUS_TABS = [
-  { key: "all", label: "All" },
-  { key: "open", label: "Open" },
-  { key: "completed", label: "Closed" },
-  { key: "void", label: "Void" },
-  { key: "products", label: "Product Sales" },
-  { key: "z-report", label: "Z-Report" },
+  { key: "all", label: "All", short: "All" },
+  { key: "open", label: "Open", short: "Open" },
+  { key: "completed", label: "Closed", short: "Closed" },
+  { key: "void", label: "Void", short: "Void" },
+  { key: "products", label: "Product Sales", short: "Products" },
+  { key: "z-report", label: "Z-Report", short: "Z-Rep" },
 ];
 
 const STATUS_BADGE = {
@@ -584,64 +584,119 @@ const SalesPage = () => {
             </div>
           </div>
           {statusFilter !== "z-report" && (
-            <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 sm:ml-auto">
-              <div className="col-span-2 space-y-1">
-                <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
-                  Quick Select
-                </label>
-                <select
-                  className={inputCls}
-                  value={quickSelect}
-                  onChange={(e) => {
-                    const key = e.target.value;
-                    setQuickSelect(key);
-                    const preset = getDatePreset(key);
-                    if (preset) {
-                      setStartDate(preset[0]);
-                      setEndDate(preset[1]);
-                    }
-                  }}
-                >
-                  <option value="" disabled>
-                    Choose…
-                  </option>
-                  <option value="today">Today</option>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="this_week">This Week</option>
-                  <option value="last_week">Last Week</option>
-                  <option value="this_month">This Month</option>
-                  <option value="last_month">Last Month</option>
-                </select>
+            <div className="sm:ml-auto w-full sm:w-auto space-y-2 sm:space-y-0">
+              {/* Mobile: scrollable preset pills */}
+              <div className="sm:hidden overflow-x-auto -mx-1 px-1 scrollbar-hide">
+                <div className="flex gap-1.5 min-w-max pb-0.5">
+                  {[
+                    { key: "today", label: "Today" },
+                    { key: "yesterday", label: "Yesterday" },
+                    { key: "this_week", label: "This Week" },
+                    { key: "last_week", label: "Last Week" },
+                    { key: "this_month", label: "This Month" },
+                    { key: "last_month", label: "Last Month" },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setQuickSelect(key);
+                        const preset = getDatePreset(key);
+                        if (preset) { setStartDate(preset[0]); setEndDate(preset[1]); }
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                        quickSelect === key
+                          ? "bg-primary-600 text-white"
+                          : "bg-surface-700 text-surface-300 hover:bg-surface-600"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
-                  From
-                </label>
-                <input
-                  type="date"
-                  className={inputCls}
-                  value={startDate}
-                  onChange={(e) => {
-                    const newStart = e.target.value;
-                    setStartDate(newStart);
-                    setQuickSelect("");
-                    if (endDate && newStart > endDate) setEndDate("");
-                  }}
-                />
+
+              {/* Mobile: From → To range row */}
+              <div className="sm:hidden flex items-end gap-2">
+                <div className="flex-1 space-y-1 min-w-0">
+                  <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">From</label>
+                  <input
+                    type="date"
+                    className={`${inputCls} w-full`}
+                    value={startDate}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setStartDate(newStart);
+                      setQuickSelect("");
+                      if (endDate && newStart > endDate) setEndDate("");
+                    }}
+                  />
+                </div>
+                <span className="text-surface-500 pb-2 shrink-0">→</span>
+                <div className="flex-1 space-y-1 min-w-0">
+                  <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">To</label>
+                  <input
+                    type="date"
+                    className={`${inputCls} w-full`}
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setQuickSelect("");
+                    }}
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
-                  To
-                </label>
-                <input
-                  type="date"
-                  className={inputCls}
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
-                    setQuickSelect("");
-                  }}
-                />
+
+              {/* Desktop: Quick Select dropdown + From + To */}
+              <div className="hidden sm:flex sm:items-end sm:gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">
+                    Quick Select
+                  </label>
+                  <select
+                    className={inputCls}
+                    value={quickSelect}
+                    onChange={(e) => {
+                      const key = e.target.value;
+                      setQuickSelect(key);
+                      const preset = getDatePreset(key);
+                      if (preset) { setStartDate(preset[0]); setEndDate(preset[1]); }
+                    }}
+                  >
+                    <option value="" disabled>Choose…</option>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="this_week">This Week</option>
+                    <option value="last_week">Last Week</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">From</label>
+                  <input
+                    type="date"
+                    className={inputCls}
+                    value={startDate}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setStartDate(newStart);
+                      setQuickSelect("");
+                      if (endDate && newStart > endDate) setEndDate("");
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-surface-400 uppercase tracking-wider">To</label>
+                  <input
+                    type="date"
+                    className={inputCls}
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setQuickSelect("");
+                    }}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -764,7 +819,8 @@ const SalesPage = () => {
                       : "text-surface-400 hover:text-white hover:bg-surface-700/50"
                   }`}
                 >
-                  {tab.label}
+                  <span className="sm:hidden">{tab.short}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
                 </button>
               ))}
             </div>

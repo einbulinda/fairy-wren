@@ -207,7 +207,7 @@ const ProductsTab = () => {
         </label>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-white text-sm font-medium transition-colors whitespace-nowrap"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-white text-sm font-medium transition-colors whitespace-nowrap"
         >
           <Plus size={15} /> New Product
         </button>

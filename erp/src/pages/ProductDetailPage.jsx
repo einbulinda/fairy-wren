@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -1212,6 +1212,8 @@ const SalesTab = ({ productId, dateRange }) => {
 
 // ─── Statement Tab ────────────────────────────────────────────────────────────
 
+const STATEMENT_PAGE_SIZE = 20;
+
 const movementLabel = (row) => {
   switch (row.movement_type) {
     case "purchase":
@@ -1236,9 +1238,7 @@ const StatementTab = ({ productId, dateRange }) => {
   const [receiptBillId, setReceiptBillId] = useState(null);
   const [invoiceReceiptId, setInvoiceReceiptId] = useState(null);
   const [stockTakeId, setStockTakeId] = useState(null);
-
-  if (isLoading)
-    return <p className="text-surface-400 text-sm py-4">Loading…</p>;
+  const [page, setPage] = useState(1);
 
   const openingBalance = data?.opening_balance ?? 0;
   const movements = data?.movements ?? [];
@@ -1246,6 +1246,43 @@ const StatementTab = ({ productId, dateRange }) => {
     movements.length > 0
       ? movements[movements.length - 1].balance
       : openingBalance;
+
+  const totalPages = Math.max(1, Math.ceil(movements.length / STATEMENT_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = movements.slice(
+    (safePage - 1) * STATEMENT_PAGE_SIZE,
+    safePage * STATEMENT_PAGE_SIZE,
+  );
+  const totalQtyIn = movements.filter((m) => m.quantity > 0).reduce((s, m) => s + m.quantity, 0);
+  const totalQtyOut = movements.filter((m) => m.quantity < 0).reduce((s, m) => s + Math.abs(m.quantity), 0);
+
+  useEffect(() => setPage(1), [data]);
+
+  if (isLoading)
+    return <p className="text-surface-400 text-sm py-4">Loading…</p>;
+
+  const PaginationBar = () =>
+    totalPages > 1 ? (
+      <div className="flex items-center justify-between px-4 py-2 border-t border-surface-700">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={safePage === 1}
+          className="flex items-center gap-1 px-2 py-1 rounded text-surface-400 hover:text-white hover:bg-surface-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs"
+        >
+          <ChevronLeft size={14} /> Prev
+        </button>
+        <span className="text-surface-500 text-xs">
+          Page {safePage} of {totalPages} · {movements.length} movements
+        </span>
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={safePage === totalPages}
+          className="flex items-center gap-1 px-2 py-1 rounded text-surface-400 hover:text-white hover:bg-surface-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs"
+        >
+          Next <ChevronRight size={14} />
+        </button>
+      </div>
+    ) : null;
 
   return (
     <div className="space-y-4">
@@ -1262,7 +1299,7 @@ const StatementTab = ({ productId, dateRange }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-700">
-            {/* Opening balance row */}
+            {/* Opening balance row — always pinned */}
             <tr className="bg-surface-900/40">
               <td className="px-4 py-3 text-surface-400 text-xs whitespace-nowrap">
                 {dateRange.from}
@@ -1287,7 +1324,7 @@ const StatementTab = ({ productId, dateRange }) => {
                 </td>
               </tr>
             ) : (
-              movements.map((row) => {
+              paginated.map((row) => {
                 const isIn = row.quantity > 0;
                 return (
                   <tr
@@ -1347,21 +1384,17 @@ const StatementTab = ({ productId, dateRange }) => {
               })
             )}
 
-            {/* Closing balance row */}
+            {/* Closing balance row — always pinned, totals from full period */}
             <tr className="bg-surface-900/60 font-semibold">
               <td className="px-4 py-3 text-surface-400 text-xs">
                 {dateRange.to}
               </td>
               <td className="px-4 py-3 text-surface-300">Closing Balance</td>
               <td className="px-4 py-3 text-right font-mono text-green-400 text-xs">
-                {movements
-                  .filter((m) => m.quantity > 0)
-                  .reduce((s, m) => s + m.quantity, 0) || ""}
+                {totalQtyIn || ""}
               </td>
               <td className="px-4 py-3 text-right font-mono text-red-400 text-xs">
-                {movements
-                  .filter((m) => m.quantity < 0)
-                  .reduce((s, m) => s + Math.abs(m.quantity), 0) || ""}
+                {totalQtyOut || ""}
               </td>
               <td className="px-4 py-3 text-right font-mono text-primary-400">
                 {closingBalance}
@@ -1369,6 +1402,7 @@ const StatementTab = ({ productId, dateRange }) => {
             </tr>
           </tbody>
         </table>
+        <PaginationBar />
       </div>
 
       {/* Mobile cards */}
@@ -1391,7 +1425,7 @@ const StatementTab = ({ productId, dateRange }) => {
             </p>
           </MobileCard>
         ) : (
-          movements.map((row) => {
+          paginated.map((row) => {
             const isIn = row.quantity > 0;
             return (
               <MobileCard key={row.id}>
@@ -1469,6 +1503,28 @@ const StatementTab = ({ productId, dateRange }) => {
             </span>
           </div>
         </MobileCard>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-1 py-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-700 text-surface-300 hover:bg-surface-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs"
+            >
+              <ChevronLeft size={14} /> Prev
+            </button>
+            <span className="text-surface-500 text-xs">
+              {safePage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-700 text-surface-300 hover:bg-surface-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs"
+            >
+              Next <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
       </MobileCardList>
 
       {receiptBillId && (
