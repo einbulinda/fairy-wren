@@ -160,17 +160,20 @@ const JournalEntryPage = () => {
   return (
     <div className="space-y-6">
       {/* Header actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <select className={`${inputCls} text-sm`} value={filterSource} onChange={(e) => { setFilterSource(e.target.value); setPage(1); }}>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
+          <select className={`${inputCls} text-sm w-full sm:w-auto`} value={filterSource} onChange={(e) => { setFilterSource(e.target.value); setPage(1); }}>
             <option value="">All Sources</option>
             {Object.entries(SOURCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          <input type="date" className={`${inputCls} text-sm`} value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} placeholder="From" />
-          <input type="date" className={`${inputCls} text-sm`} value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} placeholder="To" />
+          <div className="flex items-center gap-2">
+            <input type="date" className={`${inputCls} text-sm flex-1 sm:flex-none`} value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
+            <span className="text-surface-500 shrink-0">→</span>
+            <input type="date" className={`${inputCls} text-sm flex-1 sm:flex-none`} value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+          </div>
         </div>
         <button onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
           <Plus size={15} /> New Journal Entry
         </button>
       </div>
@@ -300,7 +303,7 @@ const JournalEntryPage = () => {
           </div>
         ) : (
           <>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-surface-700">
@@ -401,6 +404,75 @@ const JournalEntryPage = () => {
               </tbody>
             </table>
           </div>
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-surface-700/50">
+            {pageItems.map((j) => {
+              const isExpanded = expandedId === j.id;
+              const totalDr = j.journal_lines?.reduce((s, l) => s + Number(l.debit ?? 0), 0) ?? 0;
+              const isVoided = !!j.reversed_entry_id;
+              const primaryAccount = j.journal_lines?.[0]?.chart_of_accounts?.name || "—";
+              return (
+                <div key={j.id}>
+                  <div
+                    className="p-3 space-y-2 cursor-pointer hover:bg-surface-700/20 transition-colors"
+                    onClick={() => setExpandedId(isExpanded ? null : j.id)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-surface-300 text-xs">
+                        {new Date(j.entry_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${j.source_type === "manual" ? "bg-primary-500/15 text-primary-300" : "bg-surface-700 text-surface-300"}`}>
+                          {SOURCE_LABELS[j.source_type] || j.source_type}
+                        </span>
+                        {isVoided && <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-red-500/15 text-red-400">Voided</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-white text-sm font-medium truncate">{primaryAccount}</p>
+                        {(j.journal_lines?.length ?? 0) > 1 && (
+                          <p className="text-xs text-surface-500">+{j.journal_lines.length - 1} more lines</p>
+                        )}
+                        {j.reference && <p className="font-mono text-xs text-surface-400">{j.reference}</p>}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-white font-medium tabular-nums">{fmt(totalDr)}</p>
+                        <div className="flex items-center justify-end gap-1 mt-0.5">
+                          {isExpanded ? <ChevronDown size={12} className="text-surface-500" /> : <ChevronRight size={12} className="text-surface-500" />}
+                          <span className="text-[10px] text-surface-500">{isExpanded ? "hide" : "lines"}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {j.source_type === "manual" && !isVoided && (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleVoid(j.id); }}
+                          className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs rounded-lg flex items-center gap-1 transition-colors"
+                        >
+                          <XCircle size={12} /> Void
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {isExpanded && j.journal_lines && (
+                    <div className="px-4 pb-3 bg-surface-900/30 space-y-1.5">
+                      {j.journal_lines.map((l) => (
+                        <div key={l.id} className="flex items-center justify-between text-xs">
+                          <span className="text-surface-300 min-w-0 truncate">{l.chart_of_accounts?.name || l.account_id}</span>
+                          <div className="flex gap-3 shrink-0 ml-2">
+                            {Number(l.debit) > 0 && <span className="text-emerald-400 tabular-nums">Dr {fmt(l.debit)}</span>}
+                            {Number(l.credit) > 0 && <span className="text-red-400 tabular-nums">Cr {fmt(l.credit)}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
               <span className="text-sm text-surface-400">

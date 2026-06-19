@@ -316,7 +316,7 @@ const ChequeWritingPage = () => {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Write Cheques</h1>
           <p className="text-sm text-surface-400 mt-0.5">Issue payments and record bank transactions</p>
@@ -324,7 +324,7 @@ const ChequeWritingPage = () => {
         <button
           onClick={handleNewCheque}
           disabled={leafBankAccounts.length === 0}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
         >
           <Plus size={15} />
           Write Cheque
@@ -786,19 +786,22 @@ const ChequeWritingPage = () => {
 
       {/* Payment register */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-surface-700 flex flex-wrap items-center gap-3">
-          <h2 className="font-semibold text-white mr-auto">Payment Register</h2>
-          <select className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+        <div className="p-4 border-b border-surface-700 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+          <h2 className="font-semibold text-white sm:mr-auto">Payment Register</h2>
+          <select className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none w-full sm:w-auto"
             value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
             <option value="">All Statuses</option>
             <option value="issued">Issued</option>
             <option value="cleared">Cleared</option>
             <option value="voided">Voided</option>
           </select>
-          <input type="date" className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
-          <input type="date" className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+          <div className="flex items-center gap-2">
+            <input type="date" className="flex-1 sm:flex-none px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+              value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
+            <span className="text-surface-500 shrink-0">→</span>
+            <input type="date" className="flex-1 sm:flex-none px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+              value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+          </div>
         </div>
 
         {isLoading ? (

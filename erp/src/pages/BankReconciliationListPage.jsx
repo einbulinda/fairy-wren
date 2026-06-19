@@ -314,32 +314,37 @@ const BankReconciliationListPage = () => {
 
       {/* Statements table */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-surface-700 flex flex-wrap items-center gap-3">
-          <h2 className="font-semibold text-white mr-auto flex items-center gap-2">
+        <div className="p-4 border-b border-surface-700 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+          <h2 className="font-semibold text-white sm:mr-auto flex items-center gap-2">
             <Landmark size={18} className="text-primary-400" />
             Bank Statements
           </h2>
-          <select className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterAccount} onChange={(e) => { setFilterAccount(e.target.value); setPage(1); }}>
-            <option value="">All Accounts</option>
-            {bankAccounts.map((a) => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
-          <select className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
-            <option value="">All Statuses</option>
-            <option value="draft">Draft</option>
-            <option value="reconciled">Reconciled</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-          <input type="date" className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
-          <input type="date" className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-            value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+          <div className="flex gap-2">
+            <select className="flex-1 sm:flex-none px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+              value={filterAccount} onChange={(e) => { setFilterAccount(e.target.value); setPage(1); }}>
+              <option value="">All Accounts</option>
+              {bankAccounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            <select className="flex-1 sm:flex-none px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+              value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="reconciled">Reconciled</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="date" className="flex-1 sm:flex-none px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+              value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
+            <span className="text-surface-500 shrink-0">→</span>
+            <input type="date" className="flex-1 sm:flex-none px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
+              value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+          </div>
           {!showImport && (
             <button onClick={() => setShowImport(true)}
-              className="flex items-center gap-2 px-4 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+              className="flex items-center justify-center gap-2 px-4 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
               <Plus size={15} /> Import
             </button>
           )}

@@ -7,11 +7,11 @@ import ChequeWritingPage from "./ChequeWritingPage";
 import BankReconciliationListPage from "./BankReconciliationListPage";
 
 const TABS = [
-  { key: "chart-of-accounts", label: "Chart of Accounts", icon: Landmark, component: ChartOfAccountsPage },
-  { key: "general-ledger", label: "General Ledger", icon: BookOpen, component: LedgerPage },
-  { key: "journal-entries", label: "Journal Entries", icon: PenLine, component: JournalEntryPage },
-  { key: "cheques", label: "Cheques", icon: FileCheck, component: ChequeWritingPage },
-  { key: "bank-reconciliation", label: "Bank Reconciliation", icon: ArrowLeftRight, component: BankReconciliationListPage },
+  { key: "chart-of-accounts", label: "Chart of Accounts", short: "COA", icon: Landmark, component: ChartOfAccountsPage },
+  { key: "general-ledger", label: "General Ledger", short: "Ledger", icon: BookOpen, component: LedgerPage },
+  { key: "journal-entries", label: "Journal Entries", short: "Journals", icon: PenLine, component: JournalEntryPage },
+  { key: "cheques", label: "Cheques", short: "Cheques", icon: FileCheck, component: ChequeWritingPage },
+  { key: "bank-reconciliation", label: "Bank Reconciliation", short: "Recon", icon: ArrowLeftRight, component: BankReconciliationListPage },
 ];
 
 const AccountingHubPage = ({ defaultTab }) => {
@@ -21,20 +21,21 @@ const AccountingHubPage = ({ defaultTab }) => {
   return (
     <div className="space-y-4">
       {/* Tab bar */}
-      <div className="border-b border-surface-700">
-        <nav className="flex gap-1 overflow-x-auto">
-          {TABS.map(({ key, label, icon: Icon }) => (
+      <div className="border-b border-surface-700 overflow-x-auto scrollbar-hide">
+        <nav className="flex gap-1 min-w-max">
+          {TABS.map(({ key, label, short, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              className={`flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === key
                   ? "border-primary-500 text-primary-400"
                   : "border-transparent text-surface-400 hover:text-white"
               }`}
             >
               <Icon size={15} />
-              {label}
+              <span className="sm:hidden">{short}</span>
+              <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
         </nav>
