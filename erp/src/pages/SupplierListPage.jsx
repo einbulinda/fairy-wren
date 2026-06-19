@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Plus,
@@ -7,6 +7,7 @@ import {
   ToggleLeft,
   ToggleRight,
   Building2,
+  ChevronLeft,
   ChevronRight,
   X,
   Truck,
@@ -22,6 +23,8 @@ import toast from "react-hot-toast";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import PaginatedTable from "@/components/shared/PaginatedTable";
 import { inputCls } from "@/utils/constants";
+
+const MOBILE_PAGE_SIZE = 5;
 
 const EMPTY_FORM = {
   name: "",
@@ -64,6 +67,15 @@ const SupplierListPage = () => {
     }
     return list;
   }, [suppliers, search, showInactive]);
+
+  const [mobilePage, setMobilePage] = useState(1);
+  useEffect(() => { setMobilePage(1); }, [filtered]);
+  const mobileTotalPages = Math.max(1, Math.ceil(filtered.length / MOBILE_PAGE_SIZE));
+  const mobileSafePage = Math.min(mobilePage, mobileTotalPages);
+  const paginatedSuppliers = filtered.slice(
+    (mobileSafePage - 1) * MOBILE_PAGE_SIZE,
+    mobileSafePage * MOBILE_PAGE_SIZE,
+  );
 
   const openCreate = () => {
     setEditTarget(null);
@@ -306,7 +318,7 @@ const SupplierListPage = () => {
 
                 {/* Mobile cards */}
                 <MobileCardList>
-                  {filtered.map((supplier) => (
+                  {paginatedSuppliers.map((supplier) => (
                     <MobileCard key={supplier.id}>
                       <div className="flex items-center justify-between">
                         <button onClick={() => navigate(`/purchasing/${supplier.id}`)} className="flex items-center gap-2 text-white hover:text-primary-400 transition-colors font-medium text-sm">
@@ -331,6 +343,27 @@ const SupplierListPage = () => {
                     </MobileCard>
                   ))}
                 </MobileCardList>
+                {mobileTotalPages > 1 && (
+                  <div className="md:hidden flex items-center justify-center gap-3 px-4 py-3 border-t border-surface-700">
+                    <button
+                      onClick={() => setMobilePage((p) => Math.max(1, p - 1))}
+                      disabled={mobileSafePage === 1}
+                      className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span className="text-xs text-surface-400">
+                      {mobileSafePage} / {mobileTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setMobilePage((p) => Math.min(mobileTotalPages, p + 1))}
+                      disabled={mobileSafePage === mobileTotalPages}
+                      className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

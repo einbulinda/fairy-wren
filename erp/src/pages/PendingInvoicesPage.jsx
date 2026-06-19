@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Clock,
@@ -7,6 +7,8 @@ import {
   CreditCard,
   X,
   Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { usePendingInvoices } from "@/hooks/useSuppliers";
@@ -17,6 +19,8 @@ import PaginatedTable from "@/components/shared/PaginatedTable";
 import toast from "react-hot-toast";
 import { fmt, fmtDate } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
+
+const MOBILE_PAGE_SIZE = 5;
 
 const daysOutstanding = (purchaseDate) => {
   if (!purchaseDate) return 0;
@@ -74,6 +78,15 @@ const PendingInvoicesPage = () => {
         String(Number(inv.total_amount ?? 0).toFixed(2)).includes(term),
     );
   }, [invoices, search]);
+
+  const [mobilePage, setMobilePage] = useState(1);
+  useEffect(() => { setMobilePage(1); }, [filteredInvoices]);
+  const mobileTotalPages = Math.max(1, Math.ceil(filteredInvoices.length / MOBILE_PAGE_SIZE));
+  const mobileSafePage = Math.min(mobilePage, mobileTotalPages);
+  const paginatedInvoices = filteredInvoices.slice(
+    (mobileSafePage - 1) * MOBILE_PAGE_SIZE,
+    mobileSafePage * MOBILE_PAGE_SIZE,
+  );
 
   // Aging summary
   const aging = useMemo(() => {
@@ -371,7 +384,7 @@ const PendingInvoicesPage = () => {
 
             {/* Mobile cards */}
             <MobileCardList>
-              {filteredInvoices.map((inv) => {
+              {paginatedInvoices.map((inv) => {
                 const days = daysOutstanding(inv.purchase_date);
                 const bucket = agingBucket(days);
                 return (
@@ -413,6 +426,27 @@ const PendingInvoicesPage = () => {
                 );
               })}
             </MobileCardList>
+            {mobileTotalPages > 1 && (
+              <div className="md:hidden flex items-center justify-center gap-3 px-4 py-3 border-t border-surface-700">
+                <button
+                  onClick={() => setMobilePage((p) => Math.max(1, p - 1))}
+                  disabled={mobileSafePage === 1}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-xs text-surface-400">
+                  {mobileSafePage} / {mobileTotalPages}
+                </span>
+                <button
+                  onClick={() => setMobilePage((p) => Math.min(mobileTotalPages, p + 1))}
+                  disabled={mobileSafePage === mobileTotalPages}
+                  className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
