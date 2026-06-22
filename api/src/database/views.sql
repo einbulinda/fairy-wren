@@ -57,7 +57,12 @@ GROUP BY c.id,
     c.name;
 CREATE OR REPLACE VIEW public.v_bill_item_totals AS
 SELECT b.id AS bill_id,
-    sum((ri.price * (ri.quantity)::numeric)) AS computed_subtotal
+    sum(
+        CASE WHEN COALESCE(ri.is_return, false) = true
+             THEN -(ri.price * ri.quantity::numeric)
+             ELSE  ri.price * ri.quantity::numeric
+        END
+    ) AS computed_subtotal
 FROM (
         (
             bills b
@@ -65,7 +70,6 @@ FROM (
         )
         JOIN round_items ri ON ((ri.round_id = r.id))
     )
-WHERE COALESCE(ri.is_return, false) = false
 GROUP BY b.id;
 CREATE OR REPLACE VIEW public.v_daily_revenue AS
 SELECT date(created_at) AS business_date,
@@ -172,11 +176,15 @@ SELECT b.id AS bill_id,
 FROM bills b
 LEFT JOIN profiles u ON u.id = b.created_by
 LEFT JOIN LATERAL (
-    SELECT sum(ri.quantity::numeric * ri.price) AS subtotal
+    SELECT sum(
+        CASE WHEN COALESCE(ri.is_return, false) = true
+             THEN -(ri.quantity::numeric * ri.price)
+             ELSE  ri.quantity::numeric * ri.price
+        END
+    ) AS subtotal
     FROM rounds r
     JOIN round_items ri ON ri.round_id = r.id
     WHERE r.bill_id = b.id
-      AND COALESCE(ri.is_return, false) = false
 ) item_totals ON true
 LEFT JOIN LATERAL (
     SELECT

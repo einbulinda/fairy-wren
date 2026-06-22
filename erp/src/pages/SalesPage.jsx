@@ -102,7 +102,8 @@ const computeBillTotal = (bill) =>
     (sum, round) =>
       sum +
       (round.round_items?.reduce(
-        (rSum, item) => rSum + item.quantity * item.price,
+        (rSum, item) =>
+          rSum + (item.is_return ? -1 : 1) * item.quantity * item.price,
         0,
       ) || 0),
     0,

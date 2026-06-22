@@ -1,21 +1,24 @@
--- Migration: Treat return lines as negative credits in bill subtotal calculations
+-- Migration: Correct bill_totals to treat return lines as negative credits
 -- Date: 2026-06-22
--- Description: When an item exchange occurs, two lines are inserted into round_items:
---   a return line (is_return = true) and a replacement line (is_return = false).
+-- Description: Migration 001 excluded is_return lines from the subtotal.
+--   That approach is still wrong: the original non-return round_item for the
+--   returned product remains in the bill at its original quantity, so simply
+--   excluding the return line leaves the original charge uncredited.
 --
---   Correct behaviour: the return line is a CREDIT to the customer — its value must be
---   SUBTRACTED from the bill total, not added or excluded.
+--   Correct model (matches POS calculations.js itemLineTotal):
+--     return line value = -(price * quantity)   [credit to customer]
+--     normal line value = +(price * quantity)   [charge to customer]
 --
---   The POS client already does this correctly in calculations.js:
---     itemLineTotal = (item) => item.is_return ? -value : value
+--   Example — 2 Beers @ 100, exchange 1 Beer for 1 Whisky @ 150:
+--     Round 1: Beer qty=2 → +200
+--     Round 2: Return Beer qty=1 (is_return=true) → -100  [credit]
+--              Replacement Whisky qty=1 (is_return=false) → +150
+--     CORRECT TOTAL = 250
 --
---   Both views previously summed ALL round_items with positive signs, inflating the total.
---   Fix: negate the value for return lines using a CASE expression.
---
---   Backfill: after the view is corrected, any 'open' bill whose balance_due is
---   now <= 0 was only stuck due to this bug and is marked 'completed'.
+--   With 001 (exclude approach): 200 + 150 = 350  ← still wrong
+--   With this fix (credit approach): 200 - 100 + 150 = 250  ← correct
 
--- ── 1. Fix v_bill_item_totals (used by v_bill_totals → v_bill_financials) ─────
+-- ── 1. Fix v_bill_item_totals ─────────────────────────────────────────────────
 CREATE OR REPLACE VIEW public.v_bill_item_totals AS
 SELECT b.id AS bill_id,
     sum(
@@ -33,7 +36,7 @@ FROM (
     )
 GROUP BY b.id;
 
--- ── 2. Fix bill_totals (used directly by process_payment()) ──────────────────
+-- ── 2. Fix bill_totals ────────────────────────────────────────────────────────
 CREATE OR REPLACE VIEW public.bill_totals AS
 SELECT b.id AS bill_id,
     b.customer_name AS customer,
@@ -74,9 +77,7 @@ LEFT JOIN LATERAL (
     WHERE p.bill_id = b.id
 ) pay_totals ON true;
 
--- ── 3. Backfill: close bills that were stuck open due to the inflated total ───
--- Only targets 'open' bills where balance_due is now <= 0 with the corrected view.
--- Excludes void bills. Safe to re-run (WHERE status = 'open' is idempotent).
+-- ── 3. Backfill: close any 'open' bills whose balance_due is now <= 0 ─────────
 UPDATE public.bills
 SET status = 'completed'
 WHERE status = 'open'
