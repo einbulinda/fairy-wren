@@ -65,6 +65,7 @@ FROM (
         )
         JOIN round_items ri ON ((ri.round_id = r.id))
     )
+WHERE COALESCE(ri.is_return, false) = false
 GROUP BY b.id;
 CREATE OR REPLACE VIEW public.v_daily_revenue AS
 SELECT date(created_at) AS business_date,
@@ -175,6 +176,7 @@ LEFT JOIN LATERAL (
     FROM rounds r
     JOIN round_items ri ON ri.round_id = r.id
     WHERE r.bill_id = b.id
+      AND COALESCE(ri.is_return, false) = false
 ) item_totals ON true
 LEFT JOIN LATERAL (
     SELECT
