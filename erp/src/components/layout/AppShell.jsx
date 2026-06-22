@@ -110,6 +110,7 @@ const routeTitles = {
   "/web": "Web Management",
   "/users": "User Management",
   "/profile": "My Profile",
+  "/help": "Help Desk",
 };
 
 const bottomNavItems = [

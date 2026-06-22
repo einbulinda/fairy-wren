@@ -24,6 +24,7 @@ import SalesPage from "@/pages/SalesPage";
 import ProfilePage from "@/pages/ProfilePage";
 import PurchasingPage from "@/pages/PurchasingPage";
 import WebHubPage from "@/pages/WebHubPage";
+import HelpDeskPage from "@/pages/HelpDeskPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,6 +69,7 @@ const AuthenticatedRoutes = () => {
         <Route path="users" element={<UsersPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="help" element={<HelpDeskPage />} />
       </Route>
     </Routes>
   );

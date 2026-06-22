@@ -15,6 +15,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Globe,
+  LifeBuoy,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -56,6 +57,7 @@ const navSections = [
     items: [
       { to: "/users", icon: Users, label: "User Management" },
       { to: "/settings", icon: Settings, label: "Settings" },
+      { to: "/help", icon: LifeBuoy, label: "Help Desk" },
     ],
   },
 ];
