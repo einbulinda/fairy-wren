@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import {
   Users,
   Play,
@@ -599,7 +600,8 @@ const RunsTab = ({ employees }) => {
 // Main Page
 // ---------------------------------------------------------------------------
 const PayrollPage = () => {
-  const [activeTab, setActiveTab] = useState("employees");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "employees";
   const { data: employees = [] } = usePayrollEmployees();
 
   return (
@@ -614,14 +616,14 @@ const PayrollPage = () => {
 
       {/* Tabs */}
       <div className="bg-surface-800 rounded-xl border border-surface-700 overflow-hidden">
-        <div className="flex border-b border-surface-700">
+        <div className="hidden md:flex border-b border-surface-700">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setSearchParams({ tab: tab.id })}
                 className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors ${
                   isActive
                     ? "text-primary-400 border-b-2 border-primary-400 -mb-px bg-surface-700/30"

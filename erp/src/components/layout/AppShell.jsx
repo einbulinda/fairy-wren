@@ -32,6 +32,8 @@ import {
   Building2,
   Users,
   Shield,
+  Calendar,
+  Briefcase,
 } from "lucide-react";
 
 const inventoryNavTabs = [
@@ -68,6 +70,12 @@ const accountingNavTabs = [
   { key: "journal-entries",     short: "Journals",icon: PenLine },
   { key: "cheques",             short: "Cheques", icon: FileCheck },
   { key: "bank-reconciliation", short: "Recon",   icon: ArrowLeftRight },
+  { key: "periods",             short: "Periods", icon: Calendar },
+];
+
+const payrollNavTabs = [
+  { key: "employees", short: "Employees", icon: Users },
+  { key: "runs",      short: "Runs",      icon: Briefcase },
 ];
 
 const usersNavTabs = [
@@ -109,6 +117,7 @@ const routeTitles = {
   "/reports": "Financial Reports",
   "/web": "Web Management",
   "/users": "User Management",
+  "/payroll": "Payroll",
   "/profile": "My Profile",
   "/help": "Help Desk",
 };
@@ -159,6 +168,9 @@ const AppShell = () => {
 
   const isSettingsPage    = pathname === "/settings";
   const activeSettingsTab = params.get("tab") || "organisation";
+
+  const isPayrollPage    = pathname === "/payroll";
+  const activePayrollTab = params.get("tab") || "employees";
 
   const title =
     routeTitles[pathname] ||
@@ -364,6 +376,38 @@ const AppShell = () => {
                   onClick={() => navigate(`/settings?tab=${key}`)}
                   className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors active:scale-95 ${
                     activeSettingsTab === key
+                      ? "text-primary-400"
+                      : "text-surface-400 active:text-surface-200"
+                  }`}
+                >
+                  <Icon size={19} strokeWidth={1.8} />
+                  <span className="text-[9px] font-medium">{short}</span>
+                </button>
+              ))}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-surface-400 active:text-surface-200 transition-colors"
+              >
+                <MoreHorizontal size={19} strokeWidth={1.8} />
+                <span className="text-[9px] font-medium">More</span>
+              </button>
+            </div>
+          ) : isPayrollPage ? (
+            /* Contextual nav for Payroll */
+            <div className="flex items-center h-14">
+              <button
+                onClick={() => navigate("/")}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-surface-400 active:text-surface-200 transition-colors"
+              >
+                <Home size={19} strokeWidth={1.8} />
+                <span className="text-[9px] font-medium">Home</span>
+              </button>
+              {payrollNavTabs.map(({ key, short, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => navigate(`/payroll?tab=${key}`)}
+                  className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors active:scale-95 ${
+                    activePayrollTab === key
                       ? "text-primary-400"
                       : "text-surface-400 active:text-surface-200"
                   }`}

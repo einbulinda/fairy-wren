@@ -75,6 +75,7 @@ const getDatePreset = (key) => {
 const STATUS_TABS = [
   { key: "all", label: "All", short: "All" },
   { key: "open", label: "Open", short: "Open" },
+  { key: "awaiting_confirmation", label: "Pending Approval", short: "Pending" },
   { key: "completed", label: "Closed", short: "Closed" },
   { key: "void", label: "Void", short: "Void" },
   { key: "products", label: "Product Sales", short: "Products" },

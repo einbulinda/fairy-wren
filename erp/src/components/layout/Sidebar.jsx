@@ -16,6 +16,7 @@ import {
   PanelLeftOpen,
   Globe,
   LifeBuoy,
+  Briefcase,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -40,9 +41,8 @@ const navSections = [
     label: "Finance",
     items: [
       { to: "/accounting", icon: Landmark, label: "Accounting" },
-      { to: "/cheques", icon: Receipt, label: "Write Cheques" },
       { to: "/expenses", icon: DollarSign, label: "Expenses" },
-      { to: "/payroll", icon: Users, label: "Payroll" },
+      { to: "/payroll", icon: Briefcase, label: "Payroll" },
       { to: "/reports", icon: LineChart, label: "Financial Reports" },
     ],
   },
