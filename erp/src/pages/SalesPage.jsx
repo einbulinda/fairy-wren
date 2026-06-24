@@ -13,8 +13,12 @@ import {
   Package,
   Printer,
   X,
+  CheckCircle2,
 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBills } from "@/hooks/useBills";
+import { useAuth } from "@/hooks/useAuth";
+import api from "@/api";
 import * as XLSX from "xlsx";
 import { MobileCard, MobileCardList } from "@/components/shared/MobileCard";
 import PaginatedTable from "@/components/shared/PaginatedTable";
@@ -131,6 +135,19 @@ const SalesPage = () => {
   const [search, setSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [expandedBill, setExpandedBill] = useState(null);
+
+  const { user } = useAuth();
+  const canApprove = user?.permissions?.includes("approve_payments");
+  const queryClient = useQueryClient();
+
+  const approveMutation = useMutation({
+    mutationFn: (billId) =>
+      api.patch(`/bills/${billId}/status`, { status: "completed" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+    },
+    onError: () => {},
+  });
 
   const params = useMemo(() => {
     const p = { startDate, endDate };
@@ -563,6 +580,22 @@ const SalesPage = () => {
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+            {canApprove && bill.status === "awaiting_confirmation" && (
+              <div className="border-t border-surface-700/40 pt-2 flex justify-end">
+                <button
+                  onClick={(e) => { e.stopPropagation(); approveMutation.mutate(bill.id); }}
+                  disabled={approveMutation.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 text-xs font-medium rounded-lg transition-colors"
+                >
+                  {approveMutation.isPending ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={13} />
+                  )}
+                  Approve Payment
+                </button>
               </div>
             )}
           </div>
@@ -1097,6 +1130,22 @@ const SalesPage = () => {
                                     </span>
                                   ))}
                                 </div>
+                              </div>
+                            )}
+                            {canApprove && bill.status === "awaiting_confirmation" && (
+                              <div className="pt-1 border-t border-surface-700/30">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); approveMutation.mutate(bill.id); }}
+                                  disabled={approveMutation.isPending}
+                                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 text-xs font-medium rounded-lg transition-colors"
+                                >
+                                  {approveMutation.isPending ? (
+                                    <Loader2 size={13} className="animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 size={13} />
+                                  )}
+                                  Approve Payment
+                                </button>
                               </div>
                             )}
                           </div>

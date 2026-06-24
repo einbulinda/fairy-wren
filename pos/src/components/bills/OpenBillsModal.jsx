@@ -110,6 +110,12 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
                     <h4 className="text-base sm:text-lg font-bold text-white truncate">
                       {bill.customer_name}
                     </h4>
+                    {bill.customer_account && (
+                      <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full text-xs font-medium">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        {bill.customer_account.name}
+                      </span>
+                    )}
                     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                       <p className="text-xs sm:text-sm text-gray-400">
                         Bill #{bill?.id.slice(0, 8)}

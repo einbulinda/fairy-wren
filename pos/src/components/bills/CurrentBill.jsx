@@ -103,6 +103,11 @@ const CurrentBill = ({
               <p className="text-lg font-bold text-white">
                 {bill.customer_name}
               </p>
+              {bill.customer_account && (
+                <p className="text-xs text-purple-400 mt-0.5">
+                  Account: {bill.customer_account.name}
+                </p>
+              )}
             </div>
 
             {/* ⚠️ STOCK WARNINGS BANNER */}

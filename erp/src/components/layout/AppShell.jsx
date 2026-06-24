@@ -120,6 +120,8 @@ const routeTitles = {
   "/payroll": "Payroll",
   "/profile": "My Profile",
   "/help": "Help Desk",
+  "/audit": "Audit Trail",
+  "/crm": "CRM",
 };
 
 const bottomNavItems = [

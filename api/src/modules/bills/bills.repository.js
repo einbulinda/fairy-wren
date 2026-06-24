@@ -46,9 +46,10 @@ exports.createBill = async (payload) => {
           '[]'::json
         ) AS rounds
       FROM bills b
+      LEFT JOIN customers c ON c.id = b.customer_id
       LEFT JOIN rounds r ON r.bill_id = b.id
       WHERE b.id = $1
-      GROUP BY b.id
+      GROUP BY b.id, c.id
     `;
     const { rows } = await client.query(selectSql, [billId]);
     const bill = rows[0] || null;
@@ -67,6 +68,7 @@ exports.findBillById = async (id) => {
     const sql = `
       SELECT
         b.*,
+        CASE WHEN c.id IS NOT NULL THEN json_build_object('id', c.id, 'name', c.name) ELSE NULL END AS customer_account,
         COALESCE(
           json_agg(
             json_build_object(
@@ -99,9 +101,10 @@ exports.findBillById = async (id) => {
           '[]'::json
         ) AS rounds
       FROM bills b
+      LEFT JOIN customers c ON c.id = b.customer_id
       LEFT JOIN rounds r ON r.bill_id = b.id
       WHERE b.id = $1
-      GROUP BY b.id
+      GROUP BY b.id, c.id
     `;
     const { rows } = await pool.query(sql, [id]);
     return { data: rows[0] || null, error: null };
@@ -155,7 +158,8 @@ exports.listBills = async (filters = {}) => {
 
     const sql = `
       SELECT
-        b.id, b.customer_name, b.status, b.created_at, b.updated_at,
+        b.id, b.customer_name, b.customer_id, b.status, b.created_at, b.updated_at,
+        CASE WHEN c.id IS NOT NULL THEN json_build_object('id', c.id, 'name', c.name) ELSE NULL END AS customer_account,
         json_build_object('id', cu.id, 'name', cu.name) AS created_by_user,
         json_build_object('id', uu.id, 'name', uu.name) AS updated_by_user,
         (
@@ -194,6 +198,7 @@ exports.listBills = async (filters = {}) => {
       FROM bills b
       LEFT JOIN profiles cu ON cu.id = b.created_by
       LEFT JOIN profiles uu ON uu.id = b.updated_by
+      LEFT JOIN customers c ON c.id = b.customer_id
       ${whereClause}
       ORDER BY b.created_at DESC
       LIMIT $${limitParam} OFFSET $${offsetParam}

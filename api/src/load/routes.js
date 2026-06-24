@@ -29,6 +29,8 @@ const galleryRoutes = require("../modules/gallery/gallery.routes");
 const reservationsRoutes = require("../modules/reservations/reservations.routes");
 const notificationsRoutes = require("../modules/notifications/notifications.routes");
 const publicRoutes = require("../modules/public/public.routes");
+const auditRoutes = require("../modules/audit/audit.routes");
+const customersRoutes = require("../modules/customers/customers.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
@@ -60,5 +62,7 @@ router.use("/feedback", authMiddleware, feedbackRoutes);
 router.use("/gallery", authMiddleware, galleryRoutes);
 router.use("/reservations", authMiddleware, reservationsRoutes);
 router.use("/notifications", authMiddleware, notificationsRoutes);
+router.use("/audit", authMiddleware, auditRoutes);
+router.use("/customers", authMiddleware, customersRoutes);
 
 module.exports = router;

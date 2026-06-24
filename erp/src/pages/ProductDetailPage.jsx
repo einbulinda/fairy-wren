@@ -24,6 +24,7 @@ import {
   User,
   ArrowUpCircle,
   ArrowDownCircle,
+  Loader2,
 } from "lucide-react";
 import {
   useProductInsights,
@@ -41,6 +42,7 @@ const TAB_OVERVIEW = "overview";
 const TAB_PURCHASES = "purchases";
 const TAB_SALES = "sales";
 const TAB_STATEMENT = "statement";
+const TAB_SUPPLIER_PRICES = "supplier-prices";
 
 const getMonthRange = (date = new Date()) => {
   const y = date.getFullYear();
@@ -1550,6 +1552,139 @@ const StatementTab = ({ productId, dateRange }) => {
   );
 };
 
+// ─── Supplier Prices Tab ──────────────────────────────────────────────────────
+
+const SupplierPricesTab = ({ productId }) => {
+  const { data: purchases = [], isLoading } = useProductPurchaseHistory(productId);
+
+  const suppliers = useMemo(() => {
+    const map = {};
+    for (const item of purchases) {
+      const name = item.inventory_receipts?.suppliers?.name || "Unknown Supplier";
+      const supplierId = item.inventory_receipts?.suppliers?.id || name;
+      const cost = parseFloat(item.unit_cost || 0);
+      const date = item.inventory_receipts?.purchase_date || "";
+      if (!map[supplierId]) {
+        map[supplierId] = { name, purchases: 0, lowestPrice: cost, highestPrice: cost, latestPrice: cost, latestDate: date };
+      }
+      const s = map[supplierId];
+      s.purchases++;
+      if (cost < s.lowestPrice) s.lowestPrice = cost;
+      if (cost > s.highestPrice) s.highestPrice = cost;
+      if (date > s.latestDate) { s.latestDate = date; s.latestPrice = cost; }
+    }
+    return Object.values(map).sort((a, b) => a.lowestPrice - b.lowestPrice);
+  }, [purchases]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 size={24} className="animate-spin text-surface-400" />
+      </div>
+    );
+  }
+
+  if (suppliers.length === 0) {
+    return (
+      <div className="py-16 text-center text-surface-500">
+        <Truck size={36} className="mx-auto mb-3 text-surface-700" />
+        <p>No purchase history available</p>
+      </div>
+    );
+  }
+
+  const bestPrice = suppliers[0]?.lowestPrice;
+
+  return (
+    <div className="space-y-3 py-2">
+      <p className="text-xs text-surface-500">
+        Based on all purchase history. Best price highlighted in green.
+      </p>
+
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-surface-700">
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-surface-400 uppercase tracking-wider">Supplier</th>
+              <th className="text-right px-4 py-2.5 text-xs font-semibold text-surface-400 uppercase tracking-wider">Purchases</th>
+              <th className="text-right px-4 py-2.5 text-xs font-semibold text-surface-400 uppercase tracking-wider">Lowest Price</th>
+              <th className="text-right px-4 py-2.5 text-xs font-semibold text-surface-400 uppercase tracking-wider">Highest Price</th>
+              <th className="text-right px-4 py-2.5 text-xs font-semibold text-surface-400 uppercase tracking-wider">Latest Price</th>
+              <th className="text-right px-4 py-2.5 text-xs font-semibold text-surface-400 uppercase tracking-wider">Last Purchase</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-surface-700/30">
+            {suppliers.map((s) => {
+              const isBest = s.lowestPrice === bestPrice;
+              return (
+                <tr key={s.name} className={isBest ? "bg-emerald-500/5" : ""}>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {isBest && (
+                        <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold rounded uppercase tracking-wider">
+                          Best
+                        </span>
+                      )}
+                      <span className={`font-medium ${isBest ? "text-emerald-300" : "text-white"}`}>{s.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right text-surface-300 tabular-nums">{s.purchases}</td>
+                  <td className={`px-4 py-3 text-right font-semibold tabular-nums ${isBest ? "text-emerald-400" : "text-white"}`}>
+                    {fmtD(s.lowestPrice)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-surface-300 tabular-nums">{fmtD(s.highestPrice)}</td>
+                  <td className="px-4 py-3 text-right text-surface-300 tabular-nums">{fmtD(s.latestPrice)}</td>
+                  <td className="px-4 py-3 text-right text-surface-400 text-xs">{s.latestDate ? fmtDate(s.latestDate) : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile cards */}
+      <MobileCardList>
+        {suppliers.map((s) => {
+          const isBest = s.lowestPrice === bestPrice;
+          return (
+            <MobileCard key={s.name} className={isBest ? "border-emerald-500/30" : ""}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {isBest && (
+                    <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[9px] font-semibold rounded uppercase tracking-wider shrink-0">
+                      Best
+                    </span>
+                  )}
+                  <span className={`text-sm font-medium truncate ${isBest ? "text-emerald-300" : "text-white"}`}>{s.name}</span>
+                </div>
+                <span className="text-xs text-surface-500 shrink-0">{s.purchases} purchase{s.purchases !== 1 ? "s" : ""}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                <div>
+                  <p className="text-surface-500">Lowest</p>
+                  <p className={`font-semibold tabular-nums ${isBest ? "text-emerald-400" : "text-white"}`}>{fmtD(s.lowestPrice)}</p>
+                </div>
+                <div>
+                  <p className="text-surface-500">Highest</p>
+                  <p className="text-surface-300 tabular-nums">{fmtD(s.highestPrice)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-surface-500">Latest</p>
+                  <p className="text-surface-300 tabular-nums">{fmtD(s.latestPrice)}</p>
+                </div>
+              </div>
+              {s.latestDate && (
+                <p className="text-[10px] text-surface-500 mt-1">Last purchase: {fmtDate(s.latestDate)}</p>
+              )}
+            </MobileCard>
+          );
+        })}
+      </MobileCardList>
+    </div>
+  );
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const TABS = [
@@ -1557,6 +1692,7 @@ const TABS = [
   { id: TAB_PURCHASES, label: "Purchase History", icon: Truck },
   { id: TAB_SALES, label: "Sales History", icon: ShoppingCart },
   { id: TAB_STATEMENT, label: "Statement", icon: FileText },
+  { id: TAB_SUPPLIER_PRICES, label: "Supplier Prices", icon: DollarSign },
 ];
 
 const ProductDetailPage = () => {
@@ -1667,6 +1803,9 @@ const ProductDetailPage = () => {
       )}
       {activeTab === TAB_STATEMENT && (
         <StatementTab productId={id} dateRange={dateRange} />
+      )}
+      {activeTab === TAB_SUPPLIER_PRICES && (
+        <SupplierPricesTab productId={id} />
       )}
     </div>
   );

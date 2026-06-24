@@ -156,6 +156,11 @@ const CAPABILITIES = [
     label: "View Reports",
     description: "Can access financial and performance reports",
   },
+  {
+    key: "view_audit_trail",
+    label: "View Audit Trail",
+    description: "Can access the full system audit trail and activity log",
+  },
 ];
 
 const formatCurrency = (value) =>

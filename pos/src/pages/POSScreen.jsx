@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   RefreshCw,
   User,
+  Users,
 } from "lucide-react";
 import LoadingSpinner from "../components/shared/LoadingSpinner";
 import {
@@ -30,6 +31,7 @@ import CurrentBill from "../components/bills/CurrentBill";
 import ConfirmPaymentsView from "../components/pos/ConfirmPaymentsView";
 import ConfirmModal from "../components/shared/ConfirmModal";
 import ExchangeModal from "../components/bills/ExchangeModal";
+import CustomerBillsView from "../components/bills/CustomerBillsView";
 
 const POSScreen = () => {
   const { user } = useAuth();
@@ -63,6 +65,10 @@ const POSScreen = () => {
   );
   const confirmPaidBills = useMemo(
     () => bills.filter((b) => b.status === "awaiting_confirmation"),
+    [bills],
+  );
+  const customerLinkedBills = useMemo(
+    () => bills.filter((b) => b.customer_account && (b.status === "open" || b.status === "awaiting_confirmation")),
     [bills],
   );
 
@@ -620,6 +626,30 @@ const POSScreen = () => {
               </button>
             )}
 
+            <button
+              onClick={() => setActiveTab("customers")}
+              className={`
+                px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm font-medium
+                ${
+                  activeTab === "customers"
+                    ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                    : "bg-gray-800/60 text-gray-400 hover:text-white hover:bg-gray-800"
+                }
+              `}
+            >
+              <Users size={18} />
+              <span>Customer Bills</span>
+              {customerLinkedBills.length > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                    activeTab === "customers" ? "bg-white/20" : "bg-purple-500/20 text-purple-300"
+                  }`}
+                >
+                  {customerLinkedBills.length}
+                </span>
+              )}
+            </button>
+
           </div>
 
           {/* Action Buttons - Only visible in POS tab */}
@@ -913,11 +943,16 @@ const POSScreen = () => {
           </div>
         )}
 
+        {/* Customer Bills View */}
+        {activeTab === "customers" && (
+          <CustomerBillsView bills={bills} />
+        )}
+
       </div>
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-md border-t-2 border-purple-500/30 safe-area-inset-bottom z-50">
-        <div className={`grid h-16 ${canAccessConfirm ? "grid-cols-2" : "grid-cols-1"}`}>
+        <div className={`grid h-16 ${canAccessConfirm ? "grid-cols-3" : "grid-cols-2"}`}>
           <button
             onClick={() => setActiveTab("pos")}
             className={`
@@ -966,6 +1001,33 @@ const POSScreen = () => {
               <span className="text-xs font-medium">Confirm</span>
             </button>
           )}
+
+          <button
+            onClick={() => setActiveTab("customers")}
+            className={`
+              flex flex-col items-center justify-center gap-1 transition-all duration-200 relative
+              ${
+                activeTab === "customers"
+                  ? "text-white bg-linear-to-t from-purple-600/20 to-transparent"
+                  : "text-gray-400 active:bg-gray-800/50"
+              }
+            `}
+            aria-label="Customer Bills"
+          >
+            <div className="relative">
+              <Users
+                size={24}
+                className={activeTab === "customers" ? "text-purple-400" : ""}
+                aria-hidden="true"
+              />
+              {customerLinkedBills.length > 0 && activeTab !== "customers" && (
+                <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {customerLinkedBills.length}
+                </span>
+              )}
+            </div>
+            <span className="text-xs font-medium">Customers</span>
+          </button>
 
         </div>
       </nav>

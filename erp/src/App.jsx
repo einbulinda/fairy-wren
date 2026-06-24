@@ -25,6 +25,8 @@ import ProfilePage from "@/pages/ProfilePage";
 import PurchasingPage from "@/pages/PurchasingPage";
 import WebHubPage from "@/pages/WebHubPage";
 import HelpDeskPage from "@/pages/HelpDeskPage";
+import AuditTrailPage from "@/pages/AuditTrailPage";
+import CRMPage from "@/pages/CRMPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,6 +72,8 @@ const AuthenticatedRoutes = () => {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="help" element={<HelpDeskPage />} />
+        <Route path="audit" element={<AuditTrailPage />} />
+        <Route path="crm" element={<CRMPage />} />
       </Route>
     </Routes>
   );

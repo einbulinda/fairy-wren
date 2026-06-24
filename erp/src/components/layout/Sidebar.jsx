@@ -17,6 +17,8 @@ import {
   Globe,
   LifeBuoy,
   Briefcase,
+  Shield,
+  UserCircle,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -33,6 +35,7 @@ const navSections = [
     items: [
       { to: "/inventory", icon: Package, label: "Inventory" },
       { to: "/sales", icon: Receipt, label: "Sales" },
+      { to: "/crm", icon: UserCircle, label: "CRM" },
       { to: "/products", icon: Grid, label: "Products" },
       { to: "/purchasing", icon: Truck, label: "Purchasing" },
     ],
@@ -57,6 +60,7 @@ const navSections = [
     items: [
       { to: "/users", icon: Users, label: "User Management" },
       { to: "/settings", icon: Settings, label: "Settings" },
+      { to: "/audit", icon: Shield, label: "Audit Trail" },
       { to: "/help", icon: LifeBuoy, label: "Help Desk" },
     ],
   },
