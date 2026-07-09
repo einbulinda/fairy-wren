@@ -1,6 +1,26 @@
+const fs = require("fs");
+const path = require("path");
 const repo = require("./products.repository");
 const { CreateProductDTO, UpdateProductDTO } = require("./products.dto");
 const auditRepo = require("../audit/audit.repository");
+
+const UPLOAD_DIR = path.join(__dirname, "../../../uploads/products");
+
+function ensureDir() {
+  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+
+function buildPublicUrl(filename) {
+  const base = (process.env.BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+  return `${base}/uploads/products/${filename}`;
+}
+
+function deleteFile(imageUrl) {
+  if (!imageUrl?.includes("/uploads/products/")) return;
+  const filename = imageUrl.split("/uploads/products/").pop();
+  const filePath = path.join(UPLOAD_DIR, filename);
+  try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+}
 
 exports.list = async (filters) => {
   const { data, error } = await repo.findAll(filters);
@@ -96,6 +116,33 @@ exports.getSalesHistory = async (productId, dateRange) => {
 exports.getProductStatement = async (productId, dateRange) => {
   const { data, error } = await repo.findProductStatement(productId, dateRange);
   if (error) throw new Error("FAILED_TO_FETCH_PRODUCT_STATEMENT");
+  return data;
+};
+
+exports.uploadImage = async (productId, file) => {
+  const { data: existing } = await repo.findById(productId);
+  if (!existing) throw new Error("PRODUCT_NOT_FOUND");
+
+  ensureDir();
+  deleteFile(existing.image_url);
+
+  const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
+  const filename = `${productId}-${Date.now()}${ext}`;
+  fs.writeFileSync(path.join(UPLOAD_DIR, filename), file.buffer);
+
+  const { data, error } = await repo.update(productId, { image_url: buildPublicUrl(filename) });
+  if (error || !data) throw new Error("FAILED_TO_UPDATE_PRODUCT");
+  return data;
+};
+
+exports.removeImage = async (productId) => {
+  const { data: existing } = await repo.findById(productId);
+  if (!existing) throw new Error("PRODUCT_NOT_FOUND");
+
+  deleteFile(existing.image_url);
+
+  const { data, error } = await repo.update(productId, { image_url: null });
+  if (error) throw new Error("FAILED_TO_UPDATE_PRODUCT");
   return data;
 };
 

@@ -100,6 +100,21 @@ exports.getProductStatement = async (req, res, next) => {
   }
 };
 
+exports.uploadProductImage = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: "No image provided" });
+    const data = await service.uploadImage(req.params.productId, req.file);
+    respond(res, 200, data);
+  } catch (err) { next(err); }
+};
+
+exports.removeProductImage = async (req, res, next) => {
+  try {
+    const data = await service.removeImage(req.params.productId);
+    respond(res, 200, data);
+  } catch (err) { next(err); }
+};
+
 exports.getProductInsights = async (req, res, next) => {
   try {
     const { from, to } = req.query;

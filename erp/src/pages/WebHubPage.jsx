@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useLocation } from "react-router";
-import { CalendarDays, Images, MessageSquare, CalendarCheck } from "lucide-react";
+import { CalendarDays, Images, MessageSquare, CalendarCheck, UtensilsCrossed } from "lucide-react";
 import WebEventsPage from "./WebEventsPage";
 import WebGalleryPage from "./WebGalleryPage";
 import WebFeedbackPage from "./WebFeedbackPage";
 import WebReservationsPage from "./WebReservationsPage";
+import WebMenuPage from "./WebMenuPage";
 
 const TABS = [
   { key: "events", label: "Events", short: "Events", icon: CalendarDays, component: WebEventsPage },
   { key: "gallery", label: "Gallery", short: "Gallery", icon: Images, component: WebGalleryPage },
+  { key: "menu", label: "Menu", short: "Menu", icon: UtensilsCrossed, component: WebMenuPage },
   { key: "feedback", label: "Customer Feedback", short: "Feedback", icon: MessageSquare, component: WebFeedbackPage },
   { key: "reservations", label: "Reservations", short: "Reserve", icon: CalendarCheck, component: WebReservationsPage },
 ];

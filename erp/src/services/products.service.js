@@ -44,3 +44,15 @@ export const fetchProductStatement = async (id, params = {}) => {
   const { data } = await api.get(`/products/${id}/statement`, { params });
   return data.data ?? data;
 };
+
+export const uploadProductImage = async (productId, file) => {
+  const fd = new FormData();
+  fd.append("image", file);
+  const { data } = await api.post(`/products/${productId}/image`, fd);
+  return data.data ?? data;
+};
+
+export const removeProductImage = async (productId) => {
+  const { data } = await api.delete(`/products/${productId}/image`);
+  return data.data ?? data;
+};

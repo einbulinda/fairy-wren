@@ -1,3 +1,4 @@
+import MenuPage from "./pages/MenuPage";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import About from "./components/About";
@@ -11,6 +12,8 @@ import Footer from "./components/Footer";
 import WhatsAppButton from "./components/WhatsAppButton";
 
 export default function App() {
+  if (window.location.pathname === "/menu") return <MenuPage />;
+
   return (
     <div className="min-h-screen bg-night-900 font-sans">
       <Navbar />
