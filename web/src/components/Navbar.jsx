@@ -4,6 +4,7 @@ import { Menu, X } from "./icons";
 const NAV_LINKS = [
   { href: "#events", label: "Events" },
   { href: "#gallery", label: "Gallery" },
+  { href: "#menu", label: "Menu" },
   { href: "#reviews", label: "Reviews" },
   { href: "#about", label: "About" },
   { href: "#contact", label: "Contact" },
