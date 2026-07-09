@@ -1,14 +1,11 @@
 const nodemailer = require("nodemailer");
-const cfg = require("./mail.config");
-
-let _transporter;
-const transporter = () => {
-  if (!_transporter) _transporter = nodemailer.createTransport(cfg.smtp);
-  return _transporter;
-};
+const getConfig = require("./mail.config");
+const { appendSent } = require("./mail.imap");
 
 exports.sendMail = async ({ to, cc, subject, text, html, replyTo }) => {
-  const info = await transporter().sendMail({
+  const cfg = getConfig();
+  const transporter = nodemailer.createTransport(cfg.smtp);
+  const info = await transporter.sendMail({
     from: `"${cfg.fromName}" <${cfg.fromAddress}>`,
     to,
     cc: cc || undefined,
@@ -17,5 +14,9 @@ exports.sendMail = async ({ to, cc, subject, text, html, replyTo }) => {
     text,
     html: html || undefined,
   });
+
+  // Save a copy to the Sent IMAP folder (fire-and-forget, don't block response)
+  appendSent({ to, cc, subject, text, html }).catch(() => {});
+
   return { messageId: info.messageId, accepted: info.accepted };
 };

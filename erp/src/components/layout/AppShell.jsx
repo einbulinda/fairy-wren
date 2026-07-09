@@ -37,65 +37,65 @@ import {
 } from "lucide-react";
 
 const inventoryNavTabs = [
-  { path: "/inventory",           short: "Stock",   icon: Package },
-  { path: "/inventory/receive",   short: "Receive", icon: PackagePlus },
-  { path: "/inventory/reports",   short: "Reports", icon: BarChart2 },
+  { path: "/inventory", short: "Stock", icon: Package },
+  { path: "/inventory/receive", short: "Receive", icon: PackagePlus },
+  { path: "/inventory/reports", short: "Reports", icon: BarChart2 },
   { path: "/inventory/approvals", short: "Approve", icon: CheckSquare },
-  { path: "/inventory/insights",  short: "Insights",icon: TrendingUp },
+  { path: "/inventory/insights", short: "Insights", icon: TrendingUp },
 ];
 
 const productsNavTabs = [
-  { key: "products",    short: "Products",    icon: Package },
-  { key: "categories",  short: "Categories",  icon: FolderTree },
+  { key: "products", short: "Products", icon: Package },
+  { key: "categories", short: "Categories", icon: FolderTree },
 ];
 
 const purchasingNavTabs = [
-  { key: "suppliers",        short: "Suppliers", icon: Truck },
-  { key: "pending-invoices", short: "Invoices",  icon: Clock },
-  { key: "receive",          short: "Receive",   icon: PackagePlus },
-  { key: "reorder-forecast", short: "Reorder",   icon: TrendingUp },
+  { key: "suppliers", short: "Suppliers", icon: Truck },
+  { key: "pending-invoices", short: "Invoices", icon: Clock },
+  { key: "receive", short: "Receive", icon: PackagePlus },
+  { key: "reorder-forecast", short: "Reorder", icon: TrendingUp },
 ];
 
 const salesNavTabs = [
-  { key: "all",       short: "All",     icon: List },
-  { key: "open",      short: "Open",    icon: Clock },
-  { key: "completed", short: "Closed",  icon: CheckCircle2 },
-  { key: "void",      short: "Void",    icon: Ban },
-  { key: "products",  short: "Products",icon: Package },
+  { key: "all", short: "All", icon: List },
+  { key: "open", short: "Open", icon: Clock },
+  { key: "completed", short: "Closed", icon: CheckCircle2 },
+  { key: "void", short: "Void", icon: Ban },
+  { key: "products", short: "Products", icon: Package },
 ];
 
 const accountingNavTabs = [
-  { key: "chart-of-accounts",   short: "COA",     icon: Landmark },
-  { key: "general-ledger",      short: "Ledger",  icon: BookOpen },
-  { key: "journal-entries",     short: "Journals",icon: PenLine },
-  { key: "cheques",             short: "Cheques", icon: FileCheck },
-  { key: "bank-reconciliation", short: "Recon",   icon: ArrowLeftRight },
-  { key: "periods",             short: "Periods", icon: Calendar },
+  { key: "chart-of-accounts", short: "COA", icon: Landmark },
+  { key: "general-ledger", short: "Ledger", icon: BookOpen },
+  { key: "journal-entries", short: "Journals", icon: PenLine },
+  { key: "cheques", short: "Cheques", icon: FileCheck },
+  { key: "bank-reconciliation", short: "Recon", icon: ArrowLeftRight },
+  { key: "periods", short: "Periods", icon: Calendar },
 ];
 
 const payrollNavTabs = [
   { key: "employees", short: "Employees", icon: Users },
-  { key: "runs",      short: "Runs",      icon: Briefcase },
+  { key: "runs", short: "Runs", icon: Briefcase },
 ];
 
 const usersNavTabs = [
-  { key: "users",         short: "Users", icon: Users },
+  { key: "users", short: "Users", icon: Users },
   { key: "staff-targets", short: "Staff", icon: Target },
-  { key: "system-roles",  short: "Roles", icon: Shield },
+  { key: "system-roles", short: "Roles", icon: Shield },
 ];
 
 const settingsNavTabs = [
-  { key: "organisation",       short: "Org",       icon: Building2 },
-  { key: "business-targets",   short: "Targets",   icon: BarChart3 },
-  { key: "account-classes",    short: "Acct",      icon: BookOpen },
+  { key: "organisation", short: "Org", icon: Building2 },
+  { key: "business-targets", short: "Targets", icon: BarChart3 },
+  { key: "account-classes", short: "Acct", icon: BookOpen },
   { key: "inventory-policies", short: "Inventory", icon: Package },
 ];
 
 const dashboardNavTabs = [
-  { key: "executive",   short: "Overview", icon: LayoutDashboard },
-  { key: "financial",   short: "Finance",  icon: DollarSign },
-  { key: "operations",  short: "Ops",      icon: Zap },
-  { key: "collections", short: "Bills",    icon: FileText },
+  { key: "executive", short: "Overview", icon: LayoutDashboard },
+  { key: "financial", short: "Finance", icon: DollarSign },
+  { key: "operations", short: "Ops", icon: Zap },
+  { key: "collections", short: "Bills", icon: FileText },
 ];
 
 const reportNavTabs = [
@@ -117,7 +117,6 @@ const routeTitles = {
   "/reports": "Financial Reports",
   "/web": "Web Management",
   "/users": "User Management",
-  "/payroll": "Payroll",
   "/profile": "My Profile",
   "/help": "Help Desk",
   "/audit": "Audit Trail",
@@ -141,45 +140,50 @@ const AppShell = () => {
   const params = new URLSearchParams(location.search);
   const { pathname } = location;
 
-  const isDashboardPage  = pathname === "/";
+  const isDashboardPage = pathname === "/";
   const activeDashboardTab = params.get("tab") || "executive";
 
-  const isReportsPage   = pathname === "/reports";
+  const isReportsPage = pathname === "/reports";
   const activeReportTab = params.get("tab") || "income-statement";
 
-  const isInventoryPage = pathname.startsWith("/inventory") &&
+  const isInventoryPage =
+    pathname.startsWith("/inventory") &&
     !pathname.match(/^\/inventory\/reports\//) &&
     !pathname.match(/^\/inventory\/receipts\//);
-  const activeInventoryTab = inventoryNavTabs
-    .slice(1)
-    .find((t) => pathname.startsWith(t.path))?.path ?? "/inventory";
+  const activeInventoryTab =
+    inventoryNavTabs.slice(1).find((t) => pathname.startsWith(t.path))?.path ??
+    "/inventory";
 
-  const isProductsPage    = pathname === "/products";
+  const isProductsPage = pathname === "/products";
   const activeProductsTab = params.get("tab") || "products";
 
-  const isPurchasingPage    = pathname === "/purchasing";
+  const isPurchasingPage = pathname === "/purchasing";
   const activePurchasingTab = params.get("tab") || "suppliers";
 
-  const isSalesPage      = pathname === "/sales";
+  const isSalesPage = pathname === "/sales";
   const activeSalesStatus = params.get("status") || "all";
 
-  const isAccountingPage    = pathname === "/accounting";
+  const isAccountingPage = pathname === "/accounting";
   const activeAccountingTab = params.get("tab") || "chart-of-accounts";
 
-  const isUsersPage    = pathname === "/users";
+  const isUsersPage = pathname === "/users";
   const activeUsersTab = params.get("tab") || "users";
 
-  const isSettingsPage    = pathname === "/settings";
+  const isSettingsPage = pathname === "/settings";
   const activeSettingsTab = params.get("tab") || "organisation";
 
-  const isPayrollPage    = pathname === "/payroll";
+  const isPayrollPage = pathname === "/payroll";
   const activePayrollTab = params.get("tab") || "employees";
 
   const title =
     routeTitles[pathname] ||
-    (pathname.startsWith("/purchasing/") ? "Supplier Detail" :
-     pathname.startsWith("/products/")   ? "Product Detail"  :
-     pathname.startsWith("/bank-reconciliation/") ? "Bank Reconciliation" : "Fairy Wren ERP");
+    (pathname.startsWith("/purchasing/")
+      ? "Supplier Detail"
+      : pathname.startsWith("/products/")
+        ? "Product Detail"
+        : pathname.startsWith("/bank-reconciliation/")
+          ? "Bank Reconciliation"
+          : "Fairy Wren ERP");
 
   return (
     <div className="h-screen bg-surface-950 text-white flex overflow-hidden">
@@ -191,10 +195,7 @@ const AppShell = () => {
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <Header
-          title={title}
-          onMenuClick={() => setSidebarOpen(true)}
-        />
+        <Header title={title} onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
           <Outlet />
