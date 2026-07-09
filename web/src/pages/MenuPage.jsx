@@ -160,7 +160,7 @@ export default function MenuPage() {
       {/* ── Main content ── */}
       <main className="max-w-4xl mx-auto px-5 py-10 pb-24 relative">
         {/* Background logo watermark */}
-        <div className="pointer-events-none fixed inset-0 flex items-center justify-center opacity-[0.025]">
+        <div className="pointer-events-none fixed inset-0 flex items-center justify-center opacity-[0.08]">
           <img src="/fairy-wren-logo-removebg.png" alt="" aria-hidden="true" className="w-[70vw] max-w-xl select-none" draggable={false} />
         </div>
 
@@ -180,7 +180,7 @@ export default function MenuPage() {
 
             {/* Inner logo */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl overflow-hidden">
-              <img src="/fairy-logo-only.png" alt="" aria-hidden="true" className="h-48 w-auto opacity-[0.04] select-none" draggable={false} />
+              <img src="/fairy-logo-only.png" alt="" aria-hidden="true" className="h-48 w-auto opacity-[0.10] select-none" draggable={false} />
             </div>
 
             <div className="relative z-10">

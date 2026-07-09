@@ -146,7 +146,7 @@ export default function Menu() {
             src="/fairy-wren-logo-removebg.png"
             alt=""
             aria-hidden="true"
-            className="w-[55vw] max-w-2xl opacity-[0.03] select-none"
+            className="w-[55vw] max-w-2xl opacity-[0.09] select-none"
             draggable={false}
           />
         </div>
@@ -219,7 +219,7 @@ export default function Menu() {
                 src="/fairy-logo-only.png"
                 alt=""
                 aria-hidden="true"
-                className="h-48 w-auto opacity-[0.04] select-none"
+                className="h-48 w-auto opacity-[0.10] select-none"
                 draggable={false}
               />
             </div>
