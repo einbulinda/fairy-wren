@@ -7,25 +7,55 @@ import { fetchCategories } from "@/services/categories.service";
 
 const MENU_URL = `${import.meta.env.VITE_WEB_URL ?? "http://localhost:5175"}/menu`;
 
+const SIZE = 300;
+const LOGO_RATIO = 0.22; // logo covers ~22% of QR width — safe with level H error correction
+
 function downloadQR() {
   const svg = document.getElementById("menu-qr-svg");
   if (!svg) return;
-  const data = new XMLSerializer().serializeToString(svg);
+
+  const svgData = new XMLSerializer().serializeToString(svg);
+  // btoa requires Latin-1; encode URI components first to handle any unicode
+  const b64 = btoa(unescape(encodeURIComponent(svgData)));
+
   const canvas = document.createElement("canvas");
-  canvas.width = 300;
-  canvas.height = 300;
+  canvas.width = SIZE;
+  canvas.height = SIZE;
   const ctx = canvas.getContext("2d");
-  const img = new Image();
-  img.onload = () => {
+
+  const qrImg = new Image();
+  qrImg.onload = () => {
+    // Draw QR code
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, 300, 300);
-    ctx.drawImage(img, 0, 0, 300, 300);
-    const a = document.createElement("a");
-    a.download = "menu-qr.png";
-    a.href = canvas.toDataURL("image/png");
-    a.click();
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    ctx.drawImage(qrImg, 0, 0, SIZE, SIZE);
+
+    // Overlay logo in the centre
+    const logo = new Image();
+    logo.onload = () => {
+      const logoSize = SIZE * LOGO_RATIO;
+      const pad = 5;
+      const x = (SIZE - logoSize) / 2;
+      const y = (SIZE - logoSize) / 2;
+      // White rounded background behind the logo
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.roundRect(x - pad, y - pad, logoSize + pad * 2, logoSize + pad * 2, 6);
+      ctx.fill();
+      ctx.drawImage(logo, x, y, logoSize, logoSize);
+      trigger();
+    };
+    logo.onerror = trigger; // download plain QR if logo fails
+    logo.src = "/fairy-logo-only.png";
+
+    function trigger() {
+      const a = document.createElement("a");
+      a.download = "menu-qr.png";
+      a.href = canvas.toDataURL("image/png");
+      a.click();
+    }
   };
-  img.src = `data:image/svg+xml;base64,${btoa(data)}`;
+  qrImg.src = `data:image/svg+xml;base64,${b64}`;
 }
 
 /* Four-corner bracket accent */
@@ -137,8 +167,20 @@ export default function WebMenuPage() {
           <img src="/fairy-wren-logo-removebg.png" alt="" aria-hidden="true" className="h-full w-auto" draggable={false} />
         </div>
 
-        <div className="relative z-10 bg-white p-3 rounded-lg shrink-0">
-          <QRCode id="menu-qr-svg" value={MENU_URL} size={130} />
+        <div className="relative z-10 bg-white p-3 rounded-lg shrink-0 inline-block">
+          {/* level="H" gives 30% error correction — enough headroom for the logo overlay */}
+          <QRCode id="menu-qr-svg" value={MENU_URL} size={130} level="H" />
+          {/* Logo centred over the QR code */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded p-[3px]">
+              <img
+                src="/fairy-logo-only.png"
+                alt="Fairy Wren"
+                className="w-7 h-7 object-contain"
+                draggable={false}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="relative z-10 flex flex-col gap-2 flex-1 min-w-0">
