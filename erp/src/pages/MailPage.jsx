@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  Mail, Send, RefreshCw, Trash2, Reply, X, ChevronLeft,
-  Loader2, Circle, Inbox, FileEdit, Paperclip,
+  Mail, Send, Trash2, Reply, X, ChevronLeft,
+  Loader2, Circle, Inbox, FileEdit, Paperclip, ChevronDown,
 } from "lucide-react";
 import {
-  fetchInbox, fetchSent, fetchDrafts,
+  fetchMailboxes, fetchInbox, fetchSent, fetchDrafts,
   fetchMessage, markRead, deleteMessage,
   saveDraft, sendMail,
 } from "@/services/mail.service";
@@ -32,7 +32,7 @@ const addrLabel = (addr) => addr?.name || addr?.address || "Unknown";
 
 // ─── Compose Modal ─────────────────────────────────────────────────────────
 
-const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBody = "", draftUid = null, isReply = false }) => {
+const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBody = "", draftUid = null, isReply = false, mailbox = "admin" }) => {
   const qc = useQueryClient();
   const [form, setForm] = useState({ to: defaultTo, cc: "", subject: defaultSubject, body: defaultBody });
   const [files, setFiles] = useState([]);
@@ -93,7 +93,7 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
   };
 
   const sendMutation = useMutation({
-    mutationFn: () => sendMail({ to: form.to, cc: form.cc || undefined, subject: form.subject, text: form.body, files }),
+    mutationFn: () => sendMail({ to: form.to, cc: form.cc || undefined, subject: form.subject, text: form.body, files, mailbox }),
     onSuccess: () => {
       localStorage.removeItem(DRAFT_KEY);
       // Delete draft from server if it was one
@@ -224,20 +224,20 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
 
 // ─── Message Detail ────────────────────────────────────────────────────────
 
-const MessageDetail = ({ uid, folder, onBack, onDelete }) => {
+const MessageDetail = ({ uid, folder, mailbox = "admin", onBack, onDelete }) => {
   const qc = useQueryClient();
-  const [composing, setComposing] = useState(null); // null | { to, subject, isDraft, draftUid }
+  const [composing, setComposing] = useState(null);
 
   const { data: msg, isLoading } = useQuery({
-    queryKey: ["mail-message", uid, folder],
-    queryFn: () => fetchMessage(uid, folder),
+    queryKey: ["mail-message", uid, folder, mailbox],
+    queryFn: () => fetchMessage(uid, folder, mailbox),
     onSuccess: () => {
       if (folder === "INBOX") qc.invalidateQueries({ queryKey: ["mail-inbox"] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteMessage(uid, folder),
+    mutationFn: () => deleteMessage(uid, folder, mailbox),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: folder === "Sent" ? ["mail-sent"] : folder === "Drafts" ? ["mail-drafts"] : ["mail-inbox"] });
       if (folder === "Drafts") localStorage.removeItem(DRAFT_KEY);
@@ -248,7 +248,7 @@ const MessageDetail = ({ uid, folder, onBack, onDelete }) => {
   });
 
   const markUnread = useMutation({
-    mutationFn: () => markRead(uid, false),
+    mutationFn: () => markRead(uid, false, mailbox),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["mail-inbox"] }); onBack(); },
   });
 
@@ -301,6 +301,7 @@ const MessageDetail = ({ uid, folder, onBack, onDelete }) => {
               </button>
             </>
           )}
+
           <button
             onClick={() => deleteMutation.mutate()}
             disabled={deleteMutation.isPending}
@@ -381,6 +382,7 @@ const MessageDetail = ({ uid, folder, onBack, onDelete }) => {
           defaultBody={composing.body}
           draftUid={composing.draftUid}
           isReply={composing.isReply}
+          mailbox={mailbox}
           onClose={() => setComposing(null)}
         />
       )}
@@ -422,14 +424,17 @@ const MessageRow = ({ msg, isSelected, onClick, showTo = false }) => (
 
 // ─── Message List (shared for all three folders) ───────────────────────────
 
-const MessageList = ({ queryKey, queryFn, folder, showTo = false, emptyText = "No messages" }) => {
+const MessageList = ({ queryKey, queryFn, folder, showTo = false, emptyText = "No messages", mailbox = "admin" }) => {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [selectedUid, setSelectedUid] = useState(null);
 
+  // Reset to page 1 + clear selection when mailbox changes
+  useEffect(() => { setPage(1); setSelectedUid(null); }, [mailbox]);
+
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: [queryKey, page],
-    queryFn: () => queryFn({ page, limit: 50 }),
+    queryKey: [queryKey, page, mailbox],
+    queryFn: () => queryFn({ page, limit: 50, mailbox }),
     staleTime: 60 * 1000,
     refetchInterval: folder === "INBOX" ? 2 * 60 * 1000 : false,
   });
@@ -502,6 +507,7 @@ const MessageList = ({ queryKey, queryFn, folder, showTo = false, emptyText = "N
           <MessageDetail
             uid={selectedUid}
             folder={folder}
+            mailbox={mailbox}
             onBack={() => setSelectedUid(null)}
             onDelete={() => setSelectedUid(null)}
           />
@@ -527,17 +533,59 @@ const TABS = [
 ];
 
 const MailPage = () => {
-  const [activeTab, setActiveTab] = useState("inbox");
-  const [composing, setComposing] = useState(false);
+  const [activeTab, setActiveTab]         = useState("inbox");
+  const [mailbox, setMailbox]             = useState("admin");
+  const [composing, setComposing]         = useState(false);
+  const [mbDropOpen, setMbDropOpen]       = useState(false);
+
   const tab = TABS.find((t) => t.id === activeTab);
 
-  const handleCompose = () => setComposing(true);
+  const { data: mailboxes = [] } = useQuery({
+    queryKey: ["mail-mailboxes"],
+    queryFn: fetchMailboxes,
+    staleTime: Infinity,
+  });
+
+  const activeMb = mailboxes.find((m) => m.id === mailbox);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-700 bg-surface-900/40 shrink-0">
-        {/* Tabs */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-surface-700 bg-surface-900/40 shrink-0 flex-wrap">
+
+        {/* Mailbox switcher */}
+        {mailboxes.length > 1 && (
+          <div className="relative">
+            <button
+              onClick={() => setMbDropOpen((o) => !o)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-surface-800 hover:bg-surface-700 border border-surface-600 rounded-lg text-sm text-white transition-colors"
+            >
+              <Mail size={13} className="text-primary-400 shrink-0" />
+              <span className="max-w-[140px] truncate">{activeMb?.user ?? mailbox}</span>
+              <ChevronDown size={12} className="text-surface-500 shrink-0" />
+            </button>
+            {mbDropOpen && (
+              <div className="absolute top-full left-0 mt-1 z-20 bg-surface-800 border border-surface-600 rounded-xl shadow-xl min-w-[220px] overflow-hidden">
+                {mailboxes.map((mb) => (
+                  <button
+                    key={mb.id}
+                    onClick={() => { setMailbox(mb.id); setMbDropOpen(false); }}
+                    className={`w-full text-left flex flex-col px-4 py-3 hover:bg-surface-700 transition-colors border-b border-surface-700/50 last:border-0
+                      ${mailbox === mb.id ? "bg-primary-600/10" : ""}`}
+                  >
+                    <span className={`text-sm font-medium ${mailbox === mb.id ? "text-primary-400" : "text-white"}`}>{mb.label}</span>
+                    <span className="text-xs text-surface-400">{mb.user}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Divider */}
+        {mailboxes.length > 1 && <div className="w-px h-5 bg-surface-700" />}
+
+        {/* Folder tabs */}
         <div className="flex gap-1">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
@@ -554,26 +602,34 @@ const MailPage = () => {
             </button>
           ))}
         </div>
+
         <div className="flex-1" />
+
         <button
-          onClick={handleCompose}
+          onClick={() => setComposing(true)}
           className="flex items-center gap-2 px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-sm font-medium transition-colors"
         >
           <Send size={13} /> Compose
         </button>
       </div>
 
+      {/* Close dropdown on outside click */}
+      {mbDropOpen && (
+        <div className="fixed inset-0 z-10" onClick={() => setMbDropOpen(false)} />
+      )}
+
       {/* Active tab content */}
       <MessageList
-        key={tab.id}
+        key={`${tab.id}-${mailbox}`}
         queryKey={tab.queryKey}
         queryFn={tab.fn}
         folder={tab.folder}
         showTo={tab.showTo}
         emptyText={tab.emptyText}
+        mailbox={mailbox}
       />
 
-      {composing && <ComposeModal onClose={() => setComposing(false)} />}
+      {composing && <ComposeModal mailbox={mailbox} onClose={() => setComposing(false)} />}
     </div>
   );
 };

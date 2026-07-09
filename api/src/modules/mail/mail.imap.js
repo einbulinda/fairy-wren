@@ -3,7 +3,7 @@ const { simpleParser } = require("mailparser");
 const MailComposer = require("nodemailer/lib/mail-composer");
 const getConfig = require("./mail.config");
 
-const mkClient = () => new ImapFlow(getConfig().imap);
+const mkClient = (mailbox) => new ImapFlow(getConfig(mailbox).imap);
 
 const buildMime = (options) =>
   new Promise((resolve, reject) => {
@@ -16,12 +16,12 @@ const buildMime = (options) =>
 
 // ── Generic folder listing ────────────────────────────────────────────────
 
-const listFolder = async (folder, { page = 1, limit = 50 } = {}) => {
-  const client = mkClient();
+const listFolder = async (folder, { page = 1, limit = 50, mailbox = "admin" } = {}) => {
+  const client = mkClient(mailbox);
   await client.connect();
   try {
-    const mailbox = await client.mailboxOpen(folder);
-    const total = mailbox.exists;
+    const mbox = await client.mailboxOpen(folder);
+    const total = mbox.exists;
     if (total === 0) return { messages: [], total: 0, unread: 0 };
 
     const end = total - (page - 1) * limit;
@@ -34,20 +34,19 @@ const listFolder = async (folder, { page = 1, limit = 50 } = {}) => {
       uid: true,
     })) {
       const from = msg.envelope.from?.[0] ?? {};
-      const to = msg.envelope.to?.[0] ?? {};
+      const to   = msg.envelope.to?.[0]   ?? {};
       messages.push({
         uid: msg.uid,
         seq: msg.seq,
         subject: msg.envelope.subject || "(no subject)",
         from: { name: from.name || null, address: from.address || null },
-        to: { name: to.name || null, address: to.address || null },
+        to:   { name: to.name   || null, address: to.address   || null },
         date: msg.envelope.date,
-        seen: msg.flags.has("\\Seen"),
+        seen:  msg.flags.has("\\Seen"),
         draft: msg.flags.has("\\Draft"),
       });
     }
 
-    // Unread count for inbox only (skip for sent/drafts)
     let unread = 0;
     if (folder === "INBOX") {
       for await (const msg of client.fetch("1:*", { flags: true })) {
@@ -63,13 +62,12 @@ const listFolder = async (folder, { page = 1, limit = 50 } = {}) => {
 
 // ── Public folder operations ──────────────────────────────────────────────
 
-exports.listInbox = (opts) => listFolder("INBOX", opts);
-exports.listSent  = (opts) => listFolder("Sent", opts);
+exports.listInbox  = (opts) => listFolder("INBOX",  opts);
+exports.listSent   = (opts) => listFolder("Sent",   opts);
 exports.listDrafts = (opts) => listFolder("Drafts", opts);
 
-// Fetch full message from any folder; marks read (skip for drafts)
-exports.getMessage = async (uid, folder = "INBOX") => {
-  const client = mkClient();
+exports.getMessage = async (uid, folder = "INBOX", mailbox = "admin") => {
+  const client = mkClient(mailbox);
   await client.connect();
   try {
     await client.mailboxOpen(folder);
@@ -89,8 +87,8 @@ exports.getMessage = async (uid, folder = "INBOX") => {
       folder,
       subject: parsed.subject || "(no subject)",
       from: addrList(parsed.from)[0] || null,
-      to: addrList(parsed.to),
-      cc: addrList(parsed.cc),
+      to:   addrList(parsed.to),
+      cc:   addrList(parsed.cc),
       date: parsed.date,
       text: parsed.text || null,
       html: parsed.html || null,
@@ -106,9 +104,8 @@ exports.getMessage = async (uid, folder = "INBOX") => {
   }
 };
 
-// Toggle seen flag
-exports.setRead = async (uid, seen, folder = "INBOX") => {
-  const client = mkClient();
+exports.setRead = async (uid, seen, folder = "INBOX", mailbox = "admin") => {
+  const client = mkClient(mailbox);
   await client.connect();
   try {
     await client.mailboxOpen(folder);
@@ -122,9 +119,8 @@ exports.setRead = async (uid, seen, folder = "INBOX") => {
   }
 };
 
-// Delete a message from any folder
-exports.deleteMessage = async (uid, folder = "INBOX") => {
-  const client = mkClient();
+exports.deleteMessage = async (uid, folder = "INBOX", mailbox = "admin") => {
+  const client = mkClient(mailbox);
   await client.connect();
   try {
     await client.mailboxOpen(folder);
@@ -134,10 +130,9 @@ exports.deleteMessage = async (uid, folder = "INBOX") => {
   }
 };
 
-// Append a sent copy to the Sent folder
-exports.appendSent = async (mailOptions) => {
-  const cfg = getConfig();
-  const client = mkClient();
+exports.appendSent = async (mailOptions, mailbox = "admin") => {
+  const cfg = getConfig(mailbox);
+  const client = mkClient(mailbox);
   await client.connect();
   try {
     const raw = await buildMime({
@@ -150,27 +145,21 @@ exports.appendSent = async (mailOptions) => {
   }
 };
 
-// Save / update a draft in the Drafts folder
-exports.saveDraft = async ({ uid, to, cc, subject, text }) => {
-  const cfg = getConfig();
-  const client = mkClient();
+exports.saveDraft = async ({ uid, to, cc, subject, text, mailbox = "admin" }) => {
+  const cfg = getConfig(mailbox);
+  const client = mkClient(mailbox);
   await client.connect();
   try {
     await client.mailboxOpen("Drafts");
-    // Delete existing draft if updating
     if (uid) {
-      try {
-        await client.messageDelete({ uid }, { uid: true });
-      } catch {
-        // already gone — ignore
-      }
+      try { await client.messageDelete({ uid }, { uid: true }); } catch { /* gone */ }
     }
     const raw = await buildMime({
       from: `"${cfg.fromName}" <${cfg.fromAddress}>`,
-      to: to || undefined,
-      cc: cc || undefined,
+      to:      to      || undefined,
+      cc:      cc      || undefined,
       subject: subject || "(no subject)",
-      text: text || " ",
+      text:    text    || " ",
     });
     await client.append("Drafts", raw, ["\\Draft", "\\Seen"]);
   } finally {

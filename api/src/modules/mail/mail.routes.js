@@ -10,8 +10,9 @@ const upload = multer({
 const router = express.Router();
 
 // Named routes — must be before /:uid
-router.get("/inbox", controller.listInbox);
-router.get("/sent", controller.listSent);
+router.get("/mailboxes", controller.listMailboxes);
+router.get("/inbox",  controller.listInbox);
+router.get("/sent",   controller.listSent);
 router.get("/drafts", controller.listDrafts);
 router.post("/drafts", controller.saveDraft);
 router.post("/send", upload.array("attachments", 10), controller.sendMail);
