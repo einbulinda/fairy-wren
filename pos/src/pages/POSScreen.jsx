@@ -6,8 +6,6 @@ import { useCategories } from "../hooks/useCategories";
 import { PaymentService } from "@/services/payment.service";
 import {
   ShoppingCart,
-  Receipt,
-  ClipboardCheck,
   Search,
   X,
   Plus,
@@ -15,7 +13,7 @@ import {
   AlertTriangle,
   RefreshCw,
   User,
-  Users,
+  Receipt,
 } from "lucide-react";
 import LoadingSpinner from "../components/shared/LoadingSpinner";
 import {
@@ -33,7 +31,8 @@ import ConfirmModal from "../components/shared/ConfirmModal";
 import ExchangeModal from "../components/bills/ExchangeModal";
 import CustomerBillsView from "../components/bills/CustomerBillsView";
 
-const POSScreen = () => {
+// subView: "sale" | "customer-bills" | "confirm-payments"
+const POSScreen = ({ subView = "sale" }) => {
   const { user } = useAuth();
   const {
     products,
@@ -67,13 +66,8 @@ const POSScreen = () => {
     () => bills.filter((b) => b.status === "awaiting_confirmation"),
     [bills],
   );
-  const customerLinkedBills = useMemo(
-    () => bills.filter((b) => b.customer_account && (b.status === "open" || b.status === "awaiting_confirmation")),
-    [bills],
-  );
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState("pos"); // 'pos', 'bills', 'confirm'
+  const canAccessConfirm = user?.permissions?.includes("approve_payments");
 
   // POS state
   const [activeBill, setActiveBill] = useState(null);
@@ -85,6 +79,7 @@ const POSScreen = () => {
   // Operation states
   const [addingRound, setAddingRound] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Modals
   const [showOpenBillsModal, setShowOpenBillsModal] = useState(false);
@@ -93,19 +88,14 @@ const POSScreen = () => {
   const [isCreatingBill, setIsCreatingBill] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-
   const [showMyBillsModal, setShowMyBillsModal] = useState(false);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showExchangeModal, setShowExchangeModal] = useState(false);
   const [exchangeLoading, setExchangeLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
-  // Show error toast only once when billsError changes
   useEffect(() => {
-    if (billsError?.message) {
-      toast.error(billsError.message);
-    }
+    if (billsError?.message) toast.error(billsError.message);
   }, [billsError]);
 
   const handleRefresh = useCallback(async () => {
@@ -120,36 +110,23 @@ const POSScreen = () => {
     }
   }, [reloadBills, refetchProducts]);
 
-  // Permission checks
-  const canAccessConfirm = user?.permissions?.includes("approve_payments");
-
-  // 🔒 Helper to get quantity of a product in the current round
   const getCurrentRoundQuantity = useCallback(
-    (productId) => {
-      return currentRoundItems.find((i) => i.id === productId)?.quantity || 0;
-    },
+    (productId) => currentRoundItems.find((i) => i.id === productId)?.quantity || 0,
     [currentRoundItems],
   );
 
-  // 🔒 Compute stock warnings for current round items
   const stockWarnings = useMemo(() => {
     if (!activeBill) return {};
-
     return currentRoundItems.reduce((warnings, item) => {
       const product = products.find((p) => p.id === item.id);
-      if (!product || typeof product.current_stock !== "number")
-        return warnings;
-
-      const quantityInRound = getCurrentRoundQuantity(item.id);
-      if (quantityInRound > product.current_stock) {
+      if (!product || typeof product.current_stock !== "number") return warnings;
+      const qty = getCurrentRoundQuantity(item.id);
+      if (qty > product.current_stock) {
         warnings[item.id] = {
           message: `⚠️ Exceeds available stock (${product.current_stock})`,
           severity: "error",
         };
-      } else if (
-        product.reorder_level > 0 &&
-        product.current_stock <= product.reorder_level
-      ) {
+      } else if (product.reorder_level > 0 && product.current_stock <= product.reorder_level) {
         warnings[item.id] = {
           message: `⚠️ Low stock (${product.current_stock} left, ROL: ${product.reorder_level})`,
           severity: "warning",
@@ -159,37 +136,22 @@ const POSScreen = () => {
     }, {});
   }, [currentRoundItems, activeBill, products, getCurrentRoundQuantity]);
 
-  // Filter products
   const filteredProducts = useMemo(() => {
-    let filtered = products;
-
-    filtered = filtered.filter(
-      (p) => !p.track_inventory || p.current_stock > 0,
-    );
-
-    if (selectedCategory !== "all") {
+    let filtered = products.filter((p) => !p.track_inventory || p.current_stock > 0);
+    if (selectedCategory !== "all")
       filtered = filtered.filter((p) => p.category_id === selectedCategory);
-    }
-
-    if (debouncedSearchTerm) {
+    if (debouncedSearchTerm)
       filtered = filtered.filter((p) =>
         p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()),
       );
-    }
-
     return filtered;
   }, [products, selectedCategory, debouncedSearchTerm]);
 
-  // ⚡ SEARCH DEBOUNCE
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 300);
-
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // POS Functions
   const handleStartNewBill = () => {
     setNewBillCustomerName("");
     setShowNewBillModal(true);
@@ -200,18 +162,13 @@ const POSScreen = () => {
       toast.error("Please enter customer name");
       return;
     }
-
     setIsCreatingBill(true);
     try {
-      const newBill = await createBill({
-        customer_name: newBillCustomerName.trim(),
-      });
-
+      const newBill = await createBill({ customer_name: newBillCustomerName.trim() });
       setActiveBill(newBill);
       setCurrentRoundItems([]);
       setShowNewBillModal(false);
       toast.success(`Bill created for ${newBill.customer_name}`);
-
       await reloadBills();
     } catch (error) {
       toast.error("Failed to create bill");
@@ -234,41 +191,27 @@ const POSScreen = () => {
         toast.error("Please start or select an open bill first");
         return;
       }
-
-      if (
-        typeof product.current_stock === "number" &&
-        product.current_stock >= 0
-      ) {
-        const inCurrentRound = getCurrentRoundQuantity(product.id);
-        const newTotal = inCurrentRound + 1;
-
-        if (newTotal > product.current_stock) {
+      if (typeof product.current_stock === "number" && product.current_stock >= 0) {
+        const inRound = getCurrentRoundQuantity(product.id);
+        if (inRound + 1 > product.current_stock) {
           toast.error(
-            `Only ${product.current_stock} unit${product.current_stock === 1 ? "" : "s"} of "${product.name}" available.\nCannot add more to this round.`,
+            `Only ${product.current_stock} unit${product.current_stock === 1 ? "" : "s"} of "${product.name}" available.`,
             { duration: 4000 },
           );
           return;
         }
       }
-
       const existing = currentRoundItems.find((item) => item.id === product.id);
       if (existing) {
         setCurrentRoundItems(
           currentRoundItems.map((item) =>
-            item.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item,
+            item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
           ),
         );
       } else {
         setCurrentRoundItems([
           ...currentRoundItems,
-          {
-            id: product.id,
-            productName: product.name,
-            price: product.price,
-            quantity: 1,
-          },
+          { id: product.id, productName: product.name, price: product.price, quantity: 1 },
         ]);
       }
     },
@@ -279,13 +222,8 @@ const POSScreen = () => {
     (itemId, delta) => {
       if (delta > 0) {
         const product = products.find((p) => p.id === itemId);
-        if (
-          product &&
-          typeof product.current_stock === "number" &&
-          product.current_stock >= 0
-        ) {
-          const inCurrentRound = getCurrentRoundQuantity(itemId);
-          if (inCurrentRound + delta > product.current_stock) {
+        if (product && typeof product.current_stock === "number" && product.current_stock >= 0) {
+          if (getCurrentRoundQuantity(itemId) + delta > product.current_stock) {
             toast.error(
               `Insufficient stock for "${product.name}".\nAvailable: ${product.current_stock}`,
               { duration: 4000 },
@@ -294,7 +232,6 @@ const POSScreen = () => {
           }
         }
       }
-
       setCurrentRoundItems((items) =>
         items
           .map((item) =>
@@ -308,107 +245,61 @@ const POSScreen = () => {
     [products, getCurrentRoundQuantity],
   );
 
-  const handleRemoveItem = useCallback((itemId) => {
-    setCurrentRoundItems((items) => items.filter((item) => item.id !== itemId));
-  }, []);
+  const handleRemoveItem = useCallback(
+    (itemId) => setCurrentRoundItems((items) => items.filter((item) => item.id !== itemId)),
+    [],
+  );
 
   const handleAddRound = useCallback(async () => {
-    if (currentRoundItems.length === 0) {
-      toast.error("Add items to the round first");
-      return;
-    }
-
-    if (!activeBill) {
-      toast.error("No active bill selected");
-      return;
-    }
+    if (currentRoundItems.length === 0) { toast.error("Add items to the round first"); return; }
+    if (!activeBill) { toast.error("No active bill selected"); return; }
 
     const invalidItem = currentRoundItems.find((item) => {
       const product = products.find((p) => p.id === item.id);
-      if (!product || typeof product.current_stock !== "number") return false;
-
-      return item.quantity > product.current_stock;
+      return product && typeof product.current_stock === "number" && item.quantity > product.current_stock;
     });
-
     if (invalidItem) {
       const product = products.find((p) => p.id === invalidItem.id);
       toast.error(
-        `Cannot add round: "${product.name}" exceeds available stock (${product.current_stock}).\nPlease adjust quantities.`,
+        `Cannot add round: "${product.name}" exceeds available stock (${product.current_stock}).`,
         { duration: 5000, icon: <AlertTriangle className="text-yellow-400" /> },
       );
       return;
     }
 
     setAddingRound(true);
-
     const optimisticRound = {
       id: `tmp-${crypto.randomUUID()}`,
       created_at: new Date().toISOString(),
       items: currentRoundItems.map((item) => ({
-        product_id: item.id,
-        name: item.productName,
-        price: item.price,
-        quantity: item.quantity,
+        product_id: item.id, name: item.productName, price: item.price, quantity: item.quantity,
       })),
       optimistic: true,
     };
-
-    const optimisticBill = {
-      ...activeBill,
-      rounds: [...(activeBill.rounds || []), optimisticRound],
-    };
-
+    const optimisticBill = { ...activeBill, rounds: [...(activeBill.rounds || []), optimisticRound] };
     setActiveBill(optimisticBill);
-    setBills((prev) =>
-      prev.map((b) => (b.id === activeBill.id ? optimisticBill : b)),
-    );
+    setBills((prev) => prev.map((b) => (b.id === activeBill.id ? optimisticBill : b)));
     setCurrentRoundItems([]);
 
     try {
-      const updatedBill = await addRoundService(activeBill.id, {
-        items: currentRoundItems,
-      });
-
+      const updatedBill = await addRoundService(activeBill.id, { items: currentRoundItems });
       setActiveBill(updatedBill);
-      setBills((prev) =>
-        prev.map((b) => (b.id === updatedBill.id ? updatedBill : b)),
-      );
-
+      setBills((prev) => prev.map((b) => (b.id === updatedBill.id ? updatedBill : b)));
       toast.success("Round added to bill!", { icon: "✅" });
-
       await reloadBills();
     } catch (error) {
-      console.error("Round addition failed:", error);
-
-      const errorMsg =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to add round. Reverting changes.";
-
+      const errorMsg = error.response?.data?.message || error.message || "Failed to add round.";
       toast.error(errorMsg, { duration: 5000 });
-
       setActiveBill(activeBill);
-      setBills((prev) =>
-        prev.map((b) => (b.id === activeBill.id ? activeBill : b)),
-      );
+      setBills((prev) => prev.map((b) => (b.id === activeBill.id ? activeBill : b)));
       setCurrentRoundItems(currentRoundItems);
     } finally {
       setAddingRound(false);
     }
-  }, [
-    activeBill,
-    currentRoundItems,
-    products,
-    addRoundService,
-    setBills,
-    reloadBills,
-  ]);
+  }, [activeBill, currentRoundItems, products, addRoundService, setBills, reloadBills]);
 
   const handleCloseView = () => {
-    if (currentRoundItems.length > 0) {
-      setShowCloseConfirm(true);
-      return;
-    }
+    if (currentRoundItems.length > 0) { setShowCloseConfirm(true); return; }
     setActiveBill(null);
     setCurrentRoundItems([]);
   };
@@ -420,20 +311,16 @@ const POSScreen = () => {
   };
 
   const handleVoidBill = useCallback(() => {
-    if (!activeBill) return;
-    setShowVoidConfirm(true);
+    if (activeBill) setShowVoidConfirm(true);
   }, [activeBill]);
 
   const confirmVoidBill = useCallback(async () => {
     setShowVoidConfirm(false);
     if (!activeBill) return;
-
     try {
       await voidBill(activeBill.id);
       toast.success(`Bill for ${activeBill.customer_name} has been voided`);
-
       await reloadBills();
-
       setActiveBill(null);
       setCurrentRoundItems([]);
     } catch (error) {
@@ -452,62 +339,36 @@ const POSScreen = () => {
       setShowExchangeModal(false);
       toast.success("Item exchanged successfully");
     } catch (error) {
-      const msg =
-        error?.error?.message ||
-        error?.message ||
-        "Failed to exchange item";
-      toast.error(msg);
+      toast.error(error?.error?.message || error?.message || "Failed to exchange item");
     } finally {
       setExchangeLoading(false);
     }
   }, [activeBill, bills, exchangeItemService]);
 
   const handleOpenPaymentModal = useCallback(() => {
-    if (currentRoundItems.length > 0) {
-      toast.error("Please add current round before payment");
-      return;
-    }
-    if (!activeBill || !activeBill.rounds?.length) {
-      toast.error("Cannot process payment for empty bill");
-      return;
-    }
+    if (currentRoundItems.length > 0) { toast.error("Please add current round before payment"); return; }
+    if (!activeBill || !activeBill.rounds?.length) { toast.error("Cannot process payment for empty bill"); return; }
     setShowPaymentModal(true);
   }, [activeBill, currentRoundItems.length]);
 
   const handleProcessPayment = async (bill, paymentLines) => {
     setPaymentLoading(true);
     try {
-      if (!bill?.id || !bill?.rounds?.length) {
-        throw new Error("Invalid bill for payment");
-      }
-
-      const { data } = await PaymentService.process({
-        billId: bill.id,
-        payments: paymentLines,
-      });
-
+      if (!bill?.id || !bill?.rounds?.length) throw new Error("Invalid bill for payment");
+      const { data } = await PaymentService.process({ billId: bill.id, payments: paymentLines });
       if (data?.balance_due > 0) {
-        toast.success(
-          `Partial payment recorded. Remaining: KSh ${data.balance_due.toLocaleString()}`,
-        );
+        toast.success(`Partial payment recorded. Remaining: KSh ${data.balance_due.toLocaleString()}`);
       } else {
         toast.success(
-          user.permissions?.includes("approve_payments")
-            ? "Payment processed successfully."
-            : "Payment processed. Awaiting Confirmation.",
+          canAccessConfirm ? "Payment processed successfully." : "Payment processed. Awaiting Confirmation.",
         );
       }
-
       reloadBills();
       setShowPaymentModal(false);
       setActiveBill(null);
       setCurrentRoundItems([]);
     } catch (error) {
-      const errorMsg =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to process payment";
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.message || error.message || "Failed to process payment");
       console.error(error);
     } finally {
       setPaymentLoading(false);
@@ -517,261 +378,103 @@ const POSScreen = () => {
   const handleConfirmPayment = async (bill) => {
     setPaymentLoading(true);
     try {
-      const { data } = await PaymentService.process({
-        billId: bill.id,
-        payments: [],
-      });
-
+      const { data } = await PaymentService.process({ billId: bill.id, payments: [] });
       if (data?.balance_due > 0) {
-        toast.success(
-          `Payments confirmed. Remaining balance: KSh ${data.balance_due.toLocaleString()}`,
-        );
+        toast.success(`Payments confirmed. Remaining: KSh ${data.balance_due.toLocaleString()}`);
       } else {
         toast.success("Payments confirmed and bill completed.");
       }
-
       reloadBills();
     } catch (error) {
-      const errorMsg =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to confirm payment";
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.message || error.message || "Failed to confirm payment");
       console.error(error);
     } finally {
       setPaymentLoading(false);
     }
   };
 
-  const billTotals = activeBill ? calculateBillTotals(activeBill) : null;
-
-  if (productsLoading || categoriesLoading || billsLoading) {
-    return <LoadingSpinner />;
-  }
+  if (productsLoading || categoriesLoading || billsLoading) return <LoadingSpinner />;
 
   return (
     <div className="h-full flex flex-col">
-      {/* Desktop Navigation Bar */}
-      <div className="hidden md:block bg-gray-900/40 backdrop-blur-md border-b border-purple-500/20 px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Main Tab Navigation */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab("pos")}
-              className={`
-                px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm font-medium
-                ${
-                  activeTab === "pos"
-                    ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                    : "bg-gray-800/60 text-gray-400 hover:text-white hover:bg-gray-800"
-                }
-              `}
-            >
-              <ShoppingCart size={18} />
-              <span>SALE</span>
-            </button>
 
-            {canAccessConfirm && (
-              <button
-                onClick={() => setActiveTab("confirm")}
-                className={`
-                  px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm font-medium
-                  ${
-                    activeTab === "confirm"
-                      ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                      : "bg-gray-800/60 text-gray-400 hover:text-white hover:bg-gray-800"
-                  }
-                `}
-              >
-                <ClipboardCheck size={18} />
-                <span>Confirm</span>
-                {confirmPaidBills.length > 0 && (
-                  <span
-                    className={`
-                    px-2 py-0.5 rounded-full text-xs font-bold
-                    ${
-                      activeTab === "confirm"
-                        ? "bg-white/20"
-                        : "bg-orange-500/20 text-orange-300 animate-pulse"
-                    }
-                  `}
-                  >
-                    {confirmPaidBills.length}
-                  </span>
-                )}
-              </button>
-            )}
-
-            <button
-              onClick={() => setActiveTab("customers")}
-              className={`
-                px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm font-medium
-                ${
-                  activeTab === "customers"
-                    ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                    : "bg-gray-800/60 text-gray-400 hover:text-white hover:bg-gray-800"
-                }
-              `}
-            >
-              <Users size={18} />
-              <span>Customer Bills</span>
-              {customerLinkedBills.length > 0 && (
-                <span
-                  className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    activeTab === "customers" ? "bg-white/20" : "bg-purple-500/20 text-purple-300"
-                  }`}
-                >
-                  {customerLinkedBills.length}
-                </span>
-              )}
-            </button>
-
-          </div>
-
-          {/* Action Buttons - Only visible in POS tab */}
-          {activeTab === "pos" && (
-            <>
-              <div className="h-8 w-px bg-purple-500/20 mx-2" />
-              <div className="flex gap-2">
-                <button
-                  onClick={handleStartNewBill}
-                  disabled={isCreatingBill}
-                  className="px-4 py-2 bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isCreatingBill ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Plus size={18} />
-                      <span>New Bill</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => setShowOpenBillsModal(true)}
-                  className="px-4 py-2 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20"
-                >
-                  <Receipt size={18} />
-                  <span>Open Bills ({openBills.length})</span>
-                </button>
-                <button
-                  onClick={() => setShowMyBillsModal(true)}
-                  className="px-4 py-2 bg-linear-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-purple-500/20"
-                >
-                  <User size={18} />
-                  <span>My Bills ({myOpenBills.length})</span>
-                </button>
-                <button
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                  title="Refresh bills & products"
-                >
-                  <RefreshCw
-                    size={18}
-                    className={refreshing ? "animate-spin" : ""}
-                  />
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Mobile Quick Action Bar - Only for POS tab */}
-      {activeTab === "pos" && (
-        <div className="md:hidden bg-gray-900/40 backdrop-blur-md border-b border-purple-500/20 px-3 py-2">
+      {/* ── Action bar (sale view only) ── */}
+      {subView === "sale" && (
+        <div className="shrink-0 bg-gray-900/40 backdrop-blur-md border-b border-purple-500/20 px-3 py-2">
           <div className="flex gap-2">
             <button
               onClick={handleStartNewBill}
               disabled={isCreatingBill}
-              className="flex-1 px-3 py-2.5 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isCreatingBill ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />
-                  Creating...
-                </>
+                <><div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />Creating...</>
               ) : (
-                <>
-                  <Plus size={20} />
-                  <span>New Bill</span>
-                </>
+                <><Plus size={18} /><span>New Bill</span></>
               )}
             </button>
             <button
               onClick={() => setShowOpenBillsModal(true)}
-              className="flex-1 px-3 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20 relative"
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20"
             >
-              <Receipt size={20} />
-              <span>Open ({openBills.length})</span>
+              <Receipt size={18} />
+              <span className="hidden sm:inline">Open Bills </span>
+              <span>({openBills.length})</span>
             </button>
             <button
               onClick={() => setShowMyBillsModal(true)}
-              className="px-3 py-2.5 bg-linear-to-r from-purple-600 to-violet-600 active:from-purple-700 active:to-violet-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-purple-500/20"
+              className="px-3 sm:px-4 py-2.5 bg-linear-to-r from-purple-600 to-violet-600 active:from-purple-700 active:to-violet-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-purple-500/20"
             >
-              <User size={20} />
-              <span>{myOpenBills.length}</span>
+              <User size={18} />
+              <span className="hidden sm:inline">My Bills </span>
+              <span>({myOpenBills.length})</span>
             </button>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
               className="px-3 py-2.5 bg-gray-700 active:bg-gray-600 rounded-lg transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <RefreshCw
-                size={20}
-                className={refreshing ? "animate-spin" : ""}
-              />
+              <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
             </button>
           </div>
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden md:pb-0 pb-16">
-        {/* POS View */}
-        {activeTab === "pos" && (
+      {/* ── Main content ── */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+
+        {/* Sale view */}
+        {subView === "sale" && (
           <div className="h-full flex flex-col lg:flex-row overflow-hidden">
-            {/* LEFT COLUMN - Category Side Panel for Large Screens */}
+            {/* LEFT: category sidebar (desktop) */}
             <aside className="hidden lg:flex flex-col w-64 xl:w-72 border-r border-purple-500/20 bg-gray-900/20 shrink-0 overflow-hidden">
               <div className="shrink-0 p-4 border-b border-purple-500/20">
                 <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
                   Categories
                 </h3>
               </div>
-
               <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setSelectedCategory("all")}
-                    className={`
-                      col-span-2 text-center px-3 py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium text-sm
-                      ${
-                        selectedCategory === "all"
-                          ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                          : "bg-gray-800/40 border border-purple-500/20 text-gray-300 hover:text-white hover:bg-gray-800/60"
-                      }
-                    `}
+                    className={`col-span-2 text-center px-3 py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium text-sm ${
+                      selectedCategory === "all"
+                        ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                        : "bg-gray-800/40 border border-purple-500/20 text-gray-300 hover:text-white hover:bg-gray-800/60"
+                    }`}
                   >
                     <GridIcon size={16} />
                     <span>All Products</span>
                   </button>
-
                   {categories.map((cat) => (
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id)}
-                      className={`
-                        text-center px-2 py-3 rounded-lg transition-all duration-200 font-medium text-sm
-                        ${
-                          selectedCategory === cat.id
-                            ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                            : "bg-gray-800/40 border border-purple-500/20 text-gray-300 hover:text-white hover:bg-gray-800/60"
-                        }
-                      `}
+                      className={`text-center px-2 py-3 rounded-lg transition-all duration-200 font-medium text-sm ${
+                        selectedCategory === cat.id
+                          ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                          : "bg-gray-800/40 border border-purple-500/20 text-gray-300 hover:text-white hover:bg-gray-800/60"
+                      }`}
                     >
                       <span className="block truncate">{cat.name}</span>
                     </button>
@@ -780,40 +483,32 @@ const POSScreen = () => {
               </div>
             </aside>
 
-            {/* CENTER: category strip + products + mobile bill drawer */}
+            {/* CENTER + MOBILE */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-
-              {/* Category Tabs for Mobile/Tablet */}
+              {/* Category strip (mobile/tablet) */}
               <div className="lg:hidden shrink-0 border-b border-purple-500/20 bg-gray-900/20">
                 <div className="overflow-x-auto px-3 py-3">
                   <div className="flex gap-2 min-w-max">
                     <button
                       onClick={() => setSelectedCategory("all")}
-                      className={`
-                        px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium flex items-center gap-2
-                        ${
-                          selectedCategory === "all"
-                            ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                            : "bg-gray-800/60 text-gray-300 hover:bg-gray-800"
-                        }
-                      `}
+                      className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium flex items-center gap-2 ${
+                        selectedCategory === "all"
+                          ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                          : "bg-gray-800/60 text-gray-300 hover:bg-gray-800"
+                      }`}
                     >
                       <GridIcon size={14} />
                       All Products
                     </button>
-
                     {categories.map((cat) => (
                       <button
                         key={cat.id}
                         onClick={() => setSelectedCategory(cat.id)}
-                        className={`
-                          px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium
-                          ${
-                            selectedCategory === cat.id
-                              ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                              : "bg-gray-800/60 text-gray-300 hover:bg-gray-800"
-                          }
-                        `}
+                        className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium ${
+                          selectedCategory === cat.id
+                            ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                            : "bg-gray-800/60 text-gray-300 hover:bg-gray-800"
+                        }`}
                       >
                         {cat.name}
                       </button>
@@ -833,22 +528,21 @@ const POSScreen = () => {
                       onChange={(e) => setSearchTerm(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Escape") setSearchTerm("");
-                        if (e.key === "Enter" && filteredProducts.length > 0) {
+                        if (e.key === "Enter" && filteredProducts.length > 0)
                           handleAddProduct(filteredProducts[0]);
-                        }
                       }}
                       className="w-full pl-11 pr-11 py-3 rounded-xl bg-gray-900/60 backdrop-blur-md border-2 border-purple-500/30 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-200 text-base"
                       aria-label="Search products"
                     />
                     <Search
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-400"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400"
                       size={20}
                       aria-hidden="true"
                     />
                     {searchTerm && (
                       <button
                         onClick={() => setSearchTerm("")}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                         aria-label="Clear search"
                       >
                         <X size={20} aria-hidden="true" />
@@ -856,7 +550,6 @@ const POSScreen = () => {
                     )}
                   </div>
                 </div>
-
                 <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
                   <ProductGrid
                     products={filteredProducts}
@@ -866,7 +559,7 @@ const POSScreen = () => {
                 </div>
               </div>
 
-              {/* Mobile Bill Drawer - persistent bottom panel */}
+              {/* Mobile bill drawer */}
               {activeBill && (
                 <div className="lg:hidden shrink-0 h-[45vh] border-t-2 border-purple-500/30 bg-gray-900 overflow-hidden flex flex-col">
                   <CurrentBill
@@ -887,7 +580,7 @@ const POSScreen = () => {
               )}
             </div>
 
-            {/* RIGHT COLUMN - Current Bill Section (Desktop) */}
+            {/* RIGHT: bill panel (desktop) */}
             <div className="hidden lg:flex lg:flex-col w-96 xl:w-[420px] bg-gray-900/20 shrink-0 overflow-hidden">
               <div className="flex-1 overflow-y-auto">
                 <CurrentBill
@@ -909,8 +602,8 @@ const POSScreen = () => {
           </div>
         )}
 
-        {/* Confirm Payments View */}
-        {activeTab === "confirm" && (
+        {/* Confirm Payments view */}
+        {subView === "confirm-payments" && (
           <div className="p-4 overflow-y-auto h-full">
             <ConfirmPaymentsView
               awaitingConfirmation={confirmPaidBills}
@@ -920,96 +613,13 @@ const POSScreen = () => {
           </div>
         )}
 
-        {/* Customer Bills View */}
-        {activeTab === "customers" && (
+        {/* Customer Bills view */}
+        {subView === "customer-bills" && (
           <CustomerBillsView bills={bills} />
         )}
-
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-md border-t-2 border-purple-500/30 safe-area-inset-bottom z-50">
-        <div className={`grid h-16 ${canAccessConfirm ? "grid-cols-3" : "grid-cols-2"}`}>
-          <button
-            onClick={() => setActiveTab("pos")}
-            className={`
-              flex flex-col items-center justify-center gap-1 transition-all duration-200
-              ${
-                activeTab === "pos"
-                  ? "text-white bg-linear-to-t from-purple-600/20 to-transparent"
-                  : "text-gray-400 active:bg-gray-800/50"
-              }
-            `}
-            aria-label="POS View"
-          >
-            <ShoppingCart
-              size={24}
-              className={activeTab === "pos" ? "text-purple-400" : ""}
-              aria-hidden="true"
-            />
-            <span className="text-xs font-medium">POS</span>
-          </button>
-
-          {canAccessConfirm && (
-            <button
-              onClick={() => setActiveTab("confirm")}
-              className={`
-                flex flex-col items-center justify-center gap-1 transition-all duration-200 relative
-                ${
-                  activeTab === "confirm"
-                    ? "text-white bg-linear-to-t from-purple-600/20 to-transparent"
-                    : "text-gray-400 active:bg-gray-800/50"
-                }
-              `}
-              aria-label="Confirm Payments"
-            >
-              <div className="relative">
-                <ClipboardCheck
-                  size={24}
-                  className={activeTab === "confirm" ? "text-purple-400" : ""}
-                  aria-hidden="true"
-                />
-                {confirmPaidBills.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                    {confirmPaidBills.length}
-                  </span>
-                )}
-              </div>
-              <span className="text-xs font-medium">Confirm</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => setActiveTab("customers")}
-            className={`
-              flex flex-col items-center justify-center gap-1 transition-all duration-200 relative
-              ${
-                activeTab === "customers"
-                  ? "text-white bg-linear-to-t from-purple-600/20 to-transparent"
-                  : "text-gray-400 active:bg-gray-800/50"
-              }
-            `}
-            aria-label="Customer Bills"
-          >
-            <div className="relative">
-              <Users
-                size={24}
-                className={activeTab === "customers" ? "text-purple-400" : ""}
-                aria-hidden="true"
-              />
-              {customerLinkedBills.length > 0 && activeTab !== "customers" && (
-                <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {customerLinkedBills.length}
-                </span>
-              )}
-            </div>
-            <span className="text-xs font-medium">Customers</span>
-          </button>
-
-        </div>
-      </nav>
-
-      {/* Modals */}
+      {/* ── Modals ── */}
       {showOpenBillsModal && (
         <OpenBillsModal
           bills={openBills}
@@ -1027,31 +637,24 @@ const POSScreen = () => {
         />
       )}
 
-      {showPaymentModal &&
-        activeBill &&
-        (() => {
-          const paymentInfo = calculateBillPaymentInfo(activeBill);
-          return (
-            <PaymentModal
-              isOpen={showPaymentModal}
-              onClose={() => setShowPaymentModal(false)}
-              onSubmitPayments={(lines) =>
-                handleProcessPayment(activeBill, lines)
-              }
-              billTotal={paymentInfo.total}
-              balanceDue={paymentInfo.balanceDue}
-              amountPaid={paymentInfo.amountPaid}
-              canAccessConfirm={canAccessConfirm}
-              loading={paymentLoading}
-            />
-          );
-        })()}
+      {showPaymentModal && activeBill && (() => {
+        const paymentInfo = calculateBillPaymentInfo(activeBill);
+        return (
+          <PaymentModal
+            isOpen={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            onSubmitPayments={(lines) => handleProcessPayment(activeBill, lines)}
+            billTotal={paymentInfo.total}
+            balanceDue={paymentInfo.balanceDue}
+            amountPaid={paymentInfo.amountPaid}
+            canAccessConfirm={canAccessConfirm}
+            loading={paymentLoading}
+          />
+        );
+      })()}
 
       {showReceiptModal && activeBill && (
-        <ReceiptModal
-          bill={activeBill}
-          onClose={() => setShowReceiptModal(false)}
-        />
+        <ReceiptModal bill={activeBill} onClose={() => setShowReceiptModal(false)} />
       )}
 
       {showExchangeModal && activeBill && (
@@ -1088,17 +691,11 @@ const POSScreen = () => {
         />
       )}
 
-      {/* New Bill Modal */}
       {showNewBillModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-gray-900 rounded-2xl border border-purple-500/30 p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Create New Bill
-            </h2>
-            <p className="text-sm text-gray-400 mb-6">
-              Enter customer name or table number
-            </p>
-
+            <h2 className="text-2xl font-bold text-white mb-2">Create New Bill</h2>
+            <p className="text-sm text-gray-400 mb-6">Enter customer name or table number</p>
             <div className="space-y-4">
               <input
                 type="text"
@@ -1106,19 +703,14 @@ const POSScreen = () => {
                 value={newBillCustomerName}
                 onChange={(e) => setNewBillCustomerName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && newBillCustomerName.trim()) {
-                    handleCreateNewBill();
-                  }
-                  if (e.key === "Escape") {
-                    setShowNewBillModal(false);
-                  }
+                  if (e.key === "Enter" && newBillCustomerName.trim()) handleCreateNewBill();
+                  if (e.key === "Escape") setShowNewBillModal(false);
                 }}
                 autoFocus
                 disabled={isCreatingBill}
                 className="w-full px-4 py-3 bg-gray-800/60 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all disabled:opacity-50"
                 aria-label="Customer name"
               />
-
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowNewBillModal(false)}
@@ -1137,15 +729,9 @@ const POSScreen = () => {
                   }`}
                 >
                   {isCreatingBill ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-gray-400 border-t-white rounded-full animate-spin" />
-                      Creating...
-                    </>
+                    <><div className="w-4 h-4 border-2 border-gray-400 border-t-white rounded-full animate-spin" />Creating...</>
                   ) : (
-                    <>
-                      <Plus size={18} />
-                      Create Bill
-                    </>
+                    <><Plus size={18} />Create Bill</>
                   )}
                 </button>
               </div>
