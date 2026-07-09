@@ -84,7 +84,7 @@ const CurrentBill = ({
           {bill && (
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-700/50 rounded"
+              className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white transition-colors hover:bg-gray-700/50 rounded active:scale-90"
               aria-label="Close bill"
             >
               <X size={20} />
@@ -300,10 +300,10 @@ const CurrentBill = ({
                         </div>
                         <button
                           onClick={() => onRemoveItem(item.id)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1 rounded transition-all shrink-0"
+                          className="w-9 h-9 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-all shrink-0 active:scale-90"
                           aria-label={`Remove ${item.productName}`}
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
 
@@ -326,25 +326,25 @@ const CurrentBill = ({
                           <button
                             onClick={() => onUpdateQuantity(item.id, -1)}
                             disabled={item.quantity <= 1}
-                            className={`p-1.5 rounded transition-colors ${
+                            className={`w-9 h-9 flex items-center justify-center rounded transition-colors ${
                               item.quantity <= 1
                                 ? "text-gray-600 cursor-not-allowed"
-                                : "text-purple-300 hover:bg-purple-500/20"
+                                : "text-purple-300 hover:bg-purple-500/20 active:scale-90"
                             }`}
                             aria-label={`Decrease ${item.productName} quantity`}
                             aria-disabled={item.quantity <= 1}
                           >
-                            <Minus size={13} />
+                            <Minus size={16} />
                           </button>
                           <span className="text-sm font-bold text-white px-3 min-w-7 text-center">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => onUpdateQuantity(item.id, 1)}
-                            className="p-1.5 rounded hover:bg-purple-500/20 text-purple-300 transition-colors"
+                            className="w-9 h-9 flex items-center justify-center rounded hover:bg-purple-500/20 text-purple-300 transition-colors active:scale-90"
                             aria-label={`Increase ${item.productName} quantity`}
                           >
-                            <Plus size={13} />
+                            <Plus size={16} />
                           </button>
                         </div>
                         <span className="font-mono font-bold text-pink-400 text-sm">

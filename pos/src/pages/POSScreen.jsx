@@ -96,6 +96,7 @@ const POSScreen = () => {
 
   const [showMyBillsModal, setShowMyBillsModal] = useState(false);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showExchangeModal, setShowExchangeModal] = useState(false);
   const [exchangeLoading, setExchangeLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -123,7 +124,6 @@ const POSScreen = () => {
   const canAccessConfirm = user?.permissions?.includes("approve_payments");
 
   // 🔒 Helper to get quantity of a product in the current round
-  // Previous rounds already deducted from current_stock, so only check current round
   const getCurrentRoundQuantity = useCallback(
     (productId) => {
       return currentRoundItems.find((i) => i.id === productId)?.quantity || 0;
@@ -163,7 +163,6 @@ const POSScreen = () => {
   const filteredProducts = useMemo(() => {
     let filtered = products;
 
-    // Hide out-of-stock items (skip for non-tracked inventory)
     filtered = filtered.filter(
       (p) => !p.track_inventory || p.current_stock > 0,
     );
@@ -181,18 +180,7 @@ const POSScreen = () => {
     return filtered;
   }, [products, selectedCategory, debouncedSearchTerm]);
 
-  // 📱 MOBILE: Lock body scroll when bill modal is open
-  useEffect(() => {
-    const isMobile = window.innerWidth < 1024;
-    if (activeBill && isMobile) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
-  }, [activeBill]);
-
-  // ⚡ SEARCH DEBOUNCE: Wait 300ms after user stops typing before filtering
+  // ⚡ SEARCH DEBOUNCE
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -207,7 +195,6 @@ const POSScreen = () => {
     setShowNewBillModal(true);
   };
 
-  // Create bill from modal
   const handleCreateNewBill = useCallback(async () => {
     if (!newBillCustomerName.trim()) {
       toast.error("Please enter customer name");
@@ -225,7 +212,6 @@ const POSScreen = () => {
       setShowNewBillModal(false);
       toast.success(`Bill created for ${newBill.customer_name}`);
 
-      // Refresh open bills list to ensure it's current
       await reloadBills();
     } catch (error) {
       toast.error("Failed to create bill");
@@ -235,7 +221,6 @@ const POSScreen = () => {
     }
   }, [newBillCustomerName, createBill, reloadBills]);
 
-  // Select an OPEN bill from modal
   const handleSelectOpenBill = (bill) => {
     setActiveBill(bill);
     setCurrentRoundItems([]);
@@ -250,7 +235,6 @@ const POSScreen = () => {
         return;
       }
 
-      // 🔒 VALIDATE AGAINST CURRENT STOCK (previous rounds already deducted)
       if (
         typeof product.current_stock === "number" &&
         product.current_stock >= 0
@@ -293,7 +277,6 @@ const POSScreen = () => {
 
   const handleUpdateQuantity = useCallback(
     (itemId, delta) => {
-      // 🔒 VALIDATE INCREASES AGAINST CURRENT STOCK (previous rounds already deducted)
       if (delta > 0) {
         const product = products.find((p) => p.id === itemId);
         if (
@@ -340,7 +323,6 @@ const POSScreen = () => {
       return;
     }
 
-    // 🔒 FINAL VALIDATION BEFORE SUBMIT
     const invalidItem = currentRoundItems.find((item) => {
       const product = products.find((p) => p.id === item.id);
       if (!product || typeof product.current_stock !== "number") return false;
@@ -359,7 +341,6 @@ const POSScreen = () => {
 
     setAddingRound(true);
 
-    // 1️⃣ Create optimistic round
     const optimisticRound = {
       id: `tmp-${crypto.randomUUID()}`,
       created_at: new Date().toISOString(),
@@ -372,7 +353,6 @@ const POSScreen = () => {
       optimistic: true,
     };
 
-    // 2️⃣ Optimistically update active bill
     const optimisticBill = {
       ...activeBill,
       rounds: [...(activeBill.rounds || []), optimisticRound],
@@ -385,12 +365,10 @@ const POSScreen = () => {
     setCurrentRoundItems([]);
 
     try {
-      // 3️⃣ Persist to backend
       const updatedBill = await addRoundService(activeBill.id, {
         items: currentRoundItems,
       });
 
-      // 4️⃣ Replace optimistic bill with real one
       setActiveBill(updatedBill);
       setBills((prev) =>
         prev.map((b) => (b.id === updatedBill.id ? updatedBill : b)),
@@ -398,12 +376,10 @@ const POSScreen = () => {
 
       toast.success("Round added to bill!", { icon: "✅" });
 
-      // Refresh open bills list to ensure it's current
       await reloadBills();
     } catch (error) {
       console.error("Round addition failed:", error);
 
-      // 🎯 Show specific backend error if available
       const errorMsg =
         error.response?.data?.message ||
         error.message ||
@@ -411,12 +387,11 @@ const POSScreen = () => {
 
       toast.error(errorMsg, { duration: 5000 });
 
-      // 5️⃣ Roll back optimistic update
       setActiveBill(activeBill);
       setBills((prev) =>
         prev.map((b) => (b.id === activeBill.id ? activeBill : b)),
       );
-      setCurrentRoundItems(currentRoundItems); // Restore items
+      setCurrentRoundItems(currentRoundItems);
     } finally {
       setAddingRound(false);
     }
@@ -431,11 +406,15 @@ const POSScreen = () => {
 
   const handleCloseView = () => {
     if (currentRoundItems.length > 0) {
-      const confirmed = window.confirm(
-        "You have unsaved items in the current round.\nAre you sure you want to close without adding them to the bill?",
-      );
-      if (!confirmed) return;
+      setShowCloseConfirm(true);
+      return;
     }
+    setActiveBill(null);
+    setCurrentRoundItems([]);
+  };
+
+  const confirmCloseView = () => {
+    setShowCloseConfirm(false);
     setActiveBill(null);
     setCurrentRoundItems([]);
   };
@@ -468,13 +447,11 @@ const POSScreen = () => {
     setExchangeLoading(true);
     try {
       await exchangeItemService(activeBill.id, payload);
-      // Refresh the active bill from updated store
       const freshBill = bills.find((b) => b.id === activeBill.id);
       if (freshBill) setActiveBill(freshBill);
       setShowExchangeModal(false);
       toast.success("Item exchanged successfully");
     } catch (error) {
-      // normalizeError throws response.data directly: { error: { code, message } }
       const msg =
         error?.error?.message ||
         error?.message ||
@@ -537,13 +514,12 @@ const POSScreen = () => {
     }
   };
 
-  // Confirm all pending payments on a bill (from ConfirmPaymentsView)
   const handleConfirmPayment = async (bill) => {
     setPaymentLoading(true);
     try {
       const { data } = await PaymentService.process({
         billId: bill.id,
-        payments: [], // empty = confirm mode, RPC confirms all pending
+        payments: [],
       });
 
       if (data?.balance_due > 0) {
@@ -758,9 +734,9 @@ const POSScreen = () => {
       <div className="flex-1 overflow-hidden md:pb-0 pb-16">
         {/* POS View */}
         {activeTab === "pos" && (
-          <div className="h-screen flex overflow-hidden">
+          <div className="h-full flex flex-col lg:flex-row overflow-hidden">
             {/* LEFT COLUMN - Category Side Panel for Large Screens */}
-            <aside className="hidden lg:flex flex-col w-64 xl:w-72 border-r border-purple-500/20 bg-gray-900/20 h-full overflow-hidden">
+            <aside className="hidden lg:flex flex-col w-64 xl:w-72 border-r border-purple-500/20 bg-gray-900/20 shrink-0 overflow-hidden">
               <div className="shrink-0 p-4 border-b border-purple-500/20">
                 <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
                   Categories
@@ -804,93 +780,116 @@ const POSScreen = () => {
               </div>
             </aside>
 
-            {/* Category Tabs for Mobile/Tablet */}
-            <div className="lg:hidden border-b border-purple-500/20 bg-gray-900/20">
-              <div className="overflow-x-auto px-3 py-3">
-                <div className="flex gap-2 min-w-max">
-                  <button
-                    onClick={() => setSelectedCategory("all")}
-                    className={`
-                      px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium flex items-center gap-2
-                      ${
-                        selectedCategory === "all"
-                          ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                          : "bg-gray-800/60 text-gray-300 hover:bg-gray-800"
-                      }
-                    `}
-                  >
-                    <GridIcon size={14} />
-                    All Products
-                  </button>
+            {/* CENTER: category strip + products + mobile bill drawer */}
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
-                  {categories.map((cat) => (
+              {/* Category Tabs for Mobile/Tablet */}
+              <div className="lg:hidden shrink-0 border-b border-purple-500/20 bg-gray-900/20">
+                <div className="overflow-x-auto px-3 py-3">
+                  <div className="flex gap-2 min-w-max">
                     <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
+                      onClick={() => setSelectedCategory("all")}
                       className={`
-                        px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium
+                        px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium flex items-center gap-2
                         ${
-                          selectedCategory === cat.id
+                          selectedCategory === "all"
                             ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
                             : "bg-gray-800/60 text-gray-300 hover:bg-gray-800"
                         }
                       `}
                     >
-                      {cat.name}
+                      <GridIcon size={14} />
+                      All Products
                     </button>
-                  ))}
-                </div>
-              </div>
-            </div>
 
-            {/* CENTER COLUMN - Products Section */}
-            <div className="flex-1 flex flex-col overflow-hidden lg:border-r lg:border-purple-500/20">
-              <div className="shrink-0 p-4 border-b border-purple-500/20 bg-gray-900/20">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Quick search products..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    autoFocus={activeTab === "pos"}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") setSearchTerm("");
-                      if (e.key === "Enter" && filteredProducts.length > 0) {
-                        handleAddProduct(filteredProducts[0]);
-                      }
-                    }}
-                    className="w-full pl-11 pr-11 py-3 rounded-xl bg-gray-900/60 backdrop-blur-md border-2 border-purple-500/30 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-200 text-base"
-                    aria-label="Search products"
-                  />
-                  <Search
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-400"
-                    size={20}
-                    aria-hidden="true"
-                  />
-                  {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm("")}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                      aria-label="Clear search"
-                    >
-                      <X size={20} aria-hidden="true" />
-                    </button>
-                  )}
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`
+                          px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium
+                          ${
+                            selectedCategory === cat.id
+                              ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                              : "bg-gray-800/60 text-gray-300 hover:bg-gray-800"
+                          }
+                        `}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
-                <ProductGrid
-                  products={filteredProducts}
-                  onProductClick={handleAddProduct}
-                  disabled={!activeBill}
-                />
+              {/* Products: search + grid */}
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden lg:border-r lg:border-purple-500/20">
+                <div className="shrink-0 p-4 border-b border-purple-500/20 bg-gray-900/20">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Quick search products..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") setSearchTerm("");
+                        if (e.key === "Enter" && filteredProducts.length > 0) {
+                          handleAddProduct(filteredProducts[0]);
+                        }
+                      }}
+                      className="w-full pl-11 pr-11 py-3 rounded-xl bg-gray-900/60 backdrop-blur-md border-2 border-purple-500/30 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-200 text-base"
+                      aria-label="Search products"
+                    />
+                    <Search
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-400"
+                      size={20}
+                      aria-hidden="true"
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm("")}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                        aria-label="Clear search"
+                      >
+                        <X size={20} aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
+                  <ProductGrid
+                    products={filteredProducts}
+                    onProductClick={handleAddProduct}
+                    disabled={!activeBill}
+                  />
+                </div>
               </div>
+
+              {/* Mobile Bill Drawer - persistent bottom panel */}
+              {activeBill && (
+                <div className="lg:hidden shrink-0 h-[45vh] border-t-2 border-purple-500/30 bg-gray-900 overflow-hidden flex flex-col">
+                  <CurrentBill
+                    bill={activeBill}
+                    onClose={handleCloseView}
+                    currentRoundItems={currentRoundItems}
+                    onRemoveItem={handleRemoveItem}
+                    onUpdateQuantity={handleUpdateQuantity}
+                    onAddRound={handleAddRound}
+                    onOpenPayment={handleOpenPaymentModal}
+                    onVoidBill={handleVoidBill}
+                    onShowReceipt={() => setShowReceiptModal(true)}
+                    onExchangeItem={() => setShowExchangeModal(true)}
+                    isAddingRound={addingRound}
+                    stockWarnings={stockWarnings}
+                  />
+                </div>
+              )}
             </div>
 
             {/* RIGHT COLUMN - Current Bill Section (Desktop) */}
-            <div className="hidden lg:block w-96 xl:w-[420px] bg-gray-900/20 max-h-screen overflow-hidden">
-              <div className="h-full overflow-y-auto">
+            <div className="hidden lg:flex lg:flex-col w-96 xl:w-[420px] bg-gray-900/20 shrink-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto">
                 <CurrentBill
                   bill={activeBill}
                   onClose={handleCloseView}
@@ -907,28 +906,6 @@ const POSScreen = () => {
                 />
               </div>
             </div>
-
-            {/* Mobile Current Bill Modal */}
-            {activeBill && (
-              <div className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-end">
-                <div className="w-full max-h-[85vh] bg-gray-900 rounded-t-2xl border-t-2 border-purple-500/30 overflow-hidden flex flex-col">
-                  <CurrentBill
-                    bill={activeBill}
-                    onClose={handleCloseView}
-                    currentRoundItems={currentRoundItems}
-                    onRemoveItem={handleRemoveItem}
-                    onUpdateQuantity={handleUpdateQuantity}
-                    onAddRound={handleAddRound}
-                    onOpenPayment={handleOpenPaymentModal}
-                    onVoidBill={handleVoidBill}
-                    onShowReceipt={() => setShowReceiptModal(true)}
-                    onExchangeItem={() => setShowExchangeModal(true)}
-                    isAddingRound={addingRound}
-                    stockWarnings={stockWarnings}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1096,6 +1073,18 @@ const POSScreen = () => {
           variant="danger"
           onConfirm={confirmVoidBill}
           onCancel={() => setShowVoidConfirm(false)}
+        />
+      )}
+
+      {showCloseConfirm && (
+        <ConfirmModal
+          title="Discard Round Items?"
+          message="You have unsaved items in the current round. Close the bill view without adding them?"
+          confirmLabel="Discard & Close"
+          cancelLabel="Keep Editing"
+          variant="warning"
+          onConfirm={confirmCloseView}
+          onCancel={() => setShowCloseConfirm(false)}
         />
       )}
 

@@ -87,7 +87,6 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by customer name or bill ID..."
               className="w-full pl-10 pr-4 py-2.5 bg-gray-800/60 border border-purple-500/20 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 transition-colors"
-              autoFocus
             />
           </div>
         </div>
