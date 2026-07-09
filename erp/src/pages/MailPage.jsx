@@ -2,13 +2,30 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  Mail, Send, Trash2, Reply, X, ChevronLeft,
-  Loader2, Circle, Inbox, FileEdit, Paperclip, ChevronDown,
+  RefreshCw,
+  Mail,
+  Send,
+  Trash2,
+  Reply,
+  X,
+  ChevronLeft,
+  Loader2,
+  Circle,
+  Inbox,
+  FileEdit,
+  Paperclip,
+  ChevronDown,
 } from "lucide-react";
 import {
-  fetchMailboxes, fetchInbox, fetchSent, fetchDrafts,
-  fetchMessage, markRead, deleteMessage,
-  saveDraft, sendMail,
+  fetchMailboxes,
+  fetchInbox,
+  fetchSent,
+  fetchDrafts,
+  fetchMessage,
+  markRead,
+  deleteMessage,
+  saveDraft,
+  sendMail,
 } from "@/services/mail.service";
 
 const DRAFT_KEY = "mail_compose_draft";
@@ -24,17 +41,39 @@ const fmtDate = (d) => {
     date.getMonth() === today.getMonth() &&
     date.getFullYear() === today.getFullYear();
   return isToday
-    ? date.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" })
-    : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" });
+    ? date.toLocaleTimeString("en-KE", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Africa/Nairobi",
+      })
+    : date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "Africa/Nairobi",
+      });
 };
 
 const addrLabel = (addr) => addr?.name || addr?.address || "Unknown";
 
 // ─── Compose Modal ─────────────────────────────────────────────────────────
 
-const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBody = "", draftUid = null, isReply = false, mailbox = "admin" }) => {
+const ComposeModal = ({
+  onClose,
+  defaultTo = "",
+  defaultSubject = "",
+  defaultBody = "",
+  draftUid = null,
+  isReply = false,
+  mailbox = "admin",
+}) => {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ to: defaultTo, cc: "", subject: defaultSubject, body: defaultBody });
+  const [form, setForm] = useState({
+    to: defaultTo,
+    cc: "",
+    subject: defaultSubject,
+    body: defaultBody,
+  });
   const [files, setFiles] = useState([]);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null); // null | 'saving' | 'saved'
   const autoSaveTimer = useRef(null);
@@ -49,7 +88,8 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
     e.target.value = ""; // reset so same file can be re-added after removal
   };
 
-  const removeFile = (idx) => setFiles((prev) => prev.filter((_, i) => i !== idx));
+  const removeFile = (idx) =>
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
 
   const fmtSize = (bytes) =>
     bytes < 1024 * 1024
@@ -61,7 +101,11 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
     if (!isReply && !defaultTo && !defaultSubject) {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
-        try { setForm(JSON.parse(saved)); } catch { /* corrupted */ }
+        try {
+          setForm(JSON.parse(saved));
+        } catch {
+          /* corrupted */
+        }
       }
     }
   }, [isReply, defaultTo, defaultSubject]);
@@ -76,7 +120,13 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
       localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
       setAutoSaveStatus("saving");
       try {
-        await saveDraft({ uid: draftUid || undefined, to: form.to, cc: form.cc, subject: form.subject, text: form.body });
+        await saveDraft({
+          uid: draftUid || undefined,
+          to: form.to,
+          cc: form.cc,
+          subject: form.subject,
+          text: form.body,
+        });
         setAutoSaveStatus("saved");
         qc.invalidateQueries({ queryKey: ["mail-drafts"] });
       } catch {
@@ -93,7 +143,15 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
   };
 
   const sendMutation = useMutation({
-    mutationFn: () => sendMail({ to: form.to, cc: form.cc || undefined, subject: form.subject, text: form.body, files, mailbox }),
+    mutationFn: () =>
+      sendMail({
+        to: form.to,
+        cc: form.cc || undefined,
+        subject: form.subject,
+        text: form.body,
+        files,
+        mailbox,
+      }),
     onSuccess: () => {
       localStorage.removeItem(DRAFT_KEY);
       // Delete draft from server if it was one
@@ -119,7 +177,9 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
       <div className="bg-surface-900 border border-surface-700 rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-surface-700">
-          <h2 className="font-semibold text-white">{isReply ? "Reply" : "Compose"}</h2>
+          <h2 className="font-semibold text-white">
+            {isReply ? "Reply" : "Compose"}
+          </h2>
           <div className="flex items-center gap-3">
             {autoSaveStatus === "saving" && (
               <span className="text-xs text-surface-500 flex items-center gap-1">
@@ -129,7 +189,10 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
             {autoSaveStatus === "saved" && (
               <span className="text-xs text-emerald-500">Draft saved</span>
             )}
-            <button onClick={handleClose} className="text-surface-400 hover:text-white transition-colors">
+            <button
+              onClick={handleClose}
+              className="text-surface-400 hover:text-white transition-colors"
+            >
               <X size={18} />
             </button>
           </div>
@@ -143,7 +206,9 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
             { label: "Subject", key: "subject", placeholder: "Email subject" },
           ].map(({ label, key, placeholder }) => (
             <div key={key} className="flex items-center gap-3">
-              <span className="text-xs text-surface-500 w-12 shrink-0">{label}</span>
+              <span className="text-xs text-surface-500 w-12 shrink-0">
+                {label}
+              </span>
               <input
                 value={form[key]}
                 onChange={set(key)}
@@ -153,7 +218,9 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
             </div>
           ))}
           <div className="flex gap-3">
-            <span className="text-xs text-surface-500 w-12 shrink-0 pt-2">Body</span>
+            <span className="text-xs text-surface-500 w-12 shrink-0 pt-2">
+              Body
+            </span>
             <textarea
               value={form.body}
               onChange={set("body")}
@@ -168,11 +235,19 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
         {files.length > 0 && (
           <div className="px-5 pb-2 flex flex-wrap gap-2">
             {files.map((f, i) => (
-              <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-800 border border-surface-600 rounded-lg text-xs text-surface-300">
+              <div
+                key={i}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-800 border border-surface-600 rounded-lg text-xs text-surface-300"
+              >
                 <Paperclip size={10} className="text-surface-500 shrink-0" />
                 <span className="truncate max-w-[140px]">{f.name}</span>
-                <span className="text-surface-600 shrink-0">{fmtSize(f.size)}</span>
-                <button onClick={() => removeFile(i)} className="text-surface-500 hover:text-red-400 transition-colors ml-0.5">
+                <span className="text-surface-600 shrink-0">
+                  {fmtSize(f.size)}
+                </span>
+                <button
+                  onClick={() => removeFile(i)}
+                  className="text-surface-500 hover:text-red-400 transition-colors ml-0.5"
+                >
                   <X size={10} />
                 </button>
               </div>
@@ -198,7 +273,11 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
           >
             <Paperclip size={15} />
             <span className="hidden sm:inline">Attach</span>
-            {files.length > 0 && <span className="text-primary-400 font-medium">({files.length})</span>}
+            {files.length > 0 && (
+              <span className="text-primary-400 font-medium">
+                ({files.length})
+              </span>
+            )}
           </button>
           <div className="flex gap-3">
             <button
@@ -209,10 +288,19 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
             </button>
             <button
               onClick={() => sendMutation.mutate()}
-              disabled={!form.to || !form.subject || !form.body || sendMutation.isPending}
+              disabled={
+                !form.to ||
+                !form.subject ||
+                !form.body ||
+                sendMutation.isPending
+              }
               className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
             >
-              {sendMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {sendMutation.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Send size={14} />
+              )}
               Send
             </button>
           </div>
@@ -224,22 +312,39 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
 
 // ─── Message Detail ────────────────────────────────────────────────────────
 
-const MessageDetail = ({ uid, folder, mailbox = "admin", onBack, onDelete }) => {
+const MessageDetail = ({
+  uid,
+  folder,
+  mailbox = "admin",
+  onBack,
+  onDelete,
+}) => {
   const qc = useQueryClient();
   const [composing, setComposing] = useState(null);
 
   const { data: msg, isLoading } = useQuery({
     queryKey: ["mail-message", uid, folder, mailbox],
     queryFn: () => fetchMessage(uid, folder, mailbox),
-    onSuccess: () => {
-      if (folder === "INBOX") qc.invalidateQueries({ queryKey: ["mail-inbox"] });
-    },
   });
+
+  // Refresh the inbox list once the message loads so the unread dot clears
+  useEffect(() => {
+    if (msg && folder === "INBOX") {
+      qc.invalidateQueries({ queryKey: ["mail-inbox"] });
+    }
+  }, [msg, folder, mailbox, qc]);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteMessage(uid, folder, mailbox),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: folder === "Sent" ? ["mail-sent"] : folder === "Drafts" ? ["mail-drafts"] : ["mail-inbox"] });
+      qc.invalidateQueries({
+        queryKey:
+          folder === "Sent"
+            ? ["mail-sent"]
+            : folder === "Drafts"
+              ? ["mail-drafts"]
+              : ["mail-inbox"],
+      });
       if (folder === "Drafts") localStorage.removeItem(DRAFT_KEY);
       toast.success("Message deleted");
       onDelete();
@@ -249,7 +354,10 @@ const MessageDetail = ({ uid, folder, mailbox = "admin", onBack, onDelete }) => 
 
   const markUnread = useMutation({
     mutationFn: () => markRead(uid, false, mailbox),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["mail-inbox"] }); onBack(); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mail-inbox"] });
+      onBack();
+    },
   });
 
   if (isLoading) {
@@ -279,7 +387,14 @@ const MessageDetail = ({ uid, folder, mailbox = "admin", onBack, onDelete }) => 
           <div className="flex-1" />
           {isDraft && (
             <button
-              onClick={() => setComposing({ to: msg.to?.[0]?.address, subject: msg.subject, body: msg.text, draftUid: uid })}
+              onClick={() =>
+                setComposing({
+                  to: msg.to?.[0]?.address,
+                  subject: msg.subject,
+                  body: msg.text,
+                  draftUid: uid,
+                })
+              }
               className="flex items-center gap-1.5 text-xs bg-primary-600/20 hover:bg-primary-600/30 text-primary-400 px-3 py-1.5 rounded-lg transition-colors"
             >
               <FileEdit size={12} /> Edit draft
@@ -294,7 +409,15 @@ const MessageDetail = ({ uid, folder, mailbox = "admin", onBack, onDelete }) => 
                 Mark unread
               </button>
               <button
-                onClick={() => setComposing({ to: msg.from?.address, subject: msg.subject?.startsWith("Re:") ? msg.subject : `Re: ${msg.subject}`, isReply: true })}
+                onClick={() =>
+                  setComposing({
+                    to: msg.from?.address,
+                    subject: msg.subject?.startsWith("Re:")
+                      ? msg.subject
+                      : `Re: ${msg.subject}`,
+                    isReply: true,
+                  })
+                }
                 className="flex items-center gap-1.5 text-xs bg-surface-700 hover:bg-surface-600 text-surface-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
               >
                 <Reply size={12} /> Reply
@@ -313,32 +436,46 @@ const MessageDetail = ({ uid, folder, mailbox = "admin", onBack, onDelete }) => 
 
         {/* Subject + meta */}
         <div className="px-6 py-4 border-b border-surface-700/50 shrink-0">
-          <h2 className="text-lg font-semibold text-white mb-3">{msg.subject}</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">
+            {msg.subject}
+          </h2>
           <div className="space-y-1 text-sm">
             {msg.from && (
               <div className="flex gap-2">
                 <span className="text-surface-500 w-10 shrink-0">From</span>
                 <span className="text-white">
-                  {msg.from.name && <span className="mr-1">{msg.from.name}</span>}
-                  <span className="text-surface-400">&lt;{msg.from.address}&gt;</span>
+                  {msg.from.name && (
+                    <span className="mr-1">{msg.from.name}</span>
+                  )}
+                  <span className="text-surface-400">
+                    &lt;{msg.from.address}&gt;
+                  </span>
                 </span>
               </div>
             )}
             {msg.to?.length > 0 && (
               <div className="flex gap-2">
                 <span className="text-surface-500 w-10 shrink-0">To</span>
-                <span className="text-surface-300">{msg.to.map((a) => a.address).join(", ")}</span>
+                <span className="text-surface-300">
+                  {msg.to.map((a) => a.address).join(", ")}
+                </span>
               </div>
             )}
             {msg.cc?.length > 0 && (
               <div className="flex gap-2">
                 <span className="text-surface-500 w-10 shrink-0">CC</span>
-                <span className="text-surface-300">{msg.cc.map((a) => a.address).join(", ")}</span>
+                <span className="text-surface-300">
+                  {msg.cc.map((a) => a.address).join(", ")}
+                </span>
               </div>
             )}
             <div className="flex gap-2">
               <span className="text-surface-500 w-10 shrink-0">Date</span>
-              <span className="text-surface-400 text-xs">{new Date(msg.date).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</span>
+              <span className="text-surface-400 text-xs">
+                {new Date(msg.date).toLocaleString("en-KE", {
+                  timeZone: "Africa/Nairobi",
+                })}
+              </span>
             </div>
           </div>
         </div>
@@ -361,12 +498,19 @@ const MessageDetail = ({ uid, folder, mailbox = "admin", onBack, onDelete }) => 
 
           {msg.attachments?.length > 0 && (
             <div className="mt-4 pt-4 border-t border-surface-700">
-              <p className="text-xs text-surface-500 mb-2 uppercase tracking-wide">Attachments</p>
+              <p className="text-xs text-surface-500 mb-2 uppercase tracking-wide">
+                Attachments
+              </p>
               <div className="flex flex-wrap gap-2">
                 {msg.attachments.map((a, i) => (
-                  <div key={i} className="flex items-center gap-2 px-3 py-2 bg-surface-800 border border-surface-600 rounded-lg text-xs text-surface-300">
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 px-3 py-2 bg-surface-800 border border-surface-600 rounded-lg text-xs text-surface-300"
+                  >
                     <span>{a.filename}</span>
-                    <span className="text-surface-600">({Math.round(a.size / 1024)} KB)</span>
+                    <span className="text-surface-600">
+                      ({Math.round(a.size / 1024)} KB)
+                    </span>
                   </div>
                 ))}
               </div>
@@ -403,18 +547,22 @@ const MessageRow = ({ msg, isSelected, onClick, showTo = false }) => (
       {!msg.seen && !showTo && (
         <Circle size={8} className="fill-primary-400 text-primary-400" />
       )}
-      {msg.draft && (
-        <FileEdit size={10} className="text-amber-400" />
-      )}
+      {msg.draft && <FileEdit size={10} className="text-amber-400" />}
     </div>
     <div className="flex-1 min-w-0">
       <div className="flex items-center justify-between gap-2">
-        <span className={`text-sm truncate ${(!msg.seen && !showTo) ? "font-semibold text-white" : "text-surface-300"}`}>
+        <span
+          className={`text-sm truncate ${!msg.seen && !showTo ? "font-semibold text-white" : "text-surface-300"}`}
+        >
           {showTo ? addrLabel(msg.to) : addrLabel(msg.from)}
         </span>
-        <span className="text-xs text-surface-500 shrink-0">{fmtDate(msg.date)}</span>
+        <span className="text-xs text-surface-500 shrink-0">
+          {fmtDate(msg.date)}
+        </span>
       </div>
-      <p className={`text-xs mt-0.5 truncate ${(!msg.seen && !showTo) ? "text-surface-300" : "text-surface-500"}`}>
+      <p
+        className={`text-xs mt-0.5 truncate ${!msg.seen && !showTo ? "text-surface-300" : "text-surface-500"}`}
+      >
         {msg.draft && <span className="text-amber-400 mr-1">[Draft]</span>}
         {msg.subject}
       </p>
@@ -424,13 +572,17 @@ const MessageRow = ({ msg, isSelected, onClick, showTo = false }) => (
 
 // ─── Message List (shared for all three folders) ───────────────────────────
 
-const MessageList = ({ queryKey, queryFn, folder, showTo = false, emptyText = "No messages", mailbox = "admin" }) => {
+const MessageList = ({
+  queryKey,
+  queryFn,
+  folder,
+  showTo = false,
+  emptyText = "No messages",
+  mailbox = "admin",
+}) => {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [selectedUid, setSelectedUid] = useState(null);
-
-  // Reset to page 1 + clear selection when mailbox changes
-  useEffect(() => { setPage(1); setSelectedUid(null); }, [mailbox]);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: [queryKey, page, mailbox],
@@ -447,11 +599,15 @@ const MessageList = ({ queryKey, queryFn, folder, showTo = false, emptyText = "N
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* List */}
-      <div className={`${selectedUid ? "hidden md:flex" : "flex"} flex-col w-full md:w-80 lg:w-96 border-r border-surface-700 overflow-hidden shrink-0`}>
+      <div
+        className={`${selectedUid ? "hidden md:flex" : "flex"} flex-col w-full md:w-80 lg:w-96 border-r border-surface-700 overflow-hidden shrink-0`}
+      >
         {/* List sub-toolbar */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-surface-700/50 shrink-0">
           {unread > 0 && (
-            <span className="text-xs text-primary-400 font-medium">{unread} unread</span>
+            <span className="text-xs text-primary-400 font-medium">
+              {unread} unread
+            </span>
           )}
           <div className="flex-1" />
           <button
@@ -488,11 +644,21 @@ const MessageList = ({ queryKey, queryFn, folder, showTo = false, emptyText = "N
             </div>
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-2 border-t border-surface-700 text-xs text-surface-500">
-                <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="disabled:opacity-40 hover:text-white transition-colors">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="disabled:opacity-40 hover:text-white transition-colors"
+                >
                   ← Newer
                 </button>
-                <span>{page} / {totalPages}</span>
-                <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="disabled:opacity-40 hover:text-white transition-colors">
+                <span>
+                  {page} / {totalPages}
+                </span>
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="disabled:opacity-40 hover:text-white transition-colors"
+                >
                   Older →
                 </button>
               </div>
@@ -527,16 +693,41 @@ const MessageList = ({ queryKey, queryFn, folder, showTo = false, emptyText = "N
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "inbox",  label: "Inbox",  icon: Inbox,    folder: "INBOX",  queryKey: "mail-inbox",  fn: fetchInbox,  emptyText: "Inbox is empty" },
-  { id: "sent",   label: "Sent",   icon: Send,     folder: "Sent",   queryKey: "mail-sent",   fn: fetchSent,   emptyText: "No sent messages", showTo: true },
-  { id: "drafts", label: "Drafts", icon: FileEdit, folder: "Drafts", queryKey: "mail-drafts", fn: fetchDrafts, emptyText: "No saved drafts" },
+  {
+    id: "inbox",
+    label: "Inbox",
+    icon: Inbox,
+    folder: "INBOX",
+    queryKey: "mail-inbox",
+    fn: fetchInbox,
+    emptyText: "Inbox is empty",
+  },
+  {
+    id: "sent",
+    label: "Sent",
+    icon: Send,
+    folder: "Sent",
+    queryKey: "mail-sent",
+    fn: fetchSent,
+    emptyText: "No sent messages",
+    showTo: true,
+  },
+  {
+    id: "drafts",
+    label: "Drafts",
+    icon: FileEdit,
+    folder: "Drafts",
+    queryKey: "mail-drafts",
+    fn: fetchDrafts,
+    emptyText: "No saved drafts",
+  },
 ];
 
 const MailPage = () => {
-  const [activeTab, setActiveTab]         = useState("inbox");
-  const [mailbox, setMailbox]             = useState("admin");
-  const [composing, setComposing]         = useState(false);
-  const [mbDropOpen, setMbDropOpen]       = useState(false);
+  const [activeTab, setActiveTab] = useState("inbox");
+  const [mailbox, setMailbox] = useState("admin");
+  const [composing, setComposing] = useState(false);
+  const [mbDropOpen, setMbDropOpen] = useState(false);
 
   const tab = TABS.find((t) => t.id === activeTab);
 
@@ -552,7 +743,6 @@ const MailPage = () => {
     <div className="h-full flex flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-surface-700 bg-surface-900/40 shrink-0 flex-wrap">
-
         {/* Mailbox switcher */}
         {mailboxes.length > 1 && (
           <div className="relative">
@@ -561,7 +751,9 @@ const MailPage = () => {
               className="flex items-center gap-2 px-3 py-1.5 bg-surface-800 hover:bg-surface-700 border border-surface-600 rounded-lg text-sm text-white transition-colors"
             >
               <Mail size={13} className="text-primary-400 shrink-0" />
-              <span className="max-w-[140px] truncate">{activeMb?.user ?? mailbox}</span>
+              <span className="max-w-[140px] truncate">
+                {activeMb?.user ?? mailbox}
+              </span>
               <ChevronDown size={12} className="text-surface-500 shrink-0" />
             </button>
             {mbDropOpen && (
@@ -569,11 +761,18 @@ const MailPage = () => {
                 {mailboxes.map((mb) => (
                   <button
                     key={mb.id}
-                    onClick={() => { setMailbox(mb.id); setMbDropOpen(false); }}
+                    onClick={() => {
+                      setMailbox(mb.id);
+                      setMbDropOpen(false);
+                    }}
                     className={`w-full text-left flex flex-col px-4 py-3 hover:bg-surface-700 transition-colors border-b border-surface-700/50 last:border-0
                       ${mailbox === mb.id ? "bg-primary-600/10" : ""}`}
                   >
-                    <span className={`text-sm font-medium ${mailbox === mb.id ? "text-primary-400" : "text-white"}`}>{mb.label}</span>
+                    <span
+                      className={`text-sm font-medium ${mailbox === mb.id ? "text-primary-400" : "text-white"}`}
+                    >
+                      {mb.label}
+                    </span>
                     <span className="text-xs text-surface-400">{mb.user}</span>
                   </button>
                 ))}
@@ -592,9 +791,10 @@ const MailPage = () => {
               key={id}
               onClick={() => setActiveTab(id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-                ${activeTab === id
-                  ? "bg-primary-600/20 text-primary-400"
-                  : "text-surface-400 hover:text-white hover:bg-surface-800"
+                ${
+                  activeTab === id
+                    ? "bg-primary-600/20 text-primary-400"
+                    : "text-surface-400 hover:text-white hover:bg-surface-800"
                 }`}
             >
               <Icon size={14} />
@@ -615,7 +815,10 @@ const MailPage = () => {
 
       {/* Close dropdown on outside click */}
       {mbDropOpen && (
-        <div className="fixed inset-0 z-10" onClick={() => setMbDropOpen(false)} />
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setMbDropOpen(false)}
+        />
       )}
 
       {/* Active tab content */}
@@ -629,7 +832,9 @@ const MailPage = () => {
         mailbox={mailbox}
       />
 
-      {composing && <ComposeModal mailbox={mailbox} onClose={() => setComposing(false)} />}
+      {composing && (
+        <ComposeModal mailbox={mailbox} onClose={() => setComposing(false)} />
+      )}
     </div>
   );
 };
