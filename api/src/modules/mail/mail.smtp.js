@@ -2,7 +2,7 @@ const nodemailer = require("nodemailer");
 const getConfig = require("./mail.config");
 const { appendSent } = require("./mail.imap");
 
-exports.sendMail = async ({ to, cc, subject, text, html, replyTo }) => {
+exports.sendMail = async ({ to, cc, subject, text, html, replyTo, attachments = [] }) => {
   const cfg = getConfig();
   const transporter = nodemailer.createTransport(cfg.smtp);
   const info = await transporter.sendMail({
@@ -13,6 +13,7 @@ exports.sendMail = async ({ to, cc, subject, text, html, replyTo }) => {
     subject,
     text,
     html: html || undefined,
+    attachments: attachments.length ? attachments : undefined,
   });
 
   // Save a copy to the Sent IMAP folder (fire-and-forget, don't block response)

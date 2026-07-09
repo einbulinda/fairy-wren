@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
   Mail, Send, RefreshCw, Trash2, Reply, X, ChevronLeft,
-  Loader2, Circle, Inbox, Clock, FileEdit,
+  Loader2, Circle, Inbox, FileEdit, Paperclip,
 } from "lucide-react";
 import {
   fetchInbox, fetchSent, fetchDrafts,
@@ -35,8 +35,26 @@ const addrLabel = (addr) => addr?.name || addr?.address || "Unknown";
 const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBody = "", draftUid = null, isReply = false }) => {
   const qc = useQueryClient();
   const [form, setForm] = useState({ to: defaultTo, cc: "", subject: defaultSubject, body: defaultBody });
+  const [files, setFiles] = useState([]);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null); // null | 'saving' | 'saved'
   const autoSaveTimer = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const picked = Array.from(e.target.files || []);
+    setFiles((prev) => {
+      const existing = new Set(prev.map((f) => f.name + f.size));
+      return [...prev, ...picked.filter((f) => !existing.has(f.name + f.size))];
+    });
+    e.target.value = ""; // reset so same file can be re-added after removal
+  };
+
+  const removeFile = (idx) => setFiles((prev) => prev.filter((_, i) => i !== idx));
+
+  const fmtSize = (bytes) =>
+    bytes < 1024 * 1024
+      ? `${(bytes / 1024).toFixed(0)} KB`
+      : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
   // Restore from localStorage on mount (only for new compose, not replies)
   useEffect(() => {
@@ -75,7 +93,7 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
   };
 
   const sendMutation = useMutation({
-    mutationFn: () => sendMail({ to: form.to, cc: form.cc || undefined, subject: form.subject, text: form.body }),
+    mutationFn: () => sendMail({ to: form.to, cc: form.cc || undefined, subject: form.subject, text: form.body, files }),
     onSuccess: () => {
       localStorage.removeItem(DRAFT_KEY);
       // Delete draft from server if it was one
@@ -146,22 +164,58 @@ const ComposeModal = ({ onClose, defaultTo = "", defaultSubject = "", defaultBod
           </div>
         </div>
 
+        {/* Attachment list */}
+        {files.length > 0 && (
+          <div className="px-5 pb-2 flex flex-wrap gap-2">
+            {files.map((f, i) => (
+              <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-800 border border-surface-600 rounded-lg text-xs text-surface-300">
+                <Paperclip size={10} className="text-surface-500 shrink-0" />
+                <span className="truncate max-w-[140px]">{f.name}</span>
+                <span className="text-surface-600 shrink-0">{fmtSize(f.size)}</span>
+                <button onClick={() => removeFile(i)} className="text-surface-500 hover:text-red-400 transition-colors ml-0.5">
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-5 py-4 border-t border-surface-700">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-surface-700">
           <button
-            onClick={handleClose}
-            className="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-surface-300 rounded-lg text-sm transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 text-sm text-surface-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-surface-800"
+            title="Attach files"
           >
-            Cancel
+            <Paperclip size={15} />
+            <span className="hidden sm:inline">Attach</span>
+            {files.length > 0 && <span className="text-primary-400 font-medium">({files.length})</span>}
           </button>
-          <button
-            onClick={() => sendMutation.mutate()}
-            disabled={!form.to || !form.subject || !form.body || sendMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            {sendMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-            Send
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleClose}
+              className="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-surface-300 rounded-lg text-sm transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => sendMutation.mutate()}
+              disabled={!form.to || !form.subject || !form.body || sendMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {sendMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              Send
+            </button>
+          </div>
         </div>
       </div>
     </div>

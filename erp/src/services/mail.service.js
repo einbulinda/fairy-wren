@@ -20,7 +20,13 @@ export const saveDraft = async (payload) => {
   return data.data ?? data;
 };
 
-export const sendMail = async (payload) => {
-  const { data } = await api.post("/mail/send", payload);
+export const sendMail = async ({ to, cc, subject, text, files = [] }) => {
+  const fd = new FormData();
+  fd.append("to", to);
+  fd.append("subject", subject);
+  fd.append("text", text || "");
+  if (cc) fd.append("cc", cc);
+  files.forEach((f) => fd.append("attachments", f));
+  const { data } = await api.post("/mail/send", fd);
   return data.data ?? data;
 };

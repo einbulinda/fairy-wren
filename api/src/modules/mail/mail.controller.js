@@ -89,7 +89,12 @@ exports.sendMail = async (req, res, next) => {
     if (!to || !subject || (!text && !html)) {
       return res.status(400).json({ success: false, message: "to, subject, and body are required" });
     }
-    const result = await smtp.sendMail({ to, cc, subject, text, html, replyTo });
+    const attachments = (req.files || []).map((f) => ({
+      filename: f.originalname,
+      content: f.buffer,
+      contentType: f.mimetype,
+    }));
+    const result = await smtp.sendMail({ to, cc, subject, text, html, replyTo, attachments });
     respond(res, 200, result);
   } catch (err) {
     next(err);
