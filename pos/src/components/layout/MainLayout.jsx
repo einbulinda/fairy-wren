@@ -46,7 +46,7 @@ const MainLayout = () => {
   const { bills: openBills } = useBills({ active: true });
   const { stats, period, setPeriod } = useMyBillStats();
 
-  // Build sidebar nav from permissions
+  // Mobile sidebar nav (POS as accordion with children)
   const sidebarNav = useMemo(() => {
     const perms = user.permissions || [];
     const items = [];
@@ -76,6 +76,38 @@ const MainLayout = () => {
 
     return items;
   }, [user.permissions]);
+
+  // Desktop top-tab nav (flat — Customer Bills is a top-level tab)
+  const desktopTabs = useMemo(() => {
+    const perms = user.permissions || [];
+    const tabs = [];
+    if (perms.includes("pos_access")) {
+      tabs.push({ id: "sale", label: "Sale", icon: ShoppingCart, view: "pos", subView: "sale" });
+      tabs.push({ id: "customer-bills", label: "Customer Bills", icon: Users, view: "pos", subView: "customer-bills" });
+      if (perms.includes("approve_payments")) {
+        tabs.push({ id: "confirm-payments", label: "Confirm Payments", icon: ClipboardCheck, view: "pos", subView: "confirm-payments" });
+      }
+    }
+    if (perms.includes("stock_take"))
+      tabs.push({ id: "stock-take", label: "Stock Take", icon: ClipboardCheck, view: "stock-take" });
+    if (perms.includes("z_report"))
+      tabs.push({ id: "z-report", label: "Z Report", icon: Receipt, view: "z-report" });
+    if (perms.includes("weekly_sales"))
+      tabs.push({ id: "weekly-sales", label: "Weekly Sales", icon: BarChart3, view: "weekly-sales" });
+    if (perms.includes("stocktake_reports"))
+      tabs.push({ id: "stocktake-reports", label: "Stock Reports", icon: PackageSearch, view: "stocktake-reports" });
+    return tabs;
+  }, [user.permissions]);
+
+  const isTabActive = (tab) =>
+    tab.subView
+      ? currentView === tab.view && posSubView === tab.subView
+      : currentView === tab.id;
+
+  const onDesktopTabClick = (tab) => {
+    setCurrentView(tab.view);
+    if (tab.subView) setPosSubView(tab.subView);
+  };
 
   // Restore view from localStorage
   useEffect(() => {
@@ -149,10 +181,10 @@ const MainLayout = () => {
         <div className="px-3 lg:px-4 py-3">
           <div className="flex items-center gap-3">
 
-            {/* Hamburger */}
+            {/* Hamburger — mobile only */}
             <button
               onClick={() => setSidebarOpen((o) => !o)}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors shrink-0"
+              className="lg:hidden p-2 hover:bg-gray-700 rounded-lg transition-colors shrink-0"
               aria-label="Toggle menu"
             >
               {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -228,7 +260,30 @@ const MainLayout = () => {
         </div>
       </header>
 
-      {/* ── Body: sidebar + main ── */}
+      {/* ── Desktop top nav (lg+) ── */}
+      <nav className="hidden lg:flex shrink-0 bg-gray-900/60 backdrop-blur-md border-b border-purple-500/20 px-4 overflow-x-auto">
+        {desktopTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onDesktopTabClick(tab)}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors relative ${
+              isTabActive(tab)
+                ? "border-yellow-400 text-yellow-400"
+                : "border-transparent text-gray-400 hover:text-white hover:border-gray-600"
+            }`}
+          >
+            <tab.icon size={16} />
+            {tab.label}
+            {tab.id === "confirm-payments" && pendingConfirmCount > 0 && (
+              <span className="bg-orange-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center shrink-0">
+                {pendingConfirmCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {/* ── Body: sidebar (mobile) + main ── */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
 
         {/* Mobile backdrop */}
@@ -239,22 +294,19 @@ const MainLayout = () => {
           />
         )}
 
-        {/* ── Sidebar ── */}
+        {/* ── Sidebar — mobile only ── */}
         <aside
           className={`
+            lg:hidden
             absolute inset-y-0 left-0 z-40
-            lg:relative lg:inset-auto lg:z-auto
             flex flex-col shrink-0
             bg-gray-900 border-r border-gray-700/50
             transition-all duration-300 ease-in-out
-            ${sidebarOpen
-              ? "w-60 translate-x-0 shadow-2xl lg:shadow-none"
-              : "w-60 -translate-x-full lg:w-0 lg:translate-x-0 lg:overflow-hidden lg:border-r-0"
-            }
+            ${sidebarOpen ? "w-60 translate-x-0 shadow-2xl" : "w-60 -translate-x-full"}
           `}
         >
-          {/* Sidebar brand (mobile only — desktop shows in header) */}
-          <div className="shrink-0 px-4 py-3 border-b border-gray-700/50 flex items-center gap-2.5 lg:hidden">
+          {/* Sidebar brand */}
+          <div className="shrink-0 px-4 py-3 border-b border-gray-700/50 flex items-center gap-2.5">
             <img src={fwLogo} alt="Fairy Wren" className="h-8 w-auto shrink-0" />
             <div className="min-w-0">
               <p className="font-bold text-yellow-400 text-sm leading-none">FAIRY WREN</p>
