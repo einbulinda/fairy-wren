@@ -31,6 +31,7 @@ const notificationsRoutes = require("../modules/notifications/notifications.rout
 const publicRoutes = require("../modules/public/public.routes");
 const auditRoutes = require("../modules/audit/audit.routes");
 const customersRoutes = require("../modules/customers/customers.routes");
+const mailRoutes = require("../modules/mail/mail.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
@@ -64,5 +65,6 @@ router.use("/reservations", authMiddleware, reservationsRoutes);
 router.use("/notifications", authMiddleware, notificationsRoutes);
 router.use("/audit", authMiddleware, auditRoutes);
 router.use("/customers", authMiddleware, customersRoutes);
+router.use("/mail", authMiddleware, mailRoutes);
 
 module.exports = router;

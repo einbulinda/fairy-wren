@@ -19,6 +19,7 @@ import {
   Briefcase,
   Shield,
   UserCircle,
+  MailOpen,
 } from "lucide-react";
 import fwLogo from "/fairy-logo-only.png";
 import { useState } from "react";
@@ -61,6 +62,7 @@ const navSections = [
       { to: "/users", icon: Users, label: "User Management" },
       { to: "/settings", icon: Settings, label: "Settings" },
       { to: "/audit", icon: Shield, label: "Audit Trail" },
+      { to: "/mail", icon: MailOpen, label: "Mail" },
       { to: "/help", icon: LifeBuoy, label: "Help Desk" },
     ],
   },

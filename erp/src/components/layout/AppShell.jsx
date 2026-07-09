@@ -122,6 +122,7 @@ const routeTitles = {
   "/help": "Help Desk",
   "/audit": "Audit Trail",
   "/crm": "CRM",
+  "/mail": "Mail",
 };
 
 const bottomNavItems = [
