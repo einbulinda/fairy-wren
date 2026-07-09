@@ -1,136 +1,96 @@
-import { useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import QRCode from "react-qr-code";
-import toast from "react-hot-toast";
-import { Upload, Trash2, Download, QrCode, ImageOff } from "lucide-react";
+import { Download, QrCode, ExternalLink } from "lucide-react";
 import { fetchProducts } from "@/services/products.service";
 import { fetchCategories } from "@/services/categories.service";
-import { uploadProductImage, removeProductImage } from "@/services/products.service";
 
 const MENU_URL = `${import.meta.env.VITE_WEB_URL ?? "http://localhost:5175"}/menu`;
 
 function downloadQR() {
   const svg = document.getElementById("menu-qr-svg");
   if (!svg) return;
-  const svgData = new XMLSerializer().serializeToString(svg);
+  const data = new XMLSerializer().serializeToString(svg);
   const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
+  canvas.width = 300;
+  canvas.height = 300;
   const ctx = canvas.getContext("2d");
   const img = new Image();
   img.onload = () => {
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, 256, 256);
-    ctx.drawImage(img, 0, 0, 256, 256);
+    ctx.fillRect(0, 0, 300, 300);
+    ctx.drawImage(img, 0, 0, 300, 300);
     const a = document.createElement("a");
     a.download = "menu-qr.png";
     a.href = canvas.toDataURL("image/png");
     a.click();
   };
-  img.src = `data:image/svg+xml;base64,${btoa(svgData)}`;
+  img.src = `data:image/svg+xml;base64,${btoa(data)}`;
 }
 
-function ProductCard({ product, categoryName, onUpdated }) {
-  const fileRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
-  const [removing, setRemoving] = useState(false);
-
-  async function handleFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-    setUploading(true);
-    try {
-      await uploadProductImage(product.id, file);
-      toast.success(`Image updated for ${product.name}`);
-      onUpdated();
-    } catch {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleRemove() {
-    setRemoving(true);
-    try {
-      await removeProductImage(product.id);
-      toast.success("Image removed");
-      onUpdated();
-    } catch {
-      toast.error("Failed to remove image");
-    } finally {
-      setRemoving(false);
-    }
-  }
-
+/* Four-corner bracket accent */
+function CornerBrackets({ color = "border-warning/30" }) {
+  const base = `absolute w-5 h-5 ${color}`;
   return (
-    <div className="bg-surface-800 border border-surface-700 rounded-xl overflow-hidden flex flex-col">
-      {/* Image area */}
-      <div className="relative h-36 bg-surface-900 flex items-center justify-center group">
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <ImageOff className="w-8 h-8 text-surface-600" />
+    <>
+      <span className={`${base} top-0 left-0 border-t border-l`} />
+      <span className={`${base} top-0 right-0 border-t border-r`} />
+      <span className={`${base} bottom-0 left-0 border-b border-l`} />
+      <span className={`${base} bottom-0 right-0 border-b border-r`} />
+    </>
+  );
+}
+
+function MenuItem({ product }) {
+  return (
+    <div className="group flex items-baseline gap-2 py-2.5 border-b border-surface-700/50 last:border-0">
+      <div className="min-w-0 shrink-0">
+        <span className="text-white/85 text-[13px] tracking-wide font-medium group-hover:text-white transition-colors duration-200">
+          {product.name}
+        </span>
+        {product.unit && (
+          <span className="ml-2 text-[10px] text-primary-400/60 uppercase tracking-widest font-light">
+            {product.unit}
+          </span>
         )}
-        {/* Overlay actions */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-          >
-            {uploading ? (
-              <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Upload className="w-3 h-3" />
-            )}
-            {product.image_url ? "Replace" : "Upload"}
-          </button>
-          {product.image_url && (
-            <button
-              onClick={handleRemove}
-              disabled={removing}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-            >
-              {removing ? (
-                <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Trash2 className="w-3 h-3" />
-              )}
-              Remove
-            </button>
-          )}
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="hidden"
-          onChange={handleFile}
-        />
+      </div>
+      {/* Dotted leader */}
+      <div className="flex-1 border-b border-dotted border-surface-600/40 mb-[3px]" />
+      {/* Price */}
+      <span className="shrink-0 text-[13px] font-semibold text-warning tracking-wide">
+        {Number(product.price).toLocaleString()}
+      </span>
+    </div>
+  );
+}
+
+function CategorySection({ cat, index }) {
+  return (
+    <div
+      className="transition-all duration-500"
+      style={{ animationDelay: `${index * 60}ms` }}
+    >
+      {/* Category divider heading */}
+      <div className="flex items-center gap-3 mb-1 mt-7 first:mt-0">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary-500/35 to-transparent" />
+        <span className="text-[9px] font-semibold uppercase tracking-[0.35em] text-primary-400/70 px-1">
+          {cat.name}
+        </span>
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary-500/35 to-transparent" />
       </div>
 
-      {/* Info */}
-      <div className="p-3 flex flex-col gap-0.5 flex-1">
-        <p className="text-sm font-medium text-white leading-snug">{product.name}</p>
-        {product.unit && (
-          <p className="text-xs text-surface-500 capitalize">{product.unit}</p>
-        )}
-        <p className="mt-auto pt-1 text-sm font-semibold text-primary-400">
-          Ksh {Number(product.price).toLocaleString()}
-        </p>
+      {/* Two-column item grid */}
+      <div className="grid md:grid-cols-2 gap-x-8">
+        {cat.products.map((p) => (
+          <MenuItem key={p.id} product={p} />
+        ))}
       </div>
     </div>
   );
 }
 
 export default function WebMenuPage() {
-  const qc = useQueryClient();
+  const [activeCategory, setActiveCategory] = useState(null);
 
   const { data: products = [], isLoading: loadingProducts } = useQuery({
     queryKey: ["products"],
@@ -149,7 +109,7 @@ export default function WebMenuPage() {
   const grouped = products.reduce((acc, p) => {
     const key = p.category_id || "__none__";
     const name = catMap[key] || "Uncategorized";
-    if (!acc[key]) acc[key] = { name, products: [] };
+    if (!acc[key]) acc[key] = { id: key, name, products: [] };
     acc[key].products.push(p);
     return acc;
   }, {});
@@ -158,66 +118,143 @@ export default function WebMenuPage() {
     a.name.localeCompare(b.name)
   );
 
-  function onUpdated() {
-    qc.invalidateQueries({ queryKey: ["products"] });
-  }
+  const displayed =
+    activeCategory === null
+      ? sortedGroups
+      : sortedGroups.filter((g) => g.id === activeCategory);
+
+  const totalProducts = products.length;
 
   return (
     <div className="space-y-6">
-      {/* QR Code panel */}
-      <div className="bg-surface-800 border border-surface-700 rounded-xl p-5 flex flex-col sm:flex-row items-center gap-6">
-        <div className="bg-white p-3 rounded-xl">
-          <QRCode id="menu-qr-svg" value={MENU_URL} size={140} />
+
+      {/* ── QR Code panel ── */}
+      <div className="relative bg-surface-800 border border-surface-700 rounded-xl p-5 flex flex-col sm:flex-row items-center gap-6 overflow-hidden">
+        <CornerBrackets color="border-primary-500/20" />
+
+        {/* Faint logo in QR panel */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-end pr-6 opacity-[0.04]">
+          <img src="/fairy-wren-logo-removebg.png" alt="" aria-hidden="true" className="h-full w-auto" draggable={false} />
         </div>
-        <div className="flex flex-col gap-2 flex-1">
+
+        <div className="relative z-10 bg-white p-3 rounded-lg shrink-0">
+          <QRCode id="menu-qr-svg" value={MENU_URL} size={130} />
+        </div>
+
+        <div className="relative z-10 flex flex-col gap-2 flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <QrCode className="w-4 h-4 text-primary-400" />
-            <h3 className="font-semibold text-white text-sm">Menu QR Code</h3>
+            <h3 className="font-semibold text-white text-sm tracking-wide">Menu QR Code</h3>
           </div>
-          <p className="text-xs text-surface-400">
-            Customers can scan this code to view the live menu on their phone.
+          <p className="text-xs text-surface-400 leading-relaxed">
+            Customers scan this code to view the live menu on their phone.
           </p>
-          <p className="text-xs text-surface-500 font-mono break-all">{MENU_URL}</p>
-          <button
-            onClick={downloadQR}
-            className="mt-1 self-start flex items-center gap-2 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 border border-surface-600 text-surface-200 rounded-lg text-xs font-medium transition-colors"
-          >
-            <Download className="w-3 h-3" />
-            Download QR
-          </button>
+          <p className="text-[11px] text-surface-500 font-mono break-all">{MENU_URL}</p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <button
+              onClick={downloadQR}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 border border-surface-600 text-surface-200 rounded-lg text-xs font-medium transition-colors"
+            >
+              <Download className="w-3 h-3" />
+              Download QR
+            </button>
+            <a
+              href={MENU_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 border border-surface-600 text-surface-200 rounded-lg text-xs font-medium transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Preview Live
+            </a>
+          </div>
         </div>
       </div>
 
-      {/* Product grid by category */}
+      {/* ── Loading ── */}
       {loading && (
-        <div className="flex items-center justify-center py-16">
+        <div className="flex items-center justify-center py-20">
           <span className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
       {!loading && sortedGroups.length === 0 && (
-        <div className="text-center py-16 text-surface-500">
-          No active products found.
+        <div className="text-center py-20 text-surface-500 text-sm tracking-wide">
+          No active products found. Add products to populate the menu.
         </div>
       )}
 
-      {!loading && sortedGroups.map((group) => (
-        <section key={group.name}>
-          <h3 className="text-sm font-semibold text-surface-300 uppercase tracking-wider mb-3 pb-2 border-b border-surface-700">
-            {group.name}
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {group.products.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                categoryName={group.name}
-                onUpdated={onUpdated}
-              />
-            ))}
+      {/* ── Menu preview card ── */}
+      {!loading && sortedGroups.length > 0 && (
+        <div className="space-y-4">
+
+          {/* Label */}
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-surface-500 font-semibold">
+              ◈ &nbsp;Customer View
+            </p>
+            {totalProducts > 0 && (
+              <p className="text-[11px] text-surface-500">
+                {totalProducts} items · {sortedGroups.length} {sortedGroups.length === 1 ? "category" : "categories"}
+              </p>
+            )}
           </div>
-        </section>
-      ))}
+
+          {/* Category tabs */}
+          {sortedGroups.length > 1 && (
+            <div className="flex gap-2 flex-wrap">
+              {[{ id: null, name: "All" }, ...sortedGroups].map((g) => (
+                <button
+                  key={g.id ?? "__all__"}
+                  onClick={() => setActiveCategory(g.id)}
+                  className={`px-4 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-all duration-200 border ${
+                    activeCategory === g.id
+                      ? "bg-primary-600 border-primary-600 text-white"
+                      : "border-surface-600 text-surface-400 hover:border-primary-500/50 hover:text-surface-200 bg-transparent"
+                  }`}
+                >
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Menu card — matches web look */}
+          <div className="relative bg-surface-800/50 backdrop-blur border border-surface-700/60 rounded-2xl px-6 sm:px-10 py-8 overflow-hidden">
+            <CornerBrackets />
+
+            {/* Logo watermark */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <img
+                src="/fairy-logo-only.png"
+                alt=""
+                aria-hidden="true"
+                className="h-52 w-auto opacity-[0.035] select-none"
+                draggable={false}
+              />
+            </div>
+
+            {/* Content */}
+            <div className="relative z-10">
+              {/* Ksh label */}
+              <p className="text-right text-[10px] text-surface-600 uppercase tracking-[0.3em] mb-4">
+                Prices in Ksh
+              </p>
+
+              {displayed.map((group, i) => (
+                <CategorySection key={group.id} cat={group} index={i} />
+              ))}
+            </div>
+
+            {/* Bottom signature */}
+            <div className="relative z-10 mt-8 flex items-center justify-center gap-3 opacity-20">
+              <div className="h-px w-10 bg-warning/80" />
+              <span className="text-[9px] uppercase tracking-[0.4em] text-warning font-semibold">Fairy Wren</span>
+              <div className="h-px w-10 bg-warning/80" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
