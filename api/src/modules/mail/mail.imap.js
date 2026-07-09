@@ -145,6 +145,26 @@ exports.appendSent = async (mailOptions, mailbox = "admin") => {
   }
 };
 
+exports.getAttachment = async (uid, index, folder = "INBOX", mailbox = "admin") => {
+  const client = mkClient(mailbox);
+  await client.connect();
+  try {
+    await client.mailboxOpen(folder);
+    const raw = await client.fetchOne(String(uid), { source: true }, { uid: true });
+    if (!raw) return null;
+    const parsed = await simpleParser(raw.source);
+    const att = parsed.attachments?.[index];
+    if (!att) return null;
+    return {
+      filename: att.filename || `attachment-${index}`,
+      contentType: att.contentType || "application/octet-stream",
+      content: att.content, // Buffer
+    };
+  } finally {
+    await client.logout();
+  }
+};
+
 exports.saveDraft = async ({ uid, to, cc, subject, text, mailbox = "admin" }) => {
   const cfg = getConfig(mailbox);
   const client = mkClient(mailbox);

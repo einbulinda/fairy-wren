@@ -22,6 +22,21 @@ export const deleteMessage = async (uid, folder = "INBOX", mailbox = "admin") =>
   await api.delete(`/mail/${uid}`, { params: { folder, mailbox } });
 };
 
+export const downloadAttachment = async (uid, index, filename, folder = "INBOX", mailbox = "admin") => {
+  const response = await api.get(`/mail/${uid}/attachments/${index}`, {
+    params: { folder, mailbox },
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(response.data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 export const saveDraft = async (payload) => {
   const { data } = await api.post("/mail/drafts", payload);
   return data.data ?? data;

@@ -15,6 +15,7 @@ import {
   FileEdit,
   Paperclip,
   ChevronDown,
+  Download,
 } from "lucide-react";
 import {
   fetchMailboxes,
@@ -26,6 +27,7 @@ import {
   deleteMessage,
   saveDraft,
   sendMail,
+  downloadAttachment,
 } from "@/services/mail.service";
 
 const DRAFT_KEY = "mail_compose_draft";
@@ -68,11 +70,14 @@ const ComposeModal = ({
   mailbox = "admin",
 }) => {
   const qc = useQueryClient();
-  const [form, setForm] = useState({
-    to: defaultTo,
-    cc: "",
-    subject: defaultSubject,
-    body: defaultBody,
+  const [form, setForm] = useState(() => {
+    if (!isReply && !defaultTo && !defaultSubject) {
+      try {
+        const saved = localStorage.getItem(DRAFT_KEY);
+        if (saved) return { cc: "", ...JSON.parse(saved) };
+      } catch { /* corrupted */ }
+    }
+    return { to: defaultTo, cc: "", subject: defaultSubject, body: defaultBody };
   });
   const [files, setFiles] = useState([]);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null); // null | 'saving' | 'saved'
@@ -95,20 +100,6 @@ const ComposeModal = ({
     bytes < 1024 * 1024
       ? `${(bytes / 1024).toFixed(0)} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-
-  // Restore from localStorage on mount (only for new compose, not replies)
-  useEffect(() => {
-    if (!isReply && !defaultTo && !defaultSubject) {
-      const saved = localStorage.getItem(DRAFT_KEY);
-      if (saved) {
-        try {
-          setForm(JSON.parse(saved));
-        } catch {
-          /* corrupted */
-        }
-      }
-    }
-  }, [isReply, defaultTo, defaultSubject]);
 
   // Auto-save to localStorage + server every 5s when form has content
   useEffect(() => {
@@ -503,15 +494,16 @@ const MessageDetail = ({
               </p>
               <div className="flex flex-wrap gap-2">
                 {msg.attachments.map((a, i) => (
-                  <div
+                  <button
                     key={i}
-                    className="flex items-center gap-2 px-3 py-2 bg-surface-800 border border-surface-600 rounded-lg text-xs text-surface-300"
+                    onClick={() => downloadAttachment(uid, i, a.filename, folder, mailbox)}
+                    className="flex items-center gap-2 px-3 py-2 bg-surface-800 hover:bg-surface-700 border border-surface-600 rounded-lg text-xs text-surface-300 transition-colors"
                   >
+                    <Paperclip className="w-3 h-3 text-surface-500" />
                     <span>{a.filename}</span>
-                    <span className="text-surface-600">
-                      ({Math.round(a.size / 1024)} KB)
-                    </span>
-                  </div>
+                    <span className="text-surface-600">({Math.round(a.size / 1024)} KB)</span>
+                    <Download className="w-3 h-3 text-primary-400" />
+                  </button>
                 ))}
               </div>
             </div>

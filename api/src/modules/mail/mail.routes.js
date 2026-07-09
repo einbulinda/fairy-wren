@@ -18,6 +18,7 @@ router.post("/drafts", controller.saveDraft);
 router.post("/send", upload.array("attachments", 10), controller.sendMail);
 
 // Parameterised routes
+router.get("/:uid/attachments/:index", controller.downloadAttachment); // ?folder=&mailbox=
 router.get("/:uid", controller.getMessage);         // ?folder=Sent|Drafts|INBOX
 router.patch("/:uid/read", controller.setRead);
 router.delete("/:uid", controller.deleteMessage);   // ?folder=...

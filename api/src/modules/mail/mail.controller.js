@@ -66,6 +66,22 @@ exports.deleteMessage = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.downloadAttachment = async (req, res, next) => {
+  try {
+    const uid    = parseInt(req.params.uid);
+    const index  = parseInt(req.params.index);
+    const folder = req.query.folder || "INBOX";
+    if (isNaN(uid) || isNaN(index)) return res.status(400).json({ success: false, message: "Invalid params" });
+    const att = await imap.getAttachment(uid, index, folder, mb(req));
+    if (!att) return res.status(404).json({ success: false, message: "Attachment not found" });
+    const safe = att.filename.replace(/[^\w.\-]/g, "_");
+    res.set("Content-Type", att.contentType);
+    res.set("Content-Disposition", `attachment; filename="${safe}"`);
+    res.set("Content-Length", att.content.length);
+    res.send(att.content);
+  } catch (err) { next(err); }
+};
+
 exports.saveDraft = async (req, res, next) => {
   try {
     const { uid, to, cc, subject, text } = req.body;
