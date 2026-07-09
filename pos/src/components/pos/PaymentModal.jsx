@@ -247,16 +247,21 @@ const PaymentModal = ({
                     KSh
                   </span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*"
+                    autoComplete="off"
                     value={currentAmount}
-                    onChange={(e) => setCurrentAmount(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "" || /^\d*\.?\d*$/.test(v)) setCurrentAmount(v);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && canAddLine) handleAddLine();
                     }}
+                    onFocus={(e) => e.target.select()}
                     placeholder={remaining.toFixed(0)}
                     disabled={loading}
-                    min="0"
-                    step="any"
                     className="w-full pl-12 pr-4 py-3 rounded-lg bg-gray-800/60 border-2 border-purple-500/30 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all text-lg font-mono disabled:opacity-50"
                   />
                 </div>

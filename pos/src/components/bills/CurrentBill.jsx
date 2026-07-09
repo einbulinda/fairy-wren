@@ -190,10 +190,7 @@ const CurrentBill = ({
                 </button>
 
                 {previousOrdersExpanded && (
-                  <div
-                    id="previous-orders-list"
-                    className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent"
-                  >
+                  <div id="previous-orders-list" className="space-y-2">
                     {bill.rounds.map((round) => (
                       <div
                         key={round.id || round.optimistic?.id}
@@ -274,7 +271,7 @@ const CurrentBill = ({
               </div>
 
               {currentRoundItems.length > 0 ? (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
+                <div className="space-y-2">
                   {currentRoundItems.map((item) => (
                     <div
                       key={item.id}

@@ -486,15 +486,21 @@ const POSScreen = ({ subView = "sale" }) => {
             {/* CENTER + MOBILE */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {/* Category strip (mobile/tablet) */}
-              <div className="lg:hidden shrink-0 border-b border-purple-500/20 bg-gray-900/20">
-                <div className="overflow-x-auto px-3 py-3">
+              <div className="lg:hidden shrink-0 border-b border-purple-500/20 bg-gray-900/20 relative">
+                {/* Right-edge fade to hint at scrollable content */}
+                <div className="pointer-events-none absolute right-0 inset-y-0 w-8 bg-linear-to-l from-gray-900/90 to-transparent z-10" />
+                <div
+                  className="overflow-x-auto px-3 py-3"
+                  style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
+                >
                   <div className="flex gap-2 min-w-max">
                     <button
                       onClick={() => setSelectedCategory("all")}
-                      className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium flex items-center gap-2 ${
+                      style={{ scrollSnapAlign: "start" }}
+                      className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium flex items-center gap-2 active:scale-95 ${
                         selectedCategory === "all"
                           ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                          : "bg-gray-800/60 text-gray-300 hover:bg-gray-800"
+                          : "bg-gray-800/60 text-gray-300"
                       }`}
                     >
                       <GridIcon size={14} />
@@ -504,10 +510,11 @@ const POSScreen = ({ subView = "sale" }) => {
                       <button
                         key={cat.id}
                         onClick={() => setSelectedCategory(cat.id)}
-                        className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium ${
+                        style={{ scrollSnapAlign: "start" }}
+                        className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 text-sm font-medium active:scale-95 ${
                           selectedCategory === cat.id
                             ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
-                            : "bg-gray-800/60 text-gray-300 hover:bg-gray-800"
+                            : "bg-gray-800/60 text-gray-300"
                         }`}
                       >
                         {cat.name}

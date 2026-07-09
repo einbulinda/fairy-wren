@@ -109,7 +109,7 @@ const BillDetail = ({ bill }) => {
       )}
 
       {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-purple-500/10 text-center text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-purple-500/10 text-center text-xs">
         <div>
           <p className="text-gray-500 mb-0.5">Bill Total</p>
           <p className="text-white font-semibold tabular-nums">{fmt(total)}</p>
@@ -118,7 +118,7 @@ const BillDetail = ({ bill }) => {
           <p className="text-gray-500 mb-0.5">Paid</p>
           <p className="text-emerald-400 font-semibold tabular-nums">{fmt(amountPaid)}</p>
         </div>
-        <div>
+        <div className="col-span-2 sm:col-span-1">
           <p className="text-gray-500 mb-0.5">Balance Due</p>
           <p className={`font-semibold tabular-nums ${balanceDue > 0 ? "text-pink-400" : "text-emerald-400"}`}>
             {fmt(balanceDue)}
