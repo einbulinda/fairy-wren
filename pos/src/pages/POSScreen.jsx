@@ -32,7 +32,7 @@ import ExchangeModal from "../components/bills/ExchangeModal";
 import CustomerBillsView from "../components/bills/CustomerBillsView";
 
 // subView: "sale" | "customer-bills" | "confirm-payments"
-const POSScreen = ({ subView = "sale" }) => {
+const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
   const { user } = useAuth();
   const {
     products,
@@ -189,6 +189,13 @@ const POSScreen = ({ subView = "sale" }) => {
     setShowOpenBillsModal(false);
     toast.success(`Switched to ${bill.customer_name}'s bill`);
   };
+
+  const handleJumpToBill = useCallback((bill) => {
+    setActiveBill(bill);
+    setCurrentRoundItems([]);
+    onSwitchToSale?.();
+    toast.success(`Opened ${bill.customer_name}'s bill`);
+  }, [onSwitchToSale]);
 
   const handleAddProduct = useCallback(
     (product) => {
@@ -406,41 +413,45 @@ const POSScreen = ({ subView = "sale" }) => {
       {/* ── Action bar (sale view only) ── */}
       {subView === "sale" && (
         <div className="shrink-0 bg-gray-900/40 backdrop-blur-md border-b border-purple-500/20 px-3 py-2">
-          <div className="flex gap-2">
+          {/* Mobile: New Bill full-width, secondary row below. sm+: single row. */}
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={handleStartNewBill}
               disabled={isCreatingBill}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="sm:flex-none px-4 py-3 sm:py-2.5 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isCreatingBill ? (
                 <><div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />Creating...</>
               ) : (
-                <><Plus size={18} /><span>New Bill</span></>
+                <><Plus size={18} />New Bill</>
               )}
             </button>
-            <button
-              onClick={() => setShowOpenBillsModal(true)}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20"
-            >
-              <Receipt size={18} />
-              <span className="hidden sm:inline">Open Bills </span>
-              <span>({openBills.length})</span>
-            </button>
-            <button
-              onClick={() => setShowMyBillsModal(true)}
-              className="px-3 sm:px-4 py-2.5 bg-linear-to-r from-purple-600 to-violet-600 active:from-purple-700 active:to-violet-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-purple-500/20"
-            >
-              <User size={18} />
-              <span className="hidden sm:inline">My Bills </span>
-              <span>({myOpenBills.length})</span>
-            </button>
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="px-3 py-2.5 bg-gray-700 active:bg-gray-600 rounded-lg transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
-            </button>
+            {/* Secondary actions — flex row on both mobile and desktop */}
+            <div className="flex gap-2 flex-1">
+              <button
+                onClick={() => setShowOpenBillsModal(true)}
+                className="flex-1 px-3 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20"
+              >
+                <Receipt size={16} />
+                <span className="sm:hidden">Bills ({openBills.length})</span>
+                <span className="hidden sm:inline">Open Bills ({openBills.length})</span>
+              </button>
+              <button
+                onClick={() => setShowMyBillsModal(true)}
+                className="flex-1 sm:flex-none px-3 py-2.5 bg-linear-to-r from-purple-600 to-violet-600 active:from-purple-700 active:to-violet-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-purple-500/20"
+              >
+                <User size={16} />
+                <span className="sm:hidden">Mine ({myOpenBills.length})</span>
+                <span className="hidden sm:inline">My Bills ({myOpenBills.length})</span>
+              </button>
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="px-3 py-2.5 bg-gray-700 active:bg-gray-600 rounded-lg transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -656,7 +667,7 @@ const POSScreen = ({ subView = "sale" }) => {
 
         {/* Customer Bills view */}
         {subView === "customer-bills" && (
-          <CustomerBillsView bills={bills} />
+          <CustomerBillsView bills={bills} onJumpToBill={handleJumpToBill} />
         )}
       </div>
 

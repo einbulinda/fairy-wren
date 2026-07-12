@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Users, ChevronRight, ChevronDown, Clock, CreditCard, User, Package } from "lucide-react";
+import { Users, ChevronRight, ChevronDown, Clock, CreditCard, User, Package, ShoppingCart } from "lucide-react";
 import { calculateBillPaymentInfo } from "@/utils/calculations";
 
 const fmt = (n) =>
@@ -43,7 +43,7 @@ const StatusBadge = ({ status }) => {
 
 // ─── Bill detail (expanded) ────────────────────────────────────────────────
 
-const BillDetail = ({ bill }) => {
+const BillDetail = ({ bill, onJumpToBill }) => {
   const { total, amountPaid, pendingAmount, balanceDue } = calculateBillPaymentInfo(bill);
   const allItems = (bill.rounds || []).flatMap((r) => r.round_items || []);
   const days = agingDays(bill.created_at);
@@ -130,51 +130,72 @@ const BillDetail = ({ bill }) => {
           + {fmt(pendingAmount)} pending confirmation
         </p>
       )}
+
+      {onJumpToBill && (
+        <button
+          onClick={() => onJumpToBill(bill)}
+          className="w-full py-2.5 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-green-500/20"
+        >
+          <ShoppingCart size={15} />
+          Open in Sale
+        </button>
+      )}
     </div>
   );
 };
 
 // ─── Bill row (collapsible detail) ────────────────────────────────────────
 
-const BillRow = ({ bill }) => {
+const BillRow = ({ bill, onJumpToBill }) => {
   const [open, setOpen] = useState(false);
   const { balanceDue } = calculateBillPaymentInfo(bill);
   const days = agingDays(bill.created_at);
 
   return (
     <div className="border border-purple-500/20 rounded-xl overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800/40 active:bg-gray-800/70 transition-colors text-left"
-      >
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">{bill.customer_name}</p>
-          <div className="flex items-center gap-2 flex-wrap mt-0.5">
-            <span className="text-xs text-gray-500">#{bill.id.slice(0, 8)}</span>
-            <StatusBadge status={bill.status} />
-            <AgingBadge days={days} />
+      <div className="flex items-center">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3 hover:bg-gray-800/40 active:bg-gray-800/70 transition-colors text-left"
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white truncate">{bill.customer_name}</p>
+            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              <span className="text-xs text-gray-500">#{bill.id.slice(0, 8)}</span>
+              <StatusBadge status={bill.status} />
+              <AgingBadge days={days} />
+            </div>
           </div>
-        </div>
-        <div className="text-right shrink-0">
-          <p className={`text-base font-bold tabular-nums ${balanceDue > 0 ? "text-pink-400" : "text-emerald-400"}`}>
-            {fmt(balanceDue)}
-          </p>
-          <p className="text-[10px] text-gray-500">balance due</p>
-        </div>
-        {open ? (
-          <ChevronDown size={16} className="text-purple-400 shrink-0" />
-        ) : (
-          <ChevronRight size={16} className="text-gray-500 shrink-0" />
+          <div className="text-right shrink-0">
+            <p className={`text-base font-bold tabular-nums ${balanceDue > 0 ? "text-pink-400" : "text-emerald-400"}`}>
+              {fmt(balanceDue)}
+            </p>
+            <p className="text-[10px] text-gray-500">balance due</p>
+          </div>
+          {open ? (
+            <ChevronDown size={16} className="text-purple-400 shrink-0" />
+          ) : (
+            <ChevronRight size={16} className="text-gray-500 shrink-0" />
+          )}
+        </button>
+        {onJumpToBill && (
+          <button
+            onClick={() => onJumpToBill(bill)}
+            title="Open in Sale"
+            className="shrink-0 px-3 py-3 text-green-400 hover:bg-green-500/15 active:bg-green-500/25 transition-colors border-l border-purple-500/20"
+          >
+            <ShoppingCart size={16} />
+          </button>
         )}
-      </button>
-      {open && <BillDetail bill={bill} />}
+      </div>
+      {open && <BillDetail bill={bill} onJumpToBill={onJumpToBill} />}
     </div>
   );
 };
 
 // ─── Customer group ────────────────────────────────────────────────────────
 
-const CustomerGroup = ({ account, bills }) => {
+const CustomerGroup = ({ account, bills, onJumpToBill }) => {
   const [expanded, setExpanded] = useState(false);
 
   const totalDue = useMemo(
@@ -221,7 +242,7 @@ const CustomerGroup = ({ account, bills }) => {
       {expanded && (
         <div className="border-t border-purple-500/20 px-3 py-3 space-y-2 bg-gray-900/30">
           {bills.map((bill) => (
-            <BillRow key={bill.id} bill={bill} />
+            <BillRow key={bill.id} bill={bill} onJumpToBill={onJumpToBill} />
           ))}
         </div>
       )}
@@ -231,7 +252,7 @@ const CustomerGroup = ({ account, bills }) => {
 
 // ─── Main view ─────────────────────────────────────────────────────────────
 
-const CustomerBillsView = ({ bills }) => {
+const CustomerBillsView = ({ bills, onJumpToBill }) => {
   const customerGroups = useMemo(() => {
     const linked = bills.filter(
       (b) =>
@@ -296,7 +317,7 @@ const CustomerBillsView = ({ bills }) => {
         {/* Customer groups */}
         <div className="space-y-3">
           {customerGroups.map(({ account, bills: groupBills }) => (
-            <CustomerGroup key={account.id} account={account} bills={groupBills} />
+            <CustomerGroup key={account.id} account={account} bills={groupBills} onJumpToBill={onJumpToBill} />
           ))}
         </div>
       </div>

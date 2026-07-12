@@ -147,7 +147,7 @@ const MainLayout = () => {
   const renderView = () => {
     switch (currentView) {
       case "pos":
-        return <POSScreen subView={posSubView} />;
+        return <POSScreen subView={posSubView} onSwitchToSale={() => setPosSubView("sale")} />;
       case "stock-take":
         return <StockTakeEntry />;
       case "z-report":
