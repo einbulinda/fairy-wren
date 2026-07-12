@@ -36,7 +36,7 @@ const CurrentBill = ({
   isAddingRound = false,
   stockWarnings = {},
 }) => {
-  const [previousOrdersExpanded, setPreviousOrdersExpanded] = useState(false);
+  const [previousOrdersExpanded, setPreviousOrdersExpanded] = useState(true);
 
   const calculateCurrentRoundTotal = () => {
     return currentRoundItems.reduce(
@@ -473,98 +473,82 @@ const CurrentBill = ({
           </div>
         )}
 
-        {/* Action Buttons - Fixed Footer */}
+        {/* Action footer */}
         {bill && (
-          <div className="space-y-2.5 pt-4 mt-4 border-t border-purple-500/10 shrink-0">
-            {/* Add Round Button */}
+          <div className="space-y-2 pt-3 mt-2 border-t border-purple-500/10 shrink-0">
+
+            {/* Primary: Add Round */}
             {currentRoundItems.length > 0 && (
               <button
                 onClick={onAddRound}
                 disabled={isAddingRound || hasCriticalStockError}
-                className={`w-full py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg text-base touch-manipulation ${
+                aria-busy={isAddingRound}
+                title={hasCriticalStockError ? "Fix stock errors before adding round" : undefined}
+                className={`w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg touch-manipulation ${
                   isAddingRound || hasCriticalStockError
                     ? "bg-gray-700/50 text-gray-500 cursor-not-allowed border border-gray-600/30"
                     : "bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 active:scale-95 shadow-purple-500/30"
                 }`}
-                title={
-                  hasCriticalStockError
-                    ? "Fix stock errors before adding round"
-                    : isAddingRound
-                      ? "Adding round..."
-                      : "Add items to bill"
-                }
-                aria-busy={isAddingRound}
               >
-                {isAddingRound ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" />
-                    Adding Round...
-                  </>
-                ) : (
-                  <>
-                    <PackagePlus size={20} />
-                    Add Items To Bill
-                  </>
-                )}
+                {isAddingRound
+                  ? <><Loader2 size={18} className="animate-spin" />Adding...</>
+                  : <><PackagePlus size={18} />Add Round</>}
               </button>
             )}
 
-            {/* Payment Button */}
+            {/* Primary: Payment */}
             {bill.rounds && bill.rounds.length > 0 && (
               <button
                 onClick={onOpenPayment}
                 disabled={currentRoundItems.length > 0}
-                className={`w-full py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg text-base touch-manipulation ${
+                title={currentRoundItems.length > 0 ? "Add current round to bill before payment" : undefined}
+                className={`w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg touch-manipulation ${
                   currentRoundItems.length > 0
                     ? "bg-gray-700/50 text-gray-500 cursor-not-allowed border border-gray-600/30"
                     : "bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 active:scale-95 shadow-green-500/30"
                 }`}
-                title={
-                  currentRoundItems.length > 0
-                    ? "Add current round to bill before payment"
-                    : "Process payment"
-                }
               >
-                <Check size={20} />
+                <Check size={18} />
                 {currentRoundItems.length > 0 ? "Add Round First" : "Payment"}
               </button>
             )}
 
-            {/* View Receipt Button */}
-            {bill.rounds && bill.rounds.length > 0 && (
-              <button
-                onClick={() => onShowReceipt(true)}
-                className="w-full py-3 bg-gray-700/60 hover:bg-gray-600/60 active:scale-95 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation border border-gray-600/30"
-              >
-                <FileText size={18} />
-                View Receipt
-              </button>
-            )}
+            {/* Secondary icon row: Receipt · Exchange · Void */}
+            <div className="flex gap-2 pt-0.5">
+              {bill.rounds && bill.rounds.length > 0 && (
+                <button
+                  onClick={() => onShowReceipt(true)}
+                  className="flex-1 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-xl bg-gray-700/60 hover:bg-gray-600/60 active:bg-gray-500/60 border border-gray-600/30 transition-colors touch-manipulation"
+                >
+                  <FileText size={17} className="text-gray-300" />
+                  <span className="text-[10px] font-semibold text-gray-400 tracking-wide">Receipt</span>
+                </button>
+              )}
 
-            {/* Exchange Item Button — only when there are posted items within last 6 hours */}
-            {hasRecentItems && (
-              <button
-                onClick={onExchangeItem}
-                className="w-full py-3 bg-amber-900/30 border-2 border-amber-500/30 hover:bg-amber-900/50 hover:border-amber-500/50 active:scale-95 text-amber-400 hover:text-amber-300 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation"
-              >
-                <ArrowLeftRight size={18} />
-                Exchange Item
-              </button>
-            )}
+              {hasRecentItems && (
+                <button
+                  onClick={onExchangeItem}
+                  className="flex-1 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-xl bg-amber-900/20 hover:bg-amber-900/40 active:bg-amber-900/50 border border-amber-500/30 transition-colors touch-manipulation"
+                >
+                  <ArrowLeftRight size={17} className="text-amber-400" />
+                  <span className="text-[10px] font-semibold text-amber-400/80 tracking-wide">Exchange</span>
+                </button>
+              )}
 
-            {/* Void Bill Button — disabled after 24 hours */}
-            <button
-              onClick={canVoid ? onVoidBill : undefined}
-              disabled={!canVoid}
-              className={`w-full py-3 border-2 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm touch-manipulation ${
-                canVoid
-                  ? "bg-red-900/30 border-red-500/30 hover:bg-red-900/50 hover:border-red-500/50 active:scale-95 text-red-400 hover:text-red-300"
-                  : "border-gray-700/30 bg-gray-800/20 text-gray-600 cursor-not-allowed opacity-50"
-              }`}
-            >
-              <AlertCircle size={18} />
-              Void Bill
-            </button>
+              <button
+                onClick={canVoid ? onVoidBill : undefined}
+                disabled={!canVoid}
+                className={`flex-1 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-xl border transition-colors touch-manipulation ${
+                  canVoid
+                    ? "bg-red-900/20 hover:bg-red-900/40 active:bg-red-900/50 border-red-500/30"
+                    : "border-gray-700/30 bg-gray-800/20 opacity-40 cursor-not-allowed"
+                }`}
+              >
+                <AlertCircle size={17} className={canVoid ? "text-red-400" : "text-gray-600"} />
+                <span className={`text-[10px] font-semibold tracking-wide ${canVoid ? "text-red-400/80" : "text-gray-600"}`}>Void</span>
+              </button>
+            </div>
+
           </div>
         )}
       </div>

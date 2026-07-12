@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useBills } from "../hooks/useBills";
 import { useProducts } from "../hooks/useProducts";
@@ -14,6 +14,7 @@ import {
   RefreshCw,
   User,
   Receipt,
+  ChevronUp,
 } from "lucide-react";
 import LoadingSpinner from "../components/shared/LoadingSpinner";
 import {
@@ -76,10 +77,8 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // Drawer swipe-to-dismiss
-  const [drawerDragY, setDrawerDragY] = useState(0);
-  const [isDraggingDrawer, setIsDraggingDrawer] = useState(false);
-  const drawerTouchStartY = useRef(null);
+  // Bill peek/expand sheet state
+  const [billSheetExpanded, setBillSheetExpanded] = useState(false);
 
   // Operation states
   const [addingRound, setAddingRound] = useState(false);
@@ -102,6 +101,11 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
   useEffect(() => {
     if (billsError?.message) toast.error(billsError.message);
   }, [billsError]);
+
+  // Collapse sheet whenever a different bill becomes active
+  useEffect(() => {
+    setBillSheetExpanded(false);
+  }, [activeBill?.id]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -298,6 +302,7 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
       setActiveBill(updatedBill);
       setBills((prev) => prev.map((b) => (b.id === updatedBill.id ? updatedBill : b)));
       toast.success("Round added to bill!", { icon: "✅" });
+      setBillSheetExpanded(false);
       await reloadBills();
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message || "Failed to add round.";
@@ -552,7 +557,7 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
             </aside>
 
             {/* CENTER + MOBILE */}
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
               {/* Category strip (mobile/tablet) */}
               <div className="lg:hidden shrink-0 border-b border-purple-500/20 bg-gray-900/20 relative">
                 {/* Right-edge fade to hint at scrollable content */}
@@ -634,53 +639,83 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
                 </div>
               </div>
 
-              {/* Mobile bill drawer */}
+              {/* Mobile bill sheet — peek (64px) or expanded (82%) */}
               {activeBill && (
-                <div
-                  className="lg:hidden shrink-0 h-[45vh] border-t-2 border-purple-500/30 bg-gray-900 overflow-hidden flex flex-col"
-                  style={{
-                    transform: `translateY(${drawerDragY}px)`,
-                    transition: isDraggingDrawer ? "none" : "transform 0.2s ease-out",
-                  }}
-                >
-                  {/* Drag handle — swipe down to dismiss */}
+                <>
+                  {billSheetExpanded && (
+                    <div
+                      className="lg:hidden absolute inset-0 bg-black/50 z-10"
+                      onClick={() => setBillSheetExpanded(false)}
+                    />
+                  )}
                   <div
-                    className="shrink-0 flex justify-center pt-2 pb-1 touch-none cursor-grab active:cursor-grabbing"
-                    onTouchStart={(e) => {
-                      drawerTouchStartY.current = e.touches[0].clientY;
-                      setIsDraggingDrawer(true);
-                    }}
-                    onTouchMove={(e) => {
-                      if (drawerTouchStartY.current === null) return;
-                      const delta = e.touches[0].clientY - drawerTouchStartY.current;
-                      if (delta > 0) setDrawerDragY(delta);
-                    }}
-                    onTouchEnd={() => {
-                      setIsDraggingDrawer(false);
-                      if (drawerDragY > 80) handleCloseView();
-                      setDrawerDragY(0);
-                      drawerTouchStartY.current = null;
+                    className="lg:hidden absolute inset-x-0 bottom-0 z-20 bg-gray-900 border-t-2 border-purple-500/30 flex flex-col overflow-hidden"
+                    style={{
+                      height: billSheetExpanded ? "82%" : "64px",
+                      transition: "height 0.3s cubic-bezier(0.32, 0.72, 0, 1)",
                     }}
                   >
-                    <div className="w-10 h-1 rounded-full bg-gray-600" />
+                    {/* Peek row — always visible */}
+                    <div className="shrink-0 h-16 flex items-center relative">
+                      {/* Drag pill */}
+                      <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-gray-700 pointer-events-none" />
+
+                      {/* Close bill */}
+                      <button
+                        onClick={handleCloseView}
+                        className="w-12 h-full flex items-center justify-center text-gray-500 active:text-white transition-colors shrink-0"
+                        aria-label="Close bill"
+                      >
+                        <X size={18} />
+                      </button>
+
+                      {/* Expand/collapse trigger */}
+                      <button
+                        onClick={() => setBillSheetExpanded((v) => !v)}
+                        className="flex-1 h-full flex items-center gap-2.5 pr-3 min-w-0"
+                      >
+                        <span className="flex-1 min-w-0 text-sm font-semibold text-white text-left truncate">
+                          {activeBill.customer_name}
+                        </span>
+                        {currentRoundItems.length > 0 && (
+                          <span className="shrink-0 bg-purple-500 text-white text-[10px] font-bold rounded-full h-5 min-w-5 px-1.5 flex items-center justify-center">
+                            {currentRoundItems.length}
+                          </span>
+                        )}
+                        <span className="shrink-0 text-sm font-bold text-pink-400 font-mono">
+                          KSh {(
+                            (calculateBillTotals(activeBill)?.subtotal ?? 0) +
+                            currentRoundItems.reduce((s, i) => s + i.price * i.quantity, 0)
+                          ).toLocaleString()}
+                        </span>
+                        <ChevronUp
+                          size={16}
+                          className={`shrink-0 text-gray-400 transition-transform duration-300 ${
+                            billSheetExpanded ? "" : "rotate-180"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Full bill — visible when expanded */}
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                      <CurrentBill
+                        bill={activeBill}
+                        onClose={handleCloseView}
+                        currentRoundItems={currentRoundItems}
+                        onRemoveItem={handleRemoveItem}
+                        onUpdateQuantity={handleUpdateQuantity}
+                        onAddRound={handleAddRound}
+                        onOpenPayment={handleOpenPaymentModal}
+                        onVoidBill={handleVoidBill}
+                        onShowReceipt={() => setShowReceiptModal(true)}
+                        onExchangeItem={() => setShowExchangeModal(true)}
+                        isAddingRound={addingRound}
+                        stockWarnings={stockWarnings}
+                      />
+                    </div>
                   </div>
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    <CurrentBill
-                      bill={activeBill}
-                      onClose={handleCloseView}
-                      currentRoundItems={currentRoundItems}
-                      onRemoveItem={handleRemoveItem}
-                      onUpdateQuantity={handleUpdateQuantity}
-                      onAddRound={handleAddRound}
-                      onOpenPayment={handleOpenPaymentModal}
-                      onVoidBill={handleVoidBill}
-                      onShowReceipt={() => setShowReceiptModal(true)}
-                      onExchangeItem={() => setShowExchangeModal(true)}
-                      isAddingRound={addingRound}
-                      stockWarnings={stockWarnings}
-                    />
-                  </div>
-                </div>
+                </>
               )}
             </div>
 
