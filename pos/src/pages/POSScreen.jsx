@@ -411,8 +411,9 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
     <div className="h-full flex flex-col">
 
       {/* ── Action bar (sale view only) ── */}
+      {/* order-last on mobile → sticks to bottom; lg:order-first → back to top on desktop */}
       {subView === "sale" && (
-        <div className="shrink-0 bg-gray-900/40 backdrop-blur-md border-b border-purple-500/20 px-3 py-2">
+        <div className="shrink-0 order-last lg:order-first bg-gray-900/40 backdrop-blur-md border-t border-purple-500/20 lg:border-t-0 lg:border-b px-3 py-2">
           {/* Mobile: New Bill full-width, secondary row below. sm+: single row. */}
           <div className="flex flex-col sm:flex-row gap-2">
             <button
