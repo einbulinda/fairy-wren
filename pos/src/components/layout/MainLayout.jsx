@@ -14,7 +14,6 @@ import {
   PackageSearch,
   Menu,
   X,
-  ChevronDown,
   Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -40,40 +39,29 @@ const MainLayout = () => {
   const [showSwitchUiConfirm, setShowSwitchUiConfirm] = useState(false);
   const [currentView, setCurrentView] = useState("pos");
   const [posSubView, setPosSubView] = useState("sale");
-  const [posExpanded, setPosExpanded] = useState(true);
   const [pendingConfirmCount, setPendingConfirmCount] = useState(0);
 
   const { bills: openBills } = useBills({ active: true });
   const { stats, period, setPeriod } = useMyBillStats();
 
-  // Mobile sidebar nav (POS as accordion with children)
+  // Mobile sidebar nav — flat, no POS parent group
   const sidebarNav = useMemo(() => {
     const perms = user.permissions || [];
     const items = [];
-
     if (perms.includes("pos_access")) {
-      const posChildren = [
-        { id: "sale", label: "Sale", icon: ShoppingCart },
-        { id: "customer-bills", label: "Customer Bills", icon: Users },
-      ];
-      if (perms.includes("approve_payments")) {
-        posChildren.push({
-          id: "confirm-payments",
-          label: "Confirm Payments",
-          icon: ClipboardCheck,
-        });
-      }
-      items.push({ id: "pos", label: "POS", icon: ShoppingCart, children: posChildren });
+      items.push({ id: "sale", label: "Sale", icon: ShoppingCart, view: "pos", subView: "sale" });
+      items.push({ id: "customer-bills", label: "Customer Bills", icon: Users, view: "pos", subView: "customer-bills" });
+      if (perms.includes("approve_payments"))
+        items.push({ id: "confirm-payments", label: "Confirm Payments", icon: ClipboardCheck, view: "pos", subView: "confirm-payments" });
     }
     if (perms.includes("stock_take"))
-      items.push({ id: "stock-take", label: "Stock Take", icon: ClipboardCheck });
+      items.push({ id: "stock-take", label: "Stock Take", icon: ClipboardCheck, view: "stock-take" });
     if (perms.includes("z_report"))
-      items.push({ id: "z-report", label: "Z Report", icon: Receipt });
+      items.push({ id: "z-report", label: "Z Report", icon: Receipt, view: "z-report" });
     if (perms.includes("weekly_sales"))
-      items.push({ id: "weekly-sales", label: "Weekly Sales", icon: BarChart3 });
+      items.push({ id: "weekly-sales", label: "Weekly Sales", icon: BarChart3, view: "weekly-sales" });
     if (perms.includes("stocktake_reports"))
-      items.push({ id: "stocktake-reports", label: "Stock Reports", icon: PackageSearch });
-
+      items.push({ id: "stocktake-reports", label: "Stock Reports", icon: PackageSearch, view: "stocktake-reports" });
     return items;
   }, [user.permissions]);
 
@@ -314,78 +302,30 @@ const MainLayout = () => {
             </div>
           </div>
 
-          {/* Nav items */}
+          {/* Nav items — flat */}
           <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-            {sidebarNav.map((item) =>
-              item.children ? (
-                <div key={item.id}>
-                  {/* POS parent accordion */}
-                  <button
-                    onClick={() => {
-                      if (currentView !== "pos") {
-                        navigate("pos", "sale");
-                        setPosExpanded(true);
-                      } else {
-                        setPosExpanded((e) => !e);
-                      }
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      currentView === item.id
-                        ? "bg-yellow-500/15 text-yellow-400"
-                        : "text-gray-400 hover:text-white hover:bg-gray-800"
-                    }`}
-                  >
-                    <item.icon size={18} className="shrink-0" />
-                    <span className="flex-1 text-left">{item.label}</span>
-                    <ChevronDown
-                      size={14}
-                      className={`shrink-0 transition-transform duration-200 ${posExpanded && currentView === "pos" ? "rotate-180" : ""}`}
-                    />
-                  </button>
-
-                  {/* POS sub-items */}
-                  {(posExpanded || currentView === "pos") && (
-                    <div className="mt-1 ml-3 border-l border-gray-700/50 pl-3 space-y-0.5">
-                      {item.children.map((child) => {
-                        const isActive = currentView === "pos" && posSubView === child.id;
-                        return (
-                          <button
-                            key={child.id}
-                            onClick={() => navigate("pos", child.id)}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                              isActive
-                                ? "bg-yellow-500/20 text-yellow-300 font-medium"
-                                : "text-gray-400 hover:text-white hover:bg-gray-800"
-                            }`}
-                          >
-                            <child.icon size={16} className="shrink-0" />
-                            <span className="flex-1 text-left">{child.label}</span>
-                            {child.id === "confirm-payments" && pendingConfirmCount > 0 && (
-                              <span className="bg-orange-500 text-white text-[11px] font-bold rounded-full h-5 w-5 flex items-center justify-center shrink-0">
-                                {pendingConfirmCount}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ) : (
+            {sidebarNav.map((item) => {
+              const isActive = isTabActive(item);
+              return (
                 <button
                   key={item.id}
-                  onClick={() => navigate(item.id)}
+                  onClick={() => navigate(item.view, item.subView ?? null)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    currentView === item.id
+                    isActive
                       ? "bg-yellow-500/15 text-yellow-400"
                       : "text-gray-400 hover:text-white hover:bg-gray-800"
                   }`}
                 >
                   <item.icon size={18} className="shrink-0" />
-                  <span>{item.label}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {item.id === "confirm-payments" && pendingConfirmCount > 0 && (
+                    <span className="bg-orange-500 text-white text-[11px] font-bold rounded-full h-5 w-5 flex items-center justify-center shrink-0">
+                      {pendingConfirmCount}
+                    </span>
+                  )}
                 </button>
-              )
-            )}
+              );
+            })}
           </nav>
 
           {/* Sidebar footer: user + beta switch */}
