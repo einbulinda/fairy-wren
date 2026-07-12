@@ -413,46 +413,97 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
       {/* ── Action bar (sale view only) ── */}
       {/* order-last on mobile → sticks to bottom; lg:order-first → back to top on desktop */}
       {subView === "sale" && (
-        <div className="shrink-0 order-last lg:order-first bg-gray-900/40 backdrop-blur-md border-t border-purple-500/20 lg:border-t-0 lg:border-b px-3 py-2">
-          {/* Mobile: New Bill full-width, secondary row below. sm+: single row. */}
-          <div className="flex flex-col sm:flex-row gap-2">
+        <div className="shrink-0 order-last lg:order-first bg-gray-900/95 lg:bg-gray-900/40 backdrop-blur-md border-t border-purple-500/20 lg:border-t-0 lg:border-b">
+
+          {/* ── Mobile: native-style icon tab bar ── */}
+          <div className="lg:hidden flex divide-x divide-gray-700/40">
+            {/* New Bill */}
             <button
               onClick={handleStartNewBill}
               disabled={isCreatingBill}
-              className="sm:flex-none px-4 py-3 sm:py-2.5 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-3 active:bg-gray-800/70 transition-colors disabled:opacity-50"
             >
-              {isCreatingBill ? (
-                <><div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />Creating...</>
-              ) : (
-                <><Plus size={18} />New Bill</>
-              )}
+              {isCreatingBill
+                ? <div className="w-6 h-6 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                : <Plus size={24} className="text-green-400" strokeWidth={2.5} />
+              }
+              <span className="text-[10px] font-semibold text-green-400 tracking-wide">New Bill</span>
             </button>
-            {/* Secondary actions — flex row on both mobile and desktop */}
-            <div className="flex gap-2 flex-1">
-              <button
-                onClick={() => setShowOpenBillsModal(true)}
-                className="flex-1 px-3 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20"
-              >
-                <Receipt size={16} />
-                <span className="sm:hidden">Bills ({openBills.length})</span>
-                <span className="hidden sm:inline">Open Bills ({openBills.length})</span>
-              </button>
-              <button
-                onClick={() => setShowMyBillsModal(true)}
-                className="flex-1 sm:flex-none px-3 py-2.5 bg-linear-to-r from-purple-600 to-violet-600 active:from-purple-700 active:to-violet-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-purple-500/20"
-              >
-                <User size={16} />
-                <span className="sm:hidden">Mine ({myOpenBills.length})</span>
-                <span className="hidden sm:inline">My Bills ({myOpenBills.length})</span>
-              </button>
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="px-3 py-2.5 bg-gray-700 active:bg-gray-600 rounded-lg transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
-              </button>
-            </div>
+
+            {/* Bills */}
+            <button
+              onClick={() => setShowOpenBillsModal(true)}
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-3 active:bg-gray-800/70 transition-colors"
+            >
+              <div className="relative">
+                <Receipt size={22} className="text-blue-400" />
+                {openBills.length > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-blue-500 text-white text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5 leading-none">
+                    {openBills.length > 99 ? "99+" : openBills.length}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-semibold text-blue-400 tracking-wide">Bills</span>
+            </button>
+
+            {/* Mine */}
+            <button
+              onClick={() => setShowMyBillsModal(true)}
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-3 active:bg-gray-800/70 transition-colors"
+            >
+              <div className="relative">
+                <User size={22} className="text-purple-400" />
+                {myOpenBills.length > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-purple-500 text-white text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5 leading-none">
+                    {myOpenBills.length > 99 ? "99+" : myOpenBills.length}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-semibold text-purple-400 tracking-wide">Mine</span>
+            </button>
+
+            {/* Refresh */}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-3 active:bg-gray-800/70 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={22} className={`text-gray-400 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="text-[10px] font-semibold text-gray-500 tracking-wide">Refresh</span>
+            </button>
+          </div>
+
+          {/* ── Desktop: text button row ── */}
+          <div className="hidden lg:flex gap-2 px-3 py-2">
+            <button
+              onClick={handleStartNewBill}
+              disabled={isCreatingBill}
+              className="flex-none px-4 py-2.5 bg-linear-to-r from-green-600 to-emerald-600 active:from-green-700 active:to-emerald-700 rounded-lg font-semibold transition-all flex items-center gap-2 text-sm shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isCreatingBill
+                ? <><div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />Creating...</>
+                : <><Plus size={18} />New Bill</>
+              }
+            </button>
+            <button
+              onClick={() => setShowOpenBillsModal(true)}
+              className="flex-1 px-3 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20"
+            >
+              <Receipt size={16} />Open Bills ({openBills.length})
+            </button>
+            <button
+              onClick={() => setShowMyBillsModal(true)}
+              className="flex-none px-3 py-2.5 bg-linear-to-r from-purple-600 to-violet-600 active:from-purple-700 active:to-violet-700 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-purple-500/20"
+            >
+              <User size={16} />My Bills ({myOpenBills.length})
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="px-3 py-2.5 bg-gray-700 active:bg-gray-600 rounded-lg transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+            </button>
           </div>
         </div>
       )}
