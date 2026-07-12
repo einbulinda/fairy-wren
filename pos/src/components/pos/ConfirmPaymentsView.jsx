@@ -558,18 +558,18 @@ const ConfirmPaymentsView = ({
                   className="cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         {isExpanded ? (
-                          <ChevronUp size={18} className="text-purple-400" />
+                          <ChevronUp size={18} className="text-purple-400 shrink-0" />
                         ) : (
-                          <ChevronDown size={18} className="text-purple-400" />
+                          <ChevronDown size={18} className="text-purple-400 shrink-0" />
                         )}
-                        <h3 className="text-lg font-bold text-white">
+                        <h3 className="text-lg font-bold text-white truncate">
                           {bill.customer_name}
                         </h3>
                       </div>
-                      <p className="text-sm text-gray-400 ml-6">
+                      <p className="text-sm text-gray-400 ml-6 truncate">
                         Served by: {bill.created_by_user.name}
                       </p>
                       {bill.marked_paid_at && (

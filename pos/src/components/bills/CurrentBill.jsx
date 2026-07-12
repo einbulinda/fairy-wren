@@ -526,7 +526,7 @@ const CurrentBill = ({
                 }
               >
                 <Check size={20} />
-                {currentRoundItems.length > 0 ? "Add Items First" : "Payment"}
+                {currentRoundItems.length > 0 ? "Add Round First" : "Payment"}
               </button>
             )}
 

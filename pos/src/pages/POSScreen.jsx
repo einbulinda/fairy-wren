@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useBills } from "../hooks/useBills";
 import { useProducts } from "../hooks/useProducts";
@@ -75,6 +75,11 @@ const POSScreen = ({ subView = "sale" }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+
+  // Drawer swipe-to-dismiss
+  const [drawerDragY, setDrawerDragY] = useState(0);
+  const [isDraggingDrawer, setIsDraggingDrawer] = useState(false);
+  const drawerTouchStartY = useRef(null);
 
   // Operation states
   const [addingRound, setAddingRound] = useState(false);
@@ -568,21 +573,50 @@ const POSScreen = ({ subView = "sale" }) => {
 
               {/* Mobile bill drawer */}
               {activeBill && (
-                <div className="lg:hidden shrink-0 h-[45vh] border-t-2 border-purple-500/30 bg-gray-900 overflow-hidden flex flex-col">
-                  <CurrentBill
-                    bill={activeBill}
-                    onClose={handleCloseView}
-                    currentRoundItems={currentRoundItems}
-                    onRemoveItem={handleRemoveItem}
-                    onUpdateQuantity={handleUpdateQuantity}
-                    onAddRound={handleAddRound}
-                    onOpenPayment={handleOpenPaymentModal}
-                    onVoidBill={handleVoidBill}
-                    onShowReceipt={() => setShowReceiptModal(true)}
-                    onExchangeItem={() => setShowExchangeModal(true)}
-                    isAddingRound={addingRound}
-                    stockWarnings={stockWarnings}
-                  />
+                <div
+                  className="lg:hidden shrink-0 h-[45vh] border-t-2 border-purple-500/30 bg-gray-900 overflow-hidden flex flex-col"
+                  style={{
+                    transform: `translateY(${drawerDragY}px)`,
+                    transition: isDraggingDrawer ? "none" : "transform 0.2s ease-out",
+                  }}
+                >
+                  {/* Drag handle — swipe down to dismiss */}
+                  <div
+                    className="shrink-0 flex justify-center pt-2 pb-1 touch-none cursor-grab active:cursor-grabbing"
+                    onTouchStart={(e) => {
+                      drawerTouchStartY.current = e.touches[0].clientY;
+                      setIsDraggingDrawer(true);
+                    }}
+                    onTouchMove={(e) => {
+                      if (drawerTouchStartY.current === null) return;
+                      const delta = e.touches[0].clientY - drawerTouchStartY.current;
+                      if (delta > 0) setDrawerDragY(delta);
+                    }}
+                    onTouchEnd={() => {
+                      setIsDraggingDrawer(false);
+                      if (drawerDragY > 80) handleCloseView();
+                      setDrawerDragY(0);
+                      drawerTouchStartY.current = null;
+                    }}
+                  >
+                    <div className="w-10 h-1 rounded-full bg-gray-600" />
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <CurrentBill
+                      bill={activeBill}
+                      onClose={handleCloseView}
+                      currentRoundItems={currentRoundItems}
+                      onRemoveItem={handleRemoveItem}
+                      onUpdateQuantity={handleUpdateQuantity}
+                      onAddRound={handleAddRound}
+                      onOpenPayment={handleOpenPaymentModal}
+                      onVoidBill={handleVoidBill}
+                      onShowReceipt={() => setShowReceiptModal(true)}
+                      onExchangeItem={() => setShowExchangeModal(true)}
+                      isAddingRound={addingRound}
+                      stockWarnings={stockWarnings}
+                    />
+                  </div>
                 </div>
               )}
             </div>

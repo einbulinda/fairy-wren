@@ -145,7 +145,7 @@ const BillRow = ({ bill }) => {
     <div className="border border-purple-500/20 rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800/40 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800/40 active:bg-gray-800/70 transition-colors text-left"
       >
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white truncate">{bill.customer_name}</p>
@@ -191,7 +191,7 @@ const CustomerGroup = ({ account, bills }) => {
     <div className="bg-gray-800/50 border border-purple-500/20 rounded-xl overflow-hidden">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-800/70 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-800/70 active:bg-gray-900/80 transition-colors text-left"
       >
         {/* Avatar */}
         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
