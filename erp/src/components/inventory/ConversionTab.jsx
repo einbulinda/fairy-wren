@@ -78,7 +78,7 @@ const ConversionTab = () => {
   const targetOptions = useMemo(() => {
     if (!sourceProduct) return products;
     return products.filter(
-      (p) => p.id !== sourceId && p.volume_ml < sourceProduct.volume_ml,
+      (p) => p.id !== sourceId && Number(p.volume_ml) < Number(sourceProduct.volume_ml),
     );
   }, [products, sourceId, sourceProduct]);
 
