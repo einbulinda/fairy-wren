@@ -28,6 +28,7 @@ import {
   PenLine,
   FileCheck,
   ArrowLeftRight,
+  RefreshCw,
   Target,
   Building2,
   Users,
@@ -41,6 +42,7 @@ const inventoryNavTabs = [
   { path: "/inventory/receive", short: "Receive", icon: PackagePlus },
   { path: "/inventory/reports", short: "Reports", icon: BarChart2 },
   { path: "/inventory/approvals", short: "Approve", icon: CheckSquare },
+  { path: "/inventory/conversions", short: "Convert", icon: RefreshCw },
   { path: "/inventory/insights", short: "Insights", icon: TrendingUp },
 ];
 
