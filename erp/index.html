@@ -3,9 +3,25 @@
   <!-- Default to dark; useTheme hook will toggle based on localStorage -->
   <head>
     <meta charset="UTF-8" />
+
+    <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" href="/fairy-logo-only.png" />
+
+    <!-- Viewport & theme -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#111827" />
+
+    <!-- PWA / iOS home-screen install -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FW ERP" />
+
+    <!-- Description for install prompt -->
+    <meta name="description" content="Fairy Wren Point of Sale & ERP System" />
+
     <title>Fairy Wren ERP</title>
     <script>
       // Apply saved theme before first paint to prevent flash
