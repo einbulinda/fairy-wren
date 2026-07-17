@@ -254,6 +254,12 @@ exports.receiveInventory = async (payload, context) => {
   return { id: data, approval_status: approvalStatus };
 };
 
+exports.getAllReceipts = async (query = {}) => {
+  const { data, error } = await receiptsRepo.getAllReceipts(query);
+  if (error) throw error;
+  return data;
+};
+
 exports.getPendingReceipts = async () => {
   const { data, error } = await receiptsRepo.getPendingReceipts();
   if (error) throw error;

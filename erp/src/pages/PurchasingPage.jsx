@@ -1,14 +1,16 @@
 import { useSearchParams } from "react-router";
-import { Truck, Clock, Package, TrendingUp } from "lucide-react";
+import { Truck, Clock, Package, TrendingUp, FileText } from "lucide-react";
 import SupplierListPage from "./SupplierListPage";
 import PendingInvoicesPage from "./PendingInvoicesPage";
 import ReceiveTab from "@/components/inventory/ReceiveTab";
 import ReorderForecastTab from "@/components/inventory/ReorderForecastTab";
+import GoodsReceiptsTab from "@/components/inventory/GoodsReceiptsTab";
 
 const TABS = [
   { key: "suppliers", label: "Suppliers", short: "Suppliers", icon: Truck },
   { key: "pending-invoices", label: "Pending Invoices", short: "Invoices", icon: Clock },
   { key: "receive", label: "Receive Goods", short: "Receive", icon: Package },
+  { key: "receipts", label: "Goods Receipts", short: "Receipts", icon: FileText },
   { key: "reorder-forecast", label: "Reorder Forecast", short: "Reorder", icon: TrendingUp },
 ];
 
@@ -42,8 +44,9 @@ const PurchasingPage = () => {
       {activeTab === "suppliers" && <SupplierListPage />}
       {activeTab === "pending-invoices" && <PendingInvoicesPage />}
       {activeTab === "receive" && (
-        <ReceiveTab onSuccess={() => setSearchParams({ tab: "suppliers" })} />
+        <ReceiveTab onSuccess={() => setSearchParams({ tab: "receipts" })} />
       )}
+      {activeTab === "receipts" && <GoodsReceiptsTab />}
       {activeTab === "reorder-forecast" && <ReorderForecastTab />}
     </div>
   );

@@ -20,6 +20,11 @@ router.post(
   controller.createInventoryReceipt,
 );
 router.get(
+  "/receipts",
+  requireRole("director", "owner"),
+  controller.getAllReceipts,
+);
+router.get(
   "/receipts/pending",
   requireRole("director", "owner"),
   controller.getPendingReceipts,

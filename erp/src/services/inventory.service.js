@@ -10,6 +10,11 @@ export const createInventoryReceipt = async (payload) => {
   return data.data;
 };
 
+export const fetchAllReceipts = async (params = {}) => {
+  const { data } = await api.get("/inventory/receipts", { params });
+  return data.data ?? data;
+};
+
 export const fetchPendingReceipts = async () => {
   const { data } = await api.get("/inventory/receipts/pending");
   return data.data ?? data;

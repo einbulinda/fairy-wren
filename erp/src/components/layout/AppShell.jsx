@@ -55,6 +55,7 @@ const purchasingNavTabs = [
   { key: "suppliers", short: "Suppliers", icon: Truck },
   { key: "pending-invoices", short: "Invoices", icon: Clock },
   { key: "receive", short: "Receive", icon: PackagePlus },
+  { key: "receipts", short: "Receipts", icon: FileText },
   { key: "reorder-forecast", short: "Reorder", icon: TrendingUp },
 ];
 

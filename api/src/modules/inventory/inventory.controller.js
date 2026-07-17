@@ -71,6 +71,18 @@ exports.cancelReceipt = async (req, res, next) => {
   }
 };
 
+exports.getAllReceipts = async (req, res, next) => {
+  try {
+    const data = await receivingService.getAllReceipts({
+      limit: Number(req.query.limit) || 50,
+      offset: Number(req.query.offset) || 0,
+    });
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getPendingReceipts = async (req, res, next) => {
   try {
     const data = await receivingService.getPendingReceipts();

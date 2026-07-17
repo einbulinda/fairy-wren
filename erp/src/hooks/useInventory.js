@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import {
   fetchStockItems,
   createInventoryReceipt,
+  fetchAllReceipts,
   fetchPendingReceipts,
   approveReceipt,
   rejectReceipt,
@@ -60,6 +61,14 @@ export const useReceiveInventory = () => {
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to receive inventory");
     },
+  });
+};
+
+export const useAllReceipts = (params = {}) => {
+  return useQuery({
+    queryKey: ["all-receipts", params],
+    queryFn: () => fetchAllReceipts(params),
+    staleTime: 60 * 1000,
   });
 };
 

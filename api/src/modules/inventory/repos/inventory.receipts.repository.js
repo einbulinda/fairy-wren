@@ -77,6 +77,35 @@ exports.getReceiptById = async (id) => {
   }
 };
 
+/* ---------- LIST ALL RECEIPTS ---------- */
+exports.getAllReceipts = async ({ limit = 50, offset = 0 } = {}) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+        ir.id,
+        ir.invoice_number,
+        ir.purchase_date,
+        ir.total_amount,
+        ir.status,
+        ir.approval_status,
+        ir.paid_at,
+        ir.created_at,
+        json_build_object('id', s.id, 'name', s.name) AS supplier,
+        json_build_object('id', u.id, 'name', u.name) AS submitted_by,
+        (SELECT COUNT(*) FROM inventory_receipt_items WHERE receipt_id = ir.id) AS item_count
+       FROM inventory_receipts ir
+       LEFT JOIN suppliers s ON s.id = ir.supplier_id
+       LEFT JOIN profiles u ON u.id = ir.created_by
+       ORDER BY ir.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
 /* ---------- LIST PENDING RECEIPTS ---------- */
 exports.getPendingReceipts = async () => {
   try {
