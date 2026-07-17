@@ -9,7 +9,7 @@
 ALTER TABLE inventory_receipts
   ADD COLUMN IF NOT EXISTS approval_status TEXT NOT NULL DEFAULT 'approved'
     CHECK (approval_status IN ('pending', 'approved', 'rejected')),
-  ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id),
+  ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES profiles(id),
   ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
 

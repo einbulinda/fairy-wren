@@ -64,10 +64,10 @@ exports.getReceiptById = async (id) => {
           WHERE iri.receipt_id = ir.id
         ) AS inventory_receipt_items,
         json_build_object('id', s.id, 'name', s.name) AS supplier,
-        json_build_object('id', u.id, 'name', u.full_name) AS created_by_user
+        json_build_object('id', u.id, 'name', u.name) AS created_by_user
        FROM inventory_receipts ir
        LEFT JOIN suppliers s ON s.id = ir.supplier_id
-       LEFT JOIN users u ON u.id = ir.created_by
+       LEFT JOIN profiles u ON u.id = ir.created_by
        WHERE ir.id = $1`,
       [id],
     );
@@ -89,11 +89,11 @@ exports.getPendingReceipts = async () => {
         ir.approval_status,
         ir.created_at,
         json_build_object('id', s.id, 'name', s.name) AS supplier,
-        json_build_object('id', u.id, 'name', u.full_name) AS submitted_by,
+        json_build_object('id', u.id, 'name', u.name) AS submitted_by,
         (SELECT COUNT(*) FROM inventory_receipt_items WHERE receipt_id = ir.id) AS item_count
        FROM inventory_receipts ir
        LEFT JOIN suppliers s ON s.id = ir.supplier_id
-       LEFT JOIN users u ON u.id = ir.created_by
+       LEFT JOIN profiles u ON u.id = ir.created_by
        WHERE ir.approval_status = 'pending'
        ORDER BY ir.created_at DESC`,
     );
