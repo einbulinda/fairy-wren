@@ -9,9 +9,17 @@ import {
   Clock,
   RotateCcw,
   XCircle,
+  ShieldCheck,
+  ShieldX,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useReceiptDetail, useMarkReceiptPaid, useCancelReceipt } from "@/hooks/useInventory";
+import {
+  useReceiptDetail,
+  useMarkReceiptPaid,
+  useCancelReceipt,
+  useApproveReceipt,
+  useRejectReceipt,
+} from "@/hooks/useInventory";
 import { fetchAccounts } from "@/services/accounts.service";
 import toast from "react-hot-toast";
 import { fmt, fmtDate } from "@/utils/formatters";
@@ -56,15 +64,31 @@ const PAYMENT_METHODS = [
   { value: "cheque", label: "Cheque" },
 ];
 
+const ApprovalBadge = ({ status, large = false }) => {
+  const sz = large ? 14 : 11;
+  const cls = `inline-flex items-center gap-1.5 ${large ? "px-3 py-1 text-sm" : "px-2 py-0.5 text-xs"} rounded-full font-medium`;
+  if (status === "pending")
+    return <span className={`${cls} bg-yellow-500/20 text-yellow-400`}><Clock size={sz} /> Pending Approval</span>;
+  if (status === "approved")
+    return <span className={`${cls} bg-green-500/20 text-green-400`}><ShieldCheck size={sz} /> Approved</span>;
+  if (status === "rejected")
+    return <span className={`${cls} bg-red-500/20 text-red-400`}><ShieldX size={sz} /> Rejected</span>;
+  return null;
+};
+
 const ReceiptDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: receipt, isLoading, isError } = useReceiptDetail(id);
   const markPaid = useMarkReceiptPaid();
   const cancelMutation = useCancelReceipt();
+  const approveMutation = useApproveReceipt();
+  const rejectMutation = useRejectReceipt();
   const [showPayForm, setShowPayForm] = useState(false);
   const [showReturnForm, setShowReturnForm] = useState(false);
+  const [showRejectForm, setShowRejectForm] = useState(false);
   const [returnReason, setReturnReason] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
   const [payForm, setPayForm] = useState({
     payment_method: "bank",
     bank_account_id: "",
@@ -108,6 +132,8 @@ const ReceiptDetailPage = () => {
   const items = receipt.inventory_receipt_items || [];
   const isPaid = !!receipt.paid_at;
   const isCancelled = receipt.status === "cancelled";
+  const isPending = receipt.approval_status === "pending";
+  const isRejected = receipt.approval_status === "rejected";
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -157,28 +183,58 @@ const ReceiptDetailPage = () => {
           </div>
 
           <div className="flex flex-col items-end gap-3">
-            <PaymentBadge
-              paidAt={receipt.paid_at}
-              status={receipt.status}
-              purchaseDate={receipt.purchase_date}
-              large
-            />
+            <div className="flex flex-wrap gap-2 justify-end">
+              {receipt.approval_status && (
+                <ApprovalBadge status={receipt.approval_status} large />
+              )}
+              <PaymentBadge
+                paidAt={receipt.paid_at}
+                status={receipt.status}
+                purchaseDate={receipt.purchase_date}
+                large
+              />
+            </div>
             {isPaid && (
               <p className="text-xs text-surface-500">
                 Paid {fmtDate(receipt.paid_at)}
               </p>
             )}
-            {!isPaid && !isCancelled && (
+            {/* Approval actions — shown when pending */}
+            {isPending && (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => { setShowReturnForm((v) => !v); setShowPayForm(false); }}
+                  onClick={() => { setShowRejectForm((v) => !v); setShowPayForm(false); setShowReturnForm(false); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <ShieldX size={14} />
+                  {showRejectForm ? "Cancel" : "Reject"}
+                </button>
+                <button
+                  onClick={() =>
+                    approveMutation.mutate(id, {
+                      onSuccess: () => navigate("/inventory/approvals"),
+                    })
+                  }
+                  disabled={approveMutation.isPending}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <ShieldCheck size={14} />
+                  {approveMutation.isPending ? "Approving…" : "Approve"}
+                </button>
+              </div>
+            )}
+            {/* Payment / return actions — only shown when approved */}
+            {!isPending && !isRejected && !isPaid && !isCancelled && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setShowReturnForm((v) => !v); setShowPayForm(false); setShowRejectForm(false); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 rounded-lg text-sm font-medium transition-colors"
                 >
                   <RotateCcw size={14} />
                   {showReturnForm ? "Cancel" : "Return Damaged"}
                 </button>
                 <button
-                  onClick={() => { setShowPayForm((v) => !v); setShowReturnForm(false); }}
+                  onClick={() => { setShowPayForm((v) => !v); setShowReturnForm(false); setShowRejectForm(false); }}
                   className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
                 >
                   {showPayForm ? "Cancel" : "Process Payment"}
@@ -269,6 +325,56 @@ const ReceiptDetailPage = () => {
               </button>
             </div>
           </form>
+        )}
+
+        {/* Reject form */}
+        {showRejectForm && isPending && (
+          <div className="mt-4 pt-4 border-t border-surface-700">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="p-1.5 bg-red-500/15 rounded-lg mt-0.5">
+                <ShieldX size={14} className="text-red-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">Reject Receipt</p>
+                <p className="text-xs text-surface-400 mt-0.5">
+                  The submitter will be notified. No inventory will be updated.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-surface-400 font-medium">Reason for rejection (optional)</label>
+                <input
+                  type="text"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="e.g. Wrong supplier, duplicate invoice…"
+                  className="w-full px-3 py-2 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  disabled={rejectMutation.isPending}
+                  onClick={() =>
+                    rejectMutation.mutate(
+                      { id, reason: rejectReason.trim() || "Rejected by approver" },
+                      {
+                        onSuccess: () => {
+                          setShowRejectForm(false);
+                          setRejectReason("");
+                          navigate("/inventory/approvals");
+                        },
+                      },
+                    )
+                  }
+                  className="flex items-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <ShieldX size={14} />
+                  {rejectMutation.isPending ? "Rejecting…" : "Confirm Rejection"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {showReturnForm && !isPaid && !isCancelled && (

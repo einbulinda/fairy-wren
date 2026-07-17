@@ -84,9 +84,11 @@ export const useApproveReceipt = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: approveReceipt,
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["pending-receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["all-receipts"] });
       queryClient.invalidateQueries({ queryKey: ["stock-items"] });
+      queryClient.invalidateQueries({ queryKey: ["receipt-detail", id] });
       toast.success("Receipt approved — inventory updated");
     },
     onError: (err) => {
@@ -99,8 +101,10 @@ export const useRejectReceipt = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }) => rejectReceipt(id, reason),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["pending-receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["all-receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["receipt-detail", vars.id] });
       toast.success("Receipt rejected");
     },
     onError: (err) => {

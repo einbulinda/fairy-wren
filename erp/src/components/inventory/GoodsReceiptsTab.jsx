@@ -109,7 +109,7 @@ const GoodsReceiptsTab = () => {
               )}
             </div>
             <button
-              onClick={() => navigate(`/purchasing?tab=receipt-detail&id=${r.id}`)}
+              onClick={() => navigate(`/inventory/receipts/${r.id}`)}
               className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs bg-surface-700 hover:bg-surface-600 text-surface-300 hover:text-white rounded-lg transition-colors"
             >
               <Eye size={12} /> View
@@ -169,7 +169,7 @@ const GoodsReceiptsTab = () => {
                 </td>
                 <td className="px-4 py-3 text-center">
                   <button
-                    onClick={() => navigate(`/purchasing?tab=receipt-detail&id=${r.id}`)}
+                    onClick={() => navigate(`/inventory/receipts/${r.id}`)}
                     className="flex items-center gap-1 px-2.5 py-1 text-xs bg-surface-700 hover:bg-surface-600 text-surface-300 hover:text-white rounded-lg transition-colors"
                   >
                     <Eye size={12} /> View
