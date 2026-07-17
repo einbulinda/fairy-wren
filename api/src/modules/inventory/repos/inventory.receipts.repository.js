@@ -1,7 +1,7 @@
 const pool = require("../../../config/db");
 
 /*----------- RECEIVE INVENTORY ----------*/
-exports.receiveInventory = async (payload, userId) => {
+exports.receiveInventory = async (payload, userId, approvalStatus = "approved") => {
   const {
     supplier_id,
     invoice_number,
@@ -12,7 +12,7 @@ exports.receiveInventory = async (payload, userId) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT * FROM receive_inventory($1, $2, $3, $4, $5, $6::jsonb)`,
+      `SELECT * FROM receive_inventory($1, $2, $3, $4, $5, $6::jsonb, $7)`,
       [
         supplier_id,
         invoice_number,
@@ -20,6 +20,7 @@ exports.receiveInventory = async (payload, userId) => {
         total_amount,
         userId,
         JSON.stringify(line_items),
+        approvalStatus,
       ],
     );
     return { data: rows[0] || null, error: null };
@@ -39,6 +40,10 @@ exports.getReceiptById = async (id) => {
         ir.purchase_date,
         ir.total_amount,
         ir.status,
+        ir.approval_status,
+        ir.approved_by,
+        ir.approved_at,
+        ir.rejection_reason,
         ir.paid_at,
         ir.notes,
         ir.created_at,
@@ -58,15 +63,73 @@ exports.getReceiptById = async (id) => {
           LEFT JOIN products p ON p.id = iri.product_id
           WHERE iri.receipt_id = ir.id
         ) AS inventory_receipt_items,
-        json_build_object('id', s.id, 'name', s.name) AS supplier
+        json_build_object('id', s.id, 'name', s.name) AS supplier,
+        json_build_object('id', u.id, 'name', u.full_name) AS created_by_user
        FROM inventory_receipts ir
        LEFT JOIN suppliers s ON s.id = ir.supplier_id
+       LEFT JOIN users u ON u.id = ir.created_by
        WHERE ir.id = $1`,
       [id],
     );
     return { data: rows[0] || null, error: null };
   } catch (error) {
     return { data: null, error };
+  }
+};
+
+/* ---------- LIST PENDING RECEIPTS ---------- */
+exports.getPendingReceipts = async () => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+        ir.id,
+        ir.invoice_number,
+        ir.purchase_date,
+        ir.total_amount,
+        ir.approval_status,
+        ir.created_at,
+        json_build_object('id', s.id, 'name', s.name) AS supplier,
+        json_build_object('id', u.id, 'name', u.full_name) AS submitted_by,
+        (SELECT COUNT(*) FROM inventory_receipt_items WHERE receipt_id = ir.id) AS item_count
+       FROM inventory_receipts ir
+       LEFT JOIN suppliers s ON s.id = ir.supplier_id
+       LEFT JOIN users u ON u.id = ir.created_by
+       WHERE ir.approval_status = 'pending'
+       ORDER BY ir.created_at DESC`,
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+/* ---------- APPROVE RECEIPT ---------- */
+exports.approveReceipt = async (id, approverId) => {
+  try {
+    await pool.query(
+      `SELECT approve_inventory_receipt($1, $2)`,
+      [id, approverId],
+    );
+    return { data: { id }, error: null };
+  } catch (error) {
+    if (error.message?.includes("RECEIPT_NOT_FOUND")) throw new Error("RECEIPT_NOT_FOUND");
+    if (error.message?.includes("RECEIPT_NOT_PENDING")) throw new Error("RECEIPT_NOT_PENDING");
+    throw error;
+  }
+};
+
+/* ---------- REJECT RECEIPT ---------- */
+exports.rejectReceipt = async (id, rejectorId, reason) => {
+  try {
+    await pool.query(
+      `SELECT reject_inventory_receipt($1, $2, $3)`,
+      [id, rejectorId, reason || null],
+    );
+    return { data: { id }, error: null };
+  } catch (error) {
+    if (error.message?.includes("RECEIPT_NOT_FOUND")) throw new Error("RECEIPT_NOT_FOUND");
+    if (error.message?.includes("RECEIPT_NOT_PENDING")) throw new Error("RECEIPT_NOT_PENDING");
+    throw error;
   }
 };
 

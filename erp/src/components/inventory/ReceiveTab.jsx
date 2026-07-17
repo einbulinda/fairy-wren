@@ -44,21 +44,25 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
     setProducts(stockItems);
   }, [stockItems]);
 
-  // Pre-populate lines when navigated from Emergency Reorder
   useEffect(() => {
     if (initialLines && initialLines.length > 0) {
-      setLines(initialLines);
+      setLines(initialLines.map((l) => ({
+        ...l,
+        total_price: (l.quantity || 1) * (l.unit_cost || 0),
+      })));
     }
   }, [initialLines]);
 
   const addLine = (product) => {
+    const unit_cost = product.cost_price || 0;
     setLines([
       ...lines,
       {
         product_id: product.id,
         product_name: product.name,
         quantity: 1,
-        unit_cost: product.cost_price || 0,
+        total_price: unit_cost,
+        unit_cost,
       },
     ]);
     setShowModal(false);
@@ -66,18 +70,25 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
 
   const updateLine = (idx, field, value) => {
     const updated = [...lines];
-    updated[idx] = {
-      ...updated[idx],
-      [field]:
-        field === "quantity" ? parseInt(value) || 0 : parseFloat(value) || 0,
-    };
+    const line = { ...updated[idx] };
+
+    if (field === "quantity") {
+      line.quantity = parseInt(value) || 0;
+    } else if (field === "total_price") {
+      line.total_price = parseFloat(value) || 0;
+    }
+
+    // Recompute unit_cost whenever qty or total_price changes
+    line.unit_cost =
+      line.quantity > 0
+        ? parseFloat((line.total_price / line.quantity).toFixed(2))
+        : 0;
+
+    updated[idx] = line;
     setLines(updated);
   };
 
-  const total = lines.reduce(
-    (s, l) => s + (l.quantity || 0) * (l.unit_cost || 0),
-    0,
-  );
+  const total = lines.reduce((s, l) => s + (l.total_price || 0), 0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -97,6 +108,10 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
       toast.error("All quantities must be > 0");
       return;
     }
+    if (lines.some((l) => !l.total_price || l.total_price <= 0)) {
+      toast.error("All total prices must be > 0");
+      return;
+    }
 
     try {
       await receiveMutation.mutateAsync({
@@ -105,7 +120,7 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
           product_id: l.product_id,
           quantity: l.quantity,
           unit_cost: l.unit_cost,
-          line_total: l.quantity * l.unit_cost,
+          line_total: l.total_price,
         })),
         total_amount: total,
       });
@@ -230,7 +245,6 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
               <div className="md:hidden space-y-2">
                 {lines.map((line, idx) => (
                   <div key={idx} className="bg-surface-900 border border-surface-700 rounded-xl p-3 space-y-2.5">
-                    {/* Product name + delete */}
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-white text-sm font-medium leading-tight flex-1 min-w-0">{line.product_name}</p>
                       <button
@@ -241,7 +255,6 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
                         <Trash2 size={15} />
                       </button>
                     </div>
-                    {/* Qty + Unit Cost inputs */}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[10px] text-surface-500 mb-1 uppercase tracking-wide">Qty</label>
@@ -254,27 +267,25 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-surface-500 mb-1 uppercase tracking-wide">Unit Cost (KSh)</label>
+                        <label className="block text-[10px] text-surface-500 mb-1 uppercase tracking-wide">Total Price (KSh)</label>
                         <input
                           type="number"
                           step="0.01"
                           min="0"
-                          value={line.unit_cost}
-                          onChange={(e) => updateLine(idx, "unit_cost", e.target.value)}
+                          value={line.total_price}
+                          onChange={(e) => updateLine(idx, "total_price", e.target.value)}
                           className="w-full px-2.5 py-2 bg-surface-700 border border-surface-600 rounded-lg text-white text-sm text-right font-mono focus:outline-none focus:ring-1 focus:ring-primary-500"
                         />
                       </div>
                     </div>
-                    {/* Line total */}
                     <div className="flex items-center justify-between border-t border-surface-700/60 pt-2 text-xs">
-                      <span className="text-surface-500">Line Total</span>
+                      <span className="text-surface-500">Unit Cost</span>
                       <span className="font-mono font-semibold text-primary-400">
-                        KSh {(line.quantity * line.unit_cost).toLocaleString()}
+                        KSh {Number(line.unit_cost).toFixed(2)}
                       </span>
                     </div>
                   </div>
                 ))}
-                {/* Mobile total strip */}
                 <div className="flex items-center justify-between px-3 py-2.5 bg-surface-900 border border-surface-700 rounded-xl text-sm font-semibold">
                   <span className="text-surface-400">{lines.length} item{lines.length !== 1 ? "s" : ""}</span>
                   <span className="font-mono text-white">KSh {total.toLocaleString()}</span>
@@ -288,8 +299,8 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
                     <tr>
                       <th className="px-3 py-2 text-left">Product</th>
                       <th className="px-3 py-2 text-right w-24">Qty</th>
+                      <th className="px-3 py-2 text-right w-32">Total Price</th>
                       <th className="px-3 py-2 text-right w-28">Unit Cost</th>
-                      <th className="px-3 py-2 text-right w-28">Total</th>
                       <th className="px-3 py-2 w-10"></th>
                     </tr>
                   </thead>
@@ -311,13 +322,13 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
                             type="number"
                             step="0.01"
                             min="0"
-                            value={line.unit_cost}
-                            onChange={(e) => updateLine(idx, "unit_cost", e.target.value)}
-                            className="w-24 px-2 py-1 bg-surface-700 border border-surface-600 rounded text-white text-right text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary-500 ml-auto block"
+                            value={line.total_price}
+                            onChange={(e) => updateLine(idx, "total_price", e.target.value)}
+                            className="w-28 px-2 py-1 bg-surface-700 border border-surface-600 rounded text-white text-right text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary-500 ml-auto block"
                           />
                         </td>
                         <td className="px-3 py-2 text-right font-mono text-primary-400">
-                          KSh {(line.quantity * line.unit_cost).toLocaleString()}
+                          KSh {Number(line.unit_cost).toFixed(2)}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <button
@@ -333,9 +344,9 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
                   </tbody>
                   <tfoot className="bg-surface-900 font-semibold">
                     <tr>
-                      <td colSpan={3} className="px-3 py-2 text-surface-400 text-sm">Total</td>
+                      <td colSpan={2} className="px-3 py-2 text-surface-400 text-sm">Total</td>
                       <td className="px-3 py-2 text-right font-mono text-white">KSh {total.toLocaleString()}</td>
-                      <td />
+                      <td colSpan={2} />
                     </tr>
                   </tfoot>
                 </table>
@@ -343,7 +354,7 @@ const ReceiveTab = ({ onSuccess, supplierId, supplierName, initialLines }) => {
             </>
           ) : (
             <p className="text-center py-6 text-surface-400 text-sm">
-              No items added yet — click <strong>Add Product</strong> above
+              No items added yet — click <strong>Add Product</strong> below
             </p>
           )}
         </div>

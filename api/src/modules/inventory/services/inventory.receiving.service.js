@@ -218,9 +218,22 @@ exports.receiveInventory = async (payload, context) => {
     throw new Error("RECEIPT_ITEMS_REQUIRED");
   }
 
+  // Determine approval status:
+  // - owners always auto-approve
+  // - users with both receive_goods + approve_receipts auto-approve
+  // - everyone else → pending
+  const isOwner = context.role === "owner";
+  const perms = context.permissions || [];
+  const canAutoApprove =
+    isOwner ||
+    (perms.includes("receive_goods") && perms.includes("approve_receipts"));
+
+  const approvalStatus = canAutoApprove ? "approved" : "pending";
+
   const { data } = await receiptsRepo.receiveInventory(
     payload,
     context.userId,
+    approvalStatus,
   );
 
   await auditRepo.log({
@@ -234,8 +247,44 @@ exports.receiveInventory = async (payload, context) => {
       invoice_number: payload.invoice_number,
       total_amount: payload.total_amount,
       item_count: payload.line_items.length,
+      approval_status: approvalStatus,
     },
   });
 
+  return { id: data, approval_status: approvalStatus };
+};
+
+exports.getPendingReceipts = async () => {
+  const { data, error } = await receiptsRepo.getPendingReceipts();
+  if (error) throw error;
   return data;
+};
+
+exports.approveReceipt = async (id, context) => {
+  await receiptsRepo.approveReceipt(id, context.userId);
+
+  await auditRepo.log({
+    entity: "inventory_receipts",
+    entity_id: id,
+    action: "INVENTORY_RECEIPT_APPROVED",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
+  });
+
+  return { id };
+};
+
+exports.rejectReceipt = async (id, payload, context) => {
+  await receiptsRepo.rejectReceipt(id, context.userId, payload.reason);
+
+  await auditRepo.log({
+    entity: "inventory_receipts",
+    entity_id: id,
+    action: "INVENTORY_RECEIPT_REJECTED",
+    performed_by: context.userId,
+    correlation_id: context.correlationId,
+    metadata: { reason: payload.reason },
+  });
+
+  return { id };
 };

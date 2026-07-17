@@ -10,6 +10,21 @@ export const createInventoryReceipt = async (payload) => {
   return data.data;
 };
 
+export const fetchPendingReceipts = async () => {
+  const { data } = await api.get("/inventory/receipts/pending");
+  return data.data ?? data;
+};
+
+export const approveReceipt = async (id) => {
+  const { data } = await api.post(`/inventory/receipts/${id}/approve`);
+  return data.data;
+};
+
+export const rejectReceipt = async (id, reason) => {
+  const { data } = await api.post(`/inventory/receipts/${id}/reject`, { reason });
+  return data.data;
+};
+
 // Stock-take sessions
 export const createStockTakeSession = async () => {
   const { data } = await api.post("/inventory/stock-take-sessions");

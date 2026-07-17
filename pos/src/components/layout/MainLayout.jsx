@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Users,
+  Truck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
@@ -25,6 +26,7 @@ import StockTakeEntry from "../../pages/StockTakeEntry";
 import ZReportView from "@/pages/ZReportView";
 import WeeklySalesView from "@/pages/WeeklySalesView";
 import StockTakeReportsView from "@/pages/StockTakeReportsView";
+import ReceiveStockScreen from "@/pages/ReceiveStockScreen";
 import { useBills } from "@/hooks/useBills";
 import { useMyBillStats } from "@/hooks/useMyBillStats";
 import { formatCurrency } from "@/utils/common";
@@ -62,6 +64,8 @@ const MainLayout = () => {
       items.push({ id: "weekly-sales", label: "Weekly Sales", icon: BarChart3, view: "weekly-sales" });
     if (perms.includes("stocktake_reports"))
       items.push({ id: "stocktake-reports", label: "Stock Reports", icon: PackageSearch, view: "stocktake-reports" });
+    if (perms.includes("receive_goods"))
+      items.push({ id: "receive-stock", label: "Receive Stock", icon: Truck, view: "receive-stock" });
     return items;
   }, [user.permissions]);
 
@@ -84,6 +88,8 @@ const MainLayout = () => {
       tabs.push({ id: "weekly-sales", label: "Weekly Sales", icon: BarChart3, view: "weekly-sales" });
     if (perms.includes("stocktake_reports"))
       tabs.push({ id: "stocktake-reports", label: "Stock Reports", icon: PackageSearch, view: "stocktake-reports" });
+    if (perms.includes("receive_goods"))
+      tabs.push({ id: "receive-stock", label: "Receive Stock", icon: Truck, view: "receive-stock" });
     return tabs;
   }, [user.permissions]);
 
@@ -100,7 +106,7 @@ const MainLayout = () => {
   // Restore view from localStorage
   useEffect(() => {
     const saved = localStorage.getItem(getStorageKey(user.role));
-    const allowed = ["pos", "stock-take", "z-report", "weekly-sales", "stocktake-reports"];
+    const allowed = ["pos", "stock-take", "z-report", "weekly-sales", "stocktake-reports", "receive-stock"];
     if (saved && allowed.includes(saved)) {
       setCurrentView(saved);
     } else {
@@ -156,6 +162,8 @@ const MainLayout = () => {
         return <WeeklySalesView />;
       case "stocktake-reports":
         return <StockTakeReportsView />;
+      case "receive-stock":
+        return <ReceiveStockScreen />;
       default:
         return null;
     }

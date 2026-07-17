@@ -71,6 +71,40 @@ exports.cancelReceipt = async (req, res, next) => {
   }
 };
 
+exports.getPendingReceipts = async (req, res, next) => {
+  try {
+    const data = await receivingService.getPendingReceipts();
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.approveReceipt = async (req, res, next) => {
+  try {
+    const data = await receivingService.approveReceipt(
+      req.params.id,
+      buildContext(req),
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.rejectReceipt = async (req, res, next) => {
+  try {
+    const data = await receivingService.rejectReceipt(
+      req.params.id,
+      req.body,
+      buildContext(req),
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 /* ======================================================
    STOCK TAKE (RPC-BASED)
    ====================================================== */

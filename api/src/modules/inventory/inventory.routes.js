@@ -1,6 +1,6 @@
 const express = require("express");
 const controller = require("./inventory.controller");
-const { requireRole } = require("../../middleware/rbac.middleware");
+const { requireRole, requirePermission } = require("../../middleware/rbac.middleware");
 
 const router = express.Router();
 
@@ -16,10 +16,25 @@ router.get("/items", controller.getInventoryItems);
 
 router.post(
   "/receipts",
-  requireRole("director", "owner"),
+  requirePermission("receive_goods"),
   controller.createInventoryReceipt,
 );
+router.get(
+  "/receipts/pending",
+  requireRole("director", "owner"),
+  controller.getPendingReceipts,
+);
 router.get("/receipts/:id", controller.getReceiptDetail);
+router.post(
+  "/receipts/:id/approve",
+  requireRole("director", "owner"),
+  controller.approveReceipt,
+);
+router.post(
+  "/receipts/:id/reject",
+  requireRole("director", "owner"),
+  controller.rejectReceipt,
+);
 router.post(
   "/receipts/:id/pay",
   requireRole("director", "owner"),

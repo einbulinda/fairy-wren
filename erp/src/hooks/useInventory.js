@@ -3,6 +3,9 @@ import toast from "react-hot-toast";
 import {
   fetchStockItems,
   createInventoryReceipt,
+  fetchPendingReceipts,
+  approveReceipt,
+  rejectReceipt,
   fetchIncompleteStockTake,
   createStockTakeSession,
   recordStockTakeItem,
@@ -44,13 +47,55 @@ export const useReceiveInventory = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createInventoryReceipt,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["stock-items"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Inventory received successfully");
+    onSuccess: (data) => {
+      if (data?.approval_status === "pending") {
+        toast.success("Receipt submitted — pending approval before stock is updated");
+        queryClient.invalidateQueries({ queryKey: ["pending-receipts"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["stock-items"] });
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+        toast.success("Inventory received successfully");
+      }
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to receive inventory");
+    },
+  });
+};
+
+export const usePendingReceipts = () => {
+  return useQuery({
+    queryKey: ["pending-receipts"],
+    queryFn: fetchPendingReceipts,
+    staleTime: 30 * 1000,
+  });
+};
+
+export const useApproveReceipt = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: approveReceipt,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pending-receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-items"] });
+      toast.success("Receipt approved — inventory updated");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to approve receipt");
+    },
+  });
+};
+
+export const useRejectReceipt = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }) => rejectReceipt(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pending-receipts"] });
+      toast.success("Receipt rejected");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to reject receipt");
     },
   });
 };
