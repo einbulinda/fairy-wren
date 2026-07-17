@@ -161,6 +161,16 @@ const CAPABILITIES = [
     label: "View Audit Trail",
     description: "Can access the full system audit trail and activity log",
   },
+  {
+    key: "receive_goods",
+    label: "Receive Goods",
+    description: "Can submit goods receipts from POS (pending approval unless also has Approve Receipts)",
+  },
+  {
+    key: "approve_receipts",
+    label: "Approve Receipts",
+    description: "Can approve or reject pending goods receipts — combined with Receive Goods grants auto-approval",
+  },
 ];
 
 const formatCurrency = (value) =>
