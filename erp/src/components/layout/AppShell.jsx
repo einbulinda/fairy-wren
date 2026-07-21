@@ -40,6 +40,7 @@ import {
 const inventoryNavTabs = [
   { path: "/inventory", short: "Stock", icon: Package },
   { path: "/inventory/receive", short: "Receive", icon: PackagePlus },
+  { path: "/inventory/exchanges", short: "Exchange", icon: ArrowLeftRight },
   { path: "/inventory/reports", short: "Reports", icon: BarChart2 },
   { path: "/inventory/approvals", short: "Approve", icon: CheckSquare },
   { path: "/inventory/conversions", short: "Convert", icon: RefreshCw },

@@ -9,6 +9,7 @@ import { useViewedNotifications } from "@/hooks/useViewedNotifications";
 import { useAwaitingPayments } from "@/hooks/useAwaitingPayments";
 import { useLowStockAlerts } from "@/hooks/useLowStockAlerts";
 import { usePendingReceipts } from "@/hooks/useInventory";
+import { usePendingExchanges } from "@/hooks/useExchanges";
 import {
   Menu,
   Search,
@@ -37,6 +38,7 @@ const Header = ({ title, onMenuClick }) => {
   const { awaitingPayments } = useAwaitingPayments();
   const { lowStockAlerts } = useLowStockAlerts();
   const { data: pendingReceipts = [] } = usePendingReceipts();
+  const { data: pendingExchanges = [] } = usePendingExchanges();
 
   const unviewedApprovals = filterUnviewed(pendingApprovals);
   const unviewedReservations = filterUnviewed(pendingReservations);
@@ -47,7 +49,8 @@ const Header = ({ title, onMenuClick }) => {
     unviewedFeedback.length +
     awaitingPayments.length +
     lowStockAlerts.length +
-    pendingReceipts.length;
+    pendingReceipts.length +
+    pendingExchanges.length;
 
   const navigate = useNavigate();
 
@@ -381,6 +384,50 @@ const Header = ({ title, onMenuClick }) => {
                       {pendingReceipts.length > 4 && (
                         <p className="px-4 py-2 text-[11px] text-surface-500 text-center">
                           +{pendingReceipts.length - 4} more
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                  {/* Pending Product Exchanges */}
+                  {pendingExchanges.length > 0 && (
+                    <>
+                      <div className="px-4 py-2 flex items-center justify-between bg-surface-900/50">
+                        <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-wider">
+                          Product Exchanges
+                        </span>
+                        <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full">
+                          {pendingExchanges.length}
+                        </span>
+                      </div>
+                      {pendingExchanges.slice(0, 4).map((ex) => (
+                        <button
+                          key={ex.id}
+                          onClick={() => {
+                            setNotifOpen(false);
+                            navigate("/inventory/approvals");
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-surface-700/50 transition-colors border-b border-surface-700/50 last:border-0"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-white truncate">
+                                {ex.partner?.name || "—"}
+                              </p>
+                              <p className="text-xs text-surface-400 mt-0.5 capitalize">
+                                {ex.direction}
+                                {ex.submitted_by?.name ? ` · ${ex.submitted_by.name}` : ""}
+                              </p>
+                            </div>
+                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-500/20 text-yellow-400">
+                              pending
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                      {pendingExchanges.length > 4 && (
+                        <p className="px-4 py-2 text-[11px] text-surface-500 text-center">
+                          +{pendingExchanges.length - 4} more
                         </p>
                       )}
                     </>

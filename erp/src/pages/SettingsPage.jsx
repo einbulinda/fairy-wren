@@ -171,6 +171,16 @@ const CAPABILITIES = [
     label: "Approve Receipts",
     description: "Can approve or reject pending goods receipts — combined with Receive Goods grants auto-approval",
   },
+  {
+    key: "manage_exchanges",
+    label: "Manage Exchanges",
+    description: "Can record product exchanges (loans/returns) with neighbouring businesses (pending approval unless also has Approve Exchanges)",
+  },
+  {
+    key: "approve_exchanges",
+    label: "Approve Exchanges",
+    description: "Can approve or reject pending product exchanges — combined with Manage Exchanges grants auto-approval",
+  },
 ];
 
 const formatCurrency = (value) =>

@@ -16,6 +16,7 @@ import {
   X,
   Users,
   Truck,
+  ArrowLeftRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
@@ -27,6 +28,7 @@ import ZReportView from "@/pages/ZReportView";
 import WeeklySalesView from "@/pages/WeeklySalesView";
 import StockTakeReportsView from "@/pages/StockTakeReportsView";
 import ReceiveStockScreen from "@/pages/ReceiveStockScreen";
+import RecordExchangeScreen from "@/pages/RecordExchangeScreen";
 import { useBills } from "@/hooks/useBills";
 import { useMyBillStats } from "@/hooks/useMyBillStats";
 import { formatCurrency } from "@/utils/common";
@@ -66,6 +68,8 @@ const MainLayout = () => {
       items.push({ id: "stocktake-reports", label: "Stock Reports", icon: PackageSearch, view: "stocktake-reports" });
     if (perms.includes("receive_goods"))
       items.push({ id: "receive-stock", label: "Receive Stock", icon: Truck, view: "receive-stock" });
+    if (perms.includes("manage_exchanges"))
+      items.push({ id: "exchanges", label: "Product Exchanges", icon: ArrowLeftRight, view: "exchanges" });
     return items;
   }, [user.permissions]);
 
@@ -90,6 +94,8 @@ const MainLayout = () => {
       tabs.push({ id: "stocktake-reports", label: "Stock Reports", icon: PackageSearch, view: "stocktake-reports" });
     if (perms.includes("receive_goods"))
       tabs.push({ id: "receive-stock", label: "Receive Stock", icon: Truck, view: "receive-stock" });
+    if (perms.includes("manage_exchanges"))
+      tabs.push({ id: "exchanges", label: "Product Exchanges", icon: ArrowLeftRight, view: "exchanges" });
     return tabs;
   }, [user.permissions]);
 
@@ -106,7 +112,7 @@ const MainLayout = () => {
   // Restore view from localStorage
   useEffect(() => {
     const saved = localStorage.getItem(getStorageKey(user.role));
-    const allowed = ["pos", "stock-take", "z-report", "weekly-sales", "stocktake-reports", "receive-stock"];
+    const allowed = ["pos", "stock-take", "z-report", "weekly-sales", "stocktake-reports", "receive-stock", "exchanges"];
     if (saved && allowed.includes(saved)) {
       setCurrentView(saved);
     } else {
@@ -164,6 +170,8 @@ const MainLayout = () => {
         return <StockTakeReportsView />;
       case "receive-stock":
         return <ReceiveStockScreen />;
+      case "exchanges":
+        return <RecordExchangeScreen />;
       default:
         return null;
     }

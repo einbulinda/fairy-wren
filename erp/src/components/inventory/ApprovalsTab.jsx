@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   PackagePlus,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   useStockTakeReports,
@@ -19,6 +20,11 @@ import {
   useApproveReceipt,
   useRejectReceipt,
 } from "@/hooks/useInventory";
+import {
+  usePendingExchanges,
+  useApproveExchange,
+  useRejectExchange,
+} from "@/hooks/useExchanges";
 import { PAGE_SIZE } from "./inventoryUtils";
 
 const StatusBadge = ({ status }) => {
@@ -341,10 +347,110 @@ const ReceiptApprovals = () => {
   );
 };
 
+/* ── Pending exchanges section ── */
+const ExchangeApprovals = () => {
+  const { data: exchanges = [], isLoading } = usePendingExchanges();
+  const approveMutation = useApproveExchange();
+  const rejectMutation = useRejectExchange();
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const handleReject = (id) => {
+    rejectMutation.mutate(
+      { id, reason: rejectReason || "Rejected by approver" },
+      { onSuccess: () => { setRejectingId(null); setRejectReason(""); } },
+    );
+  };
+
+  if (isLoading)
+    return <div className="flex items-center justify-center py-20 text-surface-400">Loading…</div>;
+
+  if (exchanges.length === 0)
+    return (
+      <div className="bg-surface-800 rounded-xl border border-surface-700 px-6 py-12 text-center text-surface-400 text-sm">
+        No product exchanges pending approval.
+      </div>
+    );
+
+  return (
+    <div className="space-y-3">
+      {rejectingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-surface-800 border border-surface-700 rounded-2xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="text-white font-semibold">Reject Exchange</h3>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection (optional)"
+              rows={3}
+              className="w-full px-3 py-2 bg-surface-700 border border-surface-600 rounded-lg text-white text-sm placeholder-surface-500 resize-none focus:outline-none focus:ring-1 focus:ring-red-500"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setRejectingId(null); setRejectReason(""); }}
+                className="flex-1 py-2 rounded-lg text-sm bg-surface-700 hover:bg-surface-600 text-surface-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleReject(rejectingId)}
+                disabled={rejectMutation.isPending}
+                className="flex-1 py-2 rounded-lg text-sm bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-50"
+              >
+                {rejectMutation.isPending ? "Rejecting…" : "Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {exchanges.map((exchange) => (
+        <div key={exchange.id} className="bg-surface-800/60 border border-surface-700 rounded-xl p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-white font-semibold text-sm truncate">{exchange.partner?.name || "Unknown partner"}</p>
+              <p className="text-surface-400 text-xs mt-0.5 capitalize">{exchange.direction}</p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-surface-500 text-[10px] mt-0.5">
+                {new Date(exchange.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-surface-400">
+            <span>{exchange.submitted_by?.name || "—"}</span>
+            <span className="text-surface-700">·</span>
+            <span>{exchange.item_count} item{Number(exchange.item_count) !== 1 ? "s" : ""}</span>
+            <span className="text-surface-700">·</span>
+            <span className="text-yellow-400 font-medium">Pending</span>
+          </div>
+          <div className="flex gap-2 pt-1 border-t border-surface-700/50">
+            <button
+              onClick={() => approveMutation.mutate(exchange.id)}
+              disabled={approveMutation.isPending || rejectMutation.isPending}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium bg-green-600/20 hover:bg-green-600/40 text-green-400 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <CheckCircle size={13} /> Approve
+            </button>
+            <button
+              onClick={() => setRejectingId(exchange.id)}
+              disabled={approveMutation.isPending || rejectMutation.isPending}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <XCircle size={13} /> Reject
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 /* ── Main ApprovalsTab with sub-nav ── */
 const ApprovalsTab = () => {
   const [section, setSection] = useState("stock-take");
   const { data: pendingReceipts = [] } = usePendingReceipts();
+  const { data: pendingExchanges = [] } = usePendingExchanges();
 
   return (
     <div className="space-y-4">
@@ -375,9 +481,30 @@ const ApprovalsTab = () => {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setSection("exchanges")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            section === "exchanges"
+              ? "bg-primary-600 text-white"
+              : "text-surface-400 hover:text-white"
+          }`}
+        >
+          <ArrowLeftRight size={14} /> Exchanges
+          {pendingExchanges.length > 0 && (
+            <span className="ml-1 bg-yellow-500 text-black text-[10px] font-bold rounded-full h-4 min-w-4 px-1 flex items-center justify-center">
+              {pendingExchanges.length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {section === "stock-take" ? <StockTakeApprovals /> : <ReceiptApprovals />}
+      {section === "stock-take" ? (
+        <StockTakeApprovals />
+      ) : section === "receipts" ? (
+        <ReceiptApprovals />
+      ) : (
+        <ExchangeApprovals />
+      )}
     </div>
   );
 };

@@ -16,6 +16,7 @@ import ProductsPage from "@/pages/ProductsPage";
 import ProductDetailPage from "@/pages/ProductDetailPage";
 import PayrollPage from "@/pages/PayrollPage";
 import ReceiptDetailPage from "@/pages/ReceiptDetailPage";
+import ExchangeDetailPage from "@/pages/ExchangeDetailPage";
 import UsersPage from "@/pages/UsersPage";
 import SettingsPage from "@/pages/SettingsPage";
 import BankReconciliationDetailPage from "@/pages/BankReconciliationDetailPage";
@@ -57,6 +58,7 @@ const AuthenticatedRoutes = () => {
         <Route index element={<DashboardPage />} />
         <Route path="inventory/*" element={<InventoryPage />} />
         <Route path="inventory/receipts/:id" element={<ReceiptDetailPage />} />
+        <Route path="inventory/exchanges/:id" element={<ExchangeDetailPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="products/:id" element={<ProductDetailPage />} />
         <Route path="sales" element={<SalesPage />} />
