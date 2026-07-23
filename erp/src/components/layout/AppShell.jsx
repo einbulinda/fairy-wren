@@ -110,6 +110,7 @@ const reportNavTabs = [
   { key: "trial-balance", short: "Trial", icon: BarChart3 },
   { key: "cash-flow", short: "Cash", icon: DollarSign },
   { key: "equity-changes", short: "Equity", icon: Scale },
+  { key: "payment-register", short: "Payments", icon: FileCheck },
 ];
 
 const routeTitles = {

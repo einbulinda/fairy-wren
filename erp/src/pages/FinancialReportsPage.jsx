@@ -1,10 +1,11 @@
 import { useSearchParams } from "react-router";
-import { TrendingUp, FileText, BarChart3, DollarSign, Scale } from "lucide-react";
+import { TrendingUp, FileText, BarChart3, DollarSign, Scale, FileCheck } from "lucide-react";
 import IncomeStatementPage from "./IncomeStatementPage";
 import BalanceSheetPage from "./BalanceSheetPage";
 import TrialBalancePage from "./TrialBalancePage";
 import CashFlowStatementPage from "./CashFlowStatementPage";
 import EquityChangesPage from "./EquityChangesPage";
+import PaymentRegisterPage from "./PaymentRegisterPage";
 
 const TABS = [
   { key: "income-statement", label: "Income Statement", short: "Income", icon: TrendingUp, component: IncomeStatementPage },
@@ -12,6 +13,7 @@ const TABS = [
   { key: "trial-balance", label: "Trial Balance", short: "Trial", icon: BarChart3, component: TrialBalancePage },
   { key: "cash-flow", label: "Cash Flow", short: "Cash", icon: DollarSign, component: CashFlowStatementPage },
   { key: "equity-changes", label: "Equity Changes", short: "Equity", icon: Scale, component: EquityChangesPage },
+  { key: "payment-register", label: "Payment Register", short: "Payments", icon: FileCheck, component: PaymentRegisterPage },
 ];
 
 const FinancialReportsPage = ({ defaultTab }) => {
