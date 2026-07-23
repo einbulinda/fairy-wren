@@ -27,6 +27,7 @@ import {
   BookOpen,
   PenLine,
   FileCheck,
+  TrendingDown,
   ArrowLeftRight,
   RefreshCw,
   Target,
@@ -73,6 +74,7 @@ const accountingNavTabs = [
   { key: "general-ledger", short: "Ledger", icon: BookOpen },
   { key: "journal-entries", short: "Journals", icon: PenLine },
   { key: "cheques", short: "Cheques", icon: FileCheck },
+  { key: "expenses", short: "Expenses", icon: TrendingDown },
   { key: "bank-reconciliation", short: "Recon", icon: ArrowLeftRight },
   { key: "periods", short: "Periods", icon: Calendar },
 ];
@@ -116,7 +118,6 @@ const routeTitles = {
   "/products": "Products",
   "/purchasing": "Purchasing",
   "/accounting": "Accounting",
-  "/expenses": "Expenses",
   "/payroll": "Payroll",
   "/reports": "Financial Reports",
   "/web": "Web Management",

@@ -16,6 +16,7 @@ export const useCreateCheque = () => {
     mutationFn: createCheque,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cheques"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Cheque issued successfully");
     },
     onError: (err) => {
@@ -44,6 +45,7 @@ export const useVoidCheque = () => {
     mutationFn: voidCheque,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cheques"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Cheque voided");
     },
     onError: (err) => {

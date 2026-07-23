@@ -1,9 +1,10 @@
 import { useSearchParams } from "react-router";
-import { Landmark, BookOpen, PenLine, FileCheck, ArrowLeftRight, Calendar } from "lucide-react";
+import { Landmark, BookOpen, PenLine, FileCheck, TrendingDown, ArrowLeftRight, Calendar } from "lucide-react";
 import ChartOfAccountsPage from "./ChartOfAccountsPage";
 import LedgerPage from "./LedgerPage";
 import JournalEntryPage from "./JournalEntryPage";
 import ChequeWritingPage from "./ChequeWritingPage";
+import ExpensesPage from "./ExpensesPage";
 import BankReconciliationListPage from "./BankReconciliationListPage";
 import AccountingPeriodsPage from "./AccountingPeriodsPage";
 
@@ -12,6 +13,7 @@ const TABS = [
   { key: "general-ledger",      label: "General Ledger",       short: "Ledger",  icon: BookOpen,       component: LedgerPage },
   { key: "journal-entries",     label: "Journal Entries",      short: "Journals",icon: PenLine,        component: JournalEntryPage },
   { key: "cheques",             label: "Cheques",              short: "Cheques", icon: FileCheck,      component: ChequeWritingPage },
+  { key: "expenses",            label: "Expenses",             short: "Expenses",icon: TrendingDown,   component: ExpensesPage },
   { key: "bank-reconciliation", label: "Bank Reconciliation",  short: "Recon",   icon: ArrowLeftRight, component: BankReconciliationListPage },
   { key: "periods",             label: "Accounting Periods",   short: "Periods", icon: Calendar,       component: AccountingPeriodsPage },
 ];

@@ -1,38 +1,30 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAccounts } from "@/services/accounts.service";
-import { useCheques, useCreateCheque, useClearCheque, useVoidCheque } from "@/hooks/useCheques";
+import { fetchAccounts, fetchAccountLedger } from "@/services/accounts.service";
+import { useCheques, useCreateCheque } from "@/hooks/useCheques";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useAccountClasses } from "@/hooks/useAccountClasses";
 import { useProducts } from "@/hooks/useProducts";
 import {
-  Plus, Trash2, CheckCircle, XCircle, Clock, Receipt, ArrowLeftRight,
-  X, ChevronLeft, ChevronRight, Building2, Landmark, Package,
+  Plus, Trash2, Receipt, ArrowLeftRight, Landmark, Package, X,
 } from "lucide-react";
-import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import { fmt, localDateStr } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
 
 const today = localDateStr();
 
-const STATUS_STYLES = {
-  issued:  { label: "Issued",  icon: Clock,        cls: "bg-primary-500/15 text-primary-300" },
-  cleared: { label: "Cleared", icon: CheckCircle,  cls: "bg-emerald-500/15 text-emerald-400" },
-  voided:  { label: "Voided",  icon: XCircle,      cls: "bg-red-500/15 text-red-400" },
-};
-
 const EMPTY_ITEM_LINE = { product_id: "", description: "", quantity: "", unit_cost: "", account_id: "" };
+const EMPTY_EXPENSE_LINE = { account_id: "", amount: "", description: "" };
 
 const EMPTY_BANK_FORM = {
   reference: "",
   cheque_date: today,
   amount: "",
   memo: "",
-  payee_category: "supplier",
   payee_id: "",
   payee_name: "",
   debit_account_id: "",
-  expense_lines: [{ account_id: "", amount: "" }],
+  expense_lines: [{ ...EMPTY_EXPENSE_LINE }],
   item_lines: [{ ...EMPTY_ITEM_LINE }],
 };
 
@@ -40,24 +32,22 @@ const EMPTY_TRANSFER_FORM = {
   reference: "",
   cheque_date: today,
   amount: "",
-  from_account_id: "",
   to_account_id: "",
   memo: "",
 };
 
-const PAGE_SIZE = 10;
+const PAYEE_CATEGORIES = [
+  { value: "supplier", label: "Supplier Payment" },
+  { value: "expense", label: "Expense" },
+  { value: "transfer", label: "Transfer" },
+];
 
 const ChequeWritingPage = () => {
-  // "transfer" or a bank account id
-  const [activeTab, setActiveTab] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+  const [bankAccountId, setBankAccountId] = useState("");
+  const [payeeCategory, setPayeeCategory] = useState("supplier");
   const [form, setForm] = useState(EMPTY_BANK_FORM);
   const [transferForm, setTransferForm] = useState(EMPTY_TRANSFER_FORM);
   const [lineTab, setLineTab] = useState("expenses");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterFrom, setFilterFrom] = useState("");
-  const [filterTo, setFilterTo] = useState("");
-  const [page, setPage] = useState(1);
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["accounts"],
@@ -68,18 +58,8 @@ const ChequeWritingPage = () => {
   const { data: accountClasses = [] } = useAccountClasses();
   const { data: products = [] } = useProducts({ active: true });
 
-  const filters = useMemo(() => {
-    const f = {};
-    if (filterStatus) f.status = filterStatus;
-    if (filterFrom) f.from = filterFrom;
-    if (filterTo) f.to = filterTo;
-    return f;
-  }, [filterStatus, filterFrom, filterTo]);
-
-  const { data: cheques = [], isLoading } = useCheques(filters);
+  const { data: cheques = [] } = useCheques();
   const createMutation = useCreateCheque();
-  const clearMutation = useClearCheque();
-  const voidMutation = useVoidCheque();
 
   // Leaf bank accounts (have a parent — not header accounts)
   const leafBankAccounts = useMemo(() => {
@@ -88,8 +68,20 @@ const ChequeWritingPage = () => {
     return leaves.length > 0 ? leaves : all; // fallback if flat chart
   }, [accounts]);
 
+  // The account being credited — shared by Supplier / Expense / Transfer
+  const selectedBankId = bankAccountId || leafBankAccounts[0]?.id || "";
+  const selectedBank = leafBankAccounts.find((a) => a.id === selectedBankId);
+
+  // Ending balance for the selected bank account (full ledger history, last running balance)
+  const { data: bankLedger = [] } = useQuery({
+    queryKey: ["account-balance", selectedBankId],
+    queryFn: () => fetchAccountLedger(selectedBankId),
+    enabled: !!selectedBankId,
+    staleTime: 30 * 1000,
+  });
+  const endingBalance = bankLedger.length ? Number(bankLedger[bankLedger.length - 1].running_balance) : 0;
+
   // Expense accounts: all accounts whose class has category === "expense"
-  // Prefer leaf accounts (parent_id !== null) but fall back to all if chart is flat
   const expenseClassCodes = useMemo(
     () => new Set(accountClasses.filter((c) => c.category === "expense").map((c) => c.code)),
     [accountClasses],
@@ -99,23 +91,17 @@ const ChequeWritingPage = () => {
     [accounts, expenseClassCodes],
   );
 
-  // Transfer to accounts (exclude from account)
-  const transferToAccounts = leafBankAccounts.filter(
-    (a) => a.id !== transferForm.from_account_id,
-  );
-
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(cheques.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageItems = cheques.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  // Transfer "to" accounts (exclude the selected bank/from account)
+  const transferToAccounts = leafBankAccounts.filter((a) => a.id !== selectedBankId);
 
   // Stats
   const issuedTotal  = cheques.filter((c) => c.status === "issued").reduce((s, c) => s + Number(c.amount), 0);
   const clearedTotal = cheques.filter((c) => c.status === "cleared").reduce((s, c) => s + Number(c.amount), 0);
 
   // ── Derived form values ───────────────────────────────────────────────────
-  const isTransferTab = activeTab === "transfer";
-  const selectedBank = leafBankAccounts.find((a) => a.id === activeTab);
+  const isTransfer = payeeCategory === "transfer";
+  const isSupplier = payeeCategory === "supplier";
+  const isExpense = payeeCategory === "expense";
 
   const chequeAmount = parseFloat(form.amount) || 0;
   const expenseTotal = form.expense_lines.reduce(
@@ -133,41 +119,19 @@ const ChequeWritingPage = () => {
      form.item_lines.some((l) => l.account_id && parseFloat(l.quantity) > 0 && parseFloat(l.unit_cost) > 0)) &&
     Math.round(combinedRemaining * 100) === 0;
 
-  // Journal preview accounts for bank payment
-  const previewBankAcc = selectedBank;
+  // Journal preview accounts
   const previewDebitAcc = accounts.find((a) => a.id === form.debit_account_id);
-  const previewFromAcc = leafBankAccounts.find((a) => a.id === transferForm.from_account_id);
   const previewToAcc = leafBankAccounts.find((a) => a.id === transferForm.to_account_id);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const openTab = (tabId) => {
-    setActiveTab(tabId);
-    setShowForm(true);
+  const handlePayeeCategoryChange = (cat) => {
+    setPayeeCategory(cat);
     setForm(EMPTY_BANK_FORM);
     setTransferForm(EMPTY_TRANSFER_FORM);
-  };
-
-  const closeForm = () => {
-    setShowForm(false);
-    setActiveTab(null);
-    setForm(EMPTY_BANK_FORM);
-    setTransferForm(EMPTY_TRANSFER_FORM);
+    setLineTab("expenses");
   };
 
   const setField = (key) => (e) => setForm({ ...form, [key]: e.target.value });
-
-  const handlePayeeCategoryChange = (cat) => {
-    setForm({
-      ...form,
-      payee_category: cat,
-      payee_id: "",
-      payee_name: "",
-      debit_account_id: "",
-      expense_lines: [{ account_id: "", amount: "" }],
-      item_lines: [{ ...EMPTY_ITEM_LINE }],
-    });
-    setLineTab("expenses");
-  };
 
   const handleSupplierSelect = (id) => {
     const s = suppliers.find((x) => x.id === id);
@@ -183,7 +147,7 @@ const ChequeWritingPage = () => {
   };
 
   const addExpenseLine = () => {
-    setForm({ ...form, expense_lines: [...form.expense_lines, { account_id: "", amount: "" }] });
+    setForm({ ...form, expense_lines: [...form.expense_lines, { ...EMPTY_EXPENSE_LINE }] });
   };
 
   const removeExpenseLine = (idx) => {
@@ -222,17 +186,17 @@ const ChequeWritingPage = () => {
     setForm({ ...form, item_lines: form.item_lines.filter((_, i) => i !== idx) });
   };
 
-  const handleBankSubmit = () => {
+  const handleBankSubmit = (mode) => {
     const payload = {
       transaction_type: "bank_cheque",
       cheque_number: form.reference,
-      bank_account_id: activeTab,
+      bank_account_id: selectedBankId,
       cheque_date: form.cheque_date,
       amount: chequeAmount,
       memo: form.memo,
     };
 
-    if (form.payee_category === "supplier") {
+    if (isSupplier) {
       Object.assign(payload, {
         payee_type: "supplier",
         payee_id: form.payee_id,
@@ -242,7 +206,7 @@ const ChequeWritingPage = () => {
     } else {
       const expLines = form.expense_lines
         .filter((l) => l.account_id && parseFloat(l.amount) > 0)
-        .map((l) => ({ account_id: l.account_id, amount: parseFloat(l.amount) }));
+        .map((l) => ({ account_id: l.account_id, amount: parseFloat(l.amount), description: l.description?.trim() || null }));
       const itemLines = form.item_lines
         .filter((l) => l.account_id && parseFloat(l.quantity) > 0 && parseFloat(l.unit_cost) > 0)
         .map((l) => ({
@@ -257,15 +221,20 @@ const ChequeWritingPage = () => {
       });
     }
 
-    createMutation.mutate(payload, { onSuccess: closeForm });
+    createMutation.mutate(payload, {
+      onSuccess: () => {
+        setForm(EMPTY_BANK_FORM);
+        if (mode === "close") setBankAccountId("");
+      },
+    });
   };
 
-  const handleTransferSubmit = () => {
+  const handleTransferSubmit = (mode) => {
     createMutation.mutate(
       {
         transaction_type: "transfer",
         cheque_number: transferForm.reference,
-        bank_account_id: transferForm.from_account_id,
+        bank_account_id: selectedBankId,
         debit_account_id: transferForm.to_account_id,
         payee_type: "other",
         payee_name: "Internal Transfer",
@@ -273,62 +242,44 @@ const ChequeWritingPage = () => {
         cheque_date: transferForm.cheque_date,
         memo: transferForm.memo,
       },
-      { onSuccess: closeForm },
+      {
+        onSuccess: () => {
+          setTransferForm(EMPTY_TRANSFER_FORM);
+          if (mode === "close") setBankAccountId("");
+        },
+      },
     );
   };
 
-  const handleClear = (id, ref) => {
-    if (!confirm(`Mark ${ref} as cleared?`)) return;
-    clearMutation.mutate(id);
-  };
-
-  const handleVoid = (id, ref) => {
-    if (!confirm(`Void ${ref}? A reversing journal entry will be created.`)) return;
-    voidMutation.mutate(id);
+  const clearCurrentForm = () => {
+    if (isTransfer) setTransferForm(EMPTY_TRANSFER_FORM);
+    else setForm(EMPTY_BANK_FORM);
   };
 
   // ── Validation ────────────────────────────────────────────────────────────
   const bankSubmitDisabled =
     createMutation.isPending ||
+    !selectedBankId ||
     !form.reference ||
     !form.cheque_date ||
     chequeAmount <= 0 ||
-    (form.payee_category === "supplier" && (!form.payee_id || !form.debit_account_id)) ||
-    (form.payee_category === "expense" && !expensesValid);
+    (isSupplier && (!form.payee_id || !form.debit_account_id)) ||
+    (isExpense && !expensesValid);
 
   const transferSubmitDisabled =
     createMutation.isPending ||
+    !selectedBankId ||
     !transferForm.reference ||
     !transferForm.cheque_date ||
     !(parseFloat(transferForm.amount) > 0) ||
-    !transferForm.from_account_id ||
     !transferForm.to_account_id;
-
-  const handleNewCheque = () => {
-    if (leafBankAccounts.length === 0) return;
-    if (leafBankAccounts.length === 1) {
-      openTab(leafBankAccounts[0].id);
-    } else {
-      document.getElementById("bank-tabs-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  };
 
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-white">Write Cheques</h1>
-          <p className="text-sm text-surface-400 mt-0.5">Issue payments and record bank transactions</p>
-        </div>
-        <button
-          onClick={handleNewCheque}
-          disabled={leafBankAccounts.length === 0}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <Plus size={15} />
-          Write Cheque
-        </button>
+      <div>
+        <h1 className="text-xl font-bold text-white">Write Cheques</h1>
+        <p className="text-sm text-surface-400 mt-0.5">Issue payments and record bank transactions</p>
       </div>
 
       {/* Stats */}
@@ -350,613 +301,382 @@ const ChequeWritingPage = () => {
         </div>
       </div>
 
-      {/* Bank account tabs + Transfer */}
-      <div id="bank-tabs-section" className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
-        <div className="px-4 pt-4 pb-0 border-b border-surface-700">
-          <p className="text-xs text-surface-500 uppercase tracking-wider mb-2 font-medium">
-            Select Bank Account to Issue From
-            {!showForm && leafBankAccounts.length > 0 && (
-              <span className="ml-2 normal-case text-primary-400 font-normal">— click an account below</span>
-            )}
-          </p>
-          {leafBankAccounts.length === 0 && (
-            <p className="text-xs text-amber-400 mb-2">No bank accounts configured. Add bank accounts under Accounting to issue cheques.</p>
-          )}
-          <div className="flex flex-wrap gap-2 pb-0">
-            {leafBankAccounts.map((acc) => (
-              <button
-                key={acc.id}
-                onClick={() => openTab(acc.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-                  activeTab === acc.id
-                    ? "border-primary-500 text-primary-400 bg-surface-700/40"
-                    : "border-transparent text-surface-400 hover:text-white hover:bg-surface-700/30"
-                }`}
-              >
-                <Landmark size={14} />
-                {acc.name}
-              </button>
-            ))}
-            <button
-              onClick={() => openTab("transfer")}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-                activeTab === "transfer"
-                  ? "border-amber-500 text-amber-400 bg-surface-700/40"
-                  : "border-transparent text-surface-400 hover:text-white hover:bg-surface-700/30"
-              }`}
-            >
-              <ArrowLeftRight size={14} />
-              Transfer
-            </button>
-          </div>
-        </div>
-
-        {/* Form panel */}
-        {showForm && (
-          <div className="p-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-white flex items-center gap-2">
-                {isTransferTab
-                  ? <><ArrowLeftRight size={16} className="text-amber-400" /> Fund Transfer</>
-                  : <><Building2 size={16} className="text-primary-400" /> {selectedBank?.name}</>}
-              </h2>
-              <button onClick={closeForm} className="text-surface-400 hover:text-white">
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* ── Transfer form ── */}
-            {isTransferTab ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs text-surface-400 font-medium">Transfer Ref *</label>
-                    <input className={inputCls} placeholder="TRF-001"
-                      value={transferForm.reference}
-                      onChange={(e) => setTransferForm({ ...transferForm, reference: e.target.value })} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-surface-400 font-medium">Date *</label>
-                    <input type="date" className={inputCls} value={transferForm.cheque_date}
-                      onChange={(e) => setTransferForm({ ...transferForm, cheque_date: e.target.value })} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-surface-400 font-medium">Amount *</label>
-                    <input type="number" min="0.01" step="0.01" className={inputCls} placeholder="0.00"
-                      value={transferForm.amount}
-                      onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-surface-400 font-medium">From Account *</label>
-                    <select className={inputCls} value={transferForm.from_account_id}
-                      onChange={(e) => setTransferForm({ ...transferForm, from_account_id: e.target.value, to_account_id: "" })}>
-                      <option value="">Select account…</option>
-                      {leafBankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-surface-400 font-medium">To Account *</label>
-                    <select className={inputCls} value={transferForm.to_account_id}
-                      onChange={(e) => setTransferForm({ ...transferForm, to_account_id: e.target.value })}>
-                      <option value="">Select account…</option>
-                      {transferToAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-surface-400 font-medium">Memo</label>
-                    <input className={inputCls} placeholder="Purpose of transfer…"
-                      value={transferForm.memo}
-                      onChange={(e) => setTransferForm({ ...transferForm, memo: e.target.value })} />
-                  </div>
-                </div>
-
-                {/* Journal preview */}
-                {parseFloat(transferForm.amount) > 0 && transferForm.from_account_id && transferForm.to_account_id && (
-                  <div className="bg-surface-900/50 border border-surface-700 rounded-lg p-3 text-xs">
-                    <p className="text-surface-400 mb-2 font-medium">Journal Entry Preview</p>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-white">Dr {previewToAcc?.name || "To Account"}</span>
-                        <span className="text-emerald-400">{fmt(parseFloat(transferForm.amount))}</span>
-                      </div>
-                      <div className="flex justify-between pl-4">
-                        <span className="text-white">Cr {previewFromAcc?.name || "From Account"}</span>
-                        <span className="text-red-400">{fmt(parseFloat(transferForm.amount))}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-2">
-                  <button onClick={closeForm}
-                    className="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-white text-sm rounded-lg transition-colors">
-                    Cancel
-                  </button>
-                  <button onClick={handleTransferSubmit} disabled={transferSubmitDisabled}
-                    className="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors">
-                    <ArrowLeftRight size={15} />
-                    {createMutation.isPending ? "Saving…" : "Record Transfer"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* ── Bank payment form ── */
-              <div className="space-y-4">
-                {/* Header fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs text-surface-400 font-medium">Cheque Number *</label>
-                    <input className={inputCls} placeholder="001"
-                      value={form.reference} onChange={setField("reference")} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-surface-400 font-medium">Date *</label>
-                    <input type="date" className={inputCls} value={form.cheque_date}
-                      onChange={setField("cheque_date")} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-surface-400 font-medium">Amount *</label>
-                    <input type="number" min="0.01" step="0.01" className={inputCls} placeholder="0.00"
-                      value={form.amount} onChange={setField("amount")} />
-                  </div>
-                </div>
-
-                {/* Payment type sub-tabs */}
-                <div>
-                  <div className="flex rounded-lg border border-surface-600 bg-surface-900 p-0.5 gap-0.5 w-fit">
-                    {[
-                      { value: "supplier", label: "Supplier Payment" },
-                      { value: "expense", label: "Expense" },
-                    ].map((t) => (
-                      <button key={t.value} type="button"
-                        onClick={() => handlePayeeCategoryChange(t.value)}
-                        className={`py-1.5 px-4 rounded-md text-sm font-medium transition-colors ${
-                          form.payee_category === t.value
-                            ? "bg-primary-600 text-white"
-                            : "text-surface-400 hover:text-white"
-                        }`}>
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Supplier fields */}
-                {form.payee_category === "supplier" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs text-surface-400 font-medium">Supplier *</label>
-                      <select className={inputCls} value={form.payee_id}
-                        onChange={(e) => handleSupplierSelect(e.target.value)}>
-                        <option value="">Select supplier…</option>
-                        {suppliers.filter((s) => s.active).map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-surface-400 font-medium">Trade Payables Account</label>
-                      <input className={inputCls}
-                        value={previewDebitAcc?.name || (form.payee_id ? "—" : "Select supplier first")}
-                        disabled />
-                      <p className="text-[10px] text-surface-500">Auto-set from supplier's accounts payable</p>
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <label className="text-xs text-surface-400 font-medium">Memo</label>
-                      <input className={inputCls} placeholder="Payment purpose…"
-                        value={form.memo} onChange={setField("memo")} />
-                    </div>
-                  </div>
-                )}
-
-                {/* Expense fields */}
-                {form.payee_category === "expense" && (
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-xs text-surface-400 font-medium">Memo / Description</label>
-                      <input className={inputCls} placeholder="Purpose of payment…"
-                        value={form.memo} onChange={setField("memo")} />
-                    </div>
-
-                    {/* Expenses / Items tab switcher */}
-                    <div className="border border-surface-700 rounded-lg overflow-hidden">
-                      <div className="flex border-b border-surface-700 bg-surface-900/50">
-                        <button type="button"
-                          onClick={() => setLineTab("expenses")}
-                          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                            lineTab === "expenses"
-                              ? "border-primary-500 text-primary-400"
-                              : "border-transparent text-surface-400 hover:text-white"
-                          }`}>
-                          <Receipt size={13} /> Expenses
-                        </button>
-                        <button type="button"
-                          onClick={() => setLineTab("items")}
-                          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                            lineTab === "items"
-                              ? "border-primary-500 text-primary-400"
-                              : "border-transparent text-surface-400 hover:text-white"
-                          }`}>
-                          <Package size={13} /> Items
-                        </button>
-                      </div>
-
-                      <div className="p-3 space-y-2">
-                        {/* ── Expenses tab ── */}
-                        {lineTab === "expenses" && (
-                          <>
-                            <div className="hidden sm:grid grid-cols-12 gap-2 text-[10px] font-medium text-surface-500 uppercase tracking-wider px-1 mb-1">
-                              <span className="col-span-7">Account</span>
-                              <span className="col-span-4 text-right">Amount</span>
-                              <span className="col-span-1" />
-                            </div>
-                            {form.expense_lines.map((line, idx) => (
-                              <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                                <select
-                                  className={`${inputCls} col-span-7`}
-                                  value={line.account_id}
-                                  onChange={(e) => updateExpenseLine(idx, "account_id", e.target.value)}
-                                >
-                                  <option value="">Select expense account…</option>
-                                  {expenseAccounts.map((a) => (
-                                    <option key={a.id} value={a.id}
-                                      disabled={usedExpenseAccounts.has(a.id) && a.id !== line.account_id}>
-                                      {a.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <input
-                                  type="number" min="0.01" step="0.01"
-                                  className={`${inputCls} col-span-4`}
-                                  placeholder="0.00"
-                                  value={line.amount}
-                                  onChange={(e) => updateExpenseLine(idx, "amount", e.target.value)}
-                                />
-                                <button type="button" onClick={() => removeExpenseLine(idx)}
-                                  disabled={form.expense_lines.length === 1}
-                                  className="col-span-1 text-surface-500 hover:text-red-400 disabled:opacity-30 transition-colors flex justify-center"
-                                  title="Remove line">
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            ))}
-                            <button type="button" onClick={addExpenseLine}
-                              className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors">
-                              <Plus size={13} /> Add Expense Line
-                            </button>
-                          </>
-                        )}
-
-                        {/* ── Items tab ── */}
-                        {lineTab === "items" && (
-                          <>
-                            <div className="hidden sm:grid grid-cols-12 gap-2 text-[10px] font-medium text-surface-500 uppercase tracking-wider px-1 mb-1">
-                              <span className="col-span-3">Item</span>
-                              <span className="col-span-3">Account</span>
-                              <span className="col-span-2 text-right">Qty</span>
-                              <span className="col-span-2 text-right">Unit Cost</span>
-                              <span className="col-span-1 text-right">Amount</span>
-                              <span className="col-span-1" />
-                            </div>
-                            {form.item_lines.map((line, idx) => {
-                              const lineAmt = (parseFloat(line.quantity) || 0) * (parseFloat(line.unit_cost) || 0);
-                              return (
-                                <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                                  <select
-                                    className={`${inputCls} col-span-3`}
-                                    value={line.product_id}
-                                    onChange={(e) => handleItemProductSelect(idx, e.target.value)}
-                                  >
-                                    <option value="">Select item…</option>
-                                    {products.filter((p) => p.active !== false).map((p) => (
-                                      <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                  </select>
-                                  <select
-                                    className={`${inputCls} col-span-3`}
-                                    value={line.account_id}
-                                    onChange={(e) => updateItemLine(idx, "account_id", e.target.value)}
-                                  >
-                                    <option value="">Account…</option>
-                                    {expenseAccounts.map((a) => (
-                                      <option key={a.id} value={a.id}>{a.name}</option>
-                                    ))}
-                                  </select>
-                                  <input
-                                    type="number" min="0.01" step="0.01"
-                                    className={`${inputCls} col-span-2`}
-                                    placeholder="1"
-                                    value={line.quantity}
-                                    onChange={(e) => updateItemLine(idx, "quantity", e.target.value)}
-                                  />
-                                  <input
-                                    type="number" min="0.01" step="0.01"
-                                    className={`${inputCls} col-span-2`}
-                                    placeholder="0.00"
-                                    value={line.unit_cost}
-                                    onChange={(e) => updateItemLine(idx, "unit_cost", e.target.value)}
-                                  />
-                                  <span className="col-span-1 text-right text-xs text-surface-300 tabular-nums">
-                                    {lineAmt > 0 ? fmt(lineAmt) : "—"}
-                                  </span>
-                                  <button type="button" onClick={() => removeItemLine(idx)}
-                                    disabled={form.item_lines.length === 1}
-                                    className="col-span-1 text-surface-500 hover:text-red-400 disabled:opacity-30 transition-colors flex justify-center"
-                                    title="Remove line">
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                            <button type="button" onClick={addItemLine}
-                              className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors">
-                              <Plus size={13} /> Add Item Line
-                            </button>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Allocation summary */}
-                      {chequeAmount > 0 && (
-                        <div className={`px-3 py-2 border-t border-surface-700 flex items-center justify-between text-xs ${
-                          combinedRemaining < 0 ? "bg-red-500/5" : "bg-surface-900/30"
-                        }`}>
-                          <span className="text-surface-400">Total allocated: {fmt(combinedTotal)}</span>
-                          <span className={combinedRemaining < 0 ? "text-red-400" : combinedRemaining === 0 ? "text-emerald-400" : "text-surface-400"}>
-                            {combinedRemaining < 0
-                              ? `Over by ${fmt(Math.abs(combinedRemaining))}`
-                              : combinedRemaining === 0
-                                ? "Fully allocated"
-                                : `${fmt(combinedRemaining)} remaining`}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Journal preview */}
-                {chequeAmount > 0 && activeTab && (
-                  form.payee_category === "supplier" && form.debit_account_id ? (
-                    <div className="bg-surface-900/50 border border-surface-700 rounded-lg p-3 text-xs">
-                      <p className="text-surface-400 mb-2 font-medium">Journal Entry Preview</p>
-                      <div className="space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-white">Dr {previewDebitAcc?.name || "Trade Payables"}</span>
-                          <span className="text-emerald-400">{fmt(chequeAmount)}</span>
-                        </div>
-                        <div className="flex justify-between pl-4">
-                          <span className="text-white">Cr {previewBankAcc?.name || "Bank"}</span>
-                          <span className="text-red-400">{fmt(chequeAmount)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : form.payee_category === "expense" && expensesValid ? (
-                    <div className="bg-surface-900/50 border border-surface-700 rounded-lg p-3 text-xs">
-                      <p className="text-surface-400 mb-2 font-medium">Journal Entry Preview</p>
-                      <div className="space-y-1">
-                        {form.expense_lines
-                          .filter((l) => l.account_id && parseFloat(l.amount) > 0)
-                          .map((l, i) => {
-                            const acc = accounts.find((a) => a.id === l.account_id);
-                            return (
-                              <div key={`exp-${i}`} className="flex justify-between">
-                                <span className="text-white">Dr {acc?.name || "Expense Account"}</span>
-                                <span className="text-emerald-400">{fmt(parseFloat(l.amount))}</span>
-                              </div>
-                            );
-                          })}
-                        {form.item_lines
-                          .filter((l) => l.account_id && parseFloat(l.quantity) > 0 && parseFloat(l.unit_cost) > 0)
-                          .map((l, i) => {
-                            const acc = accounts.find((a) => a.id === l.account_id);
-                            const amt = parseFloat(l.quantity) * parseFloat(l.unit_cost);
-                            return (
-                              <div key={`itm-${i}`} className="flex justify-between">
-                                <span className="text-white">Dr {acc?.name || "Expense Account"} <span className="text-surface-500">({l.description || "Item"})</span></span>
-                                <span className="text-emerald-400">{fmt(amt)}</span>
-                              </div>
-                            );
-                          })}
-                        <div className="flex justify-between pl-4 border-t border-surface-700/40 pt-1 mt-1">
-                          <span className="text-white">Cr {previewBankAcc?.name || "Bank"}</span>
-                          <span className="text-red-400">{fmt(chequeAmount)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null
-                )}
-
-                <div className="flex justify-end gap-2">
-                  <button onClick={closeForm}
-                    className="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-white text-sm rounded-lg transition-colors">
-                    Cancel
-                  </button>
-                  <button onClick={handleBankSubmit} disabled={bankSubmitDisabled}
-                    className="px-5 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors">
-                    <Receipt size={15} />
-                    {createMutation.isPending ? "Saving…" : "Issue Cheque"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Payment register */}
+      {/* Check-face posting form */}
       <div className="bg-surface-800/50 border border-surface-700 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-surface-700 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
-          <h2 className="font-semibold text-white sm:mr-auto">Payment Register</h2>
-          <select className="px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none w-full sm:w-auto"
-            value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
-            <option value="">All Statuses</option>
-            <option value="issued">Issued</option>
-            <option value="cleared">Cleared</option>
-            <option value="voided">Voided</option>
-          </select>
-          <div className="flex items-center gap-2">
-            <input type="date" className="flex-1 sm:flex-none px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-              value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
-            <span className="text-surface-500 shrink-0">→</span>
-            <input type="date" className="flex-1 sm:flex-none px-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-sm text-white focus:outline-none"
-              value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="py-16 flex justify-center">
-            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : cheques.length === 0 ? (
-          <div className="py-16 text-center text-surface-500">
-            <Receipt size={36} className="mx-auto mb-3 text-surface-700" />
-            <p>No records found</p>
+        {leafBankAccounts.length === 0 ? (
+          <div className="p-5">
+            <p className="text-sm text-amber-400">No bank accounts configured. Add bank accounts under Accounting to issue cheques.</p>
           </div>
         ) : (
-          <>
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-surface-900/50 border-b border-surface-700">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider">Ref</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider">Payee / Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider">From Account</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-surface-400 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider">Amount</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-surface-400 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-surface-400 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-700/50">
-                  {pageItems.map((c) => {
-                    const s = STATUS_STYLES[c.status] || STATUS_STYLES.issued;
-                    const Icon = s.icon;
-                    const typeLabel = c.transaction_type === "transfer"
-                      ? "Transfer"
-                      : c.payee_type === "expense"
-                        ? "Expense"
-                        : c.payee_type === "supplier"
-                          ? "Supplier"
-                          : "Payment";
-                    return (
-                      <tr key={c.id} className="hover:bg-surface-700/30 transition-colors">
-                        <td className="px-4 py-3 font-mono text-white">{c.cheque_number}</td>
-                        <td className="px-4 py-3">
-                          <p className="text-white font-medium">{c.payee_name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-surface-500">{typeLabel}</span>
-                            {c.memo && <span className="text-xs text-surface-600">{c.memo}</span>}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-surface-300">{c.bank_account?.name || "—"}</td>
-                        <td className="px-4 py-3 text-surface-300">
-                          {new Date(c.cheque_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
-                        </td>
-                        <td className="px-4 py-3 text-right text-white font-medium">{fmt(c.amount)}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>
-                            <Icon size={11} /> {s.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1.5 justify-end">
-                            {c.status === "issued" && (
-                              <>
-                                <button onClick={() => handleClear(c.id, c.cheque_number)}
-                                  className="px-2.5 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
-                                  <CheckCircle size={12} /> Clear
-                                </button>
-                                <button onClick={() => handleVoid(c.id, c.cheque_number)}
-                                  className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
-                                  <XCircle size={12} /> Void
-                                </button>
-                              </>
-                            )}
-                            {c.status === "cleared" && (
-                              <button onClick={() => handleVoid(c.id, c.cheque_number)}
-                                className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
-                                <XCircle size={12} /> Void
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <div className="p-5 space-y-5">
+            {/* Bank account + ending balance */}
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-4 border-b border-surface-700">
+              <div className="space-y-1">
+                <label className="text-xs text-surface-400 font-medium uppercase tracking-wider flex items-center gap-1.5">
+                  <Landmark size={12} /> Bank Account
+                </label>
+                <select
+                  className={`${inputCls} sm:w-64`}
+                  value={selectedBankId}
+                  onChange={(e) => setBankAccountId(e.target.value)}
+                >
+                  {leafBankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+              <div className="text-left sm:text-right">
+                <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Ending Balance</p>
+                <p className="text-xl font-bold text-white tabular-nums">{fmt(endingBalance)}</p>
+              </div>
             </div>
 
-            {/* Mobile cards */}
-            <MobileCardList>
-              {pageItems.map((c) => {
-                const s = STATUS_STYLES[c.status] || STATUS_STYLES.issued;
-                const Icon = s.icon;
-                const typeLabel = c.transaction_type === "transfer" ? "Transfer"
-                  : c.payee_type === "expense" ? "Expense"
-                  : c.payee_type === "supplier" ? "Supplier" : "Payment";
-                return (
-                  <MobileCard key={c.id}>
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-white text-sm">{c.cheque_number}</span>
-                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>
-                        <Icon size={11} /> {s.label}
-                      </span>
-                    </div>
-                    <p className="text-white font-medium text-sm">{c.payee_name}</p>
-                    <div className="text-xs text-surface-500">
-                      {typeLabel}
-                      {c.memo && <span className="text-surface-600 ml-2">{c.memo}</span>}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-white font-semibold tabular-nums">{fmt(c.amount)}</span>
-                      <span className="text-surface-400 text-xs">
-                        {new Date(c.cheque_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}
-                      </span>
-                    </div>
-                    <MobileField label="From">{c.bank_account?.name || "—"}</MobileField>
-                    {(c.status === "issued" || c.status === "cleared") && (
-                      <div className="flex gap-1.5 pt-1">
-                        {c.status === "issued" && (
-                          <button onClick={() => handleClear(c.id, c.cheque_number)}
-                            className="px-2.5 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
-                            <CheckCircle size={12} /> Clear
-                          </button>
-                        )}
-                        <button onClick={() => handleVoid(c.id, c.cheque_number)}
-                          className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
-                          <XCircle size={12} /> Void
-                        </button>
-                      </div>
-                    )}
-                  </MobileCard>
-                );
-              })}
-            </MobileCardList>
+            {/* Payee category sub-tabs */}
+            <div className="flex rounded-lg border border-surface-600 bg-surface-900 p-0.5 gap-0.5 w-fit">
+              {PAYEE_CATEGORIES.map((t) => (
+                <button key={t.value} type="button"
+                  onClick={() => handlePayeeCategoryChange(t.value)}
+                  className={`py-1.5 px-4 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                    payeeCategory === t.value
+                      ? "bg-primary-600 text-white"
+                      : "text-surface-400 hover:text-white"
+                  }`}>
+                  {t.value === "transfer" && <ArrowLeftRight size={13} />}
+                  {t.label}
+                </button>
+              ))}
+            </div>
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-surface-700">
-                <span className="text-sm text-surface-400">
-                  Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, cheques.length)} of {cheques.length}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
-                    className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
-                    <ChevronLeft size={14} />
+            {/* Check face */}
+            <div className="rounded-lg border border-surface-600 bg-surface-900/40 p-4 space-y-4">
+              {/* No. / Date / Amount */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-surface-500 font-semibold uppercase tracking-wider">No.</label>
+                  <input className={inputCls} placeholder="001"
+                    value={isTransfer ? transferForm.reference : form.reference}
+                    onChange={(e) => isTransfer
+                      ? setTransferForm({ ...transferForm, reference: e.target.value })
+                      : setField("reference")(e)} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-surface-500 font-semibold uppercase tracking-wider">Date</label>
+                  <input type="date" className={inputCls}
+                    value={isTransfer ? transferForm.cheque_date : form.cheque_date}
+                    onChange={(e) => isTransfer
+                      ? setTransferForm({ ...transferForm, cheque_date: e.target.value })
+                      : setField("cheque_date")(e)} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-surface-500 font-semibold uppercase tracking-wider">Amount</label>
+                  <input type="number" min="0.01" step="0.01" className={`${inputCls} font-semibold`} placeholder="0.00"
+                    value={isTransfer ? transferForm.amount : form.amount}
+                    onChange={(e) => isTransfer
+                      ? setTransferForm({ ...transferForm, amount: e.target.value })
+                      : setField("amount")(e)} />
+                </div>
+              </div>
+
+              {/* Pay to the order of */}
+              <div className="space-y-1">
+                <label className="text-[10px] text-surface-500 font-semibold uppercase tracking-wider">Pay to the Order Of</label>
+                {isSupplier && (
+                  <select className={inputCls} value={form.payee_id}
+                    onChange={(e) => handleSupplierSelect(e.target.value)}>
+                    <option value="">Select supplier…</option>
+                    {suppliers.filter((s) => s.active).map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                )}
+                {isExpense && (
+                  <input className={inputCls} placeholder="Expense Payment"
+                    value={form.memo} onChange={setField("memo")} />
+                )}
+                {isTransfer && (
+                  <select className={inputCls} value={transferForm.to_account_id}
+                    onChange={(e) => setTransferForm({ ...transferForm, to_account_id: e.target.value })}>
+                    <option value="">Select account…</option>
+                    {transferToAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                )}
+              </div>
+
+              {/* Supplier: trade payables readout */}
+              {isSupplier && (
+                <div className="space-y-1">
+                  <label className="text-[10px] text-surface-500 font-semibold uppercase tracking-wider">Trade Payables Account</label>
+                  <input className={inputCls}
+                    value={previewDebitAcc?.name || (form.payee_id ? "—" : "Select supplier first")}
+                    disabled />
+                </div>
+              )}
+
+              {/* Memo (Supplier / Transfer only — Expense already uses this line as payee above) */}
+              {!isExpense && (
+                <div className="space-y-1">
+                  <label className="text-[10px] text-surface-500 font-semibold uppercase tracking-wider">Memo</label>
+                  <input className={inputCls} placeholder={isTransfer ? "Purpose of transfer…" : "Payment purpose…"}
+                    value={isTransfer ? transferForm.memo : form.memo}
+                    onChange={(e) => isTransfer
+                      ? setTransferForm({ ...transferForm, memo: e.target.value })
+                      : setField("memo")(e)} />
+                </div>
+              )}
+            </div>
+
+            {/* Expense line-item grid */}
+            {isExpense && (
+              <div className="border border-surface-700 rounded-lg overflow-hidden">
+                <div className="flex border-b border-surface-700 bg-surface-900/50">
+                  <button type="button"
+                    onClick={() => setLineTab("expenses")}
+                    className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                      lineTab === "expenses"
+                        ? "border-primary-500 text-primary-400"
+                        : "border-transparent text-surface-400 hover:text-white"
+                    }`}>
+                    <Receipt size={13} /> Expenses
                   </button>
-                  <span className="px-3 text-xs text-surface-400">{safePage} / {totalPages}</span>
-                  <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
-                    className="p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-surface-300 transition-colors">
-                    <ChevronRight size={14} />
+                  <button type="button"
+                    onClick={() => setLineTab("items")}
+                    className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                      lineTab === "items"
+                        ? "border-primary-500 text-primary-400"
+                        : "border-transparent text-surface-400 hover:text-white"
+                    }`}>
+                    <Package size={13} /> Items
                   </button>
+                </div>
+
+                <div className="p-3 space-y-2">
+                  {/* ── Expenses tab ── */}
+                  {lineTab === "expenses" && (
+                    <>
+                      <div className="hidden sm:grid grid-cols-12 gap-2 text-[10px] font-medium text-surface-500 uppercase tracking-wider px-1 mb-1">
+                        <span className="col-span-5">Account</span>
+                        <span className="col-span-3 text-right">Amount</span>
+                        <span className="col-span-3">Memo</span>
+                        <span className="col-span-1" />
+                      </div>
+                      {form.expense_lines.map((line, idx) => (
+                        <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                          <select
+                            className={`${inputCls} col-span-5`}
+                            value={line.account_id}
+                            onChange={(e) => updateExpenseLine(idx, "account_id", e.target.value)}
+                          >
+                            <option value="">Select expense account…</option>
+                            {expenseAccounts.map((a) => (
+                              <option key={a.id} value={a.id}
+                                disabled={usedExpenseAccounts.has(a.id) && a.id !== line.account_id}>
+                                {a.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number" min="0.01" step="0.01"
+                            className={`${inputCls} col-span-3`}
+                            placeholder="0.00"
+                            value={line.amount}
+                            onChange={(e) => updateExpenseLine(idx, "amount", e.target.value)}
+                          />
+                          <input
+                            className={`${inputCls} col-span-3`}
+                            placeholder="Memo (optional)"
+                            value={line.description}
+                            onChange={(e) => updateExpenseLine(idx, "description", e.target.value)}
+                          />
+                          <button type="button" onClick={() => removeExpenseLine(idx)}
+                            disabled={form.expense_lines.length === 1}
+                            className="col-span-1 text-surface-500 hover:text-red-400 disabled:opacity-30 transition-colors flex justify-center"
+                            title="Remove line">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={addExpenseLine}
+                        className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors">
+                        <Plus size={13} /> Add Expense Line
+                      </button>
+                    </>
+                  )}
+
+                  {/* ── Items tab ── */}
+                  {lineTab === "items" && (
+                    <>
+                      <div className="hidden sm:grid grid-cols-12 gap-2 text-[10px] font-medium text-surface-500 uppercase tracking-wider px-1 mb-1">
+                        <span className="col-span-3">Item</span>
+                        <span className="col-span-3">Account</span>
+                        <span className="col-span-2 text-right">Qty</span>
+                        <span className="col-span-2 text-right">Unit Cost</span>
+                        <span className="col-span-1 text-right">Amount</span>
+                        <span className="col-span-1" />
+                      </div>
+                      {form.item_lines.map((line, idx) => {
+                        const lineAmt = (parseFloat(line.quantity) || 0) * (parseFloat(line.unit_cost) || 0);
+                        return (
+                          <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                            <select
+                              className={`${inputCls} col-span-3`}
+                              value={line.product_id}
+                              onChange={(e) => handleItemProductSelect(idx, e.target.value)}
+                            >
+                              <option value="">Select item…</option>
+                              {products.filter((p) => p.active !== false).map((p) => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                              ))}
+                            </select>
+                            <select
+                              className={`${inputCls} col-span-3`}
+                              value={line.account_id}
+                              onChange={(e) => updateItemLine(idx, "account_id", e.target.value)}
+                            >
+                              <option value="">Account…</option>
+                              {expenseAccounts.map((a) => (
+                                <option key={a.id} value={a.id}>{a.name}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="number" min="0.01" step="0.01"
+                              className={`${inputCls} col-span-2`}
+                              placeholder="1"
+                              value={line.quantity}
+                              onChange={(e) => updateItemLine(idx, "quantity", e.target.value)}
+                            />
+                            <input
+                              type="number" min="0.01" step="0.01"
+                              className={`${inputCls} col-span-2`}
+                              placeholder="0.00"
+                              value={line.unit_cost}
+                              onChange={(e) => updateItemLine(idx, "unit_cost", e.target.value)}
+                            />
+                            <span className="col-span-1 text-right text-xs text-surface-300 tabular-nums">
+                              {lineAmt > 0 ? fmt(lineAmt) : "—"}
+                            </span>
+                            <button type="button" onClick={() => removeItemLine(idx)}
+                              disabled={form.item_lines.length === 1}
+                              className="col-span-1 text-surface-500 hover:text-red-400 disabled:opacity-30 transition-colors flex justify-center"
+                              title="Remove line">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                      <button type="button" onClick={addItemLine}
+                        className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors">
+                        <Plus size={13} /> Add Item Line
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Allocation summary */}
+                {chequeAmount > 0 && (
+                  <div className={`px-3 py-2 border-t border-surface-700 flex items-center justify-between text-xs ${
+                    combinedRemaining < 0 ? "bg-red-500/5" : "bg-surface-900/30"
+                  }`}>
+                    <span className="text-surface-400">Total allocated: {fmt(combinedTotal)}</span>
+                    <span className={combinedRemaining < 0 ? "text-red-400" : combinedRemaining === 0 ? "text-emerald-400" : "text-surface-400"}>
+                      {combinedRemaining < 0
+                        ? `Over by ${fmt(Math.abs(combinedRemaining))}`
+                        : combinedRemaining === 0
+                          ? "Fully allocated"
+                          : `${fmt(combinedRemaining)} remaining`}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Journal preview */}
+            {isSupplier && chequeAmount > 0 && form.debit_account_id && (
+              <div className="bg-surface-900/50 border border-surface-700 rounded-lg p-3 text-xs">
+                <p className="text-surface-400 mb-2 font-medium">Journal Entry Preview</p>
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-white">Dr {previewDebitAcc?.name || "Trade Payables"}</span>
+                    <span className="text-emerald-400">{fmt(chequeAmount)}</span>
+                  </div>
+                  <div className="flex justify-between pl-4">
+                    <span className="text-white">Cr {selectedBank?.name || "Bank"}</span>
+                    <span className="text-red-400">{fmt(chequeAmount)}</span>
+                  </div>
                 </div>
               </div>
             )}
-          </>
+            {isExpense && chequeAmount > 0 && expensesValid && (
+              <div className="bg-surface-900/50 border border-surface-700 rounded-lg p-3 text-xs">
+                <p className="text-surface-400 mb-2 font-medium">Journal Entry Preview</p>
+                <div className="space-y-1">
+                  {form.expense_lines
+                    .filter((l) => l.account_id && parseFloat(l.amount) > 0)
+                    .map((l, i) => {
+                      const acc = accounts.find((a) => a.id === l.account_id);
+                      return (
+                        <div key={`exp-${i}`} className="flex justify-between">
+                          <span className="text-white">Dr {acc?.name || "Expense Account"}</span>
+                          <span className="text-emerald-400">{fmt(parseFloat(l.amount))}</span>
+                        </div>
+                      );
+                    })}
+                  {form.item_lines
+                    .filter((l) => l.account_id && parseFloat(l.quantity) > 0 && parseFloat(l.unit_cost) > 0)
+                    .map((l, i) => {
+                      const acc = accounts.find((a) => a.id === l.account_id);
+                      const amt = parseFloat(l.quantity) * parseFloat(l.unit_cost);
+                      return (
+                        <div key={`itm-${i}`} className="flex justify-between">
+                          <span className="text-white">Dr {acc?.name || "Expense Account"} <span className="text-surface-500">({l.description || "Item"})</span></span>
+                          <span className="text-emerald-400">{fmt(amt)}</span>
+                        </div>
+                      );
+                    })}
+                  <div className="flex justify-between pl-4 border-t border-surface-700/40 pt-1 mt-1">
+                    <span className="text-white">Cr {selectedBank?.name || "Bank"}</span>
+                    <span className="text-red-400">{fmt(chequeAmount)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {isTransfer && parseFloat(transferForm.amount) > 0 && transferForm.to_account_id && (
+              <div className="bg-surface-900/50 border border-surface-700 rounded-lg p-3 text-xs">
+                <p className="text-surface-400 mb-2 font-medium">Journal Entry Preview</p>
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-white">Dr {previewToAcc?.name || "To Account"}</span>
+                    <span className="text-emerald-400">{fmt(parseFloat(transferForm.amount))}</span>
+                  </div>
+                  <div className="flex justify-between pl-4">
+                    <span className="text-white">Cr {selectedBank?.name || "From Account"}</span>
+                    <span className="text-red-400">{fmt(parseFloat(transferForm.amount))}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-wrap justify-end gap-2">
+              <button onClick={clearCurrentForm}
+                className="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-white text-sm rounded-lg transition-colors flex items-center gap-2">
+                <X size={14} /> Clear
+              </button>
+              <button
+                onClick={() => isTransfer ? handleTransferSubmit("close") : handleBankSubmit("close")}
+                disabled={isTransfer ? transferSubmitDisabled : bankSubmitDisabled}
+                className="px-4 py-2 bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors">
+                Save &amp; Close
+              </button>
+              <button
+                onClick={() => isTransfer ? handleTransferSubmit("new") : handleBankSubmit("new")}
+                disabled={isTransfer ? transferSubmitDisabled : bankSubmitDisabled}
+                className="px-5 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors">
+                {isTransfer ? <ArrowLeftRight size={15} /> : <Receipt size={15} />}
+                {createMutation.isPending ? "Saving…" : "Save & New"}
+              </button>
+            </div>
+          </div>
         )}
       </div>
+
     </div>
   );
 };

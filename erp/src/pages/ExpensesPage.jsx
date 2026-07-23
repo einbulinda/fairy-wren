@@ -1,19 +1,14 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchExpenses, createExpense } from "@/services/expenses.service";
+import { useQuery } from "@tanstack/react-query";
+import { fetchExpenses } from "@/services/expenses.service";
 import { fetchAccounts } from "@/services/accounts.service";
 import { fetchSuppliers } from "@/services/suppliers.service";
 import {
-  Plus, Calendar, DollarSign, FileText, Building2, Receipt,
-  TrendingDown, Search, ChevronDown, ChevronRight, X, Wallet,
+  Receipt, TrendingDown, Search, ChevronDown, ChevronRight, X,
   ChevronsDownUp, ChevronsUpDown,
 } from "lucide-react";
-import toast from "react-hot-toast";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import { fmt } from "@/utils/formatters";
-import { inputCls } from "@/utils/constants";
-
-const EMPTY_FORM = { expense_date: "", supplier_id: "", account_id: "", credit_account_id: "", amount: "", invoice_number: "", description: "" };
 
 const sourceBadge = (source) => {
   const cls = source === "expense" ? "bg-primary-500/15 text-primary-400" : "bg-amber-500/15 text-amber-400";
@@ -208,26 +203,12 @@ const ParentAccountRow = ({ parent, expandedSet, onToggle }) => {
 };
 
 const ExpensesPage = () => {
-  const queryClient = useQueryClient();
-
   const { data: expenses = [], isLoading } = useQuery({ queryKey: ["expenses"], queryFn: fetchExpenses, staleTime: 2 * 60 * 1000 });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: () => fetchAccounts({ active: true }), staleTime: 5 * 60 * 1000 });
   const { data: suppliers = [] } = useQuery({ queryKey: ["suppliers"], queryFn: fetchSuppliers, staleTime: 5 * 60 * 1000 });
 
   const expenseAccounts = accounts.filter((a) => ["expense", "cost_of_sales"].includes(a.account_class));
-  const creditAccounts = accounts.filter((a) => a.account_class === "asset" && a.parent_id !== null);
 
-  const createMutation = useMutation({
-    mutationFn: createExpense,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      toast.success("Expense recorded");
-      setForm(EMPTY_FORM);
-    },
-    onError: () => toast.error("Failed to save expense"),
-  });
-
-  const [form, setForm] = useState(EMPTY_FORM);
   const [search, setSearch] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
@@ -277,14 +258,6 @@ const ExpensesPage = () => {
 
   const collapseAll = () => setExpandedSet(new Set());
 
-  const handleSave = () => {
-    if (!form.expense_date || !form.account_id || !form.credit_account_id || !form.amount) {
-      toast.error("Date, expense account, paid from account, and amount are required");
-      return;
-    }
-    createMutation.mutate({ ...form, amount: parseFloat(form.amount), supplier_id: form.supplier_id || null });
-  };
-
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
@@ -306,60 +279,6 @@ const ExpensesPage = () => {
         <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-4">
           <div className="text-surface-400 text-xs mb-1">Filtered</div>
           <p className="text-xl font-bold text-white">{filtered.length} records</p>
-        </div>
-      </div>
-
-      {/* Add expense form */}
-      <div className="bg-surface-800/50 border border-surface-700 rounded-xl p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-primary-500/15 rounded-lg"><Plus size={15} className="text-primary-400" /></div>
-          <h2 className="font-semibold text-white">Record Expense</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs text-surface-400 font-medium flex items-center gap-1"><Calendar size={12} /> Date *</label>
-            <input type="date" className={inputCls} value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-surface-400 font-medium flex items-center gap-1"><FileText size={12} /> Expense Account *</label>
-            <select className={inputCls} value={form.account_id} onChange={(e) => setForm({ ...form, account_id: e.target.value })}>
-              <option value="">Select account…</option>
-              {expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-surface-400 font-medium flex items-center gap-1"><Wallet size={12} /> Paid From *</label>
-            <select className={inputCls} value={form.credit_account_id} onChange={(e) => setForm({ ...form, credit_account_id: e.target.value })}>
-              <option value="">Select account…</option>
-              {creditAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-surface-400 font-medium flex items-center gap-1"><DollarSign size={12} /> Amount *</label>
-            <input type="number" min="0.01" step="0.01" className={inputCls} placeholder="0.00"
-              value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-surface-400 font-medium flex items-center gap-1"><Building2 size={12} /> Supplier</label>
-            <select className={inputCls} value={form.supplier_id} onChange={(e) => setForm({ ...form, supplier_id: e.target.value })}>
-              <option value="">No supplier</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-surface-400 font-medium flex items-center gap-1"><Receipt size={12} /> Invoice No</label>
-            <input className={inputCls} placeholder="INV-001" value={form.invoice_number} onChange={(e) => setForm({ ...form, invoice_number: e.target.value })} />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-surface-400 font-medium flex items-center gap-1"><FileText size={12} /> Description</label>
-            <input className={inputCls} placeholder="Brief description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-        </div>
-        <div className="mt-4 flex justify-end">
-          <button onClick={handleSave} disabled={!form.expense_date || !form.account_id || !form.credit_account_id || !form.amount || createMutation.isPending}
-            className="px-5 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors">
-            <Plus size={15} /> {createMutation.isPending ? "Saving…" : "Add Expense"}
-          </button>
         </div>
       </div>
 

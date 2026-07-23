@@ -59,6 +59,7 @@ exports.CreateChequeDTO = (payload) => {
     resolvedExpenseLines = validLines.map((l) => ({
       account_id: l.account_id,
       amount: Number(l.amount),
+      description: l.description ? String(l.description).trim().slice(0, 255) : null,
     }));
   }
 

@@ -58,6 +58,7 @@ exports.create = async (payload, context) => {
           account_id: line.account_id,
           debit: line.amount,
           credit: 0,
+          description: line.description || null,
         })),
         // Single credit to bank
         {
@@ -65,6 +66,7 @@ exports.create = async (payload, context) => {
           account_id: dto.bank_account_id,
           debit: 0,
           credit: dto.amount,
+          description: null,
         },
       ]
     : [

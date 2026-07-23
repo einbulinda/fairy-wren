@@ -5,7 +5,6 @@ import {
   Grid,
   Truck,
   Landmark,
-  DollarSign,
   Users,
   ChevronDown,
   X,
@@ -45,7 +44,6 @@ const navSections = [
     label: "Finance",
     items: [
       { to: "/accounting", icon: Landmark, label: "Accounting" },
-      { to: "/expenses", icon: DollarSign, label: "Expenses" },
       { to: "/payroll", icon: Briefcase, label: "Payroll" },
       { to: "/reports", icon: LineChart, label: "Financial Reports" },
     ],

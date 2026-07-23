@@ -2332,8 +2332,9 @@ SELECT jl.id,
     je.id AS journal_entry_id
 FROM journal_lines jl
     JOIN chart_of_accounts coa ON jl.account_id = coa.id
+    JOIN account_classes ac ON ac.code = coa.account_class
     JOIN journal_entries je ON jl.journal_entry_id = je.id
-WHERE coa.account_class = 'expense'
+WHERE ac.category = 'expense'
     AND jl.debit > 0
     AND je.source_type != 'expense'
     AND je.reversed_entry_id IS NULL

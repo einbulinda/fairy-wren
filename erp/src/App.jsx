@@ -9,7 +9,6 @@ import AppShell from "@/components/layout/AppShell";
 import DashboardPage from "@/pages/DashboardPage";
 import FinancialReportsPage from "@/pages/FinancialReportsPage";
 import AccountingHubPage from "@/pages/AccountingHubPage";
-import ExpensesPage from "@/pages/ExpensesPage";
 import SupplierDetailPage from "@/pages/SupplierDetailPage";
 import InventoryPage from "@/pages/InventoryPage";
 import ProductsPage from "@/pages/ProductsPage";
@@ -67,7 +66,6 @@ const AuthenticatedRoutes = () => {
         <Route path="accounting" element={<AccountingHubPage />} />
         <Route path="bank-reconciliation/:id" element={<BankReconciliationDetailPage />} />
         <Route path="cheques" element={<ChequeWritingPage />} />
-        <Route path="expenses" element={<ExpensesPage />} />
         <Route path="payroll" element={<PayrollPage />} />
         <Route path="reports" element={<FinancialReportsPage />} />
         <Route path="web" element={<WebHubPage />} />
