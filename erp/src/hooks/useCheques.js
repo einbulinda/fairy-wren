@@ -1,11 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchCheques, createCheque, clearCheque, voidCheque } from "@/services/cheques.service";
+import { fetchCheques, fetchCheque, createCheque, clearCheque, voidCheque } from "@/services/cheques.service";
 import toast from "react-hot-toast";
 
 export const useCheques = (params = {}) => {
   return useQuery({
     queryKey: ["cheques", params],
     queryFn: () => fetchCheques(params),
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useCheque = (id) => {
+  return useQuery({
+    queryKey: ["cheque", id],
+    queryFn: () => fetchCheque(id),
+    enabled: !!id,
     staleTime: 2 * 60 * 1000,
   });
 };

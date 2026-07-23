@@ -1,14 +1,10 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router";
 import { useCheques, useClearCheque, useVoidCheque } from "@/hooks/useCheques";
-import { CheckCircle, XCircle, Clock, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, XCircle, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
 import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 import { fmt, localDateStr } from "@/utils/formatters";
-
-const STATUS_STYLES = {
-  issued:  { label: "Issued",  icon: Clock,        cls: "bg-primary-500/15 text-primary-300" },
-  cleared: { label: "Cleared", icon: CheckCircle,  cls: "bg-emerald-500/15 text-emerald-400" },
-  voided:  { label: "Voided",  icon: XCircle,      cls: "bg-red-500/15 text-red-400" },
-};
+import { CHEQUE_STATUS_STYLES as STATUS_STYLES } from "@/utils/constants";
 
 const PAGE_SIZE = 10;
 
@@ -145,7 +141,11 @@ const PaymentRegisterPage = () => {
                           : "Payment";
                     return (
                       <tr key={c.id} className="hover:bg-surface-700/30 transition-colors">
-                        <td className="px-4 py-3 font-mono text-white">{c.cheque_number}</td>
+                        <td className="px-4 py-3 font-mono">
+                          <Link to={`/cheques/${c.id}`} className="text-primary-400 hover:text-primary-300 hover:underline transition-colors">
+                            {c.cheque_number}
+                          </Link>
+                        </td>
                         <td className="px-4 py-3">
                           <p className="text-white font-medium">{c.payee_name}</p>
                           <div className="flex items-center gap-2 mt-0.5">
@@ -178,8 +178,8 @@ const PaymentRegisterPage = () => {
                               </>
                             )}
                             {c.status === "cleared" && (
-                              <button onClick={() => handleVoid(c.id, c.cheque_number)}
-                                className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
+                              <button disabled title="Cleared cheques cannot be voided"
+                                className="px-2.5 py-1 bg-surface-700/50 text-surface-500 text-xs rounded-lg flex items-center gap-1 cursor-not-allowed">
                                 <XCircle size={12} /> Void
                               </button>
                             )}
@@ -203,7 +203,9 @@ const PaymentRegisterPage = () => {
                 return (
                   <MobileCard key={c.id}>
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-white text-sm">{c.cheque_number}</span>
+                      <Link to={`/cheques/${c.id}`} className="font-mono text-primary-400 hover:text-primary-300 hover:underline text-sm transition-colors">
+                        {c.cheque_number}
+                      </Link>
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>
                         <Icon size={11} /> {s.label}
                       </span>
@@ -223,15 +225,23 @@ const PaymentRegisterPage = () => {
                     {(c.status === "issued" || c.status === "cleared") && (
                       <div className="flex gap-1.5 pt-1">
                         {c.status === "issued" && (
-                          <button onClick={() => handleClear(c.id, c.cheque_number)}
-                            className="px-2.5 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
-                            <CheckCircle size={12} /> Clear
+                          <>
+                            <button onClick={() => handleClear(c.id, c.cheque_number)}
+                              className="px-2.5 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
+                              <CheckCircle size={12} /> Clear
+                            </button>
+                            <button onClick={() => handleVoid(c.id, c.cheque_number)}
+                              className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
+                              <XCircle size={12} /> Void
+                            </button>
+                          </>
+                        )}
+                        {c.status === "cleared" && (
+                          <button disabled title="Cleared cheques cannot be voided"
+                            className="px-2.5 py-1 bg-surface-700/50 text-surface-500 text-xs rounded-lg flex items-center gap-1 cursor-not-allowed">
+                            <XCircle size={12} /> Void
                           </button>
                         )}
-                        <button onClick={() => handleVoid(c.id, c.cheque_number)}
-                          className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs rounded-lg flex items-center gap-1 transition-colors">
-                          <XCircle size={12} /> Void
-                        </button>
                       </div>
                     )}
                   </MobileCard>

@@ -475,6 +475,7 @@ const ERROR_MAP = {
   CHEQUE_NOT_FOUND: { status: 404, message: "Cheque not found" },
   CHEQUE_NOT_IN_ISSUED_STATUS: { status: 400, message: "Cheque is not in issued status" },
   CHEQUE_ALREADY_VOIDED: { status: 400, message: "Cheque is already voided" },
+  CHEQUE_ALREADY_CLEARED: { status: 400, message: "Cleared cheques cannot be voided" },
   FAILED_TO_FETCH_CHEQUES: { status: 500, message: "Failed to fetch cheques" },
   FAILED_TO_CREATE_CHEQUE: { status: 500, message: "Failed to create cheque" },
   FAILED_TO_CREATE_CHEQUE_JOURNAL: { status: 500, message: "Failed to create journal entry for cheque" },

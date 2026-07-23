@@ -149,6 +149,7 @@ exports.clear = async (id, context) => {
 exports.void = async (id, context) => {
   const cheque = await exports.getById(id);
   if (cheque.status === "voided") throw new Error("CHEQUE_ALREADY_VOIDED");
+  if (cheque.status === "cleared") throw new Error("CHEQUE_ALREADY_CLEARED");
 
   // Create reversal journal entry
   if (cheque.journal_entry_id) {

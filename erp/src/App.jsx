@@ -20,6 +20,7 @@ import UsersPage from "@/pages/UsersPage";
 import SettingsPage from "@/pages/SettingsPage";
 import BankReconciliationDetailPage from "@/pages/BankReconciliationDetailPage";
 import ChequeWritingPage from "@/pages/ChequeWritingPage";
+import ChequeDetailPage from "@/pages/ChequeDetailPage";
 import SalesPage from "@/pages/SalesPage";
 import ProfilePage from "@/pages/ProfilePage";
 import PurchasingPage from "@/pages/PurchasingPage";
@@ -66,6 +67,7 @@ const AuthenticatedRoutes = () => {
         <Route path="accounting" element={<AccountingHubPage />} />
         <Route path="bank-reconciliation/:id" element={<BankReconciliationDetailPage />} />
         <Route path="cheques" element={<ChequeWritingPage />} />
+        <Route path="cheques/:id" element={<ChequeDetailPage />} />
         <Route path="payroll" element={<PayrollPage />} />
         <Route path="reports" element={<FinancialReportsPage />} />
         <Route path="web" element={<WebHubPage />} />

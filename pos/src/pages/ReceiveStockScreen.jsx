@@ -148,7 +148,7 @@ export default function ReceiveStockScreen() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto pb-8">
+    <div className="max-w-2xl lg:max-w-3xl mx-auto pb-8">
       <div className="flex items-center gap-2 mb-5">
         <Truck size={20} className="text-yellow-400" />
         <h1 className="text-lg font-bold text-white">Receive Stock</h1>
@@ -199,8 +199,8 @@ export default function ReceiveStockScreen() {
         </div>
 
         {/* Line items */}
-        <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+        <div className="bg-gray-800 border border-gray-700 rounded-xl">
+          <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700 rounded-t-xl">
             <span className="text-sm font-semibold text-white">
               Items ({lines.length})
             </span>
@@ -218,7 +218,7 @@ export default function ReceiveStockScreen() {
               Tap <strong>Add</strong> to add products
             </p>
           ) : (
-            <div className="divide-y divide-gray-700/60">
+            <div className="divide-y divide-gray-700/60 overflow-hidden rounded-b-xl">
               {lines.map((line, idx) => (
                 <div key={idx} className="p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -226,7 +226,7 @@ export default function ReceiveStockScreen() {
                     <button
                       type="button"
                       onClick={() => removeLine(idx)}
-                      className="shrink-0 p-1 text-red-400 hover:text-red-300 rounded transition-colors"
+                      className="shrink-0 p-2 -m-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
                     >
                       <X size={14} />
                     </button>
@@ -299,7 +299,7 @@ export default function ReceiveStockScreen() {
               />
               <button
                 onClick={() => { setShowSearch(false); setSearchQ(""); }}
-                className="shrink-0 p-1 text-gray-400 hover:text-white"
+                className="shrink-0 p-2 -m-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <X size={16} />
               </button>
