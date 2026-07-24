@@ -24,6 +24,7 @@ import { fetchAccounts } from "@/services/accounts.service";
 import toast from "react-hot-toast";
 import { fmt, fmtDate } from "@/utils/formatters";
 import { inputCls } from "@/utils/constants";
+import { MobileCard, MobileField, MobileCardList } from "@/components/shared/MobileCard";
 
 const daysOutstanding = (purchaseDate) => {
   if (!purchaseDate) return null;
@@ -201,7 +202,7 @@ const ReceiptDetailPage = () => {
             )}
             {/* Approval actions — shown when pending */}
             {isPending && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <button
                   onClick={() => { setShowRejectForm((v) => !v); setShowPayForm(false); setShowReturnForm(false); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 rounded-lg text-sm font-medium transition-colors"
@@ -225,7 +226,7 @@ const ReceiptDetailPage = () => {
             )}
             {/* Payment / return actions — only shown when approved */}
             {!isPending && !isRejected && !isPaid && !isCancelled && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <button
                   onClick={() => { setShowReturnForm((v) => !v); setShowPayForm(false); setShowRejectForm(false); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 rounded-lg text-sm font-medium transition-colors"
@@ -435,56 +436,80 @@ const ReceiptDetailPage = () => {
             No line items found.
           </p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
-              <tr>
-                <th className="px-4 py-3 text-left">Product</th>
-                <th className="px-4 py-3 text-center hidden sm:table-cell">
-                  Unit
-                </th>
-                <th className="px-4 py-3 text-right">Qty</th>
-                <th className="px-4 py-3 text-right">Unit Cost</th>
-                <th className="px-4 py-3 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-700">
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-surface-900 text-surface-400 uppercase text-xs">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Product</th>
+                    <th className="px-4 py-3 text-center">Unit</th>
+                    <th className="px-4 py-3 text-right">Qty</th>
+                    <th className="px-4 py-3 text-right">Unit Cost</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-700">
+                  {items.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-surface-700/30 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-medium text-white">
+                        {item.products?.name || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-center text-surface-400 text-xs">
+                        {item.products?.unit || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-surface-300">
+                        {item.quantity}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-surface-300">
+                        {fmt(item.unit_cost)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold text-primary-400">
+                        {fmt(item.line_total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-surface-900">
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="px-4 py-3 text-right text-xs text-surface-400 uppercase tracking-wide font-semibold"
+                    >
+                      Total
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-white">
+                      {fmt(receipt.total_amount)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <MobileCardList>
               {items.map((item) => (
-                <tr
-                  key={item.id}
-                  className="hover:bg-surface-700/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium text-white">
-                    {item.products?.name || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-center text-surface-400 text-xs hidden sm:table-cell">
-                    {item.products?.unit || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-surface-300">
-                    {item.quantity}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-surface-300">
-                    {fmt(item.unit_cost)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono font-semibold text-primary-400">
-                    {fmt(item.line_total)}
-                  </td>
-                </tr>
+                <MobileCard key={item.id}>
+                  <p className="text-white font-medium text-sm">{item.products?.name || "—"}</p>
+                  <MobileField label="Unit">{item.products?.unit || "—"}</MobileField>
+                  <MobileField label="Qty">{item.quantity}</MobileField>
+                  <MobileField label="Unit Cost">{fmt(item.unit_cost)}</MobileField>
+                  <MobileField label="Total">
+                    <span className="font-semibold text-primary-400">{fmt(item.line_total)}</span>
+                  </MobileField>
+                </MobileCard>
               ))}
-            </tbody>
-            <tfoot className="bg-surface-900">
-              <tr>
-                <td
-                  colSpan={4}
-                  className="px-4 py-3 text-right text-xs text-surface-400 uppercase tracking-wide font-semibold"
-                >
-                  Total
-                </td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-white">
-                  {fmt(receipt.total_amount)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+              <MobileCard className="bg-surface-900/50! border-surface-600">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white text-sm">Total</span>
+                  <span className="font-bold text-white tabular-nums">{fmt(receipt.total_amount)}</span>
+                </div>
+              </MobileCard>
+            </MobileCardList>
+          </>
         )}
       </div>
     </div>

@@ -106,6 +106,35 @@ exports.getAllReceipts = async ({ limit = 50, offset = 0 } = {}) => {
   }
 };
 
+/* ---------- LIST RECEIPTS SUBMITTED BY A USER ---------- */
+exports.getReceiptsByUser = async (userId, { limit = 50, offset = 0 } = {}) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+        ir.id,
+        ir.invoice_number,
+        ir.purchase_date,
+        ir.total_amount,
+        ir.status,
+        ir.approval_status,
+        ir.rejection_reason,
+        ir.paid_at,
+        ir.created_at,
+        json_build_object('id', s.id, 'name', s.name) AS supplier,
+        (SELECT COUNT(*) FROM inventory_receipt_items WHERE receipt_id = ir.id) AS item_count
+       FROM inventory_receipts ir
+       LEFT JOIN suppliers s ON s.id = ir.supplier_id
+       WHERE ir.created_by = $1
+       ORDER BY ir.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset],
+    );
+    return { data: rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
 /* ---------- LIST PENDING RECEIPTS ---------- */
 exports.getPendingReceipts = async () => {
   try {

@@ -20,6 +20,12 @@ export const inventoryService = {
   receiveStock: (payload) =>
     api.post("/inventory/receipts", payload).then((res) => res.data),
 
+  getMyReceipts: (params) =>
+    api.get("/inventory/receipts/mine", { params }).then((res) => res.data),
+
+  getReceiptDetail: (id) =>
+    api.get(`/inventory/receipts/${id}`).then((res) => res.data),
+
   stockTakeReports: (params) =>
     api.get("inventory/reports/stock-take", { params }).then((res) => res.data),
 

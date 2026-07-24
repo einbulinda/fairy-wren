@@ -38,7 +38,22 @@ exports.createInventoryReceipt = async (req, res, next) => {
 
 exports.getReceiptDetail = async (req, res, next) => {
   try {
-    const data = await receivingService.getReceiptDetail(req.params.id);
+    const data = await receivingService.getReceiptDetail(
+      req.params.id,
+      buildContext(req),
+    );
+    respond(res, 200, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getMyReceipts = async (req, res, next) => {
+  try {
+    const data = await receivingService.getMyReceipts(req.user.id, {
+      limit: Number(req.query.limit) || 50,
+      offset: Number(req.query.offset) || 0,
+    });
     respond(res, 200, data);
   } catch (err) {
     next(err);

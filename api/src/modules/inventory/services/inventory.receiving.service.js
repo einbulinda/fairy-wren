@@ -7,8 +7,21 @@ const journalRepo = require("../../journals/journals.repository");
 const accountsRepo = require("../../accounts/accounts.repository");
 const supplierPaymentsRepo = require("../../suppliers/suppliers.repository");
 
-exports.getReceiptDetail = async (id) => {
+exports.getReceiptDetail = async (id, context) => {
   const { data, error } = await receiptsRepo.getReceiptById(id);
+  if (error) throw error;
+  if (!data) throw new Error("RECEIPT_NOT_FOUND");
+
+  const canViewAny = context.role === "owner" || context.role === "director";
+  if (!canViewAny && data.created_by_user?.id !== context.userId) {
+    throw new Error("RECEIPT_ACCESS_DENIED");
+  }
+
+  return data;
+};
+
+exports.getMyReceipts = async (userId, query = {}) => {
+  const { data, error } = await receiptsRepo.getReceiptsByUser(userId, query);
   if (error) throw error;
   return data;
 };

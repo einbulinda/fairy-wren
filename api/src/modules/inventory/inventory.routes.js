@@ -29,6 +29,11 @@ router.get(
   requireRole("director", "owner"),
   controller.getPendingReceipts,
 );
+router.get(
+  "/receipts/mine",
+  requirePermission("receive_goods"),
+  controller.getMyReceipts,
+);
 router.get("/receipts/:id", controller.getReceiptDetail);
 router.post(
   "/receipts/:id/approve",

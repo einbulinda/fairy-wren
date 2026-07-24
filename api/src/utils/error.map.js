@@ -235,6 +235,16 @@ const ERROR_MAP = {
     message: "Failed to create inventory receipt items",
   },
 
+  RECEIPT_NOT_FOUND: {
+    status: 404,
+    message: "Receipt not found",
+  },
+
+  RECEIPT_ACCESS_DENIED: {
+    status: 403,
+    message: "You do not have permission to view this receipt",
+  },
+
   /* ---------------- STOCK TAKE (RPC-BASED) ---------------- */
 
   STOCK_TAKE_NAME_REQUIRED: {
