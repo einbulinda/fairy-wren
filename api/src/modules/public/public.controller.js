@@ -25,7 +25,9 @@ exports.getGallery = async (req, res, next) => {
 exports.submitFeedback = async (req, res, next) => {
   try {
     const data = await feedbackService.submit(req.body);
-    res.status(201).json({ message: "Thank you for your feedback!", id: data.id });
+    res
+      .status(201)
+      .json({ message: "Thank you for your feedback!", id: data.id });
   } catch (err) {
     next(err);
   }
@@ -39,26 +41,43 @@ exports.getMenu = async (req, res, next) => {
       FROM products p
       LEFT JOIN categories c ON c.id = p.category_id
       WHERE p.active = true
+      AND p.current_stock > 0
       ORDER BY c.name NULLS LAST, p.name
     `);
 
     const catMap = new Map();
     for (const row of rows) {
       const key = row.category_id || "__none__";
-      if (!catMap.has(key)) catMap.set(key, { id: key, name: row.category_name || "Other", products: [] });
+      if (!catMap.has(key))
+        catMap.set(key, {
+          id: key,
+          name: row.category_name || "Other",
+          products: [],
+        });
       catMap.get(key).products.push({
-        id: row.id, name: row.name, price: Number(row.price), unit: row.unit, image_url: row.image_url || null,
+        id: row.id,
+        name: row.name,
+        price: Number(row.price),
+        unit: row.unit,
+        image_url: row.image_url || null,
       });
     }
 
     res.json({ categories: [...catMap.values()] });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 exports.submitReservation = async (req, res, next) => {
   try {
     const data = await reservationsService.submit(req.body);
-    res.status(201).json({ message: "Reservation submitted! We'll be in touch shortly.", id: data.id });
+    res
+      .status(201)
+      .json({
+        message: "Reservation submitted! We'll be in touch shortly.",
+        id: data.id,
+      });
   } catch (err) {
     const clientErrors = {
       RESERVATION_NAME_REQUIRED: "Name is required",
