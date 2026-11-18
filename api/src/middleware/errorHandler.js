@@ -2,8 +2,23 @@ const logger = require("../utils/logger");
 const { ERROR_MAP } = require("../utils/error.map");
 
 module.exports = (err, req, res, next) => {
-  const code = err.message || "INTERNAL_ERROR";
+  // connect-timeout fires its own error ("Response timeout", err.timeout set)
+  const code = err.timeout ? "REQUEST_TIMEOUT" : err.message || "INTERNAL_ERROR";
   const mapped = ERROR_MAP[code] || ERROR_MAP.INTERNAL_ERROR;
+
+  // A response already went out (typically the timeout's 503, then the slow
+  // handler fails later). Writing again throws ERR_HTTP_HEADERS_SENT, so only log.
+  if (res.headersSent) {
+    logger.warn({
+      errorCode: code,
+      path: req.originalUrl,
+      method: req.method,
+      correlationId: req.correlationId,
+      details: err.details,
+      note: "error after response was sent (request had timed out)",
+    });
+    return;
+  }
 
   logger.error(
     {

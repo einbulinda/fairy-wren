@@ -50,6 +50,13 @@ export const sendMail = async ({ to, cc, subject, text, files = [], mailbox = "a
   fd.append("mailbox", mailbox);
   if (cc) fd.append("cc", cc);
   files.forEach((f) => fd.append("attachments", f));
-  const { data } = await api.post("/mail/send", fd);
+  const { data } = await api.post("/mail/send", fd, {
+    // multipart header required: with the client's default JSON header axios
+    // serialises FormData to JSON and the attachments are silently dropped.
+    headers: { "Content-Type": "multipart/form-data" },
+    // Uploading attachments + handing off to the mail server takes longer than
+    // the client's default 15 s.
+    timeout: 3 * 60 * 1000,
+  });
   return data.data ?? data;
 };

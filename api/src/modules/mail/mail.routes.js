@@ -15,7 +15,16 @@ router.get("/inbox",  controller.listInbox);
 router.get("/sent",   controller.listSent);
 router.get("/drafts", controller.listDrafts);
 router.post("/drafts", controller.saveDraft);
-router.post("/send", upload.array("attachments", 10), controller.sendMail);
+// Sending with attachments (upload + SMTP hand-off) can take longer than the
+// global 30 s request timeout, which would answer 503 while the mail may still
+// go out. For this route the SMTP client's own limits apply instead
+// (connect 15 s, idle socket 90 s — see mail.config.js).
+const noGlobalTimeout = (req, _res, next) => {
+  req.clearTimeout?.();
+  next();
+};
+
+router.post("/send", noGlobalTimeout, upload.array("attachments", 10), controller.sendMail);
 
 // Parameterised routes
 router.get("/:uid/attachments/:index", controller.downloadAttachment); // ?folder=&mailbox=

@@ -103,5 +103,25 @@ exports.sendMail = async (req, res, next) => {
     }));
     const result = await smtp.sendMail({ to, cc, subject, text, html, replyTo, attachments, mailbox: mb(req) });
     respond(res, 200, result);
-  } catch (err) { next(err); }
+  } catch (err) { next(mapSmtpError(err)); }
 };
+
+/**
+ * Turn nodemailer failures into clear, mapped errors (see error.map.js) and
+ * keep the technical detail for the logs.
+ */
+function mapSmtpError(err) {
+  const code = err?.code;
+  let mapped = null;
+  if (["ETIMEDOUT", "ECONNECTION", "ESOCKET", "EDNS", "ECONNREFUSED"].includes(code)) {
+    mapped = "MAIL_SERVER_UNREACHABLE";
+  } else if (code === "EAUTH") {
+    mapped = "MAIL_AUTH_FAILED";
+  } else if (code === "EMESSAGE" || code === "EENVELOPE" || err?.responseCode === 552) {
+    mapped = "MAIL_REJECTED";
+  }
+  if (!mapped) return err;
+  const e = new Error(mapped);
+  e.details = [err.response || err.message].filter(Boolean);
+  return e;
+}

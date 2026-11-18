@@ -16,7 +16,23 @@ import {
   Paperclip,
   ChevronDown,
   Download,
+  Maximize2,
+  Minimize2,
+  AlertTriangle,
 } from "lucide-react";
+
+// Most mail servers reject messages over ~25 MB; attachments grow ~35% when
+// encoded, so warn well before that. The API accepts up to 15 MB per file.
+const ATTACH_WARN_TOTAL = 18 * 1024 * 1024;
+const ATTACH_MAX_FILE = 15 * 1024 * 1024;
+
+/** Readable message from an API error ({ error: { message, details } }). */
+const sendErrorMessage = (e) => {
+  const err = e?.response?.data?.error;
+  if (err?.message) return err.details?.[0] ? `${err.message} (${err.details[0]})` : err.message;
+  if (e?.code === "ECONNABORTED") return "Sending took too long. Check your connection and try again.";
+  return e?.response?.data?.message || e?.message || "Failed to send";
+};
 import {
   fetchMailboxes,
   fetchInbox,
@@ -80,6 +96,7 @@ const ComposeModal = ({
     return { to: defaultTo, cc: "", subject: defaultSubject, body: defaultBody };
   });
   const [files, setFiles] = useState([]);
+  const [maximized, setMaximized] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null); // null | 'saving' | 'saved'
   const autoSaveTimer = useRef(null);
   const fileInputRef = useRef(null);
@@ -152,8 +169,11 @@ const ComposeModal = ({
       qc.invalidateQueries({ queryKey: ["mail-drafts"] });
       onClose();
     },
-    onError: (e) => toast.error(e?.response?.data?.message || "Failed to send"),
+    onError: (e) => toast.error(sendErrorMessage(e), { duration: 8000 }),
   });
+
+  const totalSize = files.reduce((s, f) => s + f.size, 0);
+  const oversized = files.filter((f) => f.size > ATTACH_MAX_FILE);
 
   const handleClose = () => {
     // Persist what we have to localStorage before closing
@@ -164,14 +184,35 @@ const ComposeModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-surface-900 border border-surface-700 rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
+    <div
+      className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center ${
+        maximized ? "p-0 sm:p-3" : "p-0 sm:p-6"
+      }`}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={isReply ? "Reply" : "Compose email"}
+        className={`bg-surface-900 border border-surface-700 shadow-2xl flex flex-col w-full h-full rounded-none ${
+          maximized
+            ? "sm:rounded-xl"
+            : "sm:rounded-2xl sm:max-w-4xl sm:h-[85vh]"
+        }`}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-700 shrink-0">
           <h2 className="font-semibold text-white">
             {isReply ? "Reply" : "Compose"}
           </h2>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMaximized((m) => !m)}
+              className="hidden sm:block text-surface-400 hover:text-white transition-colors"
+              title={maximized ? "Restore size" : "Full screen"}
+              aria-label={maximized ? "Restore size" : "Full screen"}
+            >
+              {maximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
             {autoSaveStatus === "saving" && (
               <span className="text-xs text-surface-500 flex items-center gap-1">
                 <Loader2 size={10} className="animate-spin" /> Saving…
@@ -183,14 +224,15 @@ const ComposeModal = ({
             <button
               onClick={handleClose}
               className="text-surface-400 hover:text-white transition-colors"
+              aria-label="Close"
             >
               <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Fields */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+        {/* Fields — the message box grows to fill the dialog */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-3">
           {[
             { label: "To", key: "to", placeholder: "recipient@example.com" },
             { label: "CC", key: "cc", placeholder: "optional" },
@@ -208,43 +250,64 @@ const ComposeModal = ({
               />
             </div>
           ))}
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-1 min-h-64">
             <span className="text-xs text-surface-500 w-12 shrink-0 pt-2">
               Body
             </span>
             <textarea
               value={form.body}
               onChange={set("body")}
-              rows={10}
               placeholder="Write your message…"
-              className="flex-1 bg-surface-800 border border-surface-600 rounded-lg px-3 py-2 text-sm text-white placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+              aria-label="Message"
+              className="flex-1 bg-surface-800 border border-surface-600 rounded-lg px-4 py-3 text-sm leading-relaxed text-white placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             />
           </div>
-        </div>
 
-        {/* Attachment list */}
-        {files.length > 0 && (
-          <div className="px-5 pb-2 flex flex-wrap gap-2">
-            {files.map((f, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-800 border border-surface-600 rounded-lg text-xs text-surface-300"
-              >
-                <Paperclip size={10} className="text-surface-500 shrink-0" />
-                <span className="truncate max-w-[140px]">{f.name}</span>
-                <span className="text-surface-600 shrink-0">
-                  {fmtSize(f.size)}
-                </span>
-                <button
-                  onClick={() => removeFile(i)}
-                  className="text-surface-500 hover:text-red-400 transition-colors ml-0.5"
-                >
-                  <X size={10} />
-                </button>
+          {/* Attachments */}
+          {files.length > 0 && (
+            <div className="flex gap-3 shrink-0">
+              <span className="text-xs text-surface-500 w-12 shrink-0 pt-2">
+                Files
+              </span>
+              <div className="flex-1 space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {files.map((f, i) => (
+                    <div
+                      key={f.name + f.size}
+                      className={`flex items-center gap-2 px-3 py-2 bg-surface-800 border rounded-lg text-sm ${
+                        f.size > ATTACH_MAX_FILE ? "border-red-500/60 text-red-300" : "border-surface-600 text-surface-200"
+                      }`}
+                    >
+                      <Paperclip size={13} className="text-surface-500 shrink-0" />
+                      <span className="truncate max-w-56" title={f.name}>{f.name}</span>
+                      <span className="text-surface-500 text-xs shrink-0">{fmtSize(f.size)}</span>
+                      <button
+                        onClick={() => removeFile(i)}
+                        className="text-surface-500 hover:text-red-400 transition-colors"
+                        aria-label={`Remove ${f.name}`}
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-surface-500">
+                  {files.length} file{files.length === 1 ? "" : "s"} · {fmtSize(totalSize)} total
+                </p>
+                {oversized.length > 0 && (
+                  <p className="text-xs text-red-400 flex items-center gap-1.5">
+                    <AlertTriangle size={12} /> Files over 15 MB can't be sent. Remove or compress them.
+                  </p>
+                )}
+                {oversized.length === 0 && totalSize > ATTACH_WARN_TOTAL && (
+                  <p className="text-xs text-amber-300 flex items-center gap-1.5">
+                    <AlertTriangle size={12} /> Large email: some mail servers reject messages this big.
+                  </p>
+                )}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
         {/* Hidden file input */}
         <input
@@ -256,7 +319,7 @@ const ComposeModal = ({
         />
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-surface-700">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-surface-700 shrink-0">
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1.5 text-sm text-surface-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-surface-800"
@@ -283,6 +346,7 @@ const ComposeModal = ({
                 !form.to ||
                 !form.subject ||
                 !form.body ||
+                oversized.length > 0 ||
                 sendMutation.isPending
               }
               className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
@@ -292,7 +356,7 @@ const ComposeModal = ({
               ) : (
                 <Send size={14} />
               )}
-              Send
+              {sendMutation.isPending ? (files.length ? "Uploading…" : "Sending…") : "Send"}
             </button>
           </div>
         </div>

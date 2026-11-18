@@ -493,7 +493,26 @@ const ERROR_MAP = {
   FAILED_TO_CLEAR_CHEQUE: { status: 500, message: "Failed to clear cheque" },
   FAILED_TO_VOID_CHEQUE: { status: 500, message: "Failed to void cheque" },
 
+  // ===== MAIL =====
+  MAIL_SERVER_UNREACHABLE: {
+    status: 503,
+    message:
+      "Couldn't connect to the mail server. The email was not sent. If this keeps happening, the server's outgoing mail port may be blocked.",
+  },
+  MAIL_AUTH_FAILED: {
+    status: 502,
+    message: "The mail server rejected the mailbox login. Check the mailbox password in the server settings.",
+  },
+  MAIL_REJECTED: {
+    status: 422,
+    message: "The mail server refused this message (for example, the attachments are too large).",
+  },
+
   // ===== COMMON =====
+  REQUEST_TIMEOUT: {
+    status: 503,
+    message: "The request took too long and was stopped. Please try again.",
+  },
   UNAUTHORIZED: {
     status: 401,
     message: "Authentication required",

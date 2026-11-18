@@ -16,8 +16,11 @@ exports.sendMail = async ({ to, cc, subject, text, html, replyTo, attachments = 
     attachments: attachments.length ? attachments : undefined,
   });
 
-  // Save copy to Sent folder (fire-and-forget)
-  appendSent({ to, cc, subject, text, html }, mailbox).catch(() => {});
+  // Save copy (with attachments, so the Sent folder shows what went out) — fire-and-forget
+  appendSent(
+    { to, cc, subject, text, html, attachments: attachments.length ? attachments : undefined },
+    mailbox,
+  ).catch(() => {});
 
   return { messageId: info.messageId, accepted: info.accepted };
 };
