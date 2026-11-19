@@ -17,6 +17,7 @@ import {
   LifeBuoy,
   Briefcase,
   Shield,
+  ScrollText,
   UserCircle,
   MailOpen,
 } from "lucide-react";
@@ -60,6 +61,7 @@ const navSections = [
       { to: "/users", icon: Users, label: "User Management" },
       { to: "/settings", icon: Settings, label: "Settings" },
       { to: "/audit", icon: Shield, label: "Audit Trail" },
+      { to: "/system-logs", icon: ScrollText, label: "System Logs" },
       { to: "/mail", icon: MailOpen, label: "Mail" },
       { to: "/help", icon: LifeBuoy, label: "Help Desk" },
     ],

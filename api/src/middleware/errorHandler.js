@@ -20,17 +20,23 @@ module.exports = (err, req, res, next) => {
     return;
   }
 
-  logger.error(
-    {
-      errorCode: code,
-      path: req.originalUrl,
-      method: req.method,
-      correlationId: req.correlationId,
-      userId: req.user?.id,
-      details: err.details,
-    },
-    err.stack || code,
-  );
+  // 4xx are expected client errors (bad PIN, validation…) → warn, no stack.
+  // 5xx are real failures → error, with the stack so the log viewer shows where.
+  const isServerError = mapped.status >= 500;
+  logger.log({
+    level: isServerError ? "error" : "warn",
+    message: code,
+    type: "error",
+    errorCode: code,
+    status: mapped.status,
+    path: req.originalUrl,
+    method: req.method,
+    correlationId: req.correlationId,
+    userId: req.user?.id,
+    details: err.details,
+    ...(isServerError && err.stack && { stack: err.stack }),
+    ...(isServerError && err.code && { cause: err.code }),
+  });
 
   // Build error response
   const errorResponse = {

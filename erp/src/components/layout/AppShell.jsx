@@ -126,6 +126,7 @@ const routeTitles = {
   "/profile": "My Profile",
   "/help": "Help Desk",
   "/audit": "Audit Trail",
+  "/system-logs": "System Logs",
   "/crm": "CRM",
   "/mail": "Mail",
 };

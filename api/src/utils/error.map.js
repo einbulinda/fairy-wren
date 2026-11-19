@@ -508,6 +508,10 @@ const ERROR_MAP = {
     message: "The mail server refused this message (for example, the attachments are too large).",
   },
 
+  // ===== SYSTEM LOGS =====
+  LOGS_INVALID_FILTER: { status: 400, message: "Invalid log filter" },
+  LOG_FILE_NOT_FOUND: { status: 404, message: "Log file not found" },
+
   // ===== COMMON =====
   REQUEST_TIMEOUT: {
     status: 503,

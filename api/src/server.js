@@ -1,8 +1,12 @@
 require("dotenv").config();
+// Mirror console.* into the log files first, so everything after (including
+// uncaught errors) is visible in ERP → System Logs.
+const logger = require("./utils/logger");
+logger.captureConsole();
+
 const { createServer } = require("http");
 const { validateEnv } = require("./config/env");
 const app = require("./app");
-const logger = require("pino")();
 const { initializeSocketServer } = require("./websocket/socket.server");
 const { initializePgSubscriber, cleanupSubscriptions } = require("./websocket/pg.subscriber");
 
@@ -19,7 +23,8 @@ process.on("unhandledRejection", (reason) => {
 
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
-  process.exit(1);
+  // Give the file transports a moment to flush before pm2 restarts us.
+  setTimeout(() => process.exit(1), 500);
 });
 
 // Create HTTP server (required for Socket.io)

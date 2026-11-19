@@ -9,6 +9,7 @@ import AppShell from "@/components/layout/AppShell";
 import DashboardPage from "@/pages/DashboardPage";
 import FinancialReportsPage from "@/pages/FinancialReportsPage";
 import AccountingHubPage from "@/pages/AccountingHubPage";
+import SystemLogsPage from "@/pages/SystemLogsPage";
 import SupplierDetailPage from "@/pages/SupplierDetailPage";
 import InventoryPage from "@/pages/InventoryPage";
 import ProductsPage from "@/pages/ProductsPage";
@@ -76,6 +77,7 @@ const AuthenticatedRoutes = () => {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="help" element={<HelpDeskPage />} />
         <Route path="audit" element={<AuditTrailPage />} />
+        <Route path="system-logs" element={<SystemLogsPage />} />
         <Route path="mail" element={<MailPage />} />
         <Route path="crm" element={<CRMPage />} />
       </Route>

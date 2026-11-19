@@ -162,6 +162,11 @@ const CAPABILITIES = [
     description: "Can access the full system audit trail and activity log",
   },
   {
+    key: "view_system_logs",
+    label: "View System Logs",
+    description: "Can view production API logs (requests, warnings, errors with stack traces) under Administration → System Logs",
+  },
+  {
     key: "receive_goods",
     label: "Receive Goods",
     description: "Can submit goods receipts from POS (pending approval unless also has Approve Receipts)",

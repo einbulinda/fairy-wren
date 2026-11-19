@@ -33,6 +33,7 @@ const auditRoutes = require("../modules/audit/audit.routes");
 const customersRoutes = require("../modules/customers/customers.routes");
 const mailRoutes = require("../modules/mail/mail.routes");
 const exchangesRoutes = require("../modules/exchanges/exchanges.routes");
+const systemLogsRoutes = require("../modules/system-logs/system-logs.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
@@ -68,5 +69,6 @@ router.use("/audit", authMiddleware, auditRoutes);
 router.use("/customers", authMiddleware, customersRoutes);
 router.use("/mail", authMiddleware, mailRoutes);
 router.use("/exchanges", authMiddleware, exchangesRoutes);
+router.use("/system-logs", authMiddleware, systemLogsRoutes);
 
 module.exports = router;
