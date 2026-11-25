@@ -10,6 +10,7 @@ const apiRateLimiter = require("./middleware/apiRateLimiter");
 const timeout = require("connect-timeout");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpecs = require("./docs/swagger");
+const { saveRawBody } = require("./utils/rawBody");
 
 const app = express();
 
@@ -36,7 +37,7 @@ app.use(
   }),
 );
 
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "2mb", verify: saveRawBody }));
 
 // Serve local uploads (gallery images, event posters)
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));

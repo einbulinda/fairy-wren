@@ -33,12 +33,14 @@ const auditRoutes = require("../modules/audit/audit.routes");
 const customersRoutes = require("../modules/customers/customers.routes");
 const mailRoutes = require("../modules/mail/mail.routes");
 const exchangesRoutes = require("../modules/exchanges/exchanges.routes");
+const kcbRoutes = require("../modules/integrations/kcb.routes");
 const systemLogsRoutes = require("../modules/system-logs/system-logs.routes");
 
 // Public Routes
 router.use(require("./health.routes"));
 router.use("/auth", authRoutes);
 router.use("/public", publicRoutes);
+router.use("/integrations/kcb", kcbRoutes); // bank callbacks — RSA-signed, no JWT
 
 // Protected Routes
 router.use("/bills", authMiddleware, billRoutes);

@@ -13,3 +13,5 @@ logs
 *.njsproj
 *.sln
 *.sw?
+# KCB IPN dev keys (scripts/simulate-kcb-ipn.js) — never commit keys
+keys/
