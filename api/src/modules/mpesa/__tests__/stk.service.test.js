@@ -42,6 +42,7 @@ const ENV = {
   KCB_STK_ENABLED: "true",
   KCB_STK_TILL_NUMBER: "5123456",
   KCB_STK_CALLBACK_BASE: "https://api.fairywren.co.ke/kcb/stk/",
+  KCB_BUNI_BASE_URL: "https://uat.buni.kcbgroup.com",
   KCB_CONSUMER_KEY: "key",
   KCB_CONSUMER_SECRET: "secret",
 };
@@ -133,9 +134,11 @@ describe("configProblems", () => {
   it("requires https and credentials", () => {
     process.env.KCB_STK_CALLBACK_BASE = "http://api.fairywren.co.ke/kcb/stk/";
     delete process.env.KCB_CONSUMER_KEY;
+    delete process.env.KCB_BUNI_BASE_URL;
     const p = _internal.configProblems().join(";");
     expect(p).toMatch(/https/);
     expect(p).toMatch(/CONSUMER_KEY/);
+    expect(p).toMatch(/KCB_BUNI_BASE_URL/);
   });
 });
 

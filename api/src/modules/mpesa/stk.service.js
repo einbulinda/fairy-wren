@@ -75,6 +75,9 @@ function configProblems(cfg = config()) {
       problems.push(`callback URL would be ${length} characters; KCB allows ${CALLBACK_MAX_LENGTH}`);
     }
   }
+  if (!cfg.mock && !(process.env.KCB_BUNI_BASE_URL || "").trim()) {
+    problems.push("KCB_BUNI_BASE_URL is not set");
+  }
   if (!cfg.mock && (!process.env.KCB_CONSUMER_KEY || !process.env.KCB_CONSUMER_SECRET)) {
     problems.push("KCB_CONSUMER_KEY / KCB_CONSUMER_SECRET are not set");
   }

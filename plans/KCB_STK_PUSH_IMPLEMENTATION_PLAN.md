@@ -127,7 +127,7 @@ mpesa_transactions: source CHECK gains 'kcb_stk'; new column duplicate_of uuid (
 | IPN service change | An IPN whose reference matches an STK prompt is **marked used** (`duplicate_of` set, no journal, `status='allocated'`) and never listed as open. If the prompt is still waiting, it's held for that prompt; if the prompt ends with no callback, the held IPN is applied to the bill (§3). |
 | Socket | `mpesa:stk_updated` → `perm:send_mpesa_stk` |
 
-Configuration (`.env`, never committed): `KCB_BUNI_BASE_URL`, `KCB_CONSUMER_KEY`,
+Configuration (`.env`, never committed): `KCB_BUNI_BASE_URL` (the only address setting: host only, the token and STK paths are fixed in code), `KCB_CONSUMER_KEY`,
 `KCB_CONSUMER_SECRET`, `KCB_STK_TILL_NUMBER`, `KCB_STK_CALLBACK_BASE`
 (`https://api.fairywren.co.ke`), and `KCB_STK_ENABLED` (off until go-live, which hides the POS button).
 
@@ -290,8 +290,7 @@ KCB_STK_TILL_NUMBER=<from KCB>
 KCB_STK_CALLBACK_BASE=https://api.fairywren.co.ke/kcb/stk/   # QA: https://api.fairywren.co.ke/kcb/qa/
 KCB_STK_INVOICE_SEPARATOR=-                # or "#" (§6 Q2)
 KCB_STK_DESCRIPTION=Fairy Wren             # optional, ≤30 chars
-KCB_BUNI_BASE_URL=https://uat.buni.kcbgroup.com                          # token: <base>/token
-KCB_STK_URL=https://uat.buni.kcbgroup.com/mm/api/request/1.0.0/stkpush   # optional; this is the default
+KCB_BUNI_BASE_URL=https://uat.buni.kcbgroup.com
 KCB_CONSUMER_KEY=<from Buni portal>
 KCB_CONSUMER_SECRET=<from Buni portal>
 ```
