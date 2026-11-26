@@ -1,5 +1,6 @@
 const repo = require("./bills.repository");
 const auditRepo = require("../audit/audit.repository");
+const mpesaRepo = require("../mpesa/mpesa.repository");
 const inventoryService = require("../inventory/services/inventory.sale.service");
 const {
   AddRoundDTO,
@@ -96,6 +97,12 @@ exports.voidBill = async (id, context) => {
    * Reverse inventory movements and journal entries posted at round submission,
    * then mark bill as void.
    */
+  // Bank-verified M-Pesa money matched to this bill must be released back to
+  // the notification (reverse allocation) first, or it would be stranded.
+  if (await mpesaRepo.billHasActiveAllocations(id)) {
+    throw new Error("BILL_HAS_MPESA_ALLOCATIONS");
+  }
+
   const { error: reversalError } = await repo.reverseBillSale(id);
   if (reversalError) throw new Error("FAILED_TO_REVERSE_BILL_SALE");
 

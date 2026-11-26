@@ -3,7 +3,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBills } from "@/hooks/useBills";
 import { useProducts } from "@/hooks/useProducts";
 import { useCategories } from "@/hooks/useCategories";
-import { PaymentService } from "@/services/payment.service";
 import {
   Search,
   X,
@@ -30,6 +29,8 @@ import BetaCurrentBill from "@/beta/components/BetaCurrentBill";
 import BetaOpenBillsModal from "@/beta/components/BetaOpenBillsModal";
 import BetaPaymentModal from "@/beta/components/BetaPaymentModal";
 import BetaQuickActions from "@/beta/components/BetaQuickActions";
+import { submitBillPayments } from "@/utils/mpesa";
+import { mpesaErrorMessage } from "@/services/mpesa.service";
 
 const BetaPOSScreen = () => {
   const { user } = useAuth();
@@ -404,18 +405,17 @@ const BetaPOSScreen = () => {
   const handleProcessPayment = async (bill, paymentLines) => {
     setPaymentLoading(true);
     try {
-      const { data } = await PaymentService.process({
-        billId: bill.id,
-        payments: paymentLines,
-      });
+      // M-Pesa lines matched to a KCB notification are confirmed at once;
+      // cash / manual lines go through the usual /payments flow.
+      const { balanceDue, onlyIpn } = await submitBillPayments(bill, paymentLines);
 
-      if (data?.balance_due > 0) {
+      if (balanceDue > 0) {
         toast.success(
-          `Partial: KSh ${data.balance_due.toLocaleString()} remaining`
+          `Partial: KSh ${balanceDue.toLocaleString()} remaining`
         );
       } else {
         toast.success(
-          canAccessConfirm
+          canAccessConfirm || onlyIpn
             ? "Payment complete!"
             : "Payment recorded - awaiting confirmation"
         );
@@ -427,9 +427,14 @@ const BetaPOSScreen = () => {
       setCurrentRoundItems([]);
       setView("browse");
     } catch (error) {
-      const errorMsg =
-        error.response?.data?.message || error.message || "Payment failed";
-      toast.error(errorMsg);
+      const errorMsg = mpesaErrorMessage(error, "Payment failed");
+      if (error?.mpesaApplied) {
+        toast.error(`M-Pesa applied, but the other payment failed: ${errorMsg}`, { duration: 8000 });
+        reloadBills();
+        setShowPaymentModal(false);
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setPaymentLoading(false);
     }
@@ -670,6 +675,8 @@ const BetaPOSScreen = () => {
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
           onSubmitPayments={(lines) => handleProcessPayment(activeBill, lines)}
+          billId={activeBill.id}
+          customerName={activeBill.customer_name}
           billTotal={calculateBillPaymentInfo(activeBill).total}
           balanceDue={calculateBillPaymentInfo(activeBill).balanceDue}
           amountPaid={calculateBillPaymentInfo(activeBill).amountPaid}

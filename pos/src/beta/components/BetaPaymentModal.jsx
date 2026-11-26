@@ -3,6 +3,10 @@ import { X, Banknote, Smartphone } from "lucide-react";
 import { PAYMENT_METHODS } from "@/utils/constants";
 import { formatKES } from "@/utils/formatters";
 import toast from "react-hot-toast";
+import MpesaPicker from "@/components/mpesa/MpesaPicker";
+import { useAuth } from "@/hooks/useAuth";
+import { canAllocateMpesa, round2 } from "@/utils/mpesa";
+import { useRequireIpn } from "@/hooks/useRequireIpn";
 
 // Only Cash and M-Pesa for nightclub operations
 const AVAILABLE_METHODS = [PAYMENT_METHODS.CASH, PAYMENT_METHODS.MPESA];
@@ -11,16 +15,39 @@ const BetaPaymentModal = ({
   isOpen,
   onClose,
   onSubmitPayments,
+  billId,
+  customerName,
   billTotal,
   balanceDue,
   amountPaid,
   canAccessConfirm,
   loading,
 }) => {
+  const { user } = useAuth();
+  const showMpesaPicker = canAllocateMpesa(user) && !!billId;
+  const requireIpn = useRequireIpn();
   const [payments, setPayments] = useState([
     { method: PAYMENT_METHODS.CASH, amount: "" },
   ]);
   const [activeMethod, setActiveMethod] = useState(PAYMENT_METHODS.CASH);
+
+  // Entries backed by a received KCB M-Pesa payment (amount fixed, confirmed at once)
+  const usedIpnIds = useMemo(
+    () => payments.filter((p) => p.ipn).map((p) => p.ipn.id),
+    [payments]
+  );
+  const amountToCover = useMemo(() => {
+    const entered = payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    return Math.max(0, round2((balanceDue ?? billTotal) - entered));
+  }, [payments, balanceDue, billTotal]);
+
+  const addIpnLine = (line) => {
+    setPayments((prev) => [
+      // drop an empty manual M-Pesa entry the picker replaces
+      ...prev.filter((p) => !(p.method === PAYMENT_METHODS.MPESA && !p.ipn && !parseFloat(p.amount))),
+      { ...line, amount: String(line.amount) },
+    ]);
+  };
 
   const remainingDue = useMemo(() => {
     const totalPaid = payments.reduce(
@@ -45,7 +72,11 @@ const BetaPaymentModal = ({
   };
 
   const addPaymentMethod = (method) => {
-    setPayments((prev) => [...prev, { method, amount: "" }]);
+    // When M-Pesa must be matched to a KCB payment, don't add a typed entry:
+    // selecting M-Pesa just opens the picker.
+    if (!(method === PAYMENT_METHODS.MPESA && requireIpn)) {
+      setPayments((prev) => [...prev, { method, amount: "" }]);
+    }
     setActiveMethod(method);
   };
 
@@ -54,6 +85,7 @@ const BetaPaymentModal = ({
   };
 
   const handleQuickAmount = (amount) => {
+    if (payments[0]?.ipn) return; // amounts of received M-Pesa payments are fixed
     const currentAmount = parseFloat(payments[0]?.amount) || 0;
     updatePaymentAmount(0, (currentAmount + amount).toString());
   };
@@ -61,7 +93,11 @@ const BetaPaymentModal = ({
   const handleSubmit = useCallback(() => {
     const validPayments = payments
       .filter((p) => parseFloat(p.amount) > 0)
-      .map((p) => ({ method: p.method, amount: parseFloat(p.amount) }));
+      .map((p) => ({
+        method: p.method,
+        amount: parseFloat(p.amount),
+        ...(p.ipn && { ipn: p.ipn, overflow: p.overflow ?? null }),
+      }));
 
     if (validPayments.length === 0) {
       toast.error("Enter payment amount");
@@ -130,7 +166,7 @@ const BetaPaymentModal = ({
         </div>
 
         {/* Amount Input */}
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-3 overflow-y-auto min-h-0">
           {payments.map((payment, index) => {
             const Icon = methodIcons[payment.method] || Banknote;
             return (
@@ -156,6 +192,22 @@ const BetaPaymentModal = ({
                     </button>
                   )}
                 </div>
+                {payment.ipn ? (
+                  <div className="text-sm">
+                    <p className="text-2xl font-bold text-emerald-300">{formatKES(parseFloat(payment.amount))}</p>
+                    <p className="text-xs text-gray-400">
+                      {payment.ipn.payerName || "M-Pesa"} · {payment.ipn.receipt}
+                      {payment.overflow && (
+                        <span className={payment.overflow.type === "tip" ? "text-yellow-300" : "text-blue-300"}>
+                          {" "}+ {formatKES(payment.overflow.amount)}{" "}
+                          {payment.overflow.type === "tip"
+                            ? `tip for ${payment.overflow.recipientName}`
+                            : "deposit"}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ) : (
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">
                     KSh
@@ -170,9 +222,21 @@ const BetaPaymentModal = ({
                     autoFocus={index === 0}
                   />
                 </div>
+                )}
               </div>
             );
           })}
+
+          {activeMethod === PAYMENT_METHODS.MPESA && showMpesaPicker && amountToCover > 0 && (
+            <MpesaPicker
+              billId={billId}
+              customerName={customerName}
+              amountToCover={amountToCover}
+              excludeIds={usedIpnIds}
+              disabled={loading}
+              onAdd={addIpnLine}
+            />
+          )}
         </div>
 
         {/* Quick Amounts */}

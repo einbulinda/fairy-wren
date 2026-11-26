@@ -122,7 +122,30 @@ function dispatchNotification(payload) {
     handleProductUpdate(newRow, oldRow);
   } else if (table === "stock_takes" && event === "UPDATE") {
     handleStockTakeUpdate(newRow, oldRow);
+  } else if (table === "mpesa_transactions") {
+    handleMpesaTransactionChange(event, newRow);
   }
+}
+
+/**
+ * KCB M-Pesa notifications. The trigger sends a slim row (no phone number).
+ * Only users who can allocate M-Pesa payments receive these.
+ */
+function handleMpesaTransactionChange(event, row) {
+  const data = {
+    id: row.id,
+    receipt: row.transaction_id,
+    amount: Number(row.amount),
+    remaining: Number(row.amount) - Number(row.allocated_amount),
+    status: row.status,
+    payerName: row.first_name,
+    depositLabel: row.deposit_label,
+    transactionAt: row.transaction_at,
+    timestamp: new Date().toISOString(),
+  };
+  broadcast(event === "INSERT" ? "mpesa:received" : "mpesa:updated", data, {
+    permissions: ["allocate_mpesa"],
+  });
 }
 
 async function initializePgSubscriber() {

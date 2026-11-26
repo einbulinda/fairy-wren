@@ -31,6 +31,8 @@ import ConfirmPaymentsView from "../components/pos/ConfirmPaymentsView";
 import ConfirmModal from "../components/shared/ConfirmModal";
 import ExchangeModal from "../components/bills/ExchangeModal";
 import CustomerBillsView from "../components/bills/CustomerBillsView";
+import { submitBillPayments } from "@/utils/mpesa";
+import { mpesaErrorMessage } from "@/services/mpesa.service";
 
 // subView: "sale" | "customer-bills" | "confirm-payments"
 const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
@@ -372,12 +374,14 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
     setPaymentLoading(true);
     try {
       if (!bill?.id || !bill?.rounds?.length) throw new Error("Invalid bill for payment");
-      const { data } = await PaymentService.process({ billId: bill.id, payments: paymentLines });
-      if (data?.balance_due > 0) {
-        toast.success(`Partial payment recorded. Remaining: KSh ${data.balance_due.toLocaleString()}`);
+      // M-Pesa lines matched to a KCB notification are confirmed at once;
+      // cash / manual lines go through the usual /payments flow.
+      const { balanceDue, onlyIpn } = await submitBillPayments(bill, paymentLines);
+      if (balanceDue > 0) {
+        toast.success(`Partial payment recorded. Remaining: KSh ${balanceDue.toLocaleString()}`);
       } else {
         toast.success(
-          canAccessConfirm ? "Payment processed successfully." : "Payment processed. Awaiting Confirmation.",
+          canAccessConfirm || onlyIpn ? "Payment processed successfully." : "Payment processed. Awaiting Confirmation.",
         );
       }
       reloadBills();
@@ -385,7 +389,14 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
       setActiveBill(null);
       setCurrentRoundItems([]);
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message || "Failed to process payment");
+      const msg = mpesaErrorMessage(error, "Failed to process payment");
+      if (error?.mpesaApplied) {
+        toast.error(`M-Pesa payment was applied, but the other payment failed: ${msg}`, { duration: 8000 });
+        reloadBills();
+        setShowPaymentModal(false);
+      } else {
+        toast.error(msg);
+      }
       console.error(error);
     } finally {
       setPaymentLoading(false);
@@ -783,6 +794,8 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
             isOpen={showPaymentModal}
             onClose={() => setShowPaymentModal(false)}
             onSubmitPayments={(lines) => handleProcessPayment(activeBill, lines)}
+            billId={activeBill.id}
+            customerName={activeBill.customer_name}
             billTotal={paymentInfo.total}
             balanceDue={paymentInfo.balanceDue}
             amountPaid={paymentInfo.amountPaid}

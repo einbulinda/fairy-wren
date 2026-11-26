@@ -186,6 +186,16 @@ const CAPABILITIES = [
     label: "Approve Exchanges",
     description: "Can approve or reject pending product exchanges — combined with Manage Exchanges grants auto-approval",
   },
+  {
+    key: "allocate_mpesa",
+    label: "Match M-Pesa Payments",
+    description: "POS: sees M-Pesa payments received from KCB and matches them to bills, tips or deposits (confirmed immediately)",
+  },
+  {
+    key: "manage_mpesa",
+    label: "Manage M-Pesa",
+    description: "Reverses wrong M-Pesa matches, sees full phone numbers, views the M-Pesa register and pays out staff tips",
+  },
 ];
 
 const formatCurrency = (value) =>

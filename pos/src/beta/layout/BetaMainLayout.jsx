@@ -17,6 +17,7 @@ import BetaPOSScreen from "@/beta/pages/BetaPOSScreen";
 import BetaStockTakeScreen from "@/beta/pages/BetaStockTakeScreen";
 import BetaZReportScreen from "@/beta/pages/BetaZReportScreen";
 import ConfirmModal from "@/components/shared/ConfirmModal";
+import MpesaInboxButton from "@/components/mpesa/MpesaInbox";
 import toast from "react-hot-toast";
 
 const BetaMainLayout = () => {
@@ -148,6 +149,7 @@ const BetaMainLayout = () => {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          <MpesaInboxButton className="bg-slate-800/50 hover:bg-slate-800" />
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}

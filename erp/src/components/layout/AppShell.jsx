@@ -36,6 +36,8 @@ import {
   Shield,
   Calendar,
   Briefcase,
+  Smartphone,
+  Wallet,
 } from "lucide-react";
 
 const inventoryNavTabs = [
@@ -79,6 +81,13 @@ const accountingNavTabs = [
   { key: "periods", short: "Periods", icon: Calendar },
 ];
 
+// Keep in sync with VIEWS in pages/MpesaPage.jsx
+const mpesaNavTabs = [
+  { key: "payments", short: "Payments", icon: Smartphone },
+  { key: "open", short: "Open", icon: Clock },
+  { key: "tips", short: "Tips", icon: Wallet },
+];
+
 const payrollNavTabs = [
   { key: "employees", short: "Employees", icon: Users },
   { key: "runs", short: "Runs", icon: Briefcase },
@@ -119,6 +128,7 @@ const routeTitles = {
   "/products": "Products",
   "/purchasing": "Purchasing",
   "/accounting": "Accounting",
+  "/mpesa": "M-Pesa Payments",
   "/payroll": "Payroll",
   "/reports": "Financial Reports",
   "/web": "Web Management",
@@ -178,6 +188,9 @@ const AppShell = () => {
 
   const isSettingsPage = pathname === "/settings";
   const activeSettingsTab = params.get("tab") || "organisation";
+
+  const isMpesaPage = pathname === "/mpesa";
+  const activeMpesaView = params.get("view") || "payments";
 
   const isPayrollPage = pathname === "/payroll";
   const activePayrollTab = params.get("tab") || "employees";
@@ -387,6 +400,38 @@ const AppShell = () => {
                   onClick={() => navigate(`/settings?tab=${key}`)}
                   className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors active:scale-95 ${
                     activeSettingsTab === key
+                      ? "text-primary-400"
+                      : "text-surface-400 active:text-surface-200"
+                  }`}
+                >
+                  <Icon size={19} strokeWidth={1.8} />
+                  <span className="text-[9px] font-medium">{short}</span>
+                </button>
+              ))}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-surface-400 active:text-surface-200 transition-colors"
+              >
+                <MoreHorizontal size={19} strokeWidth={1.8} />
+                <span className="text-[9px] font-medium">More</span>
+              </button>
+            </div>
+          ) : isMpesaPage ? (
+            /* Contextual nav for M-Pesa Payments */
+            <div className="flex items-center h-14">
+              <button
+                onClick={() => navigate("/")}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-surface-400 active:text-surface-200 transition-colors"
+              >
+                <Home size={19} strokeWidth={1.8} />
+                <span className="text-[9px] font-medium">Home</span>
+              </button>
+              {mpesaNavTabs.map(({ key, short, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => navigate(`/mpesa?view=${key}`)}
+                  className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors active:scale-95 ${
+                    activeMpesaView === key
                       ? "text-primary-400"
                       : "text-surface-400 active:text-surface-200"
                   }`}

@@ -24,4 +24,8 @@ export const useAppStore = create((set, get) => ({
   // Action to trigger bills reload - will be used by components
   billsReloadTrigger: 0,
   triggerBillsReload: () => set((state) => ({ billsReloadTrigger: state.billsReloadTrigger + 1 })),
+
+  // M-Pesa notifications (KCB IPN) - bumped by socket events, watched by useMpesaTransactions
+  mpesaReloadTrigger: 0,
+  triggerMpesaReload: () => set((state) => ({ mpesaReloadTrigger: state.mpesaReloadTrigger + 1 })),
 }));

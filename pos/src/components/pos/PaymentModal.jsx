@@ -1,19 +1,33 @@
 import { useState, useMemo } from "react";
 import { X, Banknote, Smartphone, Plus, Trash2 } from "lucide-react";
+import MpesaPicker from "@/components/mpesa/MpesaPicker";
+import { useAuth } from "@/hooks/useAuth";
+import { canAllocateMpesa } from "@/utils/mpesa";
+import { useRequireIpn } from "@/hooks/useRequireIpn";
 
 const PaymentModal = ({
   isOpen,
   onClose,
   onSubmitPayments,
+  billId,
+  customerName,
   billTotal,
   balanceDue,
   amountPaid,
   loading,
   canAccessConfirm,
 }) => {
+  const { user } = useAuth();
+  const showMpesaPicker = canAllocateMpesa(user) && !!billId;
+  const requireIpn = useRequireIpn();
   const [paymentLines, setPaymentLines] = useState([]);
   const [currentAmount, setCurrentAmount] = useState("");
   const [currentMethod, setCurrentMethod] = useState("cash");
+
+  const usedIpnIds = useMemo(
+    () => paymentLines.filter((l) => l.ipn).map((l) => l.ipn.id),
+    [paymentLines],
+  );
 
   const linesTotal = useMemo(
     () => paymentLines.reduce((sum, l) => sum + l.amount, 0),
@@ -123,6 +137,21 @@ const PaymentModal = ({
                     >
                       {line.method === "cash" ? "Cash" : "M-PESA"}
                     </span>
+                    {line.ipn && (
+                      <span className="text-xs text-gray-400 leading-tight">
+                        {line.ipn.payerName || line.ipn.receipt}
+                        <br />
+                        {line.ipn.receipt}
+                        {line.overflow && (
+                          <span className={line.overflow.type === "tip" ? "text-yellow-300" : "text-blue-300"}>
+                            {" "}+ KSh {line.overflow.amount.toLocaleString()}{" "}
+                            {line.overflow.type === "tip"
+                              ? `tip for ${line.overflow.recipientName}`
+                              : "deposit"}
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-white">
@@ -225,6 +254,29 @@ const PaymentModal = ({
                 </button>
               </div>
 
+              {currentMethod === "mpesa" && showMpesaPicker && (
+                <MpesaPicker
+                  billId={billId}
+                  customerName={customerName}
+                  amountToCover={remaining}
+                  excludeIds={usedIpnIds}
+                  disabled={loading}
+                  onAdd={(line) => setPaymentLines([...paymentLines, line])}
+                />
+              )}
+
+              {currentMethod === "mpesa" && showMpesaPicker && !requireIpn && (
+                <p className="text-xs text-gray-400">
+                  Payment not showing yet? Enter it manually below. It will need confirmation.
+                </p>
+              )}
+
+              {currentMethod === "mpesa" && requireIpn && (
+                <p className="text-xs text-yellow-300">
+                  M-Pesa must be matched to a payment received from KCB. If it's not showing yet, wait a few seconds and refresh.
+                </p>
+              )}
+
               {currentMethod === "mpesa" && (
                 <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-xs">
                   <p className="font-semibold text-green-400 mb-1">
@@ -233,14 +285,16 @@ const PaymentModal = ({
                   <ol className="list-decimal list-inside space-y-0.5 text-gray-300">
                     <li>Go to M-PESA &gt; Lipa na M-PESA &gt; Pay Bill</li>
                     <li>
-                      Business: <span className="font-bold">522522</span> |
+                      Business: <span className="font-bold">522533</span> |
                       Account: <span className="font-bold">8040662</span>
                     </li>
                   </ol>
                 </div>
               )}
 
-              {/* Amount Input + Add Button */}
+              {/* Amount Input + Add Button (typed M-Pesa hidden when it must be matched) */}
+              {!(currentMethod === "mpesa" && requireIpn) && (
+              <>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
@@ -284,6 +338,8 @@ const PaymentModal = ({
                 >
                   Pay Full Balance (KSh {balanceDue.toLocaleString()})
                 </button>
+              )}
+              </>
               )}
             </div>
           )}

@@ -22,6 +22,7 @@ import {
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
 import ConfirmModal from "@/components/shared/ConfirmModal";
+import MpesaInboxButton from "@/components/mpesa/MpesaInbox";
 
 import POSScreen from "@/pages/POSScreen";
 import StockTakeEntry from "../../pages/StockTakeEntry";
@@ -250,6 +251,7 @@ const MainLayout = () => {
 
             {/* Right controls */}
             <div className="flex items-center gap-2">
+              <MpesaInboxButton className="bg-gray-700 hover:bg-gray-600" />
               <button
                 onClick={toggleTheme}
                 className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"

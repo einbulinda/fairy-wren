@@ -14,6 +14,7 @@ import {
   TrendingUp,
   AlertCircle,
   X,
+  Smartphone,
 } from "lucide-react";
 import { useZReport } from "@/hooks/useZReport";
 import { useBills } from "@/hooks/useBills";
@@ -46,6 +47,66 @@ const PMT_COLORS = {
 
 const pmtColor = (type) =>
   PMT_COLORS[(type || "").toLowerCase()] ?? "text-cyan-400";
+
+const Row = ({ label, value, tone = "text-white", sub }) => (
+  <div className="flex items-center justify-between gap-3 py-1.5">
+    <span className="text-sm text-surface-300">
+      {label}
+      {sub && <span className="block text-xs text-surface-500">{sub}</span>}
+    </span>
+    <span className={`text-sm font-medium tabular-nums ${tone}`}>{fmt(value)}</span>
+  </div>
+);
+
+/** M-Pesa received through KCB that day, typed vs matched M-Pesa, and what's still open. */
+const MpesaZSection = ({ mpesa }) => {
+  const { received, payments, openNow } = mpesa;
+  const totalMpesa = payments.ipn.amount + payments.manual.amount;
+  return (
+    <Section title="M-Pesa" icon={Smartphone}>
+      <div className="p-4 space-y-4">
+        <div>
+          <p className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider mb-1">
+            Received from KCB · {received.count} payment{received.count === 1 ? "" : "s"}
+          </p>
+          <Row label="Total received" value={received.amount} />
+          <Row label="Kept as tips" value={received.tips} tone="text-amber-300" />
+          <Row label="Held as deposits" value={received.deposits} tone="text-sky-400" />
+          <Row
+            label="Still unmatched"
+            sub={received.unmatchedCount ? `${received.unmatchedCount} payment${received.unmatchedCount === 1 ? "" : "s"}` : null}
+            value={received.unmatched}
+            tone={received.unmatched > 0 ? "text-red-400" : "text-surface-400"}
+          />
+        </div>
+        <div className="border-t border-surface-700/50 pt-3">
+          <p className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider mb-1">
+            M-Pesa on this day's bills
+          </p>
+          <Row label="Matched to KCB payment" sub={`${payments.ipn.count} line${payments.ipn.count === 1 ? "" : "s"}`} value={payments.ipn.amount} tone="text-emerald-400" />
+          <Row
+            label="Typed by hand"
+            sub={`${payments.manual.count} line${payments.manual.count === 1 ? "" : "s"} · not verified against KCB`}
+            value={payments.manual.amount}
+            tone={payments.manual.amount > 0 ? "text-amber-300" : "text-surface-400"}
+          />
+          {totalMpesa > 0 && (
+            <div className="h-1.5 mt-2 rounded-full bg-surface-700 overflow-hidden flex" aria-hidden="true">
+              <div className="bg-emerald-500" style={{ width: `${(payments.ipn.amount / totalMpesa) * 100}%` }} />
+              <div className="bg-amber-400" style={{ width: `${(payments.manual.amount / totalMpesa) * 100}%` }} />
+            </div>
+          )}
+        </div>
+        {(openNow.unmatched.amount > 0 || openNow.deposits.amount > 0) && (
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs text-amber-200">
+            Open right now (all days): {fmt(openNow.unmatched.amount)} unmatched in {openNow.unmatched.count} payment
+            {openNow.unmatched.count === 1 ? "" : "s"}, {fmt(openNow.deposits.amount)} held as deposits.
+          </div>
+        )}
+      </div>
+    </Section>
+  );
+};
 
 const ZReportTab = () => {
   const [date, setDate] = useState(defaultDate);
@@ -467,6 +528,9 @@ const ZReportTab = () => {
             </>
           )}
         </Section>
+
+        {/* M-Pesa (KCB notifications) */}
+        {data?.mpesa && <MpesaZSection mpesa={data.mpesa} />}
 
         {/* Category Sales */}
         <Section title="Category Sales" icon={BarChart3}>

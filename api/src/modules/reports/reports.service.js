@@ -1,4 +1,5 @@
 const reportsRepository = require("./reports.repository");
+const mpesaService = require("../mpesa/mpesa.service");
 
 /**
  * Service class for reports business logic
@@ -381,8 +382,15 @@ class ReportsService {
   }
   async getZReport(date) {
     this.validateDate(date);
-    const data = await reportsRepository.getZReport(date);
-    return data || {};
+    const [data, mpesa] = await Promise.all([
+      reportsRepository.getZReport(date),
+      // M-Pesa section is best-effort: the Z-report must still load without it.
+      mpesaService.getDaySummary(date).catch((err) => {
+        console.error("[ReportsService] M-Pesa Z-report section failed:", err.message);
+        return null;
+      }),
+    ]);
+    return { ...(data || {}), mpesa };
   }
 
   async getEquityChanges(startDate, endDate) {

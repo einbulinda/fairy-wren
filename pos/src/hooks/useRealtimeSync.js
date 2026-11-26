@@ -10,7 +10,7 @@ import toast from "react-hot-toast";
  * @param {Function} callbacks.onInventoryChange - Called when inventory changes
  */
 export const useRealtimeSync = (callbacks = {}) => {
-  const { onBillsChange, onInventoryChange } = callbacks;
+  const { onBillsChange, onInventoryChange, onMpesaChange } = callbacks;
   const { user } = useAuth();
   const userId = user?.id;
   
@@ -119,6 +119,20 @@ export const useRealtimeSync = (callbacks = {}) => {
     );
   }, []);
 
+  // M-Pesa payment received from KCB (only sent to users with allocate_mpesa)
+  const handleMpesaReceived = useCallback((data) => {
+    onMpesaChange?.();
+    toast.success(
+      `M-Pesa received: KSh ${Number(data.amount).toLocaleString()}${data.payerName ? ` from ${data.payerName}` : ""}`,
+      { duration: 6000 }
+    );
+  }, [onMpesaChange]);
+
+  // M-Pesa payment matched / reversed on another till
+  const handleMpesaUpdated = useCallback(() => {
+    onMpesaChange?.();
+  }, [onMpesaChange]);
+
   // Handle generic bill changes
   const handleBillChanged = useCallback((data) => {
     console.log("[Realtime] Bill changed event received:", data);
@@ -157,6 +171,8 @@ export const useRealtimeSync = (callbacks = {}) => {
     subscribe("inventory:low_stock", handleLowStock);
     subscribe("stocktake:approved", handleStockTakeApproved);
     subscribe("stocktake:rejected", handleStockTakeRejected);
+    subscribe("mpesa:received", handleMpesaReceived);
+    subscribe("mpesa:updated", handleMpesaUpdated);
 
     // Cleanup
     return () => {
@@ -171,7 +187,9 @@ export const useRealtimeSync = (callbacks = {}) => {
       unsubscribe("inventory:low_stock", handleLowStock);
       unsubscribe("stocktake:approved", handleStockTakeApproved);
       unsubscribe("stocktake:rejected", handleStockTakeRejected);
-      
+      unsubscribe("mpesa:received", handleMpesaReceived);
+      unsubscribe("mpesa:updated", handleMpesaUpdated);
+
       emit("unsubscribe:bills");
       emit("unsubscribe:inventory");
     };
@@ -191,6 +209,8 @@ export const useRealtimeSync = (callbacks = {}) => {
     handleLowStock,
     handleStockTakeApproved,
     handleStockTakeRejected,
+    handleMpesaReceived,
+    handleMpesaUpdated,
   ]);
 
   return { isConnected };

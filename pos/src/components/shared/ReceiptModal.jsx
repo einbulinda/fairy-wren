@@ -146,7 +146,7 @@ const ReceiptModal = ({ bill, onClose }) => {
           ----------------------------------------
         </div>
         <div className="thermal-qr-text">
-          PayBill: 522522
+          PayBill: 522533
           <br />
           Account: 8040662
         </div>
@@ -342,7 +342,7 @@ const ReceiptModal = ({ bill, onClose }) => {
               {/* Footer */}
               <div className="text-center space-y-2 pt-3 border-t-2 border-dashed border-purple-500/30">
                 <div className="text-xs text-purple-300">
-                  <div>PayBill: 522522</div>
+                  <div>PayBill: 522533</div>
                   <div>Account: 8040662</div>
                 </div>
                 <div className="text-xs text-gray-400 pt-2">

@@ -493,6 +493,42 @@ const ERROR_MAP = {
   FAILED_TO_CLEAR_CHEQUE: { status: 500, message: "Failed to clear cheque" },
   FAILED_TO_VOID_CHEQUE: { status: 500, message: "Failed to void cheque" },
 
+  // ===== M-PESA (KCB IPN) =====
+  MPESA_TRANSACTION_NOT_FOUND: { status: 404, message: "M-Pesa payment not found" },
+  MPESA_ALLOCATION_NOT_FOUND: { status: 404, message: "M-Pesa allocation not found" },
+  MPESA_BILL_NOT_FOUND: { status: 404, message: "Bill not found" },
+  MPESA_INVALID_FILTER: { status: 400, message: "Invalid filter" },
+  MPESA_INVALID_ALLOCATION: { status: 400, message: "Invalid M-Pesa allocation" },
+  MPESA_OVER_ALLOCATED: {
+    status: 409,
+    message: "Amount is more than what is left on this M-Pesa payment",
+  },
+  MPESA_EXCEEDS_BILL_BALANCE: {
+    status: 409,
+    message: "Amount is more than the bill's remaining balance",
+  },
+  MPESA_BILL_NOT_PAYABLE: { status: 409, message: "This bill can no longer take payments" },
+  MPESA_ALLOCATION_ALREADY_REVERSED: { status: 409, message: "This allocation was already reversed" },
+  MPESA_REVERSAL_REASON_REQUIRED: { status: 400, message: "A reason is required to reverse an allocation" },
+  MPESA_TIP_RECIPIENT_NOT_FOUND: {
+    status: 404,
+    message: "Tips can only go to an active waiter, bartender, supervisor or manager",
+  },
+  MPESA_INVALID_PAYOUT: { status: 400, message: "Invalid tip payout" },
+  MPESA_PAYOUT_EXCEEDS_TIPS: { status: 409, message: "Amount is more than the tips this staff member is owed" },
+  MPESA_TIP_ALREADY_PAID_OUT: {
+    status: 409,
+    message: "This tip has already been paid out to the staff member and can't be reversed",
+  },
+  MPESA_IPN_REQUIRED: {
+    status: 400,
+    message: "M-Pesa payments must be matched to a received M-Pesa payment. Typing an M-Pesa amount is turned off.",
+  },
+  BILL_HAS_MPESA_ALLOCATIONS: {
+    status: 409,
+    message: "This bill has M-Pesa payments matched to it. A manager must reverse them before voiding.",
+  },
+
   // ===== MAIL =====
   MAIL_SERVER_UNREACHABLE: {
     status: 503,

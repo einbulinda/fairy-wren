@@ -5,6 +5,7 @@ import {
   Grid,
   Truck,
   Landmark,
+  Smartphone,
   Users,
   ChevronDown,
   X,
@@ -45,6 +46,7 @@ const navSections = [
     label: "Finance",
     items: [
       { to: "/accounting", icon: Landmark, label: "Accounting" },
+      { to: "/mpesa", icon: Smartphone, label: "M-Pesa Payments" },
       { to: "/payroll", icon: Briefcase, label: "Payroll" },
       { to: "/reports", icon: LineChart, label: "Financial Reports" },
     ],

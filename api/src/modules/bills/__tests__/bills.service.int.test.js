@@ -6,6 +6,23 @@ const auditRepo = require("../../audit/audit.repository");
 jest.mock("../bills.repository");
 jest.mock("../../inventory/services/inventory.sale.service");
 jest.mock("../../audit/audit.repository");
+jest.mock("../../mpesa/mpesa.repository", () => ({
+  billHasActiveAllocations: jest.fn().mockResolvedValue(false),
+}));
+
+const mpesaRepo = require("../../mpesa/mpesa.repository");
+
+describe("voidBill with M-Pesa allocations", () => {
+  test("is blocked until allocations are reversed", async () => {
+    mpesaRepo.billHasActiveAllocations.mockResolvedValueOnce(true);
+
+    await expect(billsService.voidBill("bill-1", { userId: "user-1" })).rejects.toThrow(
+      "BILL_HAS_MPESA_ALLOCATIONS",
+    );
+    expect(billsRepo.reverseBillSale).not.toHaveBeenCalled();
+    expect(billsRepo.updateBillStatus).not.toHaveBeenCalled();
+  });
+});
 
 describe("Bills ↔ Inventory Integration", () => {
   const context = {

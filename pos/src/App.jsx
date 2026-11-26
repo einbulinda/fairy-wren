@@ -26,10 +26,14 @@ const AuthenticatedContent = ({ uiVersion }) => {
     console.log("[App] Inventory changed");
   }, []);
 
+  // M-Pesa notifications (KCB IPN) received or matched elsewhere
+  const triggerMpesaReload = useAppStore((state) => state.triggerMpesaReload);
+
   // Enable real-time sync with callbacks
   const { isConnected } = useRealtimeSync({
     onBillsChange: handleBillsChange,
     onInventoryChange: handleInventoryChange,
+    onMpesaChange: triggerMpesaReload,
   });
 
   console.log("[App] Real-time sync status:", isConnected ? "connected" : "disconnected");
