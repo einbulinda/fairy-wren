@@ -26,8 +26,10 @@ exports.bulkUpsert = async (entries) => {
     const results = [];
     for (const entry of entries) {
       const { rows } = await pool.query(
-        `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, NOW())
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+        // The settings table is (key PK, value) only — there is no updated_at
+        // column, so writing one made every settings save fail.
+        `INSERT INTO settings (key, value) VALUES ($1, $2)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
          RETURNING *`,
         [entry.key, entry.value]
       );

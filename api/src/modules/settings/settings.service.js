@@ -25,7 +25,11 @@ exports.updateSettings = async (payload) => {
   if (entries.length === 0) throw new Error("NO_FIELDS_TO_UPDATE");
 
   const { error } = await repo.bulkUpsert(entries);
-  if (error) throw new Error("FAILED_TO_UPDATE_SETTINGS");
+  if (error) {
+    // Keep the real database error in the logs (System Logs); the client gets the generic code.
+    console.error("[Settings] Failed to save settings:", error.message);
+    throw new Error("FAILED_TO_UPDATE_SETTINGS");
+  }
 
   return exports.getSettings();
 };
