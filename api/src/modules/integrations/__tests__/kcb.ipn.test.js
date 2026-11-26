@@ -7,6 +7,9 @@ jest.mock("../kcb.repository", () => ({
   postReceiptJournal: jest.fn(),
 }));
 jest.mock("../../audit/audit.repository", () => ({ log: jest.fn() }));
+jest.mock("../../mpesa/stk.service", () => ({
+  linkIpn: jest.fn().mockResolvedValue({ action: "none" }),
+}));
 jest.mock("../../../utils/logger", () => ({
   info: jest.fn(),
   warn: jest.fn(),

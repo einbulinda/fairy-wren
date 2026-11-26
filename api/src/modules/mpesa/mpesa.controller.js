@@ -1,4 +1,5 @@
 const service = require("./mpesa.service");
+const stkService = require("./stk.service");
 const { buildContext, respond } = require("../../utils/common");
 
 exports.listTransactions = async (req, res, next) => {
@@ -76,6 +77,40 @@ exports.payTips = async (req, res, next) => {
 exports.reverseAllocation = async (req, res, next) => {
   try {
     respond(res, 200, await service.reverseAllocation(req.params.id, req.body, buildContext(req)));
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ── M-Pesa Express (STK Push) ── */
+
+exports.getStkConfig = async (req, res, next) => {
+  try {
+    respond(res, 200, await stkService.getConfig());
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.initiateStk = async (req, res, next) => {
+  try {
+    respond(res, 201, await stkService.initiate(req.body, buildContext(req)));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getStkRequest = async (req, res, next) => {
+  try {
+    respond(res, 200, await stkService.getRequest(req.params.id, buildContext(req)));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listStkRequests = async (req, res, next) => {
+  try {
+    respond(res, 200, await stkService.listForBill(req.query.billId, buildContext(req)));
   } catch (err) {
     next(err);
   }

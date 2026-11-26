@@ -502,6 +502,18 @@ const ERROR_MAP = {
   STATEMENT_LINES_REQUIRED: { status: 400, message: "The statement has no transaction lines" },
   CANNOT_FINALIZE_WITH_UNMATCHED_LINES: { status: 400, message: "Match every statement line before finalising" },
 
+  // ===== M-PESA EXPRESS (STK PUSH) =====
+  MPESA_STK_DISABLED: { status: 403, message: "M-Pesa prompts are not switched on" },
+  MPESA_STK_NOT_CONFIGURED: { status: 503, message: "M-Pesa prompts are not set up yet. Ask the administrator." },
+  MPESA_STK_INVALID_PHONE: { status: 400, message: "Enter a Safaricom number such as 0712 345 678" },
+  MPESA_STK_INVALID_AMOUNT: { status: 400, message: "Enter the amount in whole shillings" },
+  MPESA_STK_ALREADY_ACTIVE: { status: 409, message: "A prompt is already waiting on this bill" },
+  MPESA_STK_TOO_SOON: { status: 429, message: "Wait a few seconds before sending another prompt" },
+  MPESA_STK_REQUEST_FAILED: { status: 502, message: "KCB could not send the M-Pesa prompt" },
+  MPESA_STK_NOT_FOUND: { status: 404, message: "M-Pesa prompt not found" },
+  INVOICE_NUMBERS_EXHAUSTED: { status: 503, message: "No invoice numbers left. Ask the administrator." },
+  INVOICE_NUMBER_IMMUTABLE: { status: 409, message: "A bill's invoice number cannot be changed" },
+
   MPESA_TRANSACTION_NOT_FOUND: { status: 404, message: "M-Pesa payment not found" },
   MPESA_ALLOCATION_NOT_FOUND: { status: 404, message: "M-Pesa allocation not found" },
   MPESA_BILL_NOT_FOUND: { status: 404, message: "Bill not found" },

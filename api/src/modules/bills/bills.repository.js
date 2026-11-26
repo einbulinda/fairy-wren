@@ -24,7 +24,7 @@ exports.createBill = async (payload) => {
     // Fetch the newly created bill with nested data
     const selectSql = `
       SELECT
-        b.id, b.customer_name, b.status, b.created_at, b.updated_at, b.created_by,
+        b.id, b.invoice_number, b.customer_name, b.status, b.created_at, b.updated_at, b.created_by,
         COALESCE(
           json_agg(
             json_build_object(
@@ -158,7 +158,7 @@ exports.listBills = async (filters = {}) => {
 
     const sql = `
       SELECT
-        b.id, b.customer_name, b.customer_id, b.status, b.created_at, b.updated_at,
+        b.id, b.invoice_number, b.customer_name, b.customer_id, b.status, b.created_at, b.updated_at,
         CASE WHEN c.id IS NOT NULL THEN json_build_object('id', c.id, 'name', c.name) ELSE NULL END AS customer_account,
         json_build_object('id', cu.id, 'name', cu.name) AS created_by_user,
         json_build_object('id', uu.id, 'name', uu.name) AS updated_by_user,
@@ -287,7 +287,7 @@ exports.listBillsByUser = async (userId, startDate, endDate) => {
   try {
     const sql = `
       SELECT
-        b.id, b.status, b.created_at,
+        b.id, b.invoice_number, b.status, b.created_at,
         COALESCE(
           json_agg(
             json_build_object(
@@ -323,7 +323,7 @@ exports.listBillsByDateRange = async (startDate, endDate) => {
   try {
     const sql = `
       SELECT
-        b.id, b.status, b.created_at,
+        b.id, b.invoice_number, b.status, b.created_at,
         COALESCE(
           json_agg(
             json_build_object(

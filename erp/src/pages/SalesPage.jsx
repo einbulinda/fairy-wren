@@ -170,7 +170,7 @@ const SalesPage = () => {
     return bills.filter(
       (b) =>
         b.customer_name?.toLowerCase().includes(q) ||
-        b.id?.toLowerCase().includes(q),
+        b.invoice_number?.toLowerCase().includes(q),
     );
   }, [bills, search]);
 
@@ -244,6 +244,7 @@ const SalesPage = () => {
   // Excel export
   const exportToExcel = () => {
     const rows = filtered.map((bill) => ({
+      "Invoice #": bill.invoice_number || "",
       Customer: bill.customer_name || "Walk-in",
       Status: STATUS_LABEL[bill.status] || bill.status,
       Items: computeItemCount(bill),
@@ -255,6 +256,7 @@ const SalesPage = () => {
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     ws["!cols"] = [
+      { wch: 10 },
       { wch: 20 },
       { wch: 12 },
       { wch: 8 },
@@ -329,6 +331,9 @@ const SalesPage = () => {
             <span className="text-white font-medium">
               {row.customer_name || "Walk-in"}
             </span>
+            {row.invoice_number && (
+              <span className="text-xs font-mono text-surface-500">{row.invoice_number}</span>
+            )}
           </div>
         );
       },
@@ -871,7 +876,7 @@ const SalesPage = () => {
                 />
                 <input
                   type="text"
-                  placeholder={statusFilter === "products" ? "Search product..." : "Search customer..."}
+                  placeholder={statusFilter === "products" ? "Search product..." : "Search customer or invoice #..."}
                   className="w-full sm:w-48 pl-8 pr-8 sm:pr-3 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   value={statusFilter === "products" ? productSearch : search}
                   onChange={(e) =>
@@ -1073,6 +1078,9 @@ const SalesPage = () => {
                             <span className="text-white font-medium text-sm truncate">
                               {bill.customer_name || "Walk-in"}
                             </span>
+                            {bill.invoice_number && (
+                              <span className="text-[11px] font-mono text-surface-500 shrink-0">{bill.invoice_number}</span>
+                            )}
                           </div>
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${STATUS_BADGE[bill.status] || "bg-surface-600/30 text-surface-400"}`}

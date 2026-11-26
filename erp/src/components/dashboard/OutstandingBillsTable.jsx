@@ -42,7 +42,8 @@ const OutstandingBillsTable = ({ data }) => {
     return enhancedData.filter(
       (b) =>
         b.customer_name.toLowerCase().includes(q) ||
-        b.served_by.toLowerCase().includes(q),
+        b.served_by.toLowerCase().includes(q) ||
+        (b.invoice_number || "").toLowerCase().includes(q),
     );
   }, [enhancedData, search]);
 
@@ -61,6 +62,7 @@ const OutstandingBillsTable = ({ data }) => {
 
   const exportToExcel = () => {
     const rows = filteredData.map((b) => ({
+      "Invoice #": b.invoice_number || "",
       Customer: b.customer_name,
       Staff: b.served_by,
       Date: fmtDate(b.created_at),
@@ -70,6 +72,7 @@ const OutstandingBillsTable = ({ data }) => {
       "Balance (KES)": b.balance,
     }));
     rows.push({
+      "Invoice #": "",
       Customer: "TOTALS",
       Staff: "",
       Date: "",
@@ -80,6 +83,7 @@ const OutstandingBillsTable = ({ data }) => {
     });
     const ws = XLSX.utils.json_to_sheet(rows);
     ws["!cols"] = [
+      { wch: 10 },
       { wch: 22 },
       { wch: 15 },
       { wch: 14 },
@@ -94,6 +98,13 @@ const OutstandingBillsTable = ({ data }) => {
   };
 
   const columns = [
+    {
+      key: "invoice_number",
+      label: "Invoice #",
+      sortable: true,
+      cellClassName: "text-surface-300 font-mono text-xs",
+      render: (val) => val || "—",
+    },
     {
       key: "customer_name",
       label: "Customer",
@@ -197,7 +208,7 @@ const OutstandingBillsTable = ({ data }) => {
           />
           <input
             type="text"
-            placeholder="Search by customer or staff..."
+            placeholder="Search by customer, staff or invoice #..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-8 pr-8 py-1.5 bg-surface-900 border border-surface-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -256,7 +267,10 @@ const OutstandingBillsTable = ({ data }) => {
             >
               {/* Customer + days badge */}
               <div className="flex items-center justify-between gap-2">
-                <span className="text-white font-semibold text-sm truncate">{bill.customer_name}</span>
+                <span className="text-white font-semibold text-sm truncate">
+                  {bill.customer_name}
+                  {bill.invoice_number && <span className="ml-2 text-[11px] font-mono font-normal text-surface-400">{bill.invoice_number}</span>}
+                </span>
                 <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeCls}`}>
                   <Clock size={9} />
                   {days}d

@@ -2,9 +2,12 @@ import { X, Printer } from "lucide-react";
 import { calculateBillTotals, itemLineTotal } from "../../utils/calculations";
 import { RECEIPT_LOGO_BASE64 } from "../../utils/receiptAssets";
 import { printReceipt, titleCase } from "../../utils/common";
+import { paybillAccount } from "../../utils/mpesa";
 
 const ReceiptModal = ({ bill, onClose }) => {
   const totals = calculateBillTotals(bill);
+  const invoiceNumber = bill.invoice_number || "";
+  const account = paybillAccount(invoiceNumber);
 
   // Render receipt content function to avoid duplication
   const renderReceiptContent = ({ showLogo = true } = {}) => (
@@ -26,8 +29,8 @@ const ReceiptModal = ({ bill, onClose }) => {
 
       <div className="thermal-info">
         <div className="thermal-row">
-          <span>Bill #:</span>
-          <span>{bill.id.slice(0, 8).toUpperCase()}</span>
+          <span>Invoice #:</span>
+          <span>{invoiceNumber}</span>
         </div>
         <div className="thermal-row">
           <span>Customer:</span>
@@ -148,14 +151,13 @@ const ReceiptModal = ({ bill, onClose }) => {
         <div className="thermal-qr-text">
           PayBill: 522533
           <br />
-          Account: 8040662
+          Account: {account}
         </div>
         <div className="thermal-divider">
           ----------------------------------------
         </div>
         <div className="thermal-thanks">Thank you for your visit!</div>
         <div className="thermal-thanks-sub">Please come again!</div>
-        <div className="thermal-id">Bill ID: {bill.id}</div>
         <div style={{ fontStyle: "italic", marginTop: "4px", fontSize: "9px" }}>This is not a Tax Invoice</div>
       </div>
     </>
@@ -205,9 +207,9 @@ const ReceiptModal = ({ bill, onClose }) => {
               {/* Bill Info */}
               <div className="space-y-1.5 mb-4 pb-3 border-b-2 border-dashed border-purple-500/30">
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Bill #:</span>
-                  <span className="text-pink-400 font-semibold">
-                    {bill.id.slice(0, 8).toUpperCase()}
+                  <span className="text-gray-400">Invoice #:</span>
+                  <span className="text-pink-400 font-semibold font-mono">
+                    {invoiceNumber}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs">
@@ -343,7 +345,7 @@ const ReceiptModal = ({ bill, onClose }) => {
               <div className="text-center space-y-2 pt-3 border-t-2 border-dashed border-purple-500/30">
                 <div className="text-xs text-purple-300">
                   <div>PayBill: 522533</div>
-                  <div>Account: 8040662</div>
+                  <div>Account: {account}</div>
                 </div>
                 <div className="text-xs text-gray-400 pt-2">
                   Thank you for your visit!
@@ -351,10 +353,7 @@ const ReceiptModal = ({ bill, onClose }) => {
                 <div className="text-xs text-pink-400 font-semibold">
                   Please come again!
                 </div>
-                <div className="text-[10px] text-gray-600 pt-2">
-                  Bill ID: {bill.id}
-                </div>
-                <div className="text-[10px] text-gray-500 italic pt-1">
+                <div className="text-[10px] text-gray-500 italic pt-2">
                   This is not a Tax Invoice
                 </div>
               </div>

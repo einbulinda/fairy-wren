@@ -9,6 +9,8 @@ const STATUS_FILTERS = {
   partially_allocated: ["partially_allocated"],
   allocated: ["allocated"],
   all: ["unallocated", "partially_allocated", "allocated"],
+  // Till IPNs for money an STK callback already recorded (not money).
+  linked: ["linked"],
 };
 
 /** Error codes raised by the SQL functions (RAISE EXCEPTION 'MPESA_…'). */
@@ -97,6 +99,10 @@ function toDto(row, context) {
     receivedAt: row.received_at,
     depositLabel: row.deposit_label,
     depositMarkedAt: row.deposit_marked_at,
+    source: row.source,
+    stkRequestId: row.stk_request_id ?? null,
+    duplicateOf: row.duplicate_of ?? null,
+    possibleDuplicateOf: row.possible_duplicate_of ?? null,
   };
 }
 
@@ -115,7 +121,7 @@ const tokens = (s) =>
  * Hints only — a person always confirms the match.
  *
  * @param {{ remaining:number, billReference?:string, depositLabel?:string, payerName?:string, transactionAt:Date|string }} txn
- * @param {{ customer_name:string, payable_amount:number|string, updated_at:Date|string }} bill
+ * @param {{ customer_name:string, invoice_number?:string, payable_amount:number|string, updated_at:Date|string }} bill
  */
 function scoreMatch(txn, bill) {
   const reasons = [];
@@ -132,7 +138,12 @@ function scoreMatch(txn, bill) {
   }
 
   const refTokens = [...tokens(txn.billReference), ...tokens(txn.depositLabel)];
-  if (refTokens.some((t) => billTokens.has(t))) {
+  const invoice = String(bill.invoice_number || "").toLowerCase();
+  // "8040662FWPD0Z" (no "#") is one token that ends with the invoice number
+  if (invoice && refTokens.some((t) => t === invoice || (t.endsWith(invoice) && /^\d+$/.test(t.slice(0, -invoice.length))))) {
+    score += 100; // typed our receipt's number: beats amount + name + time
+    reasons.push("invoice number matches");
+  } else if (refTokens.some((t) => billTokens.has(t))) {
     score += 40;
     reasons.push("reference matches bill");
   }
@@ -200,11 +211,12 @@ exports.getTransaction = async (id, context) => {
       type: a.allocation_type,
       billId: a.bill_id,
       customerName: a.customer_name,
+      invoiceNumber: a.invoice_number,
       tipRecipientId: a.tip_recipient_id,
       tipRecipientName: a.tip_recipient_name,
       amount: Number(a.amount),
       allocatedAt: a.allocated_at,
-      allocatedBy: a.allocated_by_name,
+      allocatedBy: a.allocated_by_name ?? "Automatic (invoice number)",
       reversedAt: a.reversed_at,
       reversedBy: a.reversed_by_name,
       reversalReason: a.reversal_reason,
@@ -225,6 +237,7 @@ exports.getSuggestions = async (id, context) => {
     .map((b) => ({
       billId: b.id,
       customerName: b.customer_name,
+      invoiceNumber: b.invoice_number,
       status: b.status,
       createdBy: b.created_by_name,
       total: Number(b.total),

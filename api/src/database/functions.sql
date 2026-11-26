@@ -1194,7 +1194,8 @@ CREATE OR REPLACE FUNCTION public.rpc_outstanding_bills(p_start_date date, p_end
         outstanding_amount numeric,
         customer_name text,
         served_by text,
-        created_at timestamp with time zone
+        created_at timestamp with time zone,
+        invoice_number text
     ) LANGUAGE sql STABLE AS $function$
 select bf.bill_id,
     bf.bill_total,
@@ -1202,7 +1203,8 @@ select bf.bill_id,
     bf.outstanding_amount,
     b.customer_name,
     p.name as served_by,
-    b.created_at
+    b.created_at,
+    b.invoice_number
 from v_bill_financials bf
     join bills b on b.id = bf.bill_id
     left join profiles p on p.id = b.created_by

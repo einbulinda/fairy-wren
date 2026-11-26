@@ -192,6 +192,11 @@ const CAPABILITIES = [
     description: "POS: sees M-Pesa payments received from KCB and matches them to bills, tips or deposits (confirmed immediately)",
   },
   {
+    key: "send_mpesa_stk",
+    label: "Send M-Pesa Prompt",
+    description: "POS: sends an M-Pesa PIN prompt (STK Push) to the customer's phone for a bill; the bill is paid automatically when they enter their PIN",
+  },
+  {
     key: "manage_mpesa",
     label: "Manage M-Pesa",
     description: "Reverses wrong M-Pesa matches, sees full phone numbers, views the M-Pesa register and pays out staff tips",

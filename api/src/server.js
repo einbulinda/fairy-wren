@@ -40,6 +40,9 @@ initializePgSubscriber();
 const reorderScheduler = require("./modules/inventory/services/inventory.scheduler");
 reorderScheduler.start();
 
+// Expire M-Pesa Express prompts nobody answered
+require("./modules/mpesa/stk.scheduler").start();
+
 // Handle graceful shutdown
 process.on("SIGTERM", () => {
   console.log("SIGTERM received, shutting down gracefully");

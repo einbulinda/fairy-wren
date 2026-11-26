@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { X, Banknote, Smartphone, Plus, Trash2 } from "lucide-react";
 import MpesaPicker from "@/components/mpesa/MpesaPicker";
+import MpesaStkPanel from "@/components/mpesa/MpesaStkPanel";
 import { useAuth } from "@/hooks/useAuth";
-import { canAllocateMpesa } from "@/utils/mpesa";
+import { canAllocateMpesa, canSendStk, paybillAccount } from "@/utils/mpesa";
 import { useRequireIpn } from "@/hooks/useRequireIpn";
 
 const PaymentModal = ({
@@ -11,14 +12,17 @@ const PaymentModal = ({
   onSubmitPayments,
   billId,
   customerName,
+  invoiceNumber,
   billTotal,
   balanceDue,
   amountPaid,
   loading,
   canAccessConfirm,
+  onStkPaid,
 }) => {
   const { user } = useAuth();
   const showMpesaPicker = canAllocateMpesa(user) && !!billId;
+  const showStk = canSendStk(user) && !!billId;
   const requireIpn = useRequireIpn();
   const [paymentLines, setPaymentLines] = useState([]);
   const [currentAmount, setCurrentAmount] = useState("");
@@ -254,6 +258,15 @@ const PaymentModal = ({
                 </button>
               </div>
 
+              {currentMethod === "mpesa" && showStk && (
+                <MpesaStkPanel
+                  billId={billId}
+                  amountToCover={remaining}
+                  disabled={loading}
+                  onPaid={onStkPaid}
+                />
+              )}
+
               {currentMethod === "mpesa" && showMpesaPicker && (
                 <MpesaPicker
                   billId={billId}
@@ -286,7 +299,7 @@ const PaymentModal = ({
                     <li>Go to M-PESA &gt; Lipa na M-PESA &gt; Pay Bill</li>
                     <li>
                       Business: <span className="font-bold">522533</span> |
-                      Account: <span className="font-bold">8040662</span>
+                      Account: <span className="font-bold">{paybillAccount(invoiceNumber)}</span>
                     </li>
                   </ol>
                 </div>

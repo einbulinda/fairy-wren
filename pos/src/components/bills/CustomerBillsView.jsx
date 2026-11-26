@@ -161,7 +161,7 @@ const BillRow = ({ bill, onJumpToBill }) => {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">{bill.customer_name}</p>
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
-              <span className="text-xs text-gray-500">#{bill.id.slice(0, 8)}</span>
+              <span className="text-xs text-gray-500">{bill.invoice_number}</span>
               <StatusBadge status={bill.status} />
               <AgingBadge days={days} />
             </div>

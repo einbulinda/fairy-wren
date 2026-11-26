@@ -2,6 +2,7 @@ import { useEffect, useCallback } from "react";
 import { useSocket } from "./useSocket";
 import { useAuth } from "./useAuth";
 import toast from "react-hot-toast";
+import { useAppStore } from "@/store/app.store";
 
 /**
  * Hook to enable real-time synchronization for POS
@@ -133,6 +134,12 @@ export const useRealtimeSync = (callbacks = {}) => {
     onMpesaChange?.();
   }, [onMpesaChange]);
 
+  // M-Pesa Express prompt status changed (paid / cancelled / no response …)
+  const handleMpesaStkUpdated = useCallback((data) => {
+    useAppStore.getState().setMpesaStkEvent({ ...data, receivedAt: Date.now() });
+    if (data.status === "paid") onBillsChange?.();
+  }, [onBillsChange]);
+
   // Handle generic bill changes
   const handleBillChanged = useCallback((data) => {
     console.log("[Realtime] Bill changed event received:", data);
@@ -173,6 +180,7 @@ export const useRealtimeSync = (callbacks = {}) => {
     subscribe("stocktake:rejected", handleStockTakeRejected);
     subscribe("mpesa:received", handleMpesaReceived);
     subscribe("mpesa:updated", handleMpesaUpdated);
+    subscribe("mpesa:stk_updated", handleMpesaStkUpdated);
 
     // Cleanup
     return () => {
@@ -189,6 +197,7 @@ export const useRealtimeSync = (callbacks = {}) => {
       unsubscribe("stocktake:rejected", handleStockTakeRejected);
       unsubscribe("mpesa:received", handleMpesaReceived);
       unsubscribe("mpesa:updated", handleMpesaUpdated);
+      unsubscribe("mpesa:stk_updated", handleMpesaStkUpdated);
 
       emit("unsubscribe:bills");
       emit("unsubscribe:inventory");
@@ -211,6 +220,7 @@ export const useRealtimeSync = (callbacks = {}) => {
     handleStockTakeRejected,
     handleMpesaReceived,
     handleMpesaUpdated,
+    handleMpesaStkUpdated,
   ]);
 
   return { isConnected };

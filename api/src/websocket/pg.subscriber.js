@@ -124,6 +124,8 @@ function dispatchNotification(payload) {
     handleStockTakeUpdate(newRow, oldRow);
   } else if (table === "mpesa_transactions") {
     handleMpesaTransactionChange(event, newRow);
+  } else if (table === "mpesa_stk_requests") {
+    handleMpesaStkChange(newRow);
   }
 }
 
@@ -146,6 +148,28 @@ function handleMpesaTransactionChange(event, row) {
   broadcast(event === "INSERT" ? "mpesa:received" : "mpesa:updated", data, {
     permissions: ["allocate_mpesa"],
   });
+}
+
+/** M-Pesa Express prompt status (slim row from the trigger, no phone). */
+function handleMpesaStkChange(row) {
+  broadcast(
+    "mpesa:stk_updated",
+    {
+      id: row.id,
+      billId: row.bill_id,
+      requestedBy: row.requested_by,
+      amount: Number(row.amount),
+      accountRef: row.account_ref,
+      status: row.status,
+      resultCode: row.result_code,
+      resultDesc: row.result_desc,
+      receipt: row.mpesa_receipt,
+      problem: row.problem,
+      updatedAt: row.updated_at,
+      timestamp: new Date().toISOString(),
+    },
+    { permissions: ["send_mpesa_stk"] },
+  );
 }
 
 async function initializePgSubscriber() {

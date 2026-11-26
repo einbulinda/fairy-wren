@@ -34,6 +34,7 @@ const customersRoutes = require("../modules/customers/customers.routes");
 const mailRoutes = require("../modules/mail/mail.routes");
 const exchangesRoutes = require("../modules/exchanges/exchanges.routes");
 const kcbRoutes = require("../modules/integrations/kcb.routes");
+const kcbStkRoutes = require("../modules/integrations/kcb.stk.routes");
 const mpesaRoutes = require("../modules/mpesa/mpesa.routes");
 const systemLogsRoutes = require("../modules/system-logs/system-logs.routes");
 
@@ -42,6 +43,7 @@ router.use(require("./health.routes"));
 router.use("/auth", authRoutes);
 router.use("/public", publicRoutes);
 router.use("/integrations/kcb", kcbRoutes); // bank callbacks — RSA-signed, no JWT
+router.use("/kcb", kcbStkRoutes); // STK Push callbacks — secret URL token, no JWT (short path: 50-char limit)
 
 // Protected Routes
 router.use("/bills", authMiddleware, billRoutes);

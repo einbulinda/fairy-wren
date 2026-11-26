@@ -332,6 +332,7 @@ const ZReportTab = () => {
                                       </div>
                                       <div className="flex gap-2 mt-0.5 text-xs text-surface-500 pl-4">
                                         <span>{fmtDate(bill.created_at?.split("T")[0])}</span>
+                                        {bill.invoice_number && <span className="font-mono">{bill.invoice_number}</span>}
                                         {bill.created_by_user?.name && (
                                           <span>· {bill.created_by_user.name}</span>
                                         )}
@@ -457,7 +458,10 @@ const ZReportTab = () => {
                                               <td className="px-6 py-2 text-surface-500">
                                                 {isBillExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                                               </td>
-                                              <td className="px-3 py-2 text-surface-200">{bill.customer_name || "—"}</td>
+                                              <td className="px-3 py-2 text-surface-200">
+                                                {bill.customer_name || "—"}
+                                                {bill.invoice_number && <span className="ml-2 text-xs font-mono text-surface-500">{bill.invoice_number}</span>}
+                                              </td>
                                               <td className="px-3 py-2 text-surface-400 tabular-nums">{fmtDate(bill.created_at?.split("T")[0])}</td>
                                               <td className="px-3 py-2 text-surface-400">{bill.created_by_user?.name || "—"}</td>
                                               <td className={`px-3 py-2 text-right font-medium tabular-nums ${pmtColor(p.payment_type)}`}>{fmt(pmtAmount)}</td>

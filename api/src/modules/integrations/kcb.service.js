@@ -2,6 +2,7 @@ const repo = require("./kcb.repository");
 const { verifySignature } = require("./kcb.signature");
 const auditRepo = require("../audit/audit.repository");
 const logger = require("../../utils/logger");
+const stkService = require("../mpesa/stk.service");
 
 /* ======================================================
    PARSING HELPERS
@@ -143,7 +144,26 @@ exports.handleTillNotification = async ({ body, rawBody, signature, correlationI
     // the production endpoint, test notifications must not reach the books.
     // When off, the receipt journal is posted later, when the payment is
     // matched to a bill.
-    if (receiptJournalEnabled()) {
+    // M-Pesa Express: a till IPN for a prompt is either the same money the STK
+    // callback already recorded (→ linked, no journal) or proof of payment
+    // for a prompt that got no callback (→ applied to its bill).
+    // Without a prompt, an invoice number in the bill reference (8040662#FW…)
+    // pays that open bill automatically; otherwise the payment stays unallocated.
+    let link = { action: "none" };
+    try {
+      link = await stkService.linkIpn(id);
+      if (link.action === "applied_invoice") {
+        logger.info("[KCB IPN] Applied to bill by invoice number", { id, transactionID: row.transactionId, link });
+      } else if (link.action !== "none") {
+        logger.info("[KCB IPN] Linked to STK prompt", { id, transactionID: row.transactionId, link });
+      } else if (link.invoice) {
+        logger.info("[KCB IPN] Invoice number not applied; left unallocated", { id, transactionID: row.transactionId, link });
+      }
+    } catch (err) {
+      logger.error("[KCB IPN] STK link failed", { id, error: err.message });
+    }
+
+    if (receiptJournalEnabled() && link.action !== "linked") {
       try {
         await repo.postReceiptJournal(id);
       } catch (err) {

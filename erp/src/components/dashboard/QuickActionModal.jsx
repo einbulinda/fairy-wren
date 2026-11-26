@@ -283,7 +283,7 @@ const QuickActionModal = ({ type, data, isOpen, onClose }) => {
               <div key={index} className="flex items-center justify-between p-3 bg-surface-800 rounded-lg">
                 <div>
                   <p className="text-sm text-white">{bill.customer_name || "Walk-in Customer"}</p>
-                  <p className="text-xs text-surface-500">Bill: {bill.bill_id?.slice(0, 8)}...</p>
+                  <p className="text-xs text-surface-500 font-mono">Invoice # {bill.invoice_number || "—"}</p>
                   <p className="text-xs text-red-400 mt-1">{days} days overdue</p>
                 </div>
                 <div className="text-right">

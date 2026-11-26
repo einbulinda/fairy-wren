@@ -104,6 +104,26 @@ describe("scoreMatch", () => {
     transactionAt: "2026-11-17T20:00:00Z",
   };
 
+  it("ranks the bill whose invoice number the customer typed first", () => {
+    const paid = { ...txn, billReference: "fwz1sw" };
+    const byInvoice = scoreMatch(paid, { customer_name: "John", invoice_number: "FWZ1SW", payable_amount: "3000", updated_at: "2026-11-16T10:00:00Z" });
+    const byAmount = scoreMatch(paid, { customer_name: "Table 4", invoice_number: "FWJTNQ", payable_amount: "1500", updated_at: "2026-11-17T19:30:00Z" });
+    expect(byInvoice.reasons).toContain("invoice number matches");
+    expect(byInvoice.score).toBeGreaterThan(byAmount.score);
+  });
+
+  it("finds the invoice number in the receipt's paybill account (8040662#FWxxxx)", () => {
+    const paid = { ...txn, billReference: "8040662#FWZ1SW" };
+    const res = scoreMatch(paid, { customer_name: "John", invoice_number: "FWZ1SW", payable_amount: "3000", updated_at: "2026-11-16T10:00:00Z" });
+    expect(res.reasons).toContain("invoice number matches");
+  });
+
+  it("finds the invoice number typed without the '#' (8040662FWxxxx) but not inside other words", () => {
+    const bill = { customer_name: "John", invoice_number: "FWZ1SW", payable_amount: "3000", updated_at: "2026-11-16T10:00:00Z" };
+    expect(scoreMatch({ ...txn, billReference: "8040662FWZ1SW" }, bill).reasons).toContain("invoice number matches");
+    expect(scoreMatch({ ...txn, billReference: "ABCFWZ1SW" }, bill).reasons).not.toContain("invoice number matches");
+  });
+
   it("ranks exact amount + reference highest", () => {
     const exact = scoreMatch(txn, { customer_name: "Table 4", payable_amount: "1500", updated_at: "2026-11-17T19:30:00Z" });
     const amountOnly = scoreMatch(txn, { customer_name: "John", payable_amount: "1500", updated_at: "2026-11-17T19:30:00Z" });

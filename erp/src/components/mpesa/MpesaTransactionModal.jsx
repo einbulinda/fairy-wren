@@ -63,7 +63,7 @@ const MpesaTransactionModal = ({ id, onClose }) => {
                     <li key={a.id} className={`rounded-lg border border-surface-700 px-3 py-2.5 ${a.reversedAt ? "opacity-50" : ""}`}>
                       <div className="flex justify-between gap-3 text-sm">
                         <span className="text-white">
-                          {a.type === "tip" ? `Tip for ${a.tipRecipientName || "staff"}` : `Bill: ${a.customerName}`}
+                          {a.type === "tip" ? `Tip for ${a.tipRecipientName || "staff"}` : `Bill: ${a.customerName}${a.invoiceNumber ? ` · ${a.invoiceNumber}` : ""}`}
                           {a.type === "tip" && a.customerName && <span className="text-surface-500"> ({a.customerName})</span>}
                         </span>
                         <span className="font-medium text-white tabular-nums">{fmt(a.amount)}</span>

@@ -333,6 +333,7 @@ const AccountDetail = ({ account, onClose, onEdit, onUnlink }) => {
                           {STATUS_LABEL[bill.status] || bill.status}
                         </span>
                         <span className="text-xs text-surface-500">{fmtDate(bill.created_at)}</span>
+                        {bill.invoice_number && <span className="text-xs font-mono text-surface-400">{bill.invoice_number}</span>}
                       </div>
                       <p className="text-xs text-surface-400 mt-0.5">
                         {items.length} item{items.length !== 1 ? "s" : ""}
@@ -506,7 +507,7 @@ const NameGroup = ({ nameRow, accounts, onDone }) => {
                             {STATUS_LABEL[bill.status] || bill.status}
                           </span>
                           <span className="text-xs text-surface-500">{fmtDate(bill.created_at)}</span>
-                          <span className="text-xs text-surface-600">#{bill.id.slice(0, 8)}</span>
+                          {bill.invoice_number && <span className="text-xs font-mono text-surface-400">{bill.invoice_number}</span>}
                         </div>
                         {items.length > 0 && (
                           <p className="text-xs text-surface-500 mt-0.5 truncate">

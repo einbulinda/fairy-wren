@@ -633,8 +633,8 @@ const BillReceiptModal = ({ billId, onClose }) => {
             {/* Bill info */}
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-surface-400">Bill ID</span>
-                <span className="text-white font-mono text-xs">{bill.id}</span>
+                <span className="text-surface-400">Invoice #</span>
+                <span className="text-white font-mono text-xs">{bill.invoice_number || "—"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-surface-400">Customer</span>
@@ -1003,8 +1003,8 @@ const SalesTab = ({ productId, dateRange }) => {
           bv = b.customer_name || "";
           break;
         case "bill":
-          av = String(a.bill_id || "");
-          bv = String(b.bill_id || "");
+          av = String(a.bill_invoice_number || "");
+          bv = String(b.bill_invoice_number || "");
           break;
         case "qty":
           av = a.quantity || 0;
@@ -1095,7 +1095,7 @@ const SalesTab = ({ productId, dateRange }) => {
                         className="inline-flex items-center gap-1 text-primary-400 hover:text-primary-300 transition-colors text-xs font-mono"
                       >
                         <ExternalLink size={11} />
-                        {item.bill_id.slice(0, 8)}…
+                        {item.bill_invoice_number || "Bill"}
                       </button>
                     ) : (
                       <span className="text-surface-600">—</span>
@@ -1162,7 +1162,7 @@ const SalesTab = ({ productId, dateRange }) => {
                   className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors"
                 >
                   <ExternalLink size={10} />
-                  Bill# {item.bill_id.slice(0, 8)}…
+                  Invoice # {item.bill_invoice_number || "—"}
                 </button>
               )}
               <div className="text-xs text-surface-400">
@@ -1367,7 +1367,7 @@ const StatementTab = ({ productId, dateRange }) => {
                             className="shrink-0 inline-flex items-center gap-0.5 text-primary-400 hover:text-primary-300 text-xs"
                           >
                             <ExternalLink size={10} />
-                            Bill
+                            {row.bill_invoice_number || "Bill"}
                           </button>
                         )}
                       </div>
@@ -1465,7 +1465,7 @@ const StatementTab = ({ productId, dateRange }) => {
                     className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 mt-1"
                   >
                     <ExternalLink size={10} />
-                    View Receipt
+                    {row.bill_invoice_number ? `Invoice # ${row.bill_invoice_number}` : "View Receipt"}
                   </button>
                 )}
                 {row.reference_type === "inventory_receipt" &&

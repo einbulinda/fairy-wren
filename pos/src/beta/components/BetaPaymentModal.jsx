@@ -4,8 +4,9 @@ import { PAYMENT_METHODS } from "@/utils/constants";
 import { formatKES } from "@/utils/formatters";
 import toast from "react-hot-toast";
 import MpesaPicker from "@/components/mpesa/MpesaPicker";
+import MpesaStkPanel from "@/components/mpesa/MpesaStkPanel";
 import { useAuth } from "@/hooks/useAuth";
-import { canAllocateMpesa, round2 } from "@/utils/mpesa";
+import { canAllocateMpesa, canSendStk, round2 } from "@/utils/mpesa";
 import { useRequireIpn } from "@/hooks/useRequireIpn";
 
 // Only Cash and M-Pesa for nightclub operations
@@ -22,9 +23,11 @@ const BetaPaymentModal = ({
   amountPaid,
   canAccessConfirm,
   loading,
+  onStkPaid,
 }) => {
   const { user } = useAuth();
   const showMpesaPicker = canAllocateMpesa(user) && !!billId;
+  const showStk = canSendStk(user) && !!billId;
   const requireIpn = useRequireIpn();
   const [payments, setPayments] = useState([
     { method: PAYMENT_METHODS.CASH, amount: "" },
@@ -226,6 +229,15 @@ const BetaPaymentModal = ({
               </div>
             );
           })}
+
+          {activeMethod === PAYMENT_METHODS.MPESA && showStk && amountToCover > 0 && (
+            <MpesaStkPanel
+              billId={billId}
+              amountToCover={amountToCover}
+              disabled={loading}
+              onPaid={onStkPaid}
+            />
+          )}
 
           {activeMethod === PAYMENT_METHODS.MPESA && showMpesaPicker && amountToCover > 0 && (
             <MpesaPicker

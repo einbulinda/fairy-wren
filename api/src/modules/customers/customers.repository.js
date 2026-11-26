@@ -97,7 +97,7 @@ exports.getAccountBills = async (customerId, filters = {}) => {
   const { rows } = await pool.query(
     `
     SELECT
-      b.id, b.customer_name, b.status, b.created_at,
+      b.id, b.invoice_number, b.customer_name, b.status, b.created_at,
       json_build_object('id', p.id, 'name', p.name) AS created_by_user,
       bt.total AS total_amount, bt.amount_paid AS total_paid, bt.balance_due,
       (
@@ -191,7 +191,7 @@ exports.listUnlinkedBillsForName = async (name) => {
   const { rows } = await pool.query(
     `
     SELECT
-      b.id, b.customer_name, b.status, b.created_at,
+      b.id, b.invoice_number, b.customer_name, b.status, b.created_at,
       json_build_object('id', p.id, 'name', p.name) AS created_by_user,
       bt.total AS total_amount, bt.balance_due,
       (

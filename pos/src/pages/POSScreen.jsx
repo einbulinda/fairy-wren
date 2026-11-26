@@ -23,6 +23,7 @@ import {
 } from "../utils/calculations";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/shared/ReceiptModal";
+import { BillsService } from "../services/bills.service";
 import OpenBillsModal from "../components/bills/OpenBillsModal";
 import ProductGrid from "../components/products/ProductGrid";
 import PaymentModal from "../components/pos/PaymentModal";
@@ -369,6 +370,29 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
     if (!activeBill || !activeBill.rounds?.length) { toast.error("Cannot process payment for empty bill"); return; }
     setShowPaymentModal(true);
   }, [activeBill, currentRoundItems.length]);
+
+  // M-Pesa prompt paid: the API already applied it to the bill. Refresh the
+  // bill; close the payment modal when nothing is left to pay.
+  const handleStkPaid = useCallback(async (prompt) => {
+    reloadBills();
+    try {
+      const fresh = await BillsService.getById(prompt.billId);
+      if (!fresh) return;
+      const { balanceDue } = calculateBillPaymentInfo(fresh);
+      const paid = Number(prompt.paidAmount ?? prompt.amount).toLocaleString();
+      if (balanceDue <= 0.01) {
+        toast.success(`M-Pesa KSh ${paid} received. Bill fully paid.`);
+        setShowPaymentModal(false);
+        setActiveBill(null);
+        setCurrentRoundItems([]);
+      } else {
+        toast.success(`M-Pesa KSh ${paid} received. Remaining KSh ${balanceDue.toLocaleString()}`);
+        setActiveBill(fresh);
+      }
+    } catch {
+      toast.error("M-Pesa payment received. Reopen the bill to see the new balance.");
+    }
+  }, [reloadBills]);
 
   const handleProcessPayment = async (bill, paymentLines) => {
     setPaymentLoading(true);
@@ -796,11 +820,13 @@ const POSScreen = ({ subView = "sale", onSwitchToSale }) => {
             onSubmitPayments={(lines) => handleProcessPayment(activeBill, lines)}
             billId={activeBill.id}
             customerName={activeBill.customer_name}
+            invoiceNumber={activeBill.invoice_number}
             billTotal={paymentInfo.total}
             balanceDue={paymentInfo.balanceDue}
             amountPaid={paymentInfo.amountPaid}
             canAccessConfirm={canAccessConfirm}
             loading={paymentLoading}
+            onStkPaid={handleStkPaid}
           />
         );
       })()}

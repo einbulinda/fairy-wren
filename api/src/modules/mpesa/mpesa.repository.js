@@ -4,7 +4,8 @@ const TXN_COLUMNS = `
   t.id, t.transaction_id, t.amount, t.allocated_amount, t.status,
   t.msisdn, t.first_name, t.middle_name, t.last_name, t.bill_reference,
   t.transaction_type, t.transaction_at, t.received_at,
-  t.deposit_label, t.deposit_marked_at, t.receipt_journal_id`;
+  t.deposit_label, t.deposit_marked_at, t.receipt_journal_id,
+  t.source, t.stk_request_id, t.duplicate_of, t.possible_duplicate_of`;
 
 /**
  * WHERE fragment for free-text search: M-Pesa code, payer name (any part or
@@ -34,7 +35,9 @@ function searchClause(q, phone, params) {
  */
 exports.listTransactions = async ({ statuses, from, to, q, phone, limit }) => {
   const params = [statuses];
-  const where = ["t.status = ANY($1)"];
+  // Possible duplicates of an STK payment wait for a manager (ERP), so a
+  // cashier can't credit the same money twice.
+  const where = ["t.status = ANY($1)", "t.possible_duplicate_of IS NULL"];
 
   if (from) {
     params.push(from);
@@ -68,7 +71,7 @@ exports.getTransaction = async (id) => {
 
 exports.listAllocations = async (txnId) => {
   const { rows } = await pool.query(
-    `SELECT a.id, a.allocation_type, a.bill_id, b.customer_name, a.amount,
+    `SELECT a.id, a.allocation_type, a.bill_id, b.customer_name, b.invoice_number, a.amount,
             a.tip_recipient_id, tr.name AS tip_recipient_name,
             a.allocated_at, ab.name AS allocated_by_name,
             a.reversed_at, rb.name AS reversed_by_name, a.reversal_reason
@@ -87,7 +90,7 @@ exports.listAllocations = async (txnId) => {
 /** Bills that can still take a payment, with authoritative totals. */
 exports.listPayableBills = async () => {
   const { rows } = await pool.query(
-    `SELECT b.id, b.customer_name, b.status, b.created_at, b.updated_at,
+    `SELECT b.id, b.customer_name, b.invoice_number, b.status, b.created_at, b.updated_at,
             u.name AS created_by_name,
             bt.total, bt.amount_paid, bt.pending_amount, bt.payable_amount
      FROM bills b
@@ -103,7 +106,7 @@ exports.listPayableBills = async () => {
 
 exports.getPayableBill = async (billId) => {
   const { rows } = await pool.query(
-    `SELECT b.id, b.customer_name, b.status, b.updated_at, bt.payable_amount
+    `SELECT b.id, b.customer_name, b.invoice_number, b.status, b.updated_at, bt.payable_amount
      FROM bills b
      CROSS JOIN LATERAL (SELECT * FROM bill_totals WHERE bill_id = b.id) bt
      WHERE b.id = $1`,
@@ -170,6 +173,8 @@ exports.listRegister = async ({ from, to, statuses, q, phone, limit }) => {
   if (statuses) {
     params.push(statuses);
     where.push(`t.status = ANY($${params.length})`);
+  } else {
+    where.push(`t.status <> 'linked'`); // IPN copies of STK payments: not money
   }
   if (q) where.push(searchClause(q, phone, params));
   params.push(limit);
@@ -184,9 +189,9 @@ exports.listRegister = async ({ from, to, statuses, q, phone, limit }) => {
      LEFT JOIN LATERAL (
         SELECT SUM(al.amount) FILTER (WHERE al.allocation_type = 'bill') AS bills_amount,
                SUM(al.amount) FILTER (WHERE al.allocation_type = 'tip')  AS tips_amount,
-               string_agg(DISTINCT b.customer_name, ', ') AS bill_names,
+               string_agg(DISTINCT b.customer_name || ' (' || b.invoice_number || ')', ', ') AS bill_names,
                string_agg(DISTINCT tr.name, ', ')         AS tip_names,
-               string_agg(DISTINCT ab.name, ', ')         AS matched_by
+               string_agg(DISTINCT COALESCE(ab.name, 'Automatic'), ', ') AS matched_by
         FROM mpesa_allocations al
         LEFT JOIN bills b     ON b.id = al.bill_id AND al.allocation_type = 'bill'
         LEFT JOIN profiles tr ON tr.id = al.tip_recipient_id
@@ -213,7 +218,7 @@ exports.getOpenItems = async () => {
         COALESCE(SUM(amount - allocated_amount) FILTER (WHERE receipt_journal_id IS NULL), 0) AS unjournaled_amount,
         MIN(transaction_at)                                                   AS oldest_at
      FROM mpesa_transactions
-     WHERE status <> 'allocated'`,
+     WHERE status IN ('unallocated', 'partially_allocated')`,
   );
   return rows[0];
 };
@@ -321,7 +326,8 @@ exports.getDaySummary = async (date) => {
                         WHERE al.allocation_type = 'tip' AND al.reversed_at IS NULL
                           AND (t2.transaction_at AT TIME ZONE 'Africa/Nairobi')::date = $1::date), 0) AS tips
        FROM mpesa_transactions t
-       WHERE ${EAT_DATE} = $1::date`,
+       WHERE ${EAT_DATE} = $1::date
+         AND t.status <> 'linked'`,
       [date],
     ),
     pool.query(

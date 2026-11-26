@@ -322,6 +322,7 @@ const Header = ({ title, onMenuClick }) => {
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-white truncate">
                                 {bill.customer_name || "Walk-in Customer"}
+                                {bill.invoice_number && <span className="ml-2 text-xs font-mono font-normal text-surface-400">{bill.invoice_number}</span>}
                               </p>
                               <p className="text-xs text-surface-400 mt-0.5">
                                 {new Date(bill.created_at).toLocaleDateString("en-GB", {

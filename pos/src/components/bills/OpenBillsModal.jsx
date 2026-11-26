@@ -11,6 +11,7 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
     return bills.filter(
       (bill) =>
         bill.customer_name?.toLowerCase().includes(q) ||
+        bill.invoice_number?.toLowerCase().includes(q) ||
         bill.id?.toLowerCase().includes(q),
     );
   }, [bills, search]);
@@ -117,7 +118,7 @@ const OpenBillsModal = ({ bills, onSelectBill, onClose, title }) => {
                     )}
                     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                       <p className="text-xs sm:text-sm text-gray-400">
-                        Bill #{bill?.id.slice(0, 8)}
+                        Invoice #{bill?.invoice_number}
                       </p>
                       <p className="text-xs sm:text-sm text-gray-400">
                         {new Date(bill.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Nairobi" })}

@@ -28,4 +28,8 @@ export const useAppStore = create((set, get) => ({
   // M-Pesa notifications (KCB IPN) - bumped by socket events, watched by useMpesaTransactions
   mpesaReloadTrigger: 0,
   triggerMpesaReload: () => set((state) => ({ mpesaReloadTrigger: state.mpesaReloadTrigger + 1 })),
+
+  // Latest M-Pesa Express prompt status event (socket "mpesa:stk_updated"), watched by MpesaStkPanel
+  mpesaStkEvent: null,
+  setMpesaStkEvent: (event) => set({ mpesaStkEvent: event }),
 }));

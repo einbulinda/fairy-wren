@@ -65,6 +65,48 @@ export const MpesaService = {
     }
   },
 
+  /* ── M-Pesa Express (STK Push) ── */
+
+  // GET /mpesa/stk/config → { enabled, mock, timeoutSeconds, resendCooldownSeconds, maxAmount }
+  async stkConfig() {
+    try {
+      const { data } = await api.get(`${BASE_PATH}/stk/config`);
+      return data.data;
+    } catch (error) {
+      throw normalizeError(error, "Error loading M-Pesa prompt settings.");
+    }
+  },
+
+  // POST /mpesa/stk { billId, phone, amount } → prompt
+  async stkSend(payload) {
+    try {
+      const { data } = await api.post(`${BASE_PATH}/stk`, payload);
+      return data.data;
+    } catch (error) {
+      throw normalizeError(error, "Error sending M-Pesa prompt.");
+    }
+  },
+
+  // GET /mpesa/stk/:id
+  async stkGet(id) {
+    try {
+      const { data } = await api.get(`${BASE_PATH}/stk/${id}`);
+      return data.data;
+    } catch (error) {
+      throw normalizeError(error, "Error checking M-Pesa prompt.");
+    }
+  },
+
+  // GET /mpesa/stk?billId= → latest prompts for a bill, newest first
+  async stkList(billId) {
+    try {
+      const { data } = await api.get(`${BASE_PATH}/stk`, { params: { billId } });
+      return data.data;
+    } catch (error) {
+      throw normalizeError(error, "Error loading M-Pesa prompts.");
+    }
+  },
+
   // POST /mpesa/allocations/:id/reverse
   async reverse(allocationId, reason) {
     try {

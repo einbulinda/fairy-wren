@@ -5,6 +5,17 @@ import { PaymentService } from "@/services/payment.service";
 export const canAllocateMpesa = (user) =>
   ["owner", "admin"].includes(user?.role) || !!user?.permissions?.includes("allocate_mpesa");
 
+/** KCB paybill (522533) account number. */
+export const PAYBILL_ACCOUNT = "8040662";
+
+/** Paybill account the customer types: till account + "#" + invoice number, e.g. 8040662#FWPD0Z. */
+export const paybillAccount = (invoiceNumber) =>
+  invoiceNumber ? `${PAYBILL_ACCOUNT}#${invoiceNumber}` : PAYBILL_ACCOUNT;
+
+/** Can this user send M-Pesa PIN prompts (STK Push) for a bill? */
+export const canSendStk = (user) =>
+  ["owner", "admin"].includes(user?.role) || !!user?.permissions?.includes("send_mpesa_stk");
+
 /** Can this user reverse matches and see full phone numbers? */
 export const canManageMpesa = (user) =>
   ["owner", "admin"].includes(user?.role) || !!user?.permissions?.includes("manage_mpesa");
@@ -87,4 +98,17 @@ export async function submitBillPayments(bill, lines) {
   const balanceDue = payment?.balance_due ?? (lastBill ? Number(lastBill.balance_due) : null);
 
   return { balanceDue, allocations, payment, onlyIpn: otherLines.length === 0 };
+}
+
+/**
+ * Phone as typed → KCB's 2547…/2541… form for an M-Pesa prompt, or null.
+ * Same rule as the API (stk.service normalizeStkPhone).
+ */
+export function normalizeStkPhone(input) {
+  const digits = String(input ?? "").replace(/[\s-]/g, "").replace(/^\+/, "");
+  if (!/^\d+$/.test(digits)) return null;
+  let n = digits;
+  if (/^0[17]\d{8}$/.test(n)) n = `254${n.slice(1)}`;
+  else if (/^[17]\d{8}$/.test(n)) n = `254${n}`;
+  return /^254[17]\d{8}$/.test(n) ? n : null;
 }

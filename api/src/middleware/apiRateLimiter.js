@@ -8,7 +8,7 @@ const apiRateLimiter = rateLimit({
 
   // Bank callbacks have their own limiter (kcb.routes.js); bursts of
   // payments at peak must never be rejected with a 429.
-  skip: (req) => req.path.startsWith("/integrations/kcb/"),
+  skip: (req) => req.path.startsWith("/integrations/kcb/") || req.path.startsWith("/kcb/"),
 
   message: {
     success: false,

@@ -181,7 +181,8 @@ exports.findSalesHistory = async (productId, { from, to } = {}) => {
          r.round_number AS round_number,
          r.bill_id      AS bill_id,
          r.created_at   AS sale_date,
-         b.customer_name
+         b.customer_name,
+         b.invoice_number AS bill_invoice_number
        FROM round_items ri
        ${joinType} rounds r ON r.id = ri.round_id
        LEFT JOIN bills b ON b.id = r.bill_id
@@ -197,6 +198,7 @@ exports.findSalesHistory = async (productId, { from, to } = {}) => {
       round_id: item.round_id,
       round_number: item.round_number,
       bill_id: item.bill_id,
+      bill_invoice_number: item.bill_invoice_number ?? null,
       sale_date: item.sale_date,
       customer_name: item.customer_name ?? null,
     }));
@@ -231,6 +233,7 @@ exports.findProductStatement = async (productId, { from, to } = {}) => {
          im.created_at,
          CASE WHEN im.reference_type = 'round' THEN b.customer_name END AS customer_name,
          CASE WHEN im.reference_type = 'round' THEN r.bill_id::text END AS bill_id,
+         CASE WHEN im.reference_type = 'round' THEN b.invoice_number END AS bill_invoice_number,
          CASE WHEN im.reference_type = 'inventory_receipt' THEN ir.invoice_number END AS invoice_number,
          CASE WHEN im.reference_type = 'inventory_receipt' THEN s.name END AS supplier_name,
          CASE WHEN im.reference_type = 'stock_take' THEN st.stock_take_name END AS stock_take_name,
@@ -265,6 +268,7 @@ exports.findProductStatement = async (productId, { from, to } = {}) => {
         unit_cost: row.unit_cost ? Number(row.unit_cost) : null,
         customer_name: row.customer_name ?? null,
         bill_id: row.bill_id ?? null,
+        bill_invoice_number: row.bill_invoice_number ?? null,
         invoice_number: row.invoice_number ?? null,
         supplier_name: row.supplier_name ?? null,
         stock_take_name: row.stock_take_name ?? null,
