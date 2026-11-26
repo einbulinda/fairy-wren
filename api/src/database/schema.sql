@@ -622,12 +622,15 @@ CREATE TABLE IF NOT EXISTS public.bank_statements (
     opening_balance numeric(15, 2) NOT NULL DEFAULT 0,
     closing_balance numeric(15, 2) NOT NULL DEFAULT 0,
     description text,
+    file_name text,
+    notes text,
     status varchar(20) DEFAULT 'draft' CHECK (status IN ('draft', 'reconciled', 'cancelled')),
     imported_by uuid REFERENCES public.profiles(id),
     reconciled_by uuid REFERENCES public.profiles(id),
     reconciled_at timestamptz,
     created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now()
+    updated_at timestamptz DEFAULT now(),
+    CONSTRAINT bank_statements_period_check CHECK (end_date >= start_date)
 );
 
 CREATE INDEX idx_bank_statements_account_date ON public.bank_statements(bank_account_id, statement_date DESC);
@@ -644,15 +647,18 @@ CREATE TABLE IF NOT EXISTS public.bank_statement_lines (
     transaction_date date NOT NULL,
     description text,
     reference varchar(100),
-    deposit numeric(15, 2) DEFAULT 0,
-    withdrawal numeric(15, 2) DEFAULT 0,
-    match_status varchar(20) DEFAULT 'unmatched' CHECK (match_status IN ('unmatched', 'matched', 'adjusted')),
+    deposit numeric(15, 2) NOT NULL DEFAULT 0,
+    withdrawal numeric(15, 2) NOT NULL DEFAULT 0,
+    line_number integer,
+    match_status varchar(20) DEFAULT 'unmatched'
+        CHECK (match_status IN ('unmatched', 'matched', 'adjusted', 'disputed', 'ignored')),
     matched_transaction_id uuid,
     matched_transaction_type varchar(50),
     matched_by uuid REFERENCES public.profiles(id),
     matched_at timestamptz,
     match_notes text,
-    created_at timestamptz DEFAULT now()
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT bank_statement_lines_amounts_check CHECK (deposit >= 0 AND withdrawal >= 0)
 );
 
 CREATE INDEX idx_bank_statement_lines_statement_id ON public.bank_statement_lines(statement_id);

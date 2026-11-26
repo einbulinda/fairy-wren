@@ -73,6 +73,7 @@ exports.importStatement = async (req, res, next) => {
       closingBalance,
       lines,
       description: description || `Statement ${startDate} to ${endDate}`,
+      fileName: req.body.fileName,
       userId: req.user.id,
     });
 
@@ -124,7 +125,13 @@ exports.manualMatch = async (req, res, next) => {
       return res.status(400).json({ error: "JOURNAL_ENTRY_ID_REQUIRED" });
     }
 
-    const result = await bankReconciliationService.manualMatch(id, lineId, journalEntryId, adjustmentAmount);
+    const result = await bankReconciliationService.manualMatch(
+      id,
+      lineId,
+      journalEntryId,
+      adjustmentAmount,
+      req.user.id
+    );
 
     await auditRepo.log({
       entity: "bank_statement_lines",

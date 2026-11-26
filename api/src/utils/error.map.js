@@ -494,6 +494,14 @@ const ERROR_MAP = {
   FAILED_TO_VOID_CHEQUE: { status: 500, message: "Failed to void cheque" },
 
   // ===== M-PESA (KCB IPN) =====
+  // ===== BANK RECONCILIATION =====
+  STATEMENT_NOT_FOUND: { status: 404, message: "Bank statement not found" },
+  STATEMENT_LINE_NOT_FOUND: { status: 404, message: "Statement line not found" },
+  INVALID_BANK_ACCOUNT: { status: 400, message: "Invalid or inactive bank account" },
+  INVALID_STATEMENT_PERIOD: { status: 400, message: "Statement end date must be on or after the start date" },
+  STATEMENT_LINES_REQUIRED: { status: 400, message: "The statement has no transaction lines" },
+  CANNOT_FINALIZE_WITH_UNMATCHED_LINES: { status: 400, message: "Match every statement line before finalising" },
+
   MPESA_TRANSACTION_NOT_FOUND: { status: 404, message: "M-Pesa payment not found" },
   MPESA_ALLOCATION_NOT_FOUND: { status: 404, message: "M-Pesa allocation not found" },
   MPESA_BILL_NOT_FOUND: { status: 404, message: "Bill not found" },

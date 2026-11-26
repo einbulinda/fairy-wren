@@ -43,13 +43,16 @@ exports.listStatements = async (filters = {}) => {
   return rows || [];
 };
 
+// rpc_get_bank_reconciliation returns one jsonb value ({statement, lines});
+// alias it so we return the object itself, not a { rpc_...: {...} } row.
 exports.getStatement = async (id) => {
   const { rows } = await pool.query(
-    `SELECT * FROM rpc_get_bank_reconciliation($1, $2)`,
-    [null, id]
+    `SELECT rpc_get_bank_reconciliation(NULL, $1) AS data`,
+    [id]
   );
-  if (!rows) throw new Error("FAILED_TO_FETCH_STATEMENT");
-  return rows;
+  const data = rows[0]?.data;
+  if (!data) throw new Error("STATEMENT_NOT_FOUND");
+  return data;
 };
 
 exports.getStatementWithLines = async (id) => {
@@ -58,11 +61,10 @@ exports.getStatementWithLines = async (id) => {
 
 exports.getStatementByAccount = async (bankAccountId) => {
   const { rows } = await pool.query(
-    `SELECT * FROM rpc_get_bank_reconciliation($1, $2)`,
-    [bankAccountId, null]
+    `SELECT rpc_get_bank_reconciliation($1, NULL) AS data`,
+    [bankAccountId]
   );
-  if (!rows) throw new Error("FAILED_TO_FETCH_STATEMENT");
-  return rows;
+  return rows[0]?.data || null;
 };
 
 exports.importStatement = async (payload) => {
@@ -96,16 +98,18 @@ exports.importStatement = async (payload) => {
   let rows;
   try {
     const result = await pool.query(
-      `SELECT * FROM import_bank_statement($1, $2, $3, $4, $5, $6::jsonb, $7, $8)`,
+      `SELECT import_bank_statement($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10) AS id`,
       [
         bankAccountId,
         statementDate,
+        startDate,
+        endDate,
         description || `Statement ${startDate} to ${endDate}`,
         openingBalance,
         closingBalance,
         JSON.stringify(formattedLines),
         userId,
-        null,
+        payload.fileName || null,
       ]
     );
     rows = result.rows;
@@ -114,46 +118,44 @@ exports.importStatement = async (payload) => {
     throw new Error(err.message || "FAILED_TO_IMPORT_STATEMENT");
   }
 
-  // rows[0] is the statement_id from the RPC; return a shaped object
-  return { id: rows[0], success: true };
+  return { id: rows[0].id, success: true };
 };
 
 exports.autoMatch = async (statementId, opts = {}) => {
   logger.info("Auto-matching statement lines", { statementId });
 
-  let rows;
+  const dateTolerance = Number.isInteger(opts.dateTolerance) && opts.dateTolerance >= 0
+    ? opts.dateTolerance
+    : 2;
+
   try {
-    const result = await pool.query(
-      `SELECT * FROM auto_match_bank_statement($1, $2)`,
-      [statementId, 0.01]
+    const { rows } = await pool.query(
+      `SELECT auto_match_bank_statement($1, $2, $3) AS result`,
+      [statementId, 0.01, dateTolerance]
     );
-    rows = result.rows;
+    return rows[0].result; // { matched, unmatched }
   } catch (err) {
     logger.error("Auto-match failed", { error: err.message });
     throw new Error(err.message || "FAILED_TO_AUTO_MATCH");
   }
-
-  return rows;
 };
 
-exports.manualMatch = async (statementId, lineId, journalEntryId, adjustmentAmount) => {
-  let rows;
+exports.manualMatch = async (statementId, lineId, journalEntryId, adjustmentAmount, userId = null) => {
   try {
-    const result = await pool.query(
-      `SELECT * FROM manual_match_statement_line($1, $2, $3, $4, $5)`,
+    const { rows } = await pool.query(
+      `SELECT manual_match_statement_line($1, $2, $3, $4, $5) AS result`,
       [
         lineId,
         journalEntryId,
         "journal_entry",
-        null,
+        userId,
         adjustmentAmount ? `Adjustment: ${adjustmentAmount}` : null,
       ]
     );
-    rows = result.rows;
+    return rows[0].result;
   } catch (err) {
     throw new Error(err.message || "FAILED_TO_MANUAL_MATCH");
   }
-  return rows;
 };
 
 exports.unmatchLine = async (statementId, lineId) => {

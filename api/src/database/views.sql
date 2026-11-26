@@ -340,39 +340,79 @@ FROM pg_stat_statements(true) pg_stat_statements(
  ============================================================================
  */
 
+-- Source of truth: migrations/20261126_001_bank_reconciliation_realign.sql
+-- Every bank-account journal line not yet matched to a statement line.
+-- (The previous version only listed cheque/payment/manual journals, which
+-- hid supplier payments and M-Pesa receipts from matching.)
 CREATE OR REPLACE VIEW public.v_unreconciled_bank_transactions AS
 SELECT
-    jl.id AS journal_line_id,
-    je.id AS journal_entry_id,
+    jl.id                                         AS journal_line_id,
+    je.id                                         AS journal_entry_id,
     je.entry_date,
     je.reference,
-    je.description AS entry_description,
+    je.description,
+    je.description                                AS entry_description,
+    je.source_type,
+    je.source_id,
     jl.account_id,
+    coa.code                                      AS account_code,
+    coa.name                                      AS account_name,
     jl.debit,
     jl.credit,
-    COALESCE(jl.debit, 0) - COALESCE(jl.credit, 0) AS net_amount,
-    je.source_type,
-    je.source_id
+    COALESCE(jl.debit, 0) - COALESCE(jl.credit, 0) AS net_amount
 FROM journal_lines jl
-JOIN journal_entries je ON je.id = jl.journal_entry_id
-LEFT JOIN bank_statement_lines bsl ON bsl.matched_transaction_id = je.id
-    AND bsl.matched_transaction_type = 'journal_entry'
-    AND bsl.match_status = 'matched'
-WHERE bsl.id IS NULL;
+JOIN journal_entries je   ON je.id = jl.journal_entry_id
+JOIN chart_of_accounts coa ON coa.id = jl.account_id
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM bank_statement_lines bsl
+    JOIN bank_statements bs ON bs.id = bsl.statement_id
+    WHERE bsl.matched_transaction_id = je.id
+      AND bsl.matched_transaction_type = 'journal_entry'
+      AND bsl.match_status IN ('matched', 'adjusted')
+      AND bs.status <> 'cancelled'
+);
 
+-- One row per statement: line totals, match counts, and the GL balance of
+-- the bank account at the statement end date.
 CREATE OR REPLACE VIEW public.v_bank_reconciliation_summary AS
 SELECT
-    bs.id AS statement_id,
+    bs.id                 AS statement_id,
     bs.bank_account_id,
+    coa.code              AS bank_account_code,
+    coa.name              AS bank_account_name,
     bs.statement_date,
+    bs.start_date,
+    bs.end_date,
+    bs.description,
     bs.opening_balance,
     bs.closing_balance,
     bs.status,
-    COALESCE(SUM(bsl.deposit), 0) AS total_deposits,
-    COALESCE(SUM(bsl.withdrawal), 0) AS total_withdrawals,
-    COUNT(*) FILTER (WHERE bsl.match_status = 'matched') AS matched_count,
-    COUNT(*) FILTER (WHERE bsl.match_status = 'unmatched') AS unmatched_count,
-    COUNT(*) FILTER (WHERE bsl.match_status = 'adjusted') AS adjusted_count
+    bs.reconciled_at,
+    COALESCE(l.total_deposits, 0)    AS total_deposits,
+    COALESCE(l.total_withdrawals, 0) AS total_withdrawals,
+    COALESCE(l.total_lines, 0)       AS total_lines,
+    COALESCE(l.matched_count, 0)     AS matched_count,
+    COALESCE(l.unmatched_count, 0)   AS unmatched_count,
+    COALESCE(l.adjusted_count, 0)    AS adjusted_count,
+    COALESCE(gl.gl_balance, 0)       AS gl_balance,
+    bs.closing_balance - COALESCE(gl.gl_balance, 0) AS variance
 FROM bank_statements bs
-LEFT JOIN bank_statement_lines bsl ON bsl.statement_id = bs.id
-GROUP BY bs.id, bs.bank_account_id, bs.statement_date, bs.opening_balance, bs.closing_balance, bs.status;
+JOIN chart_of_accounts coa ON coa.id = bs.bank_account_id
+LEFT JOIN LATERAL (
+    SELECT SUM(bsl.deposit)    AS total_deposits,
+           SUM(bsl.withdrawal) AS total_withdrawals,
+           COUNT(*)            AS total_lines,
+           COUNT(*) FILTER (WHERE bsl.match_status = 'matched')   AS matched_count,
+           COUNT(*) FILTER (WHERE bsl.match_status = 'unmatched') AS unmatched_count,
+           COUNT(*) FILTER (WHERE bsl.match_status = 'adjusted')  AS adjusted_count
+    FROM bank_statement_lines bsl
+    WHERE bsl.statement_id = bs.id
+) l ON true
+LEFT JOIN LATERAL (
+    SELECT SUM(COALESCE(jl.debit, 0) - COALESCE(jl.credit, 0)) AS gl_balance
+    FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl.journal_entry_id
+    WHERE jl.account_id = bs.bank_account_id
+      AND je.entry_date <= bs.end_date
+) gl ON true;
