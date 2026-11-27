@@ -184,6 +184,8 @@ async function stkPush(p) {
     statusCode: header.statusCode,
     statusMessage: header.statusDescription ?? header.statusMessage,
     merchantRequestId: response.MerchantRequestID,
+    // KCB's own explanation when it says no (e.g. gateway 401 code/description)
+    ...(accepted ? {} : { body: json ?? text }),
   });
 
   if (!accepted) {

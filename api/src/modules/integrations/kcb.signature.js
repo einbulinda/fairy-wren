@@ -6,9 +6,11 @@ const path = require("path");
  * KCB signs every IPN body with SHA256withRSA and sends the base64 signature
  * in the `Signature` HTTP header. We verify it with the public key KCB issues.
  *
- * Key config (first match wins):
- *   KCB_IPN_PUBLIC_KEY       PEM text (newlines may be escaped as \n)
- *   KCB_IPN_PUBLIC_KEY_PATH  path to a PEM file (relative to the api/ folder)
+ * Key config:
+ *   KCB_IPN_PUBLIC_KEY_PATH  path to KCB's PEM file (public key or certificate).
+ *                            Absolute in production (/etc/fairywren/...), outside
+ *                            the deploy folder that rsync --delete wipes; a
+ *                            relative path is taken from the api/ folder.
  *
  * KCB_IPN_VERIFY_SIGNATURE=false disables verification for local development
  * only; it is ignored when NODE_ENV=production.
@@ -18,19 +20,13 @@ let cachedKey = null;
 let cachedFrom = null;
 
 function loadPublicKey() {
-  const inline = process.env.KCB_IPN_PUBLIC_KEY;
   const keyPath = process.env.KCB_IPN_PUBLIC_KEY_PATH;
-  const from = inline ? `inline:${inline.length}` : keyPath ? `path:${keyPath}` : null;
+  if (!keyPath) return null;
+  if (cachedKey && cachedFrom === keyPath) return cachedKey;
 
-  if (!from) return null;
-  if (cachedKey && cachedFrom === from) return cachedKey;
-
-  const pem = inline
-    ? inline.replace(/\\n/g, "\n")
-    : fs.readFileSync(path.resolve(__dirname, "../../..", keyPath), "utf8");
-
+  const pem = fs.readFileSync(path.resolve(__dirname, "../../..", keyPath), "utf8");
   cachedKey = crypto.createPublicKey(pem);
-  cachedFrom = from;
+  cachedFrom = keyPath;
   return cachedKey;
 }
 

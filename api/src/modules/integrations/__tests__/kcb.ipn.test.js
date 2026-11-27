@@ -1,4 +1,7 @@
 const crypto = require("crypto");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 const express = require("express");
 const request = require("supertest");
 
@@ -28,6 +31,7 @@ const kcbRoutes = require("../kcb.routes");
 
 let privateKey;
 let otherPrivateKey;
+let keyFile;
 
 const sign = (data, key = privateKey) =>
   crypto.sign("sha256", Buffer.from(data), key).toString("base64");
@@ -84,7 +88,9 @@ beforeAll(() => {
   const pair = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
   privateKey = pair.privateKey;
   otherPrivateKey = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey;
-  process.env.KCB_IPN_PUBLIC_KEY = pair.publicKey.export({ type: "spki", format: "pem" });
+  keyFile = path.join(os.tmpdir(), `kcb-ipn-test-${process.pid}.pem`);
+  fs.writeFileSync(keyFile, pair.publicKey.export({ type: "spki", format: "pem" }));
+  process.env.KCB_IPN_PUBLIC_KEY_PATH = keyFile;
 }, 20000);
 
 beforeEach(() => {
@@ -97,8 +103,9 @@ beforeEach(() => {
 });
 
 afterAll(() => {
-  delete process.env.KCB_IPN_PUBLIC_KEY;
+  delete process.env.KCB_IPN_PUBLIC_KEY_PATH;
   delete process.env.KCB_IPN_POST_RECEIPT_JOURNAL;
+  fs.rmSync(keyFile, { force: true });
 });
 
 /* ======================================================
@@ -136,11 +143,11 @@ describe("kcb.signature", () => {
   });
 
   it("rejects everything when no public key is configured", () => {
-    const saved = process.env.KCB_IPN_PUBLIC_KEY;
-    delete process.env.KCB_IPN_PUBLIC_KEY;
+    const saved = process.env.KCB_IPN_PUBLIC_KEY_PATH;
+    delete process.env.KCB_IPN_PUBLIC_KEY_PATH;
     _resetKeyCache();
     const res = verifySignature({ rawBody: Buffer.from(body), signature: sign(body) });
-    process.env.KCB_IPN_PUBLIC_KEY = saved;
+    process.env.KCB_IPN_PUBLIC_KEY_PATH = saved;
     expect(res).toEqual({ valid: false, reason: "PUBLIC_KEY_NOT_CONFIGURED" });
   });
 

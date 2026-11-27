@@ -184,7 +184,7 @@ Request pipeline:
 2. **Rate limiting:** skip `apiRateLimiter` for this path (`skip: req => req.path.startsWith("/integrations/kcb/ipn")`)
    and apply a generous dedicated limiter.
 3. **`kcb.signature.js`:** `crypto.createVerify("RSA-SHA256").update(req.rawBody).verify(publicKeyPem, sig, "base64")`.
-   The public key PEM is loaded from env `KCB_IPN_PUBLIC_KEY` (or `KCB_IPN_PUBLIC_KEY_PATH`) and cached.
+   The public key PEM is loaded from the file at `KCB_IPN_PUBLIC_KEY_PATH` and cached (inline-PEM env support removed 2026-11-27).
    On failure, return HTTP 200 with `statusCode "1"`, `statusMessage "Invalid signature"`, and log it.
    (Confirm with KCB whether they prefer 401; the spec's error format suggests always 200 + code.)
    Add a `KCB_IPN_VERIFY_SIGNATURE=false` escape hatch for **local dev only**, refused when `NODE_ENV=production`.
@@ -309,7 +309,7 @@ In `pg.subscriber.js`, handle `mpesa_transactions`:
 
 ### Config (`.env`)
 ```
-KCB_IPN_PUBLIC_KEY_PATH=./keys/kcb_ipn_public.pem   # or KCB_IPN_PUBLIC_KEY (PEM, \n-escaped)
+KCB_IPN_PUBLIC_KEY_PATH=/etc/fairywren/kcb_ipn_public.pem   # production; outside the rsync --delete deploy folder
 KCB_IPN_VERIFY_SIGNATURE=true                        # false allowed only when NODE_ENV!=production
 KCB_TILL_BUSINESS_KEY=xxxxxx                         # reject/flag IPNs for other tills
 KCB_IPN_ALLOWED_IPS=                                  # optional, comma-separated
@@ -368,7 +368,7 @@ are no-ops.
 Response codes (to confirm with KCB in UAT): `200` + `"0"` stored or duplicate · `401` + `"1"` bad
 or missing signature · `400` + `"1"` invalid payload · `500` + `"1"` temporary failure (KCB should retry).
 
-**Env:** `KCB_IPN_PUBLIC_KEY_PATH` (or `KCB_IPN_PUBLIC_KEY`). With no key configured, every
+**Env:** `KCB_IPN_PUBLIC_KEY_PATH` (a PEM file). With no key configured, every
 notification is rejected. `KCB_IPN_VERIFY_SIGNATURE=false` works only outside production.
 
 ### Phase 3 — built (2026-11-17)
