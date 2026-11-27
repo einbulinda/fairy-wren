@@ -15,7 +15,7 @@
 6. [Stock Take](#6-stock-take)
 7. [Z-Report](#7-z-report)
 8. [Weekly Sales](#8-weekly-sales)
-9. [Switching to Beta UI](#9-switching-to-beta-ui)
+9. [M-Pesa Payments](#9-m-pesa-payments)
 10. [Quick Reference](#10-quick-reference)
 
 ---
@@ -250,15 +250,23 @@ Use the **week selector** to navigate between weeks, and the **month selector** 
 
 ---
 
-## 9. Switching to Beta UI
+## 9. M-Pesa Payments
 
-The POS has an alternate **Beta UI** with a darker, more modern layout.
+**M-Pesa Payments** in the menu (next to Z Report) lists every M-Pesa payment received in the last 48 hours. It is available to staff who can match M-Pesa payments.
 
-To toggle it:
-1. Open your account/profile settings (top-right corner).
-2. Enable the **Beta UI** toggle.
+At the top:
+- **Received**: the total and the number of payments.
+- **Applied to bills**.
+- **Bills closed**.
+- **Still owing**: the total and the number of bills.
+- **Excess**: tips, deposits and money not matched yet.
 
-The Beta UI has the same functionality as the classic view — orders, payments, open bills, stock take, and Z-Report all work identically. The layout is restructured with a split-screen design suited for larger tablet displays.
+Each payment shows:
+- the M-Pesa code, the payer's name and a masked phone number (e.g. `07****827`), the time, and the amount;
+- each bill it paid: the customer name and invoice number, with **Closed** or **Owes KSh …**;
+- any excess: a tip (and who got it), a deposit, or money that is **Not matched**.
+
+Use the filters (Closed a bill, Bill still owing, Excess, Not matched) or search by M-Pesa code, payer, customer, invoice number or the last digits of the phone number. The page updates by itself when payments arrive or are matched.
 
 ---
 

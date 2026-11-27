@@ -17,6 +17,9 @@ router.get("/stk", requirePermission("send_mpesa_stk"), controller.listStkReques
 router.post("/stk", requirePermission("send_mpesa_stk"), controller.initiateStk);
 router.get("/stk/:id", requirePermission("send_mpesa_stk"), controller.getStkRequest);
 
+// POS "M-Pesa Payments": last 48 hours, bills closed / still owing, excess (masked numbers)
+router.get("/recent", requirePermission("allocate_mpesa"), controller.getRecent);
+
 // Who a tip can be given to (cashiers can't use /users, which is manager-only)
 router.get("/staff", requirePermission("allocate_mpesa"), controller.listStaff);
 

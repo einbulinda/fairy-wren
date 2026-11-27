@@ -206,6 +206,57 @@ exports.listRegister = async ({ from, to, statuses, q, phone, limit }) => {
   return rows;
 };
 
+/**
+ * POS "M-Pesa Payments": notifications received in the last `hours`, each with
+ * the bills it paid (active allocations) and those bills' current totals.
+ * IPN copies of STK payments ('linked') are not money and are left out.
+ */
+exports.listRecent = async ({ hours, limit }) => {
+  const { rows } = await pool.query(
+    `SELECT ${TXN_COLUMNS},
+            COALESCE(bl.bills, '[]'::json) AS bills,
+            COALESCE(tp.tips_amount, 0)    AS tips_amount,
+            tp.tip_names,
+            mb.matched_by
+     FROM mpesa_transactions t
+     LEFT JOIN LATERAL (
+        SELECT json_agg(json_build_object(
+                   'bill_id', b.id,
+                   'invoice_number', b.invoice_number,
+                   'customer_name', b.customer_name,
+                   'status', b.status,
+                   'applied', x.amount,
+                   'total', bt.total,
+                   'balance_due', bt.balance_due)
+                 ORDER BY b.created_at) AS bills
+        FROM (SELECT bill_id, SUM(amount) AS amount
+              FROM mpesa_allocations
+              WHERE mpesa_transaction_id = t.id AND allocation_type = 'bill' AND reversed_at IS NULL
+              GROUP BY bill_id) x
+        JOIN bills b        ON b.id = x.bill_id
+        JOIN bill_totals bt ON bt.bill_id = b.id
+     ) bl ON true
+     LEFT JOIN LATERAL (
+        SELECT SUM(al.amount) AS tips_amount, string_agg(DISTINCT pr.name, ', ') AS tip_names
+        FROM mpesa_allocations al
+        LEFT JOIN profiles pr ON pr.id = al.tip_recipient_id
+        WHERE al.mpesa_transaction_id = t.id AND al.allocation_type = 'tip' AND al.reversed_at IS NULL
+     ) tp ON true
+     LEFT JOIN LATERAL (
+        SELECT string_agg(DISTINCT COALESCE(ab.name, 'Automatic'), ', ') AS matched_by
+        FROM mpesa_allocations al
+        LEFT JOIN profiles ab ON ab.id = al.allocated_by
+        WHERE al.mpesa_transaction_id = t.id AND al.reversed_at IS NULL
+     ) mb ON true
+     WHERE t.transaction_at >= now() - make_interval(hours => $1)
+       AND t.status <> 'linked'
+     ORDER BY t.transaction_at DESC
+     LIMIT $2`,
+    [hours, limit],
+  );
+  return rows;
+};
+
 /** Current open items: unmatched money and deposits (whatever is still left on notifications). */
 exports.getOpenItems = async () => {
   const { rows } = await pool.query(

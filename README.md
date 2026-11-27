@@ -168,7 +168,7 @@ The staff-facing point-of-sale terminal. Designed for bartenders and floor staff
 - **Z-Report** — End-of-day sales reconciliation with payment breakdown, outstanding bills movement, and drill-down modals
 - **Weekly sales view** — Sales analytics by week and day
 - **Real-time sync** — Live bill and inventory updates via WebSocket
-- **Beta UI** — Alternate dark UI toggle available per user preference
+- **M-Pesa payments** — Last 48 hours of M-Pesa payments: bills closed, balances still owing, excess (tips, deposits, unmatched)
 
 ### Pages
 

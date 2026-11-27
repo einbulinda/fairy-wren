@@ -7,7 +7,6 @@ import {
   ShoppingCart,
   ClipboardCheck,
   Receipt,
-  Sparkles,
   Sun,
   Moon,
   BarChart3,
@@ -18,10 +17,10 @@ import {
   Truck,
   ArrowLeftRight,
   FileCheck,
+  Smartphone,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import fwLogo from "/fairy-logo-only.png";
-import ConfirmModal from "@/components/shared/ConfirmModal";
 import MpesaInboxButton from "@/components/mpesa/MpesaInbox";
 
 import POSScreen from "@/pages/POSScreen";
@@ -32,6 +31,8 @@ import StockTakeReportsView from "@/pages/StockTakeReportsView";
 import ReceiveStockScreen from "@/pages/ReceiveStockScreen";
 import MyReceiptsView from "@/pages/MyReceiptsView";
 import RecordExchangeScreen from "@/pages/RecordExchangeScreen";
+import MpesaPaymentsView from "@/pages/MpesaPaymentsView";
+import { canAllocateMpesa } from "@/utils/mpesa";
 import { useBills } from "@/hooks/useBills";
 import { useMyBillStats } from "@/hooks/useMyBillStats";
 import { formatCurrency } from "@/utils/common";
@@ -39,11 +40,10 @@ import { formatCurrency } from "@/utils/common";
 const getStorageKey = (role) => `fw_lastSeen_${role}`;
 
 const MainLayout = () => {
-  const { user, logout, switchUiVersion } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showSwitchUiConfirm, setShowSwitchUiConfirm] = useState(false);
   const [currentView, setCurrentView] = useState("pos");
   const [posSubView, setPosSubView] = useState("sale");
   const [pendingConfirmCount, setPendingConfirmCount] = useState(0);
@@ -65,6 +65,8 @@ const MainLayout = () => {
       items.push({ id: "stock-take", label: "Stock Take", icon: ClipboardCheck, view: "stock-take" });
     if (perms.includes("z_report"))
       items.push({ id: "z-report", label: "Z Report", icon: Receipt, view: "z-report" });
+    if (canAllocateMpesa(user))
+      items.push({ id: "mpesa-payments", label: "M-Pesa Payments", icon: Smartphone, view: "mpesa-payments" });
     if (perms.includes("weekly_sales"))
       items.push({ id: "weekly-sales", label: "Weekly Sales", icon: BarChart3, view: "weekly-sales" });
     if (perms.includes("stocktake_reports"))
@@ -76,7 +78,7 @@ const MainLayout = () => {
     if (perms.includes("manage_exchanges"))
       items.push({ id: "exchanges", label: "Product Exchanges", icon: ArrowLeftRight, view: "exchanges" });
     return items;
-  }, [user.permissions]);
+  }, [user]);
 
   // Desktop top-tab nav (flat — Customer Bills is a top-level tab)
   const desktopTabs = useMemo(() => {
@@ -93,6 +95,8 @@ const MainLayout = () => {
       tabs.push({ id: "stock-take", label: "Stock Take", icon: ClipboardCheck, view: "stock-take" });
     if (perms.includes("z_report"))
       tabs.push({ id: "z-report", label: "Z Report", icon: Receipt, view: "z-report" });
+    if (canAllocateMpesa(user))
+      tabs.push({ id: "mpesa-payments", label: "M-Pesa Payments", icon: Smartphone, view: "mpesa-payments" });
     if (perms.includes("weekly_sales"))
       tabs.push({ id: "weekly-sales", label: "Weekly Sales", icon: BarChart3, view: "weekly-sales" });
     if (perms.includes("stocktake_reports"))
@@ -104,7 +108,7 @@ const MainLayout = () => {
     if (perms.includes("manage_exchanges"))
       tabs.push({ id: "exchanges", label: "Product Exchanges", icon: ArrowLeftRight, view: "exchanges" });
     return tabs;
-  }, [user.permissions]);
+  }, [user]);
 
   const isTabActive = (tab) =>
     tab.subView
@@ -120,6 +124,7 @@ const MainLayout = () => {
   useEffect(() => {
     const saved = localStorage.getItem(getStorageKey(user.role));
     const allowed = ["pos", "stock-take", "z-report", "weekly-sales", "stocktake-reports", "receive-stock", "my-receipts", "exchanges"];
+    if (canAllocateMpesa(user)) allowed.push("mpesa-payments");
     if (saved && allowed.includes(saved)) {
       setCurrentView(saved);
     } else {
@@ -128,7 +133,7 @@ const MainLayout = () => {
       else if (perms.includes("stock_take")) setCurrentView("stock-take");
       else if (perms.includes("z_report")) setCurrentView("z-report");
     }
-  }, [user.role, user.permissions]);
+  }, [user]);
 
   useEffect(() => {
     if (currentView) localStorage.setItem(getStorageKey(user.role), currentView);
@@ -181,6 +186,8 @@ const MainLayout = () => {
         return <MyReceiptsView />;
       case "exchanges":
         return <RecordExchangeScreen />;
+      case "mpesa-payments":
+        return <MpesaPaymentsView />;
       default:
         return null;
     }
@@ -354,7 +361,7 @@ const MainLayout = () => {
             })}
           </nav>
 
-          {/* Sidebar footer: user + beta switch */}
+          {/* Sidebar footer: user */}
           <div className="shrink-0 border-t border-gray-700/50 p-3 space-y-2">
             <div className="flex items-center gap-2 px-2 py-1.5 bg-gray-800/50 rounded-lg">
               <User size={15} className="text-yellow-400 shrink-0" />
@@ -363,13 +370,6 @@ const MainLayout = () => {
                 <p className="text-[10px] text-gray-400 uppercase mt-0.5">{user.role}</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowSwitchUiConfirm(true)}
-              className="w-full flex items-center gap-2 px-3 py-2 bg-linear-to-r from-pink-500/20 to-purple-600/20 hover:from-pink-500/30 hover:to-purple-600/30 border border-pink-500/30 rounded-lg text-xs font-medium text-pink-300 transition-colors"
-            >
-              <Sparkles size={14} />
-              Switch to Beta UI
-            </button>
           </div>
         </aside>
 
@@ -388,22 +388,6 @@ const MainLayout = () => {
         </main>
       </div>
 
-      {/* UI Switch Confirmation Modal */}
-      {showSwitchUiConfirm && (
-        <ConfirmModal
-          title="Switch to Beta UI?"
-          message="Try the new nightclub-optimized interface with improved mobile experience."
-          confirmLabel="Switch to Beta"
-          cancelLabel="Stay on Classic"
-          variant="danger"
-          onConfirm={() => {
-            switchUiVersion("beta");
-            setShowSwitchUiConfirm(false);
-            toast.success("Switched to Beta UI");
-          }}
-          onCancel={() => setShowSwitchUiConfirm(false)}
-        />
-      )}
     </div>
   );
 };

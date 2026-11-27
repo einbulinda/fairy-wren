@@ -6,12 +6,11 @@ import { useRealtimeSync } from "./hooks/useRealtimeSync";
 import { useAppStore } from "./store/app.store";
 import LoginScreen from "./pages/LoginScreen";
 import MainLayout from "./components/layout/MainLayout";
-import BetaMainLayout from "./beta/layout/BetaMainLayout";
 import { Toaster } from "react-hot-toast";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
 import { ThemeProvider } from "./context/ThemeProvider";
 
-const AuthenticatedContent = ({ uiVersion }) => {
+const AuthenticatedContent = () => {
   // Get the trigger function from the store
   const triggerBillsReload = useAppStore((state) => state.triggerBillsReload);
 
@@ -38,19 +37,18 @@ const AuthenticatedContent = ({ uiVersion }) => {
 
   console.log("[App] Real-time sync status:", isConnected ? "connected" : "disconnected");
 
-  // Render appropriate UI version based on user selection
-  return uiVersion === "beta" ? <BetaMainLayout /> : <MainLayout />;
+  return <MainLayout />;
 };
 
 const AppContent = () => {
-  const { user, uiVersion } = useAuth();
+  const { user } = useAuth();
 
   if (!user) {
     return <LoginScreen />;
   }
 
   // Only render authenticated content (with hooks) when logged in
-  return <AuthenticatedContent uiVersion={uiVersion} />;
+  return <AuthenticatedContent />;
 };
 
 const ThemedContent = () => {

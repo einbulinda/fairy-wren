@@ -42,6 +42,14 @@ exports.allocate = async (req, res, next) => {
   }
 };
 
+exports.getRecent = async (req, res, next) => {
+  try {
+    respond(res, 200, await service.getRecent());
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getRegister = async (req, res, next) => {
   try {
     respond(res, 200, await service.getRegister(req.query, buildContext(req)));

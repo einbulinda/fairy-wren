@@ -21,6 +21,16 @@ export const MpesaService = {
     }
   },
 
+  // GET /mpesa/recent → { hours, items, totals, truncated } (last 48 h, masked numbers)
+  async recent() {
+    try {
+      const { data } = await api.get(`${BASE_PATH}/recent`);
+      return data.data;
+    } catch (error) {
+      throw normalizeError(error, "Error fetching recent M-Pesa payments.");
+    }
+  },
+
   // GET /mpesa/transactions/:id
   async get(id) {
     try {

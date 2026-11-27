@@ -352,6 +352,87 @@ exports.reverseAllocation = async (allocationId, body = {}, context) => {
 };
 
 /* ======================================================
+   POS — recent payments summary
+   ====================================================== */
+
+const RECENT_HOURS = 48;
+const RECENT_LIMIT = 500;
+
+/**
+ * M-Pesa payments of the last 48 hours: which bills each one closed, what
+ * those bills still owe, and any excess (tip, deposit or not matched yet).
+ * The payer's number is always masked here, whoever is looking.
+ */
+exports.getRecent = async () => {
+  const rows = await repo.listRecent({ hours: RECENT_HOURS, limit: RECENT_LIMIT });
+
+  const items = rows.map((r) => {
+    const base = toDto(r, null); // null context → masked phone
+    const bills = (r.bills || []).map((b) => {
+      const balanceDue = round2(Math.max(0, num(b.balance_due)));
+      return {
+        billId: b.bill_id,
+        invoiceNumber: b.invoice_number,
+        customerName: b.customer_name,
+        status: b.status,
+        closed: b.status === "completed",
+        applied: round2(num(b.applied)),
+        total: round2(num(b.total)),
+        outstanding: balanceDue,
+      };
+    });
+    const toBills = round2(bills.reduce((s, b) => s + b.applied, 0));
+    const tips = round2(num(r.tips_amount));
+    return {
+      id: base.id,
+      receipt: base.receipt,
+      amount: base.amount,
+      payerName: base.payerName,
+      phone: base.phone,
+      transactionAt: base.transactionAt,
+      status: base.status,
+      source: base.source,
+      possibleDuplicate: !!base.possibleDuplicateOf,
+      bills,
+      toBills,
+      tips,
+      tipNames: r.tip_names,
+      // Money beyond what went to bills: tip + whatever is still on the payment.
+      excess: round2(base.amount - toBills),
+      unallocated: base.depositLabel ? 0 : base.remaining,
+      deposit: base.depositLabel ? base.remaining : 0,
+      depositLabel: base.depositLabel,
+      outstanding: round2(bills.reduce((s, b) => s + b.outstanding, 0)),
+      matchedBy: r.matched_by,
+    };
+  });
+
+  const closedBills = new Set();
+  const openBills = new Map();
+  for (const i of items) {
+    for (const b of i.bills) {
+      if (b.closed) closedBills.add(b.billId);
+      else openBills.set(b.billId, b.outstanding);
+    }
+  }
+
+  const totals = {
+    count: items.length,
+    received: round2(items.reduce((s, i) => s + i.amount, 0)),
+    toBills: round2(items.reduce((s, i) => s + i.toBills, 0)),
+    billsClosed: closedBills.size,
+    billsWithBalance: openBills.size,
+    outstanding: round2([...openBills.values()].reduce((s, v) => s + v, 0)),
+    excess: round2(items.reduce((s, i) => s + i.excess, 0)),
+    tips: round2(items.reduce((s, i) => s + i.tips, 0)),
+    deposits: round2(items.reduce((s, i) => s + i.deposit, 0)),
+    unallocated: round2(items.reduce((s, i) => s + i.unallocated, 0)),
+  };
+
+  return { hours: RECENT_HOURS, items, totals, truncated: rows.length === RECENT_LIMIT };
+};
+
+/* ======================================================
    ERP (back office) — manage_mpesa
    ====================================================== */
 
